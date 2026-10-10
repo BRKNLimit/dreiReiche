@@ -2,7 +2,7 @@
 // Domänenmechanik unter Stress zeigt. Nutzt nur issue(), nie direkten Zugriff.
 // Nur Integer-Arithmetik und rng() -- dieselben Regeln wie die Simulation.
 
-import { issue, dist2, isqrt, isCleared, anchorRadius, inDomain, rng, cosDeg, sinDeg } from './sim.js';
+import { issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, rng, cosDeg, sinDeg } from './sim.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP } from './defs.js';
 
 const PLAN = {
@@ -37,6 +37,7 @@ export function stepAI(ai, world) {
   for (const b of bauten) {
     const d = BUILDINGS[b.type];
     bilanz += (d.gegenwartOut || 0) - (d.gegenwartIn || 0);
+    if (d.anchor) bilanz += ankerGegenwart(anchorRadius(world, b));
   }
   const ziel = gegnerHaupt(world, ai.player);
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.

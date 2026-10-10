@@ -156,6 +156,12 @@ const RULES = {
   // Offene Designfrage aus docs/konzept.md: Macht ein Malus die Grenze zum
   // eigentlichen Schlachtfeld? Messung in docs/scope.md.
   fremdMalus: 1000,
+
+  // Gegenwart, die jeder fertige Anker spendet, pro 100 m Radius.
+  // konzept.md nennt "Schreine und Anker" als Herkunft der Gegenwart; bisher
+  // spendeten nur die Hauptgebaeude. Damit haengt die Wirtschaft an der
+  // einen Regel: ein grosser Kreis traegt mehr als ein kleiner. 0 = aus.
+  ankerKraft: 0,
 };
 const FACTIONS = {
   mensch: {
@@ -724,6 +730,11 @@ function byId(world, id) {
 
 // ------------------------------------------------------- Domäne und Gegenwart
 
+/** Gegenwart, die ein Anker mit diesem Radius spendet (RULES.ankerKraft). */
+function ankerGegenwart(r) {
+  return ((r * RULES.ankerKraft) / 1000) | 0;
+}
+
 /** Liegt der Punkt in der Domäne dieses Spielers? */
 function inDomain(world, player, x, y) {
   for (let i = 0; i < world.entities.length; i++) {
@@ -813,6 +824,7 @@ function distributeGegenwart(world) {
       const e = reg.members[i];
       const def = BUILDINGS[e.type];
       if (e.done && def.gegenwartOut) supply += def.gegenwartOut;
+      if (e.anchorR > 0) supply += ankerGegenwart(e.anchorR);
       const d = demandOf(e);
       if (d > 0) demand[prioOf(e)] += d;
     }
@@ -1291,6 +1303,7 @@ function stepAI(ai, world) {
   for (const b of bauten) {
     const d = BUILDINGS[b.type];
     bilanz += (d.gegenwartOut || 0) - (d.gegenwartIn || 0);
+    if (d.anchor) bilanz += ankerGegenwart(anchorRadius(world, b));
   }
   const ziel = gegnerHaupt(world, ai.player);
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.

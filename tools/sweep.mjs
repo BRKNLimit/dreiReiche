@@ -24,6 +24,14 @@ export const CONFIGS = {
   'Gott start 1000': { g: { start: 1000 } },
   'Gott max 3900': { g: { max: 3900 } },
   'Gott max 7000': { g: { max: 7000 } },
+  'Ankerkraft 1': { rules: { ankerKraft: 1 } },
+  'Ankerkraft 1 + max 3900': { rules: { ankerKraft: 1 }, g: { max: 3900 } },
+  'Ankerkraft 1 + max 7000': { rules: { ankerKraft: 1 }, g: { max: 7000 } },
+  'Ankerkraft 2': { rules: { ankerKraft: 2 } },
+  // Lange Partien: Hauptgebaeude vierfach so zaeh -- zaehlt max dann?
+  'lang': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } } },
+  'lang + max 3900': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 3900 } },
+  'lang + max 7000': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 7000 } },
   'malus 800': { rules: { fremdMalus: 800 } },
   'malus 650': { rules: { fremdMalus: 650 } },
   'malus 800 + homeBonus 1250': { rules: { fremdMalus: 800 }, hb: 1250 },
@@ -76,7 +84,7 @@ if (isMainThread) {
   const { name, seeds, maxMin } = workerData;
   const { createWorld, step } = await import('../src/sim/sim.js');
   const { createAI, stepAI } = await import('../src/sim/ai.js');
-  const { FACTIONS, UNITS, RULES } = await import('../src/sim/defs.js');
+  const { FACTIONS, UNITS, BUILDINGS, RULES } = await import('../src/sim/defs.js');
   const c = CONFIGS[name];
   Object.assign(FACTIONS.gott.growth, c.g || {});
   Object.assign(FACTIONS.mensch.growth, c.m || {});
@@ -85,6 +93,7 @@ if (isMainThread) {
   }
   Object.assign(RULES, c.rules || {});
   for (const [u, cost] of Object.entries(c.units || {})) Object.assign(UNITS[u].cost, cost);
+  for (const [b, werte] of Object.entries(c.buildings || {})) Object.assign(BUILDINGS[b], werte);
 
   const games = [];
   let m = 0;

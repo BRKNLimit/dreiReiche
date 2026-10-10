@@ -326,6 +326,11 @@ export function byId(world, id) {
 
 // ------------------------------------------------------- Domäne und Gegenwart
 
+/** Gegenwart, die ein Anker mit diesem Radius spendet (RULES.ankerKraft). */
+export function ankerGegenwart(r) {
+  return ((r * RULES.ankerKraft) / 1000) | 0;
+}
+
 /** Liegt der Punkt in der Domäne dieses Spielers? */
 export function inDomain(world, player, x, y) {
   for (let i = 0; i < world.entities.length; i++) {
@@ -416,6 +421,7 @@ export function distributeGegenwart(world) {
       const e = reg.members[i];
       const def = BUILDINGS[e.type];
       if (e.done && def.gegenwartOut) supply += def.gegenwartOut;
+      if (e.anchorR > 0) supply += ankerGegenwart(e.anchorR);
       const d = demandOf(e);
       if (d > 0) demand[prioOf(e)] += d;
     }

@@ -32,6 +32,12 @@ export const RULES = {
   // Offene Designfrage aus docs/konzept.md: Macht ein Malus die Grenze zum
   // eigentlichen Schlachtfeld? Messung in docs/scope.md.
   fremdMalus: 1000,
+
+  // Gegenwart, die jeder fertige Anker spendet, pro 100 m Radius.
+  // konzept.md nennt "Schreine und Anker" als Herkunft der Gegenwart; bisher
+  // spendeten nur die Hauptgebaeude. Damit haengt die Wirtschaft an der
+  // einen Regel: ein grosser Kreis traegt mehr als ein kleiner. 0 = aus.
+  ankerKraft: 0,
 };
 
 export const FACTIONS = {

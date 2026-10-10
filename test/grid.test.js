@@ -579,3 +579,22 @@ test('ein Ziel im Gebäude: Einheit bleibt am Rand stehen', () => {
   const d = isqrt(dist2(lw.x, lw.y, b.x, b.y));
   assert.ok(d >= min - 2 && d <= min + UNITS.koehler.speed, `am Rand: ${d}`);
 });
+
+test('Ankerkraft: eingeschaltet spendet jeder Anker Gegenwart nach Radius', () => {
+  const welt = () => {
+    const w = bare();
+    spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+    computeRegions(w);
+    distributeGegenwart(w);
+    return w.regions[0].supply;
+  };
+  const alt = RULES.ankerKraft;
+  try {
+    RULES.ankerKraft = 0;
+    assert.equal(welt(), 0, 'aus: ein Turm liefert nichts');
+    RULES.ankerKraft = 2;
+    assert.equal(welt(), ((FACTIONS.mensch.growth.start * 2) / 1000) | 0);
+  } finally {
+    RULES.ankerKraft = alt;
+  }
+});

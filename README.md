@@ -88,6 +88,7 @@ tools/match.mjs   KI gegen KI, misst Siege, Dauer, Fläche, Kampfort
 tools/sweep.mjs   Einstellungen parallel vergleichen
 docs/konzept.md   das Designdokument
 docs/scope.md     Umfang, Befunde, bekannte Schwächen
+CHANGELOG.md      was sich in welcher Version geändert hat
 test/             node:test
 ```
 

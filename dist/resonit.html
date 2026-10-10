@@ -1202,7 +1202,7 @@ const PLAN = {
   gott: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', leicht: 'schratt', schwer: 'geweihter' },
 };
 function createAI(player = 1, seed = 1) {
-  return { player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [] };
+  return { player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0 };
 }
 function stepAI(ai, world) {
   if (world.over || world.tick < ai.next) return;
@@ -1342,14 +1342,22 @@ function stepAI(ai, world) {
     if (ids.length) issue(world, { type: 'move', player: ai.player, ids, x: bedrohung.x, y: bedrohung.y });
   }
 
-  // 8. Angriff in wachsenden Wellen. Wer schon unterwegs ist, bleibt dabei.
+  // 8. Angriff in wachsenden Wellen. Erstes Ziel ist ein gegnerischer
+  //    Foerderbau fuer Goetterblut -- die Mitte entscheidet --, sonst das
+  //    Hauptgebaeude. Faellt das Ziel, zieht die Welle zum naechsten weiter.
   ai.unterwegs = ai.unterwegs.filter((id) => einheiten.some((u) => u.id === id));
   const daheimStehend = einheiten.filter((u) => !ai.unterwegs.includes(u.id));
-  if (!bedrohung && daheimStehend.length >= 8 + ai.welle * 3 && ziel) {
+  const angriff = gegnerFoerderung(world, ai.player, haupt) || ziel;
+  if (ai.unterwegs.length && angriff && !world.entities.some((e) => e.id === ai.welleZiel && !e.dead)) {
+    ai.welleZiel = angriff.id;
+    issue(world, { type: 'move', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
+  }
+  if (!bedrohung && daheimStehend.length >= 8 + ai.welle * 3 && angriff) {
     ai.welle++;
+    ai.welleZiel = angriff.id;
     const ids = daheimStehend.map((u) => u.id);
     ai.unterwegs.push(...ids);
-    issue(world, { type: 'move', player: ai.player, ids, x: ziel.x, y: ziel.y });
+    issue(world, { type: 'move', player: ai.player, ids, x: angriff.x, y: angriff.y });
     return;
   }
 
@@ -1479,6 +1487,21 @@ function naechsterEindringling(world, me, bauten) {
     }
   }
   return best || drin;
+}
+
+/** Naechster gegnerischer Foerderbau fuer Goetterblut, vom eigenen Hauptgebaeude aus. */
+function gegnerFoerderung(world, me, haupt) {
+  let best = null;
+  let bestD = Infinity;
+  for (const e of world.entities) {
+    if (e.dead || e.player === me || e.kind !== 'building' || !BUILDINGS[e.type].blutOut) continue;
+    const dd = dist2(e.x, e.y, haupt.x, haupt.y);
+    if (dd < bestD) {
+      bestD = dd;
+      best = e;
+    }
+  }
+  return best;
 }
 
 function gegnerHaupt(world, me) {

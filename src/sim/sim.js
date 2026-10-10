@@ -342,6 +342,20 @@ export function inDomain(world, player, x, y) {
   return false;
 }
 
+/** Wie tief liegt der Punkt in der eigenen Domaene? Abstand zum naechsten Rand, 0 = draussen. */
+export function domainDepth(world, player, x, y) {
+  let best = 0;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.player !== player || e.kind !== 'building') continue;
+    const r = anchorRadius(world, e);
+    if (r === 0) continue;
+    const t = r - isqrt(dist2(x, y, e.x, e.y));
+    if (t > best) best = t;
+  }
+  return best;
+}
+
 /** Liegt der Punkt in der Domaene irgendeines anderen Spielers? */
 export function inForeignDomain(world, player, x, y) {
   for (let p = 0; p < world.players.length; p++) {
@@ -738,8 +752,13 @@ function combat(world) {
 
     let dmg = def.weapon.damage;
     // Heimvorteil: auf eigenem Boden staerker. Der Gott lebt davon.
-    if (def.homeBonus && inDomain(world, e.player, e.x, e.y)) {
+    if (def.homeBonus && RULES.tiefeVoll === 0 && inDomain(world, e.player, e.x, e.y)) {
       dmg = ((dmg * def.homeBonus) / 1000) | 0;
+    } else if (def.homeBonus && RULES.tiefeVoll > 0) {
+      // Nach Tiefe: am Rand nichts, ab tiefeVoll der volle Bonus.
+      const t = Math.min(RULES.tiefeVoll, domainDepth(world, e.player, e.x, e.y));
+      const bonus = 1000 + (((def.homeBonus - 1000) * t) / RULES.tiefeVoll) | 0;
+      dmg = ((dmg * bonus) / 1000) | 0;
     }
     // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
     // schwaecher zu. Gilt fuer alle Fraktionen gleich.

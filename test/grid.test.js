@@ -598,3 +598,26 @@ test('Ankerkraft: eingeschaltet spendet jeder Anker Gegenwart nach Radius', () =
     RULES.ankerKraft = alt;
   }
 });
+
+test('Heimvorteil nach Tiefe: am Rand nichts, tief drinnen voll', () => {
+  const gefecht = (abstand) => {
+    const w = bare('gott', 'mensch');
+    spawnBuilding(w, 0, 'herzbaum', 5000, 5000, true); // Radius = start
+    const s = spawnUnit(w, 0, 'schratt', 5000 + abstand, 5000);
+    const ziel = spawnUnit(w, 1, 'koehler', 5000 + abstand, 5300);
+    const hp = ziel.hp;
+    step(w);
+    void s;
+    return hp - ziel.hp;
+  };
+  const alt = RULES.tiefeVoll;
+  try {
+    RULES.tiefeVoll = 500;
+    const r = FACTIONS.gott.growth.start;
+    const basis = UNITS.schratt.weapon.damage;
+    assert.equal(gefecht(r - 5), basis, 'am Rand: kein Bonus');
+    assert.equal(gefecht(0), ((basis * UNITS.schratt.homeBonus) / 1000) | 0, 'tief drinnen: voll');
+  } finally {
+    RULES.tiefeVoll = alt;
+  }
+});

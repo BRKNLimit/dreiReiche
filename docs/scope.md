@@ -137,10 +137,10 @@ Angriffsbewegung bei Gott start 950 von 76 : 84 auf 60 : 100 (je 160).
 Balance-Aussagen aus KI-Partien sind Hinweise, keine Wahrheit — deshalb
 wird der Startradius nicht nach jeder KI-Änderung nachgestellt.
 
-### 6. Wann zählt der späte Radius? Drei Versuche, kein Effekt
+### 6. Wann zählt der späte Radius? Vier Versuche, kein Effekt
 
 Der Höchstradius des Gottes (`max`) ist die Hälfte der einen Regel. In
-keiner Messung hat er das Ergebnis bewegt. Drei Versuche, ihn wirksam zu
+keiner Messung hat er das Ergebnis bewegt. Vier Versuche, ihn wirksam zu
 machen (je 160 Partien, Menschen : Gott bei max 3900 / 5200 / 7000):
 
 | Versuch | 3900 | 5200 | 7000 |
@@ -148,6 +148,8 @@ machen (je 160 Partien, Menschen : Gott bei max 3900 / 5200 / 7000):
 | Standard | 59 : 101 | 60 : 100 | 60 : 100 |
 | Ankerkraft 1: jeder Anker spendet Gegenwart nach Radius | 21 : 139 | 19 : 141 | 18 : 142 |
 | Lange Partien: Hauptgebäude vierfach so zäh | 58 : 102 | 60 : 100 | 60 : 100 |
+| Heimvorteil nach Tiefe, voll ab 150 m | 59 : 101 | 60 : 100 | 60 : 100 |
+| Heimvorteil nach Tiefe, voll ab 300 m | 66 : 94 | 64 : 96 | 64 : 96 |
 
 - **Ankerkraft** (`RULES.ankerKraft`, aus): `konzept.md` nennt „Schreine und
   Anker“ als Herkunft der Gegenwart, gespendet haben bisher nur die
@@ -156,6 +158,10 @@ machen (je 160 Partien, Menschen : Gott bei max 3900 / 5200 / 7000):
   weil ein Turm die volle Gegenwart ab Bauende liefert. `max` bleibt wirkungslos.
 - **Lange Partien** verlängern sich nur um 1,4 Minuten: Entschieden wird,
   wenn eine Armee zusammenbricht; das Hauptgebäude fällt danach ohnehin.
+- **Heimvorteil nach Tiefe** (`RULES.tiefeVoll`, aus): am Rand der eigenen
+  Domäne kein Bonus, ab der angegebenen Tiefe der volle. Wirkungslos, weil
+  der Gott entweder tief zu Hause verteidigt oder auf fremdem Boden angreift
+  — nie in dem Ring, den nur der späte Radius abdeckt.
 - `fremdMalus` (Abschnitt 4) verlängert Partien ebenfalls, ohne dass `max` wirkt.
 
 **Befund:** Entschieden wird zwischen Minute 5 und 15. Ein Hain erreicht
@@ -163,9 +169,10 @@ seinen Höchstradius erst gut sieben Minuten nach Bauende, und was jenseits
 von 390 m liegt, trägt zu keinem Gefecht und keiner Ressource bei. Der
 Unterschied zwischen den Fraktionen liegt im *frühen* Verlauf: Startradius,
 Reichweite zur Mitte, Heimvorteil. Wenn das Wachstum selbst spürbar werden
-soll, braucht der späte Radius etwas, das nur er erreicht — etwa Adern weit
-draußen, oder einen Heimvorteil, der mit der Tiefe in der eigenen Domäne
-wächst. Das ist eine Designfrage, keine Zahl.
+soll, braucht der späte Radius etwas, das nur er erreicht — etwa Adern oder
+Ziele, die nur eine große Domäne versorgt. Mehr Kampfkraft in der Fläche
+reicht nicht, solange dort nicht gekämpft wird. Das ist eine Designfrage,
+keine Zahl.
 
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 

@@ -32,6 +32,13 @@ export const CONFIGS = {
   'lang': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } } },
   'lang + max 3900': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 3900 } },
   'lang + max 7000': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 7000 } },
+  // Heimvorteil nach Tiefe -- zaehlt max dann?
+  'Tiefe 1500': { rules: { tiefeVoll: 1500 } },
+  'Tiefe 1500 + max 3900': { rules: { tiefeVoll: 1500 }, g: { max: 3900 } },
+  'Tiefe 1500 + max 7000': { rules: { tiefeVoll: 1500 }, g: { max: 7000 } },
+  'Tiefe 3000': { rules: { tiefeVoll: 3000 } },
+  'Tiefe 3000 + max 3900': { rules: { tiefeVoll: 3000 }, g: { max: 3900 } },
+  'Tiefe 3000 + max 7000': { rules: { tiefeVoll: 3000 }, g: { max: 7000 } },
   'malus 800': { rules: { fremdMalus: 800 } },
   'malus 650': { rules: { fremdMalus: 650 } },
   'malus 800 + homeBonus 1250': { rules: { fremdMalus: 800 }, hb: 1250 },

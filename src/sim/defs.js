@@ -38,6 +38,12 @@ export const RULES = {
   // spendeten nur die Hauptgebaeude. Damit haengt die Wirtschaft an der
   // einen Regel: ein grosser Kreis traegt mehr als ein kleiner. 0 = aus.
   ankerKraft: 0,
+
+  // Heimvorteil nach Tiefe: volle Wirkung erst so viele dm vom Rand der
+  // eigenen Domaene entfernt, am Rand keine. Ein grosser Radius macht die
+  // Domaene tief -- so koennte der spaete Radius im Gefecht zaehlen.
+  // 0 = aus: drinnen voller Bonus, draussen keiner.
+  tiefeVoll: 0,
 };
 
 export const FACTIONS = {

@@ -55,6 +55,13 @@
     text-transform: uppercase; font-size: 12px; background: #232a1c; border-radius: 3px;
   }
 
+  .area { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .spark { display: block; width: 100%; height: 38px; margin-top: 4px; }
+  .sel { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 12px; }
+  .sel b { font-weight: 600; }
+  .keys { color: var(--dim); font-size: 11px; margin-top: 2px; }
+  #hud kbd { font: 10px ui-monospace, monospace; color: var(--accent); }
+
   #bar {
     position: absolute; bottom: 0; left: 0; right: 0;
     display: flex; gap: 6px; align-items: center;
@@ -93,7 +100,7 @@
     <button id="asGott">Als Gott</button>
     <span class="hint">
       Linksklick wählt · Rechtsklick bewegt · Mausrad zoomt · Mittlere Taste schiebt ·
-      Hauptgebäude anklicken, dann <b>Q</b>/<b>W</b> für Einheiten · Leertaste pausiert · +/− Tempo
+      Gebäude anklicken: <b>Q</b>/<b>W</b> Einheiten, <b>Entf</b> abreißen · Leertaste pausiert · +/− Tempo
     </span>
   </div>
 </div>
@@ -117,11 +124,20 @@ const PRIO = {
 };
 const PRIO_NAMES = ['Zorn', 'Wehr', 'Segen', 'Werk'];
 
-// Mindestfluss fuer Werk, in Promille der Versorgung einer Domaene.
-// Ohne ihn kann Segen die gesamte Gegenwart binden, und die Baustelle der
-// Quelle, die das aendern wuerde, steht fuer immer still. Werk faellt weiter
-// zuerst -- aber nie ganz auf null, solange ueberhaupt Gegenwart fliesst.
-const WERK_FLOOR = 125;
+// Regeln, die fuer alle Fraktionen gleich gelten. Ein Objekt, damit Messungen
+// (tools/match.mjs) sie umschalten koennen, ohne die Datei zu aendern.
+const RULES = {
+  // Mindestfluss fuer Werk, in Promille der Versorgung einer Domaene.
+  // Ohne ihn kann Segen die gesamte Gegenwart binden, und die Baustelle der
+  // Quelle, die das aendern wuerde, steht fuer immer still. Werk faellt weiter
+  // zuerst -- aber nie ganz auf null, solange ueberhaupt Gegenwart fliesst.
+  werkFloor: 125,
+
+  // Schaden in fremder Domaene, in Promille. 1000 = kein Malus.
+  // Offene Designfrage aus docs/konzept.md: Macht ein Malus die Grenze zum
+  // eigentlichen Schlachtfeld? Messung in docs/scope.md.
+  fremdMalus: 1000,
+};
 const FACTIONS = {
   mensch: {
     name: 'Menschen',
@@ -526,6 +542,8 @@ function applyCommands(world) {
       }
     } else if (c.type === 'build') {
       tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
+    } else if (c.type === 'demolish') {
+      demolish(world, c.player, c.id);
     } else if (c.type === 'produce') {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
@@ -577,6 +595,24 @@ function tryPlace(world, player, type, x, y) {
   if (dep) dep.takenBy = b.id;
   return b;
 }
+
+/**
+ * Abriss. Ein Ausweg aus Fehlplanungen: Baustellen bringen drei Viertel der
+ * Kosten zurueck, fertige Gebaeude die Haelfte, Bauauftraege voll. Gerodeter
+ * Boden bleibt gerodet. Hauptgebaeude lassen sich nicht abreissen.
+ */
+function demolish(world, player, id) {
+  const e = byId(world, id);
+  if (!e || e.dead || e.kind !== 'building' || e.player !== player) return false;
+  const def = BUILDINGS[e.type];
+  if (def.vital) return false;
+  let back = ((def.cost.fron * (e.done ? 500 : 750)) / 1000) | 0;
+  for (let i = 0; i < e.queue.length; i++) back += UNITS[e.queue[i]].cost.fron;
+  world.players[player].fron += back;
+  e.dead = true;
+  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, fron: back });
+  return true;
+}
 function findDeposit(world, x, y, kind, maxDist = 700) {
   let best = null;
   let bestD = maxDist * maxDist;
@@ -607,6 +643,14 @@ function inDomain(world, player, x, y) {
     if (e.dead || e.player !== player || e.kind !== 'building') continue;
     const r = anchorRadius(world, e);
     if (r > 0 && dist2(x, y, e.x, e.y) <= r * r) return true;
+  }
+  return false;
+}
+
+/** Liegt der Punkt in der Domaene irgendeines anderen Spielers? */
+function inForeignDomain(world, player, x, y) {
+  for (let p = 0; p < world.players.length; p++) {
+    if (p !== player && inDomain(world, p, x, y)) return true;
   }
   return false;
 }
@@ -691,7 +735,7 @@ function distributeGegenwart(world) {
 
     // Mindestfluss: ein kleiner Teil bleibt fuer Werk reserviert, damit eine
     // ueberbuchte Domaene sich selbst aus dem Loch bauen kann.
-    const reserve = Math.min(demand[PRIO.werk], ((supply * WERK_FLOOR) / 1000) | 0);
+    const reserve = Math.min(demand[PRIO.werk], ((supply * RULES.werkFloor) / 1000) | 0);
     let left = supply - reserve;
     for (let p = 0; p < 4; p++) {
       if (p === PRIO.werk) left += reserve;
@@ -882,6 +926,11 @@ function combat(world) {
     if (def.homeBonus && inDomain(world, e.player, e.x, e.y)) {
       dmg = ((dmg * def.homeBonus) / 1000) | 0;
     }
+    // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
+    // schwaecher zu. Gilt fuer alle Fraktionen gleich.
+    if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
+      dmg = ((dmg * RULES.fremdMalus) / 1000) | 0;
+    }
     target.hp -= dmg;
     e.cooldown = def.weapon.cooldown;
     world.events.push({ t: 'shot', from: e.id, to: target.id });
@@ -1067,18 +1116,13 @@ function stepAI(ai, world) {
     return bau(plan.fabrik, ...daheim(world, haupt, 900, front + 200 + n * 70));
   }
 
-  // 4. Anker. Die Zahl steigt mit der Zeit, ausgebreitet in einem Faecher
-  //    Richtung Gegner -- der eigentliche Vorteil fester Kreise.
+  // 4. Anker. Die Zahl steigt mit der Zeit. Jeder neue Anker kommt an den
+  //    Rand der eigenen Domaene, moeglichst weit weg von den bestehenden --
+  //    sonst ueberdecken sich die Kreise und Wachstum bringt keine Flaeche.
   const ankerZiel = 2 + minute;
   if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + 150) {
-    const n = zahl(plan.anker);
-    const basis = front;
-    const streu = (rng(ai) % 41) - 20;
-    const faecher = ((n % 5) - 2) * 25 + streu;
-    const schritt = 1800 + ((n / 5) | 0) * 1700 + (rng(ai) % 600);
-    const x = grenze(haupt.x + ((schritt * cosDeg(basis + faecher)) / 1000) | 0);
-    const y = grenze(haupt.y + ((schritt * sinDeg(basis + faecher)) / 1000) | 0);
-    if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) return bau(plan.anker, x, y);
+    const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
+    if (platz) return bau(plan.anker, platz.x, platz.y);
   }
 
   // 5. Stockende Baustelle: einen Anker dazwischensetzen.
@@ -1125,16 +1169,90 @@ function stepAI(ai, world) {
     const ids = daheimStehend.map((u) => u.id);
     ai.unterwegs.push(...ids);
     issue(world, { type: 'move', player: ai.player, ids, x: ziel.x, y: ziel.y });
+    return;
+  }
+
+  // 9. Sammeln am vordersten Anker. Wer wartet, wartet an der Grenze -- dort,
+  //    wo die eigene Domaene dem Gegner am naechsten ist.
+  if (!bedrohung && ziel) {
+    const vorn = vordersterAnker(world, bauten, ziel);
+    if (vorn) {
+      const ids = daheimStehend
+        .filter((u) => dist2(u.x, u.y, vorn.x, vorn.y) > 700 * 700)
+        .map((u) => u.id);
+      if (ids.length) issue(world, { type: 'move', player: ai.player, ids, x: vorn.x, y: vorn.y });
+    }
   }
 }
 
-/** Feindliche Einheit, die einem eigenen Gebaeude am naechsten gekommen ist. */
+/**
+ * Bauplatz fuer einen Anker: in der eigenen Domaene (sonst steht die
+ * Baustelle ohne Gegenwart), im Halbkreis Richtung Front, und dort, wo der
+ * naechste eigene Anker am weitesten weg ist.
+ */
+function randplatz(world, ai, haupt, front, bauten, typ) {
+  const def = BUILDINGS[typ];
+  const anker = bauten.filter((b) => BUILDINGS[b.type].anchor);
+  const versatz = (rng(ai) % 9) - 4;
+  let best = null;
+  let bestS = -1;
+  for (let g = -90; g <= 90; g += 10) {
+    const grad = front + g + versatz;
+    for (let d = 1000; d <= 14000; d += 400) {
+      const x = grenze(haupt.x + ((d * cosDeg(grad)) / 1000) | 0);
+      const y = grenze(haupt.y + ((d * sinDeg(grad)) / 1000) | 0);
+      if (!inDomain(world, ai.player, x, y)) continue;
+      if (def.needsGrowth && isCleared(world, x, y)) continue;
+      if (blockiert(world, x, y, def.radius)) continue;
+      let s = Infinity;
+      for (const a of anker) s = Math.min(s, dist2(x, y, a.x, a.y));
+      if (s > bestS) {
+        bestS = s;
+        best = { x, y };
+      }
+    }
+  }
+  return best;
+}
+
+/** Steht hier schon ein Gebaeude im Weg? Dieselbe Regel wie tryPlace(). */
+function blockiert(world, x, y, radius) {
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'building') continue;
+    const min = radius + BUILDINGS[e.type].radius + 20;
+    if (dist2(x, y, e.x, e.y) < min * min) return true;
+  }
+  return false;
+}
+
+/** Fertiger Anker, der dem Ziel am naechsten steht. */
+function vordersterAnker(world, bauten, ziel) {
+  let best = null;
+  let bestD = Infinity;
+  for (const b of bauten) {
+    if (!b.done || anchorRadius(world, b) === 0) continue;
+    const dd = dist2(b.x, b.y, ziel.x, ziel.y);
+    if (dd < bestD) {
+      bestD = dd;
+      best = b;
+    }
+  }
+  return best;
+}
+
+/**
+ * Feindliche Einheit, die einem eigenen Gebaeude am naechsten gekommen ist --
+ * oder die irgendwo in der eigenen Domaene steht. Eine grosse Domaene ist
+ * damit auch ein grosses Gebiet, das verteidigt wird.
+ */
 function naechsterEindringling(world, me, bauten) {
   const nah = 3000 * 3000;
   let best = null;
   let bestD = nah;
+  let drin = null;
   for (const o of world.entities) {
     if (o.dead || o.player === me || o.kind !== 'unit') continue;
+    if (!drin && inDomain(world, me, o.x, o.y)) drin = o;
     for (const b of bauten) {
       const dd = dist2(o.x, o.y, b.x, b.y);
       if (dd < bestD) {
@@ -1143,7 +1261,7 @@ function naechsterEindringling(world, me, bauten) {
       }
     }
   }
-  return best;
+  return best || drin;
 }
 
 function gegnerHaupt(world, me) {
@@ -1253,6 +1371,7 @@ function neu(f) {
   aiMe = null;
   sel = [];
   placing = null;
+  flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
   cam.x = 3000;
   cam.y = 3000;
   renderBar();
@@ -1328,8 +1447,7 @@ addEventListener('mouseup', () => {
     }
     if (!box && picked.length === 0) {
       for (const e of world.entities) {
-        if (e.player !== ME || e.kind !== 'building' || !e.done) continue;
-        if (!BUILDINGS[e.type].buildList) continue;
+        if (e.player !== ME || e.kind !== 'building') continue;
         if (Math.hypot(w2sx(e.x) - x1, w2sy(e.y) - y1) < BUILDINGS[e.type].radius * cam.z + 12) {
           sel = [e.id];
           drag = null;
@@ -1369,6 +1487,10 @@ addEventListener('keydown', (e) => {
   }
   if (e.key === '+') speed = Math.min(8, speed * 2);
   if (e.key === '-') speed = Math.max(0.5, speed / 2);
+  if ((e.key === 'Delete' || e.key === 'Backspace') && sel.length === 1) {
+    const b = byId(world, sel[0]);
+    if (b && b.kind === 'building') issue(world, { type: 'demolish', player: ME, id: b.id });
+  }
   if ((e.key === 'q' || e.key === 'w') && sel.length === 1) {
     const b = byId(world, sel[0]);
     if (b && b.kind === 'building' && b.done && BUILDINGS[b.type].buildList) {
@@ -1669,8 +1791,77 @@ function drawHud() {
       <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''} ×${speed}</span>
     </div>
+    ${flaecheHtml()}
+    ${auswahlHtml()}
     <div class="regs">${rows}</div>
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}`;
+}
+
+// ------------------------------------------------------------ Domänenfläche
+// Die Kernfrage des Prototyps, sichtbar gemacht: Wie groß ist welche Domäne
+// gerade, und wie hat sich das entwickelt? Nur Anzeige, ändert nichts.
+const FLAECHE_RASTER = 200; // dm, also 20 m × 20 m = 0,04 ha je Zelle
+let flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
+
+function messeFlaeche() {
+  if (flaeche.tick >= 0 && world.tick >= flaeche.tick && world.tick - flaeche.tick < 50) return;
+  flaeche.tick = world.tick;
+  const zellen = [0, 0];
+  for (let y = FLAECHE_RASTER >> 1; y < MAP; y += FLAECHE_RASTER) {
+    for (let x = FLAECHE_RASTER >> 1; x < MAP; x += FLAECHE_RASTER) {
+      for (let p = 0; p < 2; p++) if (inDomain(world, p, x, y)) zellen[p]++;
+    }
+  }
+  const zelleHa = (FLAECHE_RASTER * FLAECHE_RASTER) / 1e6; // dm² -> ha
+  flaeche.ha = zellen.map((z) => Math.round(z * zelleHa));
+  const n = Math.floor(world.tick / 300); // alle 30 s ein Punkt
+  for (let p = 0; p < 2; p++) {
+    flaeche.verlauf[p][n] = flaeche.ha[p];
+  }
+}
+
+function flaecheHtml() {
+  messeFlaeche();
+  const v = flaeche.verlauf;
+  const len = Math.max(v[0].length, 2);
+  const top = Math.max(1, ...v[0].filter(Number.isFinite), ...v[1].filter(Number.isFinite));
+  const linie = (arr) =>
+    arr
+      .map((h, i) => (Number.isFinite(h) ? `${((i / (len - 1)) * 240).toFixed(1)},${(36 - (h / top) * 34).toFixed(1)}` : ''))
+      .filter(Boolean)
+      .join(' ');
+  const farbe = (p) => FACTIONS[world.players[p].faction].color;
+  const gegner = 1 - ME;
+  return `<div class="area">
+      <div class="res">
+        <b>Domäne</b><span style="color:${farbe(ME)}">${flaeche.ha[ME]} ha</span>
+        <b>Gegner</b><span style="color:${farbe(gegner)}">${flaeche.ha[gegner]} ha</span>
+      </div>
+      <svg viewBox="0 0 240 38" preserveAspectRatio="none" class="spark">
+        <polyline points="${linie(v[gegner])}" fill="none" stroke="${farbe(gegner)}" stroke-width="1.2" opacity=".6"/>
+        <polyline points="${linie(v[ME])}" fill="none" stroke="${farbe(ME)}" stroke-width="1.6"/>
+      </svg></div>`;
+}
+
+function auswahlHtml() {
+  if (sel.length !== 1) return '';
+  const e = byId(world, sel[0]);
+  if (!e || e.kind !== 'building') return '';
+  const def = BUILDINGS[e.type];
+  const zustand = !e.done
+    ? `Baustelle ${Math.min(100, Math.floor(e.progress / (def.buildTime * 10)))} %`
+    : e.powered < 1000
+      ? `gedrosselt ${Math.round(e.powered / 10)} %`
+      : 'versorgt';
+  const tasten = def.buildList
+    ? def.buildList
+        .slice(1)
+        .map((u, i) => `<kbd>${'QW'[i]}</kbd> ${UNITS[u].name}`)
+        .join(' · ')
+    : '';
+  const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';
+  return `<div class="sel"><b>${def.name}</b> — ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
+    <div class="keys">${tasten}${abriss}</div></div>`;
 }
 
 function drossel(r) {

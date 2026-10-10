@@ -40,6 +40,7 @@ function neu(f) {
   aiMe = null;
   sel = [];
   placing = null;
+  flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
   cam.x = 3000;
   cam.y = 3000;
   renderBar();
@@ -115,8 +116,7 @@ addEventListener('mouseup', () => {
     }
     if (!box && picked.length === 0) {
       for (const e of world.entities) {
-        if (e.player !== ME || e.kind !== 'building' || !e.done) continue;
-        if (!BUILDINGS[e.type].buildList) continue;
+        if (e.player !== ME || e.kind !== 'building') continue;
         if (Math.hypot(w2sx(e.x) - x1, w2sy(e.y) - y1) < BUILDINGS[e.type].radius * cam.z + 12) {
           sel = [e.id];
           drag = null;
@@ -156,6 +156,10 @@ addEventListener('keydown', (e) => {
   }
   if (e.key === '+') speed = Math.min(8, speed * 2);
   if (e.key === '-') speed = Math.max(0.5, speed / 2);
+  if ((e.key === 'Delete' || e.key === 'Backspace') && sel.length === 1) {
+    const b = byId(world, sel[0]);
+    if (b && b.kind === 'building') issue(world, { type: 'demolish', player: ME, id: b.id });
+  }
   if ((e.key === 'q' || e.key === 'w') && sel.length === 1) {
     const b = byId(world, sel[0]);
     if (b && b.kind === 'building' && b.done && BUILDINGS[b.type].buildList) {
@@ -456,8 +460,77 @@ function drawHud() {
       <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''} ×${speed}</span>
     </div>
+    ${flaecheHtml()}
+    ${auswahlHtml()}
     <div class="regs">${rows}</div>
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}`;
+}
+
+// ------------------------------------------------------------ Domänenfläche
+// Die Kernfrage des Prototyps, sichtbar gemacht: Wie groß ist welche Domäne
+// gerade, und wie hat sich das entwickelt? Nur Anzeige, ändert nichts.
+const FLAECHE_RASTER = 200; // dm, also 20 m × 20 m = 0,04 ha je Zelle
+let flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
+
+function messeFlaeche() {
+  if (flaeche.tick >= 0 && world.tick >= flaeche.tick && world.tick - flaeche.tick < 50) return;
+  flaeche.tick = world.tick;
+  const zellen = [0, 0];
+  for (let y = FLAECHE_RASTER >> 1; y < MAP; y += FLAECHE_RASTER) {
+    for (let x = FLAECHE_RASTER >> 1; x < MAP; x += FLAECHE_RASTER) {
+      for (let p = 0; p < 2; p++) if (inDomain(world, p, x, y)) zellen[p]++;
+    }
+  }
+  const zelleHa = (FLAECHE_RASTER * FLAECHE_RASTER) / 1e6; // dm² -> ha
+  flaeche.ha = zellen.map((z) => Math.round(z * zelleHa));
+  const n = Math.floor(world.tick / 300); // alle 30 s ein Punkt
+  for (let p = 0; p < 2; p++) {
+    flaeche.verlauf[p][n] = flaeche.ha[p];
+  }
+}
+
+function flaecheHtml() {
+  messeFlaeche();
+  const v = flaeche.verlauf;
+  const len = Math.max(v[0].length, 2);
+  const top = Math.max(1, ...v[0].filter(Number.isFinite), ...v[1].filter(Number.isFinite));
+  const linie = (arr) =>
+    arr
+      .map((h, i) => (Number.isFinite(h) ? `${((i / (len - 1)) * 240).toFixed(1)},${(36 - (h / top) * 34).toFixed(1)}` : ''))
+      .filter(Boolean)
+      .join(' ');
+  const farbe = (p) => FACTIONS[world.players[p].faction].color;
+  const gegner = 1 - ME;
+  return `<div class="area">
+      <div class="res">
+        <b>Domäne</b><span style="color:${farbe(ME)}">${flaeche.ha[ME]} ha</span>
+        <b>Gegner</b><span style="color:${farbe(gegner)}">${flaeche.ha[gegner]} ha</span>
+      </div>
+      <svg viewBox="0 0 240 38" preserveAspectRatio="none" class="spark">
+        <polyline points="${linie(v[gegner])}" fill="none" stroke="${farbe(gegner)}" stroke-width="1.2" opacity=".6"/>
+        <polyline points="${linie(v[ME])}" fill="none" stroke="${farbe(ME)}" stroke-width="1.6"/>
+      </svg></div>`;
+}
+
+function auswahlHtml() {
+  if (sel.length !== 1) return '';
+  const e = byId(world, sel[0]);
+  if (!e || e.kind !== 'building') return '';
+  const def = BUILDINGS[e.type];
+  const zustand = !e.done
+    ? `Baustelle ${Math.min(100, Math.floor(e.progress / (def.buildTime * 10)))} %`
+    : e.powered < 1000
+      ? `gedrosselt ${Math.round(e.powered / 10)} %`
+      : 'versorgt';
+  const tasten = def.buildList
+    ? def.buildList
+        .slice(1)
+        .map((u, i) => `<kbd>${'QW'[i]}</kbd> ${UNITS[u].name}`)
+        .join(' · ')
+    : '';
+  const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';
+  return `<div class="sel"><b>${def.name}</b> — ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
+    <div class="keys">${tasten}${abriss}</div></div>`;
 }
 
 function drossel(r) {

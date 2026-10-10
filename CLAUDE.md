@@ -3,16 +3,20 @@
 RTS-Prototyp. Mittelalter, Elder Gods. Zwei Fraktionen: Menschen und
 Wald- und Wiesengott. Ein Todesgott ist entworfen, aber zurückgestellt.
 
-Ziel dieses Prototyps ist **eine einzige Frage**:
-Fühlt sich eine Domäne, deren Radius bei einer Fraktion fest ist und bei der
-anderen mit der Zeit wächst, tatsächlich unterschiedlich an?
+Ziel ist ein klassisches RTS: Ressourcen sammeln, aufbauen, ausbreiten,
+den Gegner bekämpfen, seine Gebäude und seinen Anführer zerstören. **Die
+Domäne ist die zentrale Mechanik, nicht das Ziel.** Menschen spielen mit
+vielen günstigen Einheiten, der Gott mit wenigen starken; der Heimvorteil
+kommt aus Schreinen in der Domäne, nicht aus den Einheiten.
 
-Alles, was diese Frage nicht beantwortet, ist aufgeschoben.
+Leitlinie des Nutzers: **so wenig vorgeben wie möglich.** Keine Boni oder
+Mali, die eine Spielweise vorschreiben; KI-Schwächen nicht mit neuen Regeln
+flicken.
 
-## Die eine Regel
+## Die Domänen-Regel
 
-Die gesamte Asymmetrie zwischen den Fraktionen steckt in `anchorRadius()` in
-`src/sim/sim.js` und den drei Zahlen in `FACTIONS[...].growth`:
+Die Asymmetrie der Domäne steckt in `anchorRadius()` in `src/sim/sim.js`
+und den drei Zahlen in `FACTIONS[...].growth`:
 
 | Fraktion | start | max | perTick | Wirkung |
 | --- | --- | --- | --- | --- |
@@ -26,8 +30,9 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 ## Harte Regeln
 
 1. **Die Simulation ist engine-frei.** `src/sim/` importiert nichts aus
-   `src/ui.js`, kein `document`, kein `window`. Dieselben Dateien
-   laufen headless unter Node und im Browser.
+   `src/ui.js` oder `src/ui3d.js`, kein `document`, kein `window`.
+   Dieselben Dateien laufen headless unter Node, in der Draufsicht und in
+   der 3D-Ansicht.
 
 2. **Die Simulation ist deterministisch.** Gleicher Startzustand + gleiche
    Befehlsfolge = exakt gleicher Endzustand. Voraussetzung für späteres
@@ -58,7 +63,7 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
   `blutOut`) in Einheiten **pro Minute**.
 - Versorgungsgrad (`powered`) in Promille, 1000 = voll.
 - `RULES` in `defs.js`: Regeln, die für alle Fraktionen gelten (`werkFloor`,
-  `fremdMalus`, `ankerKraft`, `tiefeVoll`, `kommandanten`). Ein Objekt, damit `tools/sweep.mjs`
+  `fremdMalus`, `ankerKraft`, `kommandanten`). Ein Objekt, damit `tools/sweep.mjs`
   sie umschalten kann.
 
 ## Begriffe
@@ -81,7 +86,7 @@ Siehe `docs/scope.md`.
 
 `npm test` muss grün sein, bevor etwas als fertig gilt. Jede Eigenschaft der
 Ankerregel braucht einen Test, der sie in Isolation zeigt.
-`npm run smoke` fährt die Oberfläche headless 1000 Frames.
+`npm run smoke` fährt beide Oberflächen headless je 1000 Frames.
 `npm run match` lässt KI gegen KI spielen (beide Sitzplätze, mehrere Seeds).
 `npm run sweep` vergleicht Einstellungen aus `tools/sweep.mjs` parallel.
 Balance-Aussagen in `docs/scope.md` nur mit Messung von dort, nie geschätzt.

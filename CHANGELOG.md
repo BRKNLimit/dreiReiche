@@ -3,6 +3,25 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.10 — Viele gegen wenige, Schreine, 3D-Ansicht
+
+- Neue Einheiten nach Vorgabe des Nutzers: Menschen viele günstige (Bauer,
+  Soldat, Jäger, Söldner), Gott wenige starke (Dryade, Wolf, Waldgeist,
+  Ent); Werte per Duell bei gleichem Fron abgestimmt.
+- Arbeiter bauen wie der Kommandant, nur schwächer; die KI verteilt sie auf
+  Baustellen. Produktion `Q`–`R` für alle vier Plätze einer Fabrik.
+- Heimvorteil aus Gebäuden: Schreine für Zorn und Wehr (Drossel-Stufen, die
+  vorher ungenutzt waren), wirken im eigenen Domänennetz. `homeBonus` und
+  `RULES.tiefeVoll` entfernt.
+- KI: Wellen und Leibwache nach Heereswert statt Kopfzahl, Angriff nur mit
+  Überlegenheit gegen den Verteidiger samt Schreinen, Heer geht vor Sparen,
+  höchstens acht eigene Anker.
+- **3D-Ansicht** `dist/drei-reiche-3d.html`: WebGL 2 ohne Bibliothek,
+  Modelle aus Grundkörpern für alle Einheiten und Gebäude, Interpolation
+  zwischen den Ticks, Domänen per Stencil, RTS-Kamera, dieselbe Steuerung.
+  Eigener Smoke-Test.
+- Messung: Menschen 51 : Gott 106; ohne Kommandant 160 : 0.
+
 ## 0.9 — Kommandanten
 
 - Held (Menschen) und Waldgott: je einer, einmalig, nach Vorbild der ACU aus

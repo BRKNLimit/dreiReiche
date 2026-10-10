@@ -77,7 +77,12 @@
     background: #20261a; border: 1px solid var(--line);
     padding: 6px 11px; border-radius: 3px; cursor: pointer;
   }
-  button:hover { border-color: var(--me); color: #fff; }
+  button:hover, a.btn:hover { border-color: var(--me); color: #fff; }
+  a.btn {
+    font-size: 12px; color: var(--text); text-decoration: none;
+    background: #20261a; border: 1px solid var(--line);
+    padding: 6px 11px; border-radius: 3px;
+  }
   button kbd {
     font: 10px ui-monospace, monospace; color: var(--accent);
     margin-left: 6px; opacity: .8;
@@ -123,10 +128,11 @@
     <div class="sep"></div>
     <button id="asMensch">Als Menschen</button>
     <button id="asGott">Als Gott</button>
+    <a class="btn" href="drei-reiche-3d.html" title="Dieselbe Simulation in 3D">3D-Ansicht</a>
     <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
     <span class="hint">
       Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Mausrad zoomt · Mittlere Taste schiebt ·
-      <b>1</b>–<b>5</b> bauen · Gebäude anklicken: <b>Q</b>/<b>W</b> Einheiten, <b>Entf</b> abreißen · <b>K</b> Kommandant · <b>I</b> Auswertung · Leertaste pausiert · +/− Tempo
+      <b>1</b>–<b>7</b> bauen · Gebäude anklicken: <b>Q</b>–<b>R</b> Einheiten, <b>Entf</b> abreißen · <b>K</b> Kommandant · <b>I</b> Auswertung · Leertaste pausiert · +/− Tempo
     </span>
   </div>
 </div>

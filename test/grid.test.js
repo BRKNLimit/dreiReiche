@@ -126,7 +126,7 @@ test('Drosselleiter: Werk fällt vor Segen', () => {
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true); // +40
   const saege = spawnBuilding(w, 0, 'saege', 5000, 5800, true); // 14, Segen
   const kaserne = spawnBuilding(w, 0, 'kaserne', 6200, 5600, true); // 55, Werk
-  kaserne.queue.push('landwehr');
+  kaserne.queue.push('soldat');
 
   computeRegions(w);
   distributeGegenwart(w);
@@ -186,28 +186,51 @@ test('Fraktionen können nur ihre eigenen Gebäude bauen', () => {
 
 // ---------------------------------------------------- Heimvorteil
 
-test('der Schratt schlägt in der eigenen Domäne härter zu', () => {
-  // Im eigenen Hain-Kreis
-  const a = bare('gott', 'mensch');
-  spawnBuilding(a, 0, 'hain', 5000, 5000, true);
-  spawnUnit(a, 0, 'schratt', 5100, 5000);
-  const ziel1 = spawnUnit(a, 1, 'landwehr', 5300, 5000);
-  const hp1 = ziel1.hp;
-  step(a);
+// Ein Gefecht: Wolf (Gott) gegen Soldat, wahlweise mit Schreinen im Gott-Netz.
+function schreinGefecht({ schreine = [], versorgt = true, wolfX = 5100 }) {
+  const w = bare('gott', 'mensch');
+  spawnBuilding(w, 0, 'herzbaum', 5000, 5000, true);
+  if (!versorgt) w.entities[0].type = 'hain'; // ein Anker ohne Gegenwart
+  schreine.forEach((t, i) => spawnBuilding(w, 0, t, 4700, 4800 + i * 200, true));
+  const wolf = spawnUnit(w, 0, 'wolf', wolfX, 5000);
+  const soldat = spawnUnit(w, 1, 'soldat', wolfX + 200, 5000);
+  const hp = [wolf.hp, soldat.hp];
+  step(w);
+  return { gegeben: hp[1] - soldat.hp, genommen: hp[0] - wolf.hp };
+}
 
-  // Dasselbe Gefecht ohne Domäne
-  const b = bare('gott', 'mensch');
-  spawnUnit(b, 0, 'schratt', 15100, 15000);
-  const ziel2 = spawnUnit(b, 1, 'landwehr', 15300, 15000);
-  const hp2 = ziel2.hp;
-  step(b);
+test('ohne Schrein kein Heimvorteil', () => {
+  assert.equal(schreinGefecht({}).gegeben, UNITS.wolf.weapon.damage);
+});
 
-  const schadenDrin = hp1 - ziel1.hp;
-  const schadenDraussen = hp2 - ziel2.hp;
-  assert.ok(
-    schadenDrin > schadenDraussen,
-    `zuhause mehr Schaden: ${schadenDrin} gegen ${schadenDraussen}`
+test('Zorn: ein versorgter Schrein staerkt Einheiten im eigenen Netz', () => {
+  const zorn = BUILDINGS.dornenschrein.buff.zorn;
+  assert.equal(
+    schreinGefecht({ schreine: ['dornenschrein'] }).gegeben,
+    ((UNITS.wolf.weapon.damage * (1000 + zorn)) / 1000) | 0
   );
+});
+
+test('Zorn wirkt nicht ausserhalb der eigenen Domaene', () => {
+  assert.equal(schreinGefecht({ schreine: ['dornenschrein'], wolfX: 12000 }).gegeben, UNITS.wolf.weapon.damage);
+});
+
+test('ein Schrein ohne Gegenwart wirkt nicht', () => {
+  assert.equal(schreinGefecht({ schreine: ['dornenschrein'], versorgt: false }).gegeben, UNITS.wolf.weapon.damage);
+});
+
+test('Wehr: ein versorgter Schrein mindert den Schaden an eigenen Einheiten', () => {
+  const ohne = schreinGefecht({}).genommen;
+  const mit = schreinGefecht({ schreine: ['steinkreis'] }).genommen;
+  const wehr = BUILDINGS.steinkreis.buff.wehr;
+  assert.equal(mit, ((ohne * (1000 - wehr)) / 1000) | 0);
+});
+
+test('Schreine stapeln nicht: zwei gleiche wirken wie einer', () => {
+  // Mit Quellgrund, damit beide voll versorgt sind -- sonst drosselt die Leiter.
+  const einer = schreinGefecht({ schreine: ['quelle', 'dornenschrein'] }).gegeben;
+  const zwei = schreinGefecht({ schreine: ['quelle', 'dornenschrein', 'dornenschrein'] }).gegeben;
+  assert.equal(zwei, einer);
 });
 
 // ---------------------------------------------------- Determinismus
@@ -217,8 +240,8 @@ test('Simulation ist deterministisch über zwei Durchläufe', () => {
     const w = createWorld({ seed: 777 });
     const halle = w.entities.find((e) => e.player === 0);
     const baum = w.entities.find((e) => e.player === 1);
-    issue(w, { type: 'produce', player: 0, id: halle.id, unit: 'landwehr' });
-    issue(w, { type: 'produce', player: 1, id: baum.id, unit: 'schratt' });
+    issue(w, { type: 'produce', player: 0, id: halle.id, unit: 'soldat' });
+    issue(w, { type: 'produce', player: 1, id: baum.id, unit: 'wolf' });
     issue(w, { type: 'build', player: 0, building: 'schmiede', x: 4200, y: 3000 });
     issue(w, { type: 'build', player: 1, building: 'hain', x: 14000, y: 15500 });
     for (let i = 0; i < 500; i++) {
@@ -371,8 +394,8 @@ test('Malus in fremder Domäne wirkt nur, wenn eingeschaltet', () => {
   const gefecht = () => {
     const w = bare();
     spawnBuilding(w, 1, 'hain', 4300, 5000, true); // Gott-Domäne, Hain außer Reichweite
-    const lw = spawnUnit(w, 0, 'landwehr', 5100, 5000); // Mensch steht darin
-    const ziel = spawnUnit(w, 1, 'wurzler', 5300, 5000);
+    const lw = spawnUnit(w, 0, 'soldat', 5100, 5000); // Mensch steht darin
+    const ziel = spawnUnit(w, 1, 'dryade', 5300, 5000);
     assert.equal(inForeignDomain(w, 0, lw.x, lw.y), true);
     const hp = ziel.hp;
     step(w);
@@ -384,8 +407,8 @@ test('Malus in fremder Domäne wirkt nur, wenn eingeschaltet', () => {
     const voll = gefecht();
     RULES.fremdMalus = 500;
     const halb = gefecht();
-    assert.equal(voll, UNITS.landwehr.weapon.damage);
-    assert.equal(halb, (UNITS.landwehr.weapon.damage * 500 / 1000) | 0);
+    assert.equal(voll, UNITS.soldat.weapon.damage);
+    assert.equal(halb, (UNITS.soldat.weapon.damage * 500 / 1000) | 0);
   } finally {
     RULES.fremdMalus = alt;
   }
@@ -460,10 +483,10 @@ test('Abriss erstattet auch das Götterblut wartender Aufträge', () => {
 
 test('Kampf ist gleichzeitig: kein Erstschlag durch Listenplatz', () => {
   const w = bare('mensch', 'mensch');
-  const a = spawnUnit(w, 0, 'landwehr', 5000, 5000);
-  const b = spawnUnit(w, 1, 'landwehr', 5300, 5000);
-  a.hp = UNITS.landwehr.weapon.damage; // stirbt am ersten Treffer
-  b.hp = UNITS.landwehr.weapon.damage;
+  const a = spawnUnit(w, 0, 'soldat', 5000, 5000);
+  const b = spawnUnit(w, 1, 'soldat', 5300, 5000);
+  a.hp = UNITS.soldat.weapon.damage; // stirbt am ersten Treffer
+  b.hp = UNITS.soldat.weapon.damage;
   step(w);
   assert.equal(a.dead, true);
   assert.equal(b.dead, true, 'beide treffen im selben Tick');
@@ -521,8 +544,8 @@ test('Spiegelpartie bleibt punktsymmetrisch, bis eine geteilte Ader umkämpft is
 
 test('eine stehende Einheit verfolgt einen Feind knapp außer Reichweite', () => {
   const w = bare();
-  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
-  const ziel = spawnUnit(w, 1, 'wurzler', 5000 + UNITS.landwehr.weapon.range + 400, 5000);
+  const lw = spawnUnit(w, 0, 'soldat', 5000, 5000);
+  const ziel = spawnUnit(w, 1, 'dryade', 5000 + UNITS.soldat.weapon.range + 400, 5000);
   for (let i = 0; i < 60; i++) step(w);
   assert.ok(lw.x > 5000, 'geht auf den Feind zu');
   assert.ok(ziel.hp < ziel.maxHp || ziel.dead, 'und trifft ihn');
@@ -530,9 +553,9 @@ test('eine stehende Einheit verfolgt einen Feind knapp außer Reichweite', () =>
 
 test('Verfolgung endet an der Leine und führt zum Befehlspunkt zurück', () => {
   const w = bare();
-  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
+  const lw = spawnUnit(w, 0, 'soldat', 5000, 5000);
   // Steht weit vom Befehlspunkt: wird nicht verfolgt.
-  spawnUnit(w, 1, 'wurzler', 5000 + 1500 + UNITS.landwehr.weapon.range + 300, 5000);
+  spawnUnit(w, 1, 'dryade', 5000 + 1500 + UNITS.soldat.weapon.range + 300, 5000);
   for (let i = 0; i < 60; i++) step(w);
   assert.equal(lw.x, 5000);
   assert.equal(lw.y, 5000);
@@ -540,8 +563,8 @@ test('Verfolgung endet an der Leine und führt zum Befehlspunkt zurück', () => 
 
 test('ein Bewegungsbefehl hat Vorrang vor der Verfolgung', () => {
   const w = bare();
-  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
-  spawnUnit(w, 1, 'wurzler', 5000, 5000 + UNITS.landwehr.weapon.range + 300);
+  const lw = spawnUnit(w, 0, 'soldat', 5000, 5000);
+  spawnUnit(w, 1, 'dryade', 5000, 5000 + UNITS.soldat.weapon.range + 300);
   issue(w, { type: 'move', player: 0, ids: [lw.id], x: 9000, y: 5000 });
   for (let i = 0; i < 20; i++) step(w);
   assert.equal(lw.y, 5000, 'läuft geradeaus weiter');
@@ -550,8 +573,10 @@ test('ein Bewegungsbefehl hat Vorrang vor der Verfolgung', () => {
 
 test('eine Angriffsbewegung stellt Feinde unterwegs und zieht danach weiter', () => {
   const w = bare();
-  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
-  const ziel = spawnUnit(w, 1, 'wurzler', 5000, 5000 + UNITS.landwehr.weapon.range + 300);
+  const lw = spawnUnit(w, 0, 'soldat', 5000, 5000);
+  const ziel = spawnUnit(w, 1, 'dryade', 5000, 5000 + UNITS.soldat.weapon.range + 300);
+  ziel.cooldown = 1e9; // wehrt sich nicht -- hier geht es um die Bewegung
+  ziel.hp = 120;
   issue(w, { type: 'attack', player: 0, ids: [lw.id], x: 9000, y: 5000 });
   for (let i = 0; i < 20; i++) step(w);
   assert.ok(lw.y > 5000, 'weicht zum Feind ab');
@@ -567,9 +592,9 @@ test('eine Angriffsbewegung stellt Feinde unterwegs und zieht danach weiter', ()
 test('Einheiten laufen um Gebäude herum statt hindurch', () => {
   const w = bare();
   const b = spawnBuilding(w, 0, 'kaserne', 6000, 5000, true);
-  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
+  const lw = spawnUnit(w, 0, 'soldat', 5000, 5000);
   issue(w, { type: 'move', player: 0, ids: [lw.id], x: 7000, y: 5000 });
-  const min = BUILDINGS.kaserne.radius + UNITS.landwehr.radius;
+  const min = BUILDINGS.kaserne.radius + UNITS.soldat.radius;
   let drin = 0;
   for (let i = 0; i < 200; i++) {
     step(w);
@@ -583,12 +608,12 @@ test('Einheiten laufen um Gebäude herum statt hindurch', () => {
 test('ein Ziel im Gebäude: Einheit bleibt am Rand stehen', () => {
   const w = bare();
   const b = spawnBuilding(w, 1, 'herzbaum', 6000, 5000, true);
-  const lw = spawnUnit(w, 0, 'koehler', 5000, 5000);
+  const lw = spawnUnit(w, 0, 'bauer', 5000, 5000);
   issue(w, { type: 'move', player: 0, ids: [lw.id], x: 6000, y: 5000 });
   for (let i = 0; i < 200; i++) step(w);
-  const min = BUILDINGS.herzbaum.radius + UNITS.koehler.radius;
+  const min = BUILDINGS.herzbaum.radius + UNITS.bauer.radius;
   const d = isqrt(dist2(lw.x, lw.y, b.x, b.y));
-  assert.ok(d >= min - 2 && d <= min + UNITS.koehler.speed, `am Rand: ${d}`);
+  assert.ok(d >= min - 2 && d <= min + UNITS.bauer.speed, `am Rand: ${d}`);
 });
 
 test('Ankerkraft: eingeschaltet spendet jeder Anker Gegenwart nach Radius', () => {
@@ -610,37 +635,14 @@ test('Ankerkraft: eingeschaltet spendet jeder Anker Gegenwart nach Radius', () =
   }
 });
 
-test('Heimvorteil nach Tiefe: am Rand nichts, tief drinnen voll', () => {
-  const gefecht = (abstand) => {
-    const w = bare('gott', 'mensch');
-    spawnBuilding(w, 0, 'herzbaum', 5000, 5000, true); // Radius = start
-    const s = spawnUnit(w, 0, 'schratt', 5000 + abstand, 5000);
-    const ziel = spawnUnit(w, 1, 'koehler', 5000 + abstand, 5300);
-    const hp = ziel.hp;
-    step(w);
-    void s;
-    return hp - ziel.hp;
-  };
-  const alt = RULES.tiefeVoll;
-  try {
-    RULES.tiefeVoll = 500;
-    const r = FACTIONS.gott.growth.start;
-    const basis = UNITS.schratt.weapon.damage;
-    assert.equal(gefecht(r - 5), basis, 'am Rand: kein Bonus');
-    assert.equal(gefecht(0), ((basis * UNITS.schratt.homeBonus) / 1000) | 0, 'tief drinnen: voll');
-  } finally {
-    RULES.tiefeVoll = alt;
-  }
-});
-
 test('ein Todesereignis nennt Art, Typ und Spieler', () => {
   const w = bare();
   spawnUnit(w, 0, 'soeldner', 5000, 5000);
-  const opfer = spawnUnit(w, 1, 'wurzler', 5300, 5000);
+  const opfer = spawnUnit(w, 1, 'dryade', 5300, 5000);
   opfer.hp = 1;
   step(w);
   const ev = w.events.find((e) => e.t === 'died');
-  assert.deepEqual([ev.kind, ev.type, ev.player], ['unit', 'wurzler', 1]);
+  assert.deepEqual([ev.kind, ev.type, ev.player], ['unit', 'dryade', 1]);
 });
 
 // ---------------------------------------------------- Kommandant

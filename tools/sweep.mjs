@@ -13,18 +13,15 @@
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 
-// Name -> Aenderungen. g/m: Wachstum Gott/Menschen, hb: homeBonus, rules: RULES.
+// Name -> Aenderungen. g/m: Wachstum Gott/Menschen, rules: RULES, units/buildings: Werte.
 export const CONFIGS = {
   Ausgang: {},
-  'ohne Blutkosten': { units: { soeldner: { cost: { goetterblut: 0 } }, geweihter: { cost: { goetterblut: 0 } } } },
+  'ohne Blutkosten': { units: { soeldner: { cost: { goetterblut: 0 } }, ent: { cost: { goetterblut: 0 } } } },
   // Kommandant: langsamer bzw. weniger zaeh -- macht das den Vorstoss riskanter?
   'Kdt langsam': { units: { held: { speed: 16 }, waldgott: { speed: 15 } } },
   'Kdt 4000 HP': { units: { held: { hp: 4000 }, waldgott: { hp: 4000 } } },
   'Kdt langsam + 4000 HP': { units: { held: { speed: 16, hp: 4000 }, waldgott: { speed: 15, hp: 4000 } } },
-  'homeBonus 1250': { hb: 1250 },
-  'homeBonus 1300 + Gott start 1000': { hb: 1300, g: { start: 1000 } },
   'ohne Kommandant': { rules: { kommandanten: false } },
-  'homeBonus 1200': { hb: 1200 },
   'Gott start 850': { g: { start: 850 } },
   'Gott start 900': { g: { start: 900 } },
   'Gott start 925': { g: { start: 925 } },
@@ -37,20 +34,15 @@ export const CONFIGS = {
   'Ankerkraft 1 + max 3900': { rules: { ankerKraft: 1 }, g: { max: 3900 } },
   'Ankerkraft 1 + max 7000': { rules: { ankerKraft: 1 }, g: { max: 7000 } },
   'Ankerkraft 2': { rules: { ankerKraft: 2 } },
+  // Schreine: staerker bzw. ohne Wirkung -- wie viel traegt der Heimvorteil?
+  'Schreine aus': { buildings: { banner: { buff: { zorn: 0 } }, kapelle: { buff: { wehr: 0 } }, dornenschrein: { buff: { zorn: 0 } }, steinkreis: { buff: { wehr: 0 } } } },
+  'Gott-Schreine wie Menschen': { buildings: { dornenschrein: { buff: { zorn: 250 } }, steinkreis: { buff: { wehr: 200 } } } },
   // Lange Partien: Hauptgebaeude vierfach so zaeh -- zaehlt max dann?
   'lang': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } } },
   'lang + max 3900': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 3900 } },
   'lang + max 7000': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 7000 } },
-  // Heimvorteil nach Tiefe -- zaehlt max dann?
-  'Tiefe 1500': { rules: { tiefeVoll: 1500 } },
-  'Tiefe 1500 + max 3900': { rules: { tiefeVoll: 1500 }, g: { max: 3900 } },
-  'Tiefe 1500 + max 7000': { rules: { tiefeVoll: 1500 }, g: { max: 7000 } },
-  'Tiefe 3000': { rules: { tiefeVoll: 3000 } },
-  'Tiefe 3000 + max 3900': { rules: { tiefeVoll: 3000 }, g: { max: 3900 } },
-  'Tiefe 3000 + max 7000': { rules: { tiefeVoll: 3000 }, g: { max: 7000 } },
   'malus 800': { rules: { fremdMalus: 800 } },
   'malus 650': { rules: { fremdMalus: 650 } },
-  'malus 800 + homeBonus 1250': { rules: { fremdMalus: 800 }, hb: 1250 },
 };
 
 // Feste Seed-Reihe, damit Laeufe vergleichbar bleiben.
@@ -119,9 +111,6 @@ if (isMainThread) {
   const c = CONFIGS[name];
   Object.assign(FACTIONS.gott.growth, c.g || {});
   Object.assign(FACTIONS.mensch.growth, c.m || {});
-  if (c.hb !== undefined) {
-    for (const k of Object.keys(UNITS)) if (UNITS[k].homeBonus) UNITS[k].homeBonus = c.hb;
-  }
   Object.assign(RULES, c.rules || {});
   // units: { typ: { feld: wert } } -- Objekte werden zusammengefuehrt, Zahlen ersetzt
   for (const [u, werte] of Object.entries(c.units || {})) {

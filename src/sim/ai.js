@@ -2,31 +2,50 @@
 // Domänenmechanik unter Stress zeigt. Nutzt nur issue(), nie direkten Zugriff.
 // Nur Integer-Arithmetik und rng() -- dieselben Regeln wie die Simulation.
 
-import { issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, rng, cosDeg, sinDeg } from './sim.js';
+import { issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, buffAt, rng, cosDeg, sinDeg } from './sim.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP } from './defs.js';
 
 const PLAN = {
-  mensch: { anker: 'turm', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne', leicht: 'landwehr', schwer: 'soeldner' },
-  gott: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', leicht: 'schratt', schwer: 'geweihter' },
+  mensch: {
+    anker: 'turm', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
+    zorn: 'banner', wehr: 'kapelle',
+    bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner',
+  },
+  gott: {
+    anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht',
+    zorn: 'dornenschrein', wehr: 'steinkreis',
+    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent',
+  },
 };
+
+// Reihenfolge der Ausbildung; "schwer" nur mit Goetterblut.
+const MISCHUNG = ['leicht', 'fern', 'leicht', 'fern', 'schwer'];
+
+/** Heereswert in Fron -- Wellen und Leibwache zaehlen Wert, nicht Koepfe. */
+const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
 
 /**
  * Spielstile, fraktionsneutral. Messungen mit nur einem Stil messen vor
  * allem diesen Stil (docs/scope.md); tools/sweep.mjs kann alle Paarungen
  * gegeneinander spielen lassen.
- *   welle:     Truppen fuer die erste Welle, plus wellePlus je weitere
+ *   welle:     Heereswert (Fron) fuer die erste Welle, plus wellePlus je
+ *              weitere -- Wert statt Koepfe, sonst griffe der Gott mit seinen
+ *              wenigen starken Einheiten nie an
  *   ankerAb:   Fron-Polster, ab dem zusaetzliche Anker gesetzt werden
  *   ankerTakt: Minuten je zusaetzlichem Anker
  *   kdtVorn:   Kommandant geht nach vorn (kaempft, baut Aussenposten an
  *              den Adern) statt hinten beim Hauptgebaeude zu bauen
- *   wache:     so viele Einheiten bleiben mindestens als Leibwache beim
+ *   wache:     so viel Heereswert bleibt mindestens als Leibwache beim
  *              Kommandanten, mehr bei grossem Heer (drei Zehntel)
  */
 export const STILE = {
-  sturm: { welle: 5, wellePlus: 2, ankerAb: 400, ankerTakt: 2, kdtVorn: true, wache: 2 },
-  standard: { welle: 8, wellePlus: 3, ankerAb: 250, ankerTakt: 1, kdtVorn: false, wache: 3 },
-  burg: { welle: 14, wellePlus: 4, ankerAb: 150, ankerTakt: 1, kdtVorn: false, wache: 4 },
+  sturm: { welle: 300, wellePlus: 120, ankerAb: 400, ankerTakt: 2, kdtVorn: true, wache: 120 },
+  standard: { welle: 550, wellePlus: 200, ankerAb: 250, ankerTakt: 1, kdtVorn: false, wache: 220 },
+  burg: { welle: 900, wellePlus: 300, ankerAb: 150, ankerTakt: 1, kdtVorn: false, wache: 320 },
 };
+
+// So viele Anker setzt die KI hoechstens von sich aus (ohne Vorstoss zur Ader).
+const ANKER_HOECHSTENS = 8;
 
 // Wie weit "hinten" fuer die KI reicht: Umkreis um das eigene Hauptgebaeude.
 const HINTEN = 3000;
@@ -49,6 +68,9 @@ export function stepAI(ai, world) {
   const einheiten = mine.filter((e) => e.kind === 'unit');
   // Der Kommandant kaempft mit, baut aber vor allem: er geht nicht mit Wellen.
   const kdt = einheiten.find((u) => UNITS[u.type].commander) || null;
+  // Arbeiter bauen, Kaempfer kaempfen -- Wellen, Wache und Abwehr ohne Arbeiter.
+  const arbeiter = einheiten.filter((u) => UNITS[u.type].worker);
+  const kaempfer = einheiten.filter((u) => !UNITS[u.type].worker && u !== kdt);
   const zahl = (t) => bauten.filter((b) => b.type === t).length;
   const kosten = (t) => BUILDINGS[t].cost.fron;
   const fron = p.fron;
@@ -110,6 +132,16 @@ export function stepAI(ai, world) {
     return bau(plan.fabrik, ...daheim(world, haupt, 900, front + 200 + n * 70));
   }
 
+  // 3a. Schreine: ab Minute 5 je einer fuer Zorn und Wehr beim Hauptgebaeude --
+  //     dort wird verteidigt, dort zaehlt der Heimvorteil.
+  if (minute >= 5 && zahl(plan.fabrik) > 0) {
+    for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
+      const typ = plan[rolle];
+      if (zahl(typ) > 0 || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
+      return bau(typ, ...daheim(world, haupt, 600, front + grad));
+    }
+  }
+
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
   if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
     return bau(plan.blut, vene.x, vene.y);
@@ -150,7 +182,8 @@ export function stepAI(ai, world) {
   // 4. Anker. Die Zahl steigt mit der Zeit. Jeder neue Anker kommt an den
   //    Rand der eigenen Domaene, moeglichst weit weg von den bestehenden --
   //    sonst ueberdecken sich die Kreise und Wachstum bringt keine Flaeche.
-  const ankerZiel = 2 + ((minute / ai.stil.ankerTakt) | 0);
+  // Gedeckelt: spaet im Spiel braucht es Truppen, nicht den zwanzigsten Anker.
+  const ankerZiel = Math.min(ANKER_HOECHSTENS, 2 + ((minute / ai.stil.ankerTakt) | 0));
   if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + ai.stil.ankerAb) {
     const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
     if (platz) return bau(plan.anker, platz.x, platz.y);
@@ -176,26 +209,45 @@ export function stepAI(ai, world) {
     }
   }
 
-  // 6. Produktion: zwei leichte auf eine schwere, soweit die Fabrik sie kennt.
-  //    Solange die Wirtschaft unvollstaendig ist, wird fuer den naechsten
-  //    Bau gespart statt alles in Einheiten zu stecken.
-  const sparen = naechster ? kosten(naechster) : vene ? kosten(plan.anker) + 100 : 0;
+  // 6. Produktion. Erst genug Arbeiter, dann Kaempfer in fester Mischung;
+  //    schwer nur mit Goetterblut. Solange die Wirtschaft unvollstaendig ist,
+  //    wird fuer den naechsten Bau gespart.
+  // Ist das Heer kleiner als eine Welle, wird nicht gespart: ohne Truppen ist
+  // jede Wirtschaft nur Beute (und der Kommandant schutzlos).
+  const heerSchwach = minute >= 5 && wert(kaempfer) < ai.stil.welle;
+  const sparen = heerSchwach ? 0 : naechster ? kosten(naechster) : vene ? kosten(plan.anker) + 100 : 0;
   let rest = fron;
   let blutRest = p.goetterblut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
+  const arbeiterZiel = 2 + (minute >= 6 ? 1 : 0) + (minute >= 12 ? 1 : 0);
+  let arbeiterBestellt = arbeiter.length;
+  for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
   for (const f of bauten) {
     if (!f.done || !BUILDINGS[f.type].buildList || f.queue.length >= tiefe) continue;
     const liste = BUILDINGS[f.type].buildList;
-    // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
-    const schwerMoeglich = blutRest >= blutSchwer;
-    const reichlich = blutSchwer > 0 && blutRest >= 3 * blutSchwer;
-    const wunsch = schwerMoeglich && (ai.zug % 3 === 2 || reichlich) ? plan.schwer : plan.leicht;
-    const unit = liste.includes(wunsch) ? wunsch : liste.includes(plan.leicht) ? plan.leicht : null;
+    let unit = null;
+    if (arbeiterBestellt < arbeiterZiel && liste.includes(plan.bauer)) {
+      unit = plan.bauer;
+      arbeiterBestellt++;
+    } else {
+      // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
+      // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
+      const schwerMoeglich = blutRest >= blutSchwer;
+      const reichlich = blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+      if (reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
+      for (let k = 0; !unit && k < MISCHUNG.length; k++) {
+        const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
+        if (rolle === 'schwer' && !schwerMoeglich) continue;
+        if (liste.includes(plan[rolle])) {
+          unit = plan[rolle];
+          ai.zug += k + 1;
+        }
+      }
+    }
     if (!unit || rest - UNITS[unit].cost.fron < sparen) continue;
     rest -= UNITS[unit].cost.fron;
     blutRest -= UNITS[unit].cost.goetterblut || 0;
-    ai.zug++;
     issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
   }
 
@@ -219,8 +271,9 @@ export function stepAI(ai, world) {
       !rueckzug &&
       inDomain(world, ai.player, bedrohung.x, bedrohung.y) &&
       (ai.stil.kdtVorn || imHinterland(bedrohung));
-    const ids = einheiten
-      .filter((u) => !ai.unterwegs.includes(u.id) && (u !== kdt || kdtHilft))
+    const ids = kaempfer
+      .concat(kdtHilft ? [kdt] : [])
+      .filter((u) => !ai.unterwegs.includes(u.id))
       .map((u) => u.id);
     if (ids.length) issue(world, { type: 'attack', player: ai.player, ids, x: bedrohung.x, y: bedrohung.y });
   }
@@ -231,13 +284,15 @@ export function stepAI(ai, world) {
   ai.unterwegs = ai.unterwegs.filter((id) => einheiten.some((u) => u.id === id));
   // Leibwache: Wer seinen Kommandanten verliert, verliert die Partie. Die ihm
   // naechsten Einheiten bleiben bei ihm, nur der Rest geht mit Wellen.
-  const daheimAlle = einheiten.filter((u) => !ai.unterwegs.includes(u.id) && u !== kdt);
+  const daheimAlle = kaempfer.filter((u) => !ai.unterwegs.includes(u.id));
   const nachNaehe = kdt
     ? daheimAlle
         .slice()
         .sort((a, b) => dist2(a.x, a.y, kdt.x, kdt.y) - dist2(b.x, b.y, kdt.x, kdt.y) || a.id - b.id)
     : daheimAlle;
-  const wacheZahl = kdt ? Math.min(nachNaehe.length, Math.max(ai.stil.wache, ((nachNaehe.length * 3) / 10) | 0)) : 0;
+  const wacheWert = kdt ? Math.max(ai.stil.wache, ((wert(nachNaehe) * 3) / 10) | 0) : 0;
+  let wacheZahl = 0;
+  for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
   const angriff = gegnerFoerderung(world, ai.player, haupt) || ziel;
@@ -245,7 +300,11 @@ export function stepAI(ai, world) {
     ai.welleZiel = angriff.id;
     issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
   }
-  if (!bedrohung && daheimStehend.length >= ai.stil.welle + ai.welle * ai.stil.wellePlus && angriff) {
+  // Nur angreifen, wenn die Welle das gegnerische Heer daheim samt dessen
+  // Heimvorteil uebertrifft -- sonst zerschellt sie an der Verteidigung.
+  const gegnerDaheim = heimHeer(world, ai.player);
+  const genug = Math.max(ai.stil.welle + ai.welle * ai.stil.wellePlus, ((gegnerDaheim * 12) / 10) | 0);
+  if (!bedrohung && wert(daheimStehend) >= genug && angriff) {
     ai.welle++;
     ai.welleZiel = angriff.id;
     const ids = daheimStehend.map((u) => u.id);
@@ -292,6 +351,23 @@ export function stepAI(ai, world) {
     const nah = site ? reichweite : 700;
     if (hin && dist2(kdt.x, kdt.y, hin.x, hin.y) > nah * nah && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
       issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
+    }
+  }
+
+  // 9c. Arbeiter: reihum auf die Baustellen, die am wenigsten Gegenwart haben;
+  //     ohne Baustelle zurueck zum Hauptgebaeude.
+  if (arbeiter.length) {
+    const baustellen = bauten
+      .filter((b) => !b.done && sicher(b, 1200))
+      .sort((a, b) => a.powered - b.powered || a.id - b.id);
+    const reihe = arbeiter.slice().sort((a, b) => a.id - b.id);
+    for (let i = 0; i < reihe.length; i++) {
+      const u = reihe[i];
+      const hin = baustellen.length ? baustellen[i % baustellen.length] : haupt;
+      const nah = baustellen.length ? UNITS[u.type].build.range - 100 : 900;
+      if (dist2(u.x, u.y, hin.x, hin.y) > nah * nah && (u.tx !== hin.x || u.ty !== hin.y)) {
+        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: hin.x, y: hin.y });
+      }
     }
   }
 
@@ -407,6 +483,23 @@ function blockiert(world, x, y, radius) {
     if (dist2(x, y, e.x, e.y) < min * min) return true;
   }
   return false;
+}
+
+/**
+ * Wert des gegnerischen Heers, das in seiner eigenen Domaene steht, gewichtet
+ * mit der Wirkung seiner Schreine dort (Zorn und Wehr). Arbeiter zaehlen nicht.
+ */
+function heimHeer(world, me) {
+  let summe = 0;
+  for (const o of world.entities) {
+    if (o.dead || o.player === me || o.kind !== 'unit') continue;
+    const d = UNITS[o.type];
+    if (d.worker || !d.weapon || !inDomain(world, o.player, o.x, o.y)) continue;
+    const kosten = d.commander ? 600 : d.cost.fron;
+    const b = buffAt(world, o.player, o.x, o.y);
+    summe += ((((kosten * (1000 + b.zorn)) / 1000) * 1000) / (1000 - b.wehr)) | 0;
+  }
+  return summe;
 }
 
 /** Feindliche Kaempfer im Umkreis r um einen Punkt. */

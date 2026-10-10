@@ -7,7 +7,7 @@
 
 Alles im Code dient dieser Frage. Was sie nicht berührt, fehlt absichtlich.
 
-## Befunde (Stand 0.9)
+## Befunde (Stand 0.10)
 
 Messbasis: `npm run sweep -- 80 45`, also 80 Seeds × beide Sitzplätze =
 160 KI-Partien je Einstellung, Abbruch nach 45 Minuten. Bei 160 Partien
@@ -244,6 +244,60 @@ Domäne, ein Hinterland-Bonus mit Schutz. Alle verworfen nach der Vorgabe
   Drosselleiter sind weiter ungenutzt.
 - Der ACU-Rush ist in KI-Partien nicht riskant, sondern stark. Ob er das für
   Menschen am Steuer auch ist, zeigt nur Selbstspielen.
+
+### 9. Viele gegen wenige, Heimvorteil aus Schreinen (Stand 0.10)
+
+> **Vorgaben des Nutzers:** Menschen haben viele günstige Einheiten (Bauer,
+> Soldat, Jäger, Söldner), der Gott wenige starke (Dryade, Wolf, Waldgeist,
+> Ent). Das Ziel ist ein klassisches RTS; die Domäne ist Mechanik, nicht
+> Ziel. Heimvorteil und Flächenboni kommen aus gebauten Gebäuden in der
+> Domäne, nicht aus den Einheiten.
+
+**Umgesetzt:**
+- Arbeiter (Bauer, Dryade) bauen wie der Kommandant, nur mit weniger Kraft
+  (400 bzw. 700 Promille) — derselbe Mechanismus, keine neue Regel.
+- `homeBonus` ist aus allen Einheiten verschwunden. Stattdessen Schreine:
+  Kriegsbanner und Dornenschrein (Zorn: +25 % bzw. +45 % Schaden),
+  Kapelle und Steinkreis (Wehr: −20 % bzw. −30 % genommener Schaden). Ein
+  versorgter Schrein wirkt auf alle eigenen Einheiten im selben
+  Domänennetz, anteilig zur Versorgung, und stapelt nicht. Sie hängen an den
+  Drossel-Stufen Wehr und Zorn, die vorher ungenutzt waren. *Die
+  Schreinwerte sind Designzahlen.*
+- Das Tiefen-Experiment (`RULES.tiefeVoll`) ist mit dem `homeBonus` entfallen.
+
+**Abstimmung per Duell** (gleich viel Fron, neutraler Boden, Rest-Fronwert
+des Siegers; + = Menschen, − = Gott):
+
+| Paarung | 1500 Fron | 3000 Fron |
+| --- | --- | --- |
+| Soldat gegen Wolf (33 gegen 11) | −5 bis −13 % | −11 bis −15 % |
+| Jäger gegen Waldgeist | −7 bis −19 % | −17 bis −21 % |
+| Soldat+Jäger gegen Wolf+Waldgeist | +27 bis +42 % | +16 bis +27 % |
+| Söldner gegen Ent | −29 bis −32 % | −21 bis −24 % |
+
+Einzeln liegen die Paarungen nah beieinander; gemischt sind die Menschen
+stärker — Soldaten halten auf, Jäger schießen dahinter. Auf eigenem Boden
+gleichen das die Schreine des Gottes aus.
+
+**KI gegen KI** (160 Partien, Menschen : Gott):
+
+| Einstellung | Ergebnis | Ø Dauer |
+| --- | --- | --- |
+| Ausgang | 51 : 106 | 21,3 min |
+| ohne Kommandant | 160 : 0 | 8,9 min |
+| Schreine ohne Wirkung | 50 : 108 | 18,4 min |
+
+- **Ohne Kommandanten überrennt die Masse den Gott** in jeder Partie, im
+  Mittel nach 9 Minuten. Mit Kommandanten kippt es zum Gott: Der vitale
+  Held fällt, wenn die Basis der Menschen überrannt wird, der Waldgott steht
+  sicherer.
+- **Die Schreine ändern in KI-Partien fast nichts** (51 gegen 50). Die KI
+  baut je einen ab Minute 5 beim Hauptgebäude; wie viel sie Menschen am
+  Steuer bringen, zeigt nur das Spielen.
+
+**Offen für dich:** Die Balance hängt stark am Kommandanten — ohne ihn sind
+die Menschen weit überlegen, mit ihm deutlich unterlegen. Hebel ohne neue
+Regel: Einheiten- und Schreinwerte, Startradius.
 
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Die drei Reiche — 3D</title>
+<style>
+  :root {
+    --bg: #12140f;
+    --panel: #1a1e15;
+    --line: #2c3327;
+    --text: #d8dcd0;
+    --dim: #7d8575;
+    --bad: #c4603f;
+    --ok: #8fb86a;
+    --accent: #d8b06a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    user-select: none;
+  }
+  #cv3d, #overlay { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #overlay { pointer-events: none; }
+  #cv3d { cursor: crosshair; }
+
+  #hud {
+    position: absolute; top: 12px; left: 12px; width: 250px;
+    background: color-mix(in srgb, var(--panel) 90%, transparent);
+    border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px;
+  }
+  .fac { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .res { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; font-variant-numeric: tabular-nums; }
+  .res b { font-weight: 500; color: var(--dim); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+  .res span { text-align: right; font-family: ui-monospace, monospace; }
+  .sel { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 12px; }
+  .keys { color: var(--dim); font-size: 11px; margin-top: 2px; }
+  kbd { font: 10px ui-monospace, monospace; color: var(--accent); }
+  .over {
+    margin-top: 10px; padding: 7px; text-align: center; letter-spacing: .1em;
+    text-transform: uppercase; font-size: 12px; background: #232a1c; border-radius: 3px;
+  }
+
+  #mini {
+    position: absolute; right: 12px; top: 12px; width: 170px; height: 170px;
+    border: 1px solid var(--line); border-radius: 3px; background: #0b0d08; cursor: pointer;
+  }
+
+  #bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    padding: 8px 12px; background: color-mix(in srgb, var(--panel) 92%, transparent);
+    border-top: 1px solid var(--line);
+  }
+  button, a.btn {
+    font: inherit; font-size: 12px; color: var(--text); text-decoration: none;
+    background: #20261a; border: 1px solid var(--line);
+    padding: 5px 10px; border-radius: 3px; cursor: pointer;
+  }
+  button:hover, a.btn:hover { border-color: var(--ok); color: #fff; }
+  button kbd { margin-left: 6px; opacity: .8; }
+  .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+  .hint { color: var(--dim); font-size: 11px; margin-left: auto; }
+
+  #intro {
+    position: absolute; inset: 0; display: grid; place-content: center;
+    background: color-mix(in srgb, var(--bg) 78%, transparent); padding: 24px; overflow: auto;
+  }
+  #intro > * { max-width: 620px; }
+  #intro h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+  #intro p { margin: 8px 0; }
+  #intro .frage { color: var(--accent); }
+  #intro .stil { display: flex; gap: 14px; flex-wrap: wrap; color: var(--dim); margin-top: 10px; }
+  #intro .stil label { color: var(--text); cursor: pointer; }
+  #intro .go { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  #intro .go button { padding: 8px 14px; font-size: 13px; }
+  #nogl { position: absolute; inset: 0; display: none; place-content: center; text-align: center; padding: 24px; }
+</style>
+</head>
+<body>
+<canvas id="cv3d"></canvas>
+<canvas id="overlay"></canvas>
+<div id="hud"></div>
+<canvas id="mini" width="340" height="340"></canvas>
+<div id="bar">
+  <span id="builds"></span>
+  <div class="sep"></div>
+  <a class="btn" href="resonit.html" title="Dieselbe Simulation als Draufsicht">2D-Ansicht</a>
+  <span class="hint">
+    Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Pfeiltasten / mittlere Taste schieben ·
+    Mausrad zoomt · <b>,</b> <b>.</b> drehen · <b>1</b>–<b>7</b> bauen · <b>Q</b>–<b>R</b> Einheiten ·
+    <b>K</b> Kommandant · Leertaste Pause · +/− Tempo
+  </span>
+</div>
+<div id="intro"></div>
+<div id="nogl"><p>Dieser Browser kann kein WebGL 2 — die 2D-Ansicht läuft trotzdem:
+  <a class="btn" href="resonit.html">2D-Ansicht öffnen</a></p></div>
+<script>
+/*__SIM__*/
+</script>
+</body>
+</html>

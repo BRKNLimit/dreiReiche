@@ -376,18 +376,25 @@ export function inDomain(world, player, x, y) {
   return false;
 }
 
-/** Wie tief liegt der Punkt in der eigenen Domaene? Abstand zum naechsten Rand, 0 = draussen. */
-export function domainDepth(world, player, x, y) {
-  let best = 0;
+/**
+ * Schrein-Wirkung an einem Punkt fuer einen Spieler: die staerkste aus allen
+ * eigenen Domaenennetzen, deren Anker den Punkt abdecken. Ausserhalb der
+ * eigenen Domaene nichts.
+ */
+export function buffAt(world, player, x, y) {
+  let zorn = 0;
+  let wehr = 0;
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.player !== player || e.kind !== 'building') continue;
     const r = anchorRadius(world, e);
-    if (r === 0) continue;
-    const t = r - isqrt(dist2(x, y, e.x, e.y));
-    if (t > best) best = t;
+    if (r === 0 || dist2(x, y, e.x, e.y) > r * r) continue;
+    const reg = world.regions[e.region];
+    if (!reg) continue;
+    if (reg.zorn > zorn) zorn = reg.zorn;
+    if (reg.wehr > wehr) wehr = reg.wehr;
   }
-  return best;
+  return { zorn, wehr };
 }
 
 /** Liegt der Punkt in der Domaene irgendeines anderen Spielers? */
@@ -453,6 +460,8 @@ export function computeRegions(world) {
       demand: 0,
       byPrio: [0, 0, 0, 0],
       satPrio: [1000, 1000, 1000, 1000],
+      zorn: 0, // staerkster versorgter Schrein im Netz, Promille
+      wehr: 0,
     });
   }
   world.regions = regions;
@@ -497,9 +506,19 @@ export function distributeGegenwart(world) {
       }
     }
 
+    reg.zorn = 0;
+    reg.wehr = 0;
     for (let i = 0; i < reg.members.length; i++) {
       const e = reg.members[i];
       e.powered = demandOf(e) > 0 ? reg.satPrio[prioOf(e)] : 1000;
+      const buff = BUILDINGS[e.type].buff;
+      if (buff && e.done) {
+        // Schreine wirken anteilig zur Versorgung und stapeln nicht.
+        const z = (((buff.zorn || 0) * e.powered) / 1000) | 0;
+        const w = (((buff.wehr || 0) * e.powered) / 1000) | 0;
+        if (z > reg.zorn) reg.zorn = z;
+        if (w > reg.wehr) reg.wehr = w;
+      }
     }
   }
 }
@@ -818,14 +837,9 @@ function combat(world) {
 
     let dmg = def.weapon.damage;
     // Heimvorteil: auf eigenem Boden staerker. Der Gott lebt davon.
-    if (def.homeBonus && RULES.tiefeVoll === 0 && inDomain(world, e.player, e.x, e.y)) {
-      dmg = ((dmg * def.homeBonus) / 1000) | 0;
-    } else if (def.homeBonus && RULES.tiefeVoll > 0) {
-      // Nach Tiefe: am Rand nichts, ab tiefeVoll der volle Bonus.
-      const t = Math.min(RULES.tiefeVoll, domainDepth(world, e.player, e.x, e.y));
-      const bonus = 1000 + (((def.homeBonus - 1000) * t) / RULES.tiefeVoll) | 0;
-      dmg = ((dmg * bonus) / 1000) | 0;
-    }
+    // Zorn: ein versorgter Schrein im Netz, in dem der Schuetze steht.
+    const zorn = buffAt(world, e.player, e.x, e.y).zorn;
+    if (zorn) dmg = ((dmg * (1000 + zorn)) / 1000) | 0;
     // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
     // schwaecher zu. Gilt fuer alle Fraktionen gleich.
     if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
@@ -836,7 +850,12 @@ function combat(world) {
     world.events.push({ t: 'shot', from: e.id, to: target.id });
   }
 
-  for (let i = 0; i < shots.length; i += 2) shots[i].hp -= shots[i + 1];
+  // Wehr: ein versorgter Schrein im Netz, in dem das Ziel steht.
+  for (let i = 0; i < shots.length; i += 2) {
+    const t = shots[i];
+    const wehr = buffAt(world, t.player, t.x, t.y).wehr;
+    t.hp -= wehr ? ((shots[i + 1] * (1000 - wehr)) / 1000) | 0 : shots[i + 1];
+  }
   for (let i = 0; i < shots.length; i += 2) {
     const target = shots[i];
     if (target.hp <= 0 && !target.dead) {
@@ -914,6 +933,8 @@ export function gridReport(world, player) {
       x: r.members[0].x,
       y: r.members[0].y,
       throttled: r.demand > r.supply,
+      zorn: r.zorn,
+      wehr: r.wehr,
     });
   }
   return out;

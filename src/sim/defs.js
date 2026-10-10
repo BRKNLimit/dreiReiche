@@ -39,12 +39,6 @@ export const RULES = {
   // einen Regel: ein grosser Kreis traegt mehr als ein kleiner. 0 = aus.
   ankerKraft: 0,
 
-  // Heimvorteil nach Tiefe: volle Wirkung erst so viele dm vom Rand der
-  // eigenen Domaene entfernt, am Rand keine. Ein grosser Radius macht die
-  // Domaene tief -- so koennte der spaete Radius im Gefecht zaehlen.
-  // 0 = aus: drinnen voller Bonus, draussen keiner.
-  tiefeVoll: 0,
-
   // Jeder Spieler beginnt mit seinem Kommandanten (UNITS mit commander).
   // Aus nur fuer Vergleichsmessungen.
   kommandanten: true,
@@ -81,7 +75,7 @@ export const BUILDINGS = {
     gegenwartOut: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    buildList: ['koehler', 'landwehr'],
+    buildList: ['bauer', 'soldat'],
     vital: true,
   },
   turm: {
@@ -128,7 +122,7 @@ export const BUILDINGS = {
     prio: PRIO.werk,
     cost: { fron: 400 },
     buildTime: 480,
-    buildList: ['koehler', 'landwehr', 'soeldner'],
+    buildList: ['bauer', 'soldat', 'jaeger', 'soeldner'],
   },
   schacht: {
     name: 'Blutschacht',
@@ -143,6 +137,35 @@ export const BUILDINGS = {
     buildTime: 300,
     needs: 'goetterblut', // nur auf einer Ader -- und die liegen in der Mitte
   },
+  // Schreine: Heimvorteil kommt aus der Domaene, nicht aus den Einheiten.
+  // Ein versorgter Schrein staerkt alle eigenen Einheiten, die im selben
+  // Domaenennetz stehen -- zorn: mehr Schaden, wehr: weniger Schaden
+  // genommen (Promille, mit der Versorgung skaliert, stapelt nicht).
+  // Sie haengen an den letzten Stufen der Drosselleiter. Designzahlen.
+  banner: {
+    name: 'Kriegsbanner',
+    short: 'BAN',
+    faction: 'mensch',
+    hp: 600,
+    radius: 40,
+    gegenwartIn: 15,
+    prio: PRIO.zorn,
+    cost: { fron: 160 },
+    buildTime: 240,
+    buff: { zorn: 250 },
+  },
+  kapelle: {
+    name: 'Kapelle',
+    short: 'KAP',
+    faction: 'mensch',
+    hp: 700,
+    radius: 50,
+    gegenwartIn: 15,
+    prio: PRIO.wehr,
+    cost: { fron: 160 },
+    buildTime: 240,
+    buff: { wehr: 200 },
+  },
 
   // --------------------------------------------------------------- Gott
   herzbaum: {
@@ -155,7 +178,7 @@ export const BUILDINGS = {
     gegenwartOut: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    buildList: ['wurzler', 'schratt'],
+    buildList: ['dryade', 'wolf'],
     vital: true,
   },
   hain: {
@@ -202,7 +225,7 @@ export const BUILDINGS = {
     prio: PRIO.werk,
     cost: { fron: 400 },
     buildTime: 480,
-    buildList: ['wurzler', 'schratt', 'geweihter'],
+    buildList: ['dryade', 'wolf', 'waldgeist', 'ent'],
   },
   blutwurz: {
     name: 'Blutwurz',
@@ -217,29 +240,69 @@ export const BUILDINGS = {
     buildTime: 300,
     needs: 'goetterblut',
   },
+  // Beim Gott staerker: sein Wald ist sein Heimvorteil.
+  dornenschrein: {
+    name: 'Dornenschrein',
+    short: 'DOR',
+    faction: 'gott',
+    hp: 600,
+    radius: 40,
+    gegenwartIn: 15,
+    prio: PRIO.zorn,
+    cost: { fron: 160 },
+    buildTime: 240,
+    buff: { zorn: 450 },
+  },
+  steinkreis: {
+    name: 'Steinkreis',
+    short: 'STK',
+    faction: 'gott',
+    hp: 700,
+    radius: 50,
+    gegenwartIn: 15,
+    prio: PRIO.wehr,
+    cost: { fron: 160 },
+    buildTime: 240,
+    buff: { wehr: 300 },
+  },
 };
 
 export const UNITS = {
-  // Menschen
-  koehler: {
-    name: 'Köhler',
+  // ------------------------------------------------------------- Menschen
+  // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
+  bauer: {
+    name: 'Bauer',
+    faction: 'mensch',
+    hp: 150,
+    radius: 24,
+    speed: 30,
+    cost: { fron: 40 },
+    buildTime: 100,
+    worker: true,
+    // Baut wie der Kommandant, nur schwaecher: die naechste eigene Baustelle
+    // in Reichweite waechst mit seiner Kraft, auch ausserhalb der Domaene.
+    build: { range: 400, power: 400 },
+    weapon: { range: 300, damage: 4, cooldown: 8 },
+  },
+  soldat: {
+    name: 'Soldat',
     faction: 'mensch',
     hp: 200,
     radius: 26,
+    speed: 30,
+    cost: { fron: 45 },
+    buildTime: 100,
+    weapon: { range: 380, damage: 9, cooldown: 6 },
+  },
+  jaeger: {
+    name: 'Jäger',
+    faction: 'mensch',
+    hp: 130,
+    radius: 24,
     speed: 32,
     cost: { fron: 55 },
-    buildTime: 140,
-    worker: true,
-  },
-  landwehr: {
-    name: 'Landwehr',
-    faction: 'mensch',
-    hp: 260,
-    radius: 28,
-    speed: 30,
-    cost: { fron: 70 },
-    buildTime: 150,
-    weapon: { range: 420, damage: 11, cooldown: 6 },
+    buildTime: 120,
+    weapon: { range: 540, damage: 10, cooldown: 8 },
   },
   soeldner: {
     name: 'Söldner',
@@ -249,8 +312,8 @@ export const UNITS = {
     speed: 26,
     // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
     // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
-    cost: { fron: 130, goetterblut: 10 }, // war 180: pro Fron schlechter als Landwehr
-    buildTime: 300,
+    cost: { fron: 130, goetterblut: 10 },
+    buildTime: 240,
     weapon: { range: 480, damage: 26, cooldown: 8 },
   },
 
@@ -265,17 +328,18 @@ export const UNITS = {
   held: {
     name: 'Held',
     faction: 'mensch',
-    hp: 6000, // etwa zehn Soeldner
+    hp: 6000,
     radius: 36,
     speed: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    weapon: { range: 480, damage: 45, cooldown: 6 }, // gut zwei Soeldner
+    weapon: { range: 480, damage: 45, cooldown: 6 },
     commander: true,
     build: { range: 500, power: 1000 },
   },
 
-  // Gott
+  // ------------------------------------------------------------- Gott
+  // Wenige, teuer, langsam ausgebildet -- jede einzelne zaehlt.
   waldgott: {
     name: 'Waldgott',
     faction: 'gott',
@@ -285,41 +349,50 @@ export const UNITS = {
     cost: { fron: 0 },
     buildTime: 0,
     weapon: { range: 440, damage: 42, cooldown: 6 },
-    homeBonus: 1500,
     commander: true,
     build: { range: 500, power: 1000 },
   },
-  wurzler: {
-    name: 'Wurzler',
+  dryade: {
+    name: 'Dryade',
     faction: 'gott',
-    hp: 230,
-    radius: 26,
-    speed: 28,
-    cost: { fron: 55 },
-    buildTime: 140,
-    worker: true,
-  },
-  schratt: {
-    name: 'Schratt',
-    faction: 'gott',
-    hp: 300,
+    hp: 350,
     radius: 28,
-    speed: 32,
-    cost: { fron: 70 },
-    buildTime: 150,
-    weapon: { range: 380, damage: 10, cooldown: 6 },
-    homeBonus: 1500, // in eigener Domaene: Schaden x1,5
+    speed: 28,
+    cost: { fron: 90 },
+    buildTime: 220,
+    worker: true,
+    build: { range: 400, power: 700 },
+    weapon: { range: 380, damage: 8, cooldown: 7 },
   },
-  geweihter: {
-    name: 'Geweihter',
+  wolf: {
+    name: 'Wolf',
     faction: 'gott',
-    hp: 820,
-    radius: 34,
-    speed: 20,
-    cost: { fron: 135, goetterblut: 10 }, // war 190
-    buildTime: 325,
-    weapon: { range: 440, damage: 24, cooldown: 9 },
-    homeBonus: 1500,
+    hp: 640,
+    radius: 30,
+    speed: 34,
+    cost: { fron: 130 },
+    buildTime: 260,
+    weapon: { range: 260, damage: 24, cooldown: 6 },
+  },
+  waldgeist: {
+    name: 'Waldgeist',
+    faction: 'gott',
+    hp: 420,
+    radius: 30,
+    speed: 26,
+    cost: { fron: 150 },
+    buildTime: 300,
+    weapon: { range: 600, damage: 22, cooldown: 8 },
+  },
+  ent: {
+    name: 'Ent',
+    faction: 'gott',
+    hp: 2100,
+    radius: 44,
+    speed: 16,
+    cost: { fron: 300, goetterblut: 20 },
+    buildTime: 600,
+    weapon: { range: 360, damage: 52, cooldown: 10 },
   },
 };
 

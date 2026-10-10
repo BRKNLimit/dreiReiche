@@ -1,7 +1,14 @@
 # Die drei Reiche — Konzept
 
-Stand: 2026-10-10. Lebende Fassung liegt als Claude-Doc vor; diese Datei ist
+Stand: 2026-10-11. Lebende Fassung liegt als Claude-Doc vor; diese Datei ist
 die Arbeitskopie fürs Repository.
+
+## Ziel
+
+Ein klassisches RTS: Ressourcen sammeln, aufbauen, ausbreiten, den Gegner
+bekämpfen, seine Gebäude und seinen Anführer zerstören. **Die Domäne ist
+eine Mechanik, nicht das Ziel** — sie bestimmt, wo Gegenwart fließt, wo
+Fabriken und Förderung laufen und wo Schreine wirken.
 
 ## Prämisse
 
@@ -48,8 +55,25 @@ fester Reihenfolge:
 
 1. **Werk** — Baustellen und Fabriken stocken zuerst
 2. **Segen** — Produktion, Förderung, Heilung
-3. **Wehr** — Schutzzauber und Schilde
-4. **Zorn** — Waffen zuletzt
+3. **Wehr** — Schutzzauber und Schilde (Schreine wie Kapelle, Steinkreis)
+4. **Zorn** — Waffen zuletzt (Schreine wie Kriegsbanner, Dornenschrein)
+
+### Heimvorteil kommt aus Gebäuden
+
+Kein Heimvorteil steckt in den Einheiten selbst. Er entsteht in der Domäne,
+durch gebaute **Schreine**: Ein versorgter Schrein stärkt alle eigenen
+Einheiten, die im selben Domänennetz stehen — Zorn-Schreine mit mehr
+Schaden, Wehr-Schreine mit weniger genommenem Schaden. Er hängt an den
+letzten Stufen der Drosselleiter; wer das Netz schneidet oder die Gegenwart
+abgräbt, nimmt dem Gegner den Heimvorteil. Beide Fraktionen haben beide
+Schreine; beim Gott wirken sie stärker.
+
+### Kommandanten
+
+Jede Seite hat einen Kommandanten nach Vorbild der ACU aus Supreme
+Commander: extrem stark, er baut (auch außerhalb der Domäne), und sein
+Verlust bedeutet die Niederlage. Ob er hinten baut oder vorn kämpft,
+entscheidet der Spieler.
 
 Ein Gott lässt seine Waffen als Letztes fallen.
 
@@ -92,8 +116,11 @@ Schmieden. Funktioniert überall gleich gut, ortsunabhängig.
 Gott wachsen könnte. Sie schaden ihm, indem sie ihre Wirtschaft betreiben,
 nicht indem sie angreifen.
 
-**Im Prototyp:** Thingstätte, Wachturm, Schmiede, Sägewerk, Kaserne · Köhler,
-Landwehr, Söldner.
+**Einheiten: viele, günstig.** Stärke kommt aus der Zahl.
+
+**Im Prototyp:** Thingstätte, Wachturm, Schmiede, Sägewerk, Kaserne,
+Blutschacht, Kriegsbanner, Kapelle · Held (Kommandant), Bauer, Soldat, Jäger,
+Söldner.
 
 **Später:** Wagenburg, Armbrust, Priester, Bergung der Gefallenen.
 
@@ -107,12 +134,14 @@ Einer, der nach drei Minuten fällt, hat nichts gebracht.
 
 **Fron** nimmt er kaum. Auf gerodetem Boden kann er keinen Hain pflanzen.
 
-**Heimvorteil:** Schratt und Geweihter schlagen in der eigenen Domäne härter
-zu. Er verliert fast jedes frühe Gefecht und gewinnt jedes späte auf eigenem
-Boden.
+**Einheiten: wenige, stark.** Jede einzelne zählt.
 
-**Im Prototyp:** Herzbaum, Hain, Quellgrund, Moosgrube, Dickicht · Wurzler,
-Schratt, Geweihter.
+**Heimvorteil** über Schreine — Dornenschrein und Steinkreis wirken bei ihm
+stärker als die Schreine der Menschen.
+
+**Im Prototyp:** Herzbaum, Hain, Quellgrund, Moosgrube, Dickicht, Blutwurz,
+Dornenschrein, Steinkreis · Waldgott (Kommandant), Dryade, Wolf, Waldgeist,
+Ent.
 
 **Später:** Dornwerfer, Moosbär, Flüsterer, aktives Überwuchern von Gerodetem.
 
@@ -136,7 +165,7 @@ das Schlachtfeld der anderen.
 | Systeme | **Nein** | Alle haben Domäne, Anker, Drosselleiter |
 | Parameter | **Ja, stark** | Radiuswachstum, Kosten, Raten |
 | Einheitenwerte | **Ja** | Leben, Schaden, Tempo, Reichweite |
-| Einheitenrollen | **Ja, sparsam** | Jede hat Arbeiter, leicht, schwer |
+| Einheitenrollen | **Ja, sparsam** | Jede hat Arbeiter, leicht, Fernkampf, schwer, Kommandant |
 
 Eine Fraktion darf eine schwache Rolle haben. Keine Fraktion darf ein System
 weniger haben als die anderen. Fehlt eine Einheitenrolle, justierst du Zahlen.
@@ -145,13 +174,13 @@ stark ist.
 
 ## Offene Fragen
 
-- **Wie sichtbar ist eine Domänengrenze?** Sie ist die wichtigste Linie im
-  Spiel. Harte Kante oder weicher Übergang?
-- **Was passiert außerhalb der eigenen Domäne?** Derzeit: normal kämpfen, nur
-  der Gott verliert seinen Heimvorteil. Alternative: alle werden schwächer —
-  das macht die Grenze zum eigentlichen Schlachtfeld.
+- **Wie sichtbar ist eine Domänengrenze?** Im Prototyp: harte Kante, eine
+  Linie um die Vereinigung aller Ankerkreise.
+- **Was passiert außerhalb der eigenen Domäne?** Derzeit: normal kämpfen,
+  nur die Schreine wirken nicht. Alternative (`RULES.fremdMalus`): alle
+  werden schwächer — das macht die Grenze zum eigentlichen Schlachtfeld.
 - **Wird der Todesgott durch Tode in fremden Domänen gefüttert?** Wenn ja, in
   Dreierpartien übermächtig. Wenn nein, verliert er seine Pointe.
 - **Kartengröße.** Derzeit 2 × 2 km. Für Fußtruppen vermutlich richtig,
   ungetestet.
-- **Wie viele Einheiten pro Fraktion?** Drei reichen für den Prototyp.
+- **Wie viele Einheiten pro Fraktion?** Im Prototyp vier plus Kommandant.

@@ -77,7 +77,12 @@
     background: #20261a; border: 1px solid var(--line);
     padding: 6px 11px; border-radius: 3px; cursor: pointer;
   }
-  button:hover { border-color: var(--me); color: #fff; }
+  button:hover, a.btn:hover { border-color: var(--me); color: #fff; }
+  a.btn {
+    font-size: 12px; color: var(--text); text-decoration: none;
+    background: #20261a; border: 1px solid var(--line);
+    padding: 6px 11px; border-radius: 3px;
+  }
   button kbd {
     font: 10px ui-monospace, monospace; color: var(--accent);
     margin-left: 6px; opacity: .8;
@@ -123,10 +128,11 @@
     <div class="sep"></div>
     <button id="asMensch">Als Menschen</button>
     <button id="asGott">Als Gott</button>
+    <a class="btn" href="drei-reiche-3d.html" title="Dieselbe Simulation in 3D">3D-Ansicht</a>
     <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
     <span class="hint">
       Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Mausrad zoomt · Mittlere Taste schiebt ·
-      <b>1</b>–<b>5</b> bauen · Gebäude anklicken: <b>Q</b>/<b>W</b> Einheiten, <b>Entf</b> abreißen · <b>K</b> Kommandant · <b>I</b> Auswertung · Leertaste pausiert · +/− Tempo
+      <b>1</b>–<b>7</b> bauen · Gebäude anklicken: <b>Q</b>–<b>R</b> Einheiten, <b>Entf</b> abreißen · <b>K</b> Kommandant · <b>I</b> Auswertung · Leertaste pausiert · +/− Tempo
     </span>
   </div>
 </div>
@@ -170,12 +176,6 @@ const RULES = {
   // einen Regel: ein grosser Kreis traegt mehr als ein kleiner. 0 = aus.
   ankerKraft: 0,
 
-  // Heimvorteil nach Tiefe: volle Wirkung erst so viele dm vom Rand der
-  // eigenen Domaene entfernt, am Rand keine. Ein grosser Radius macht die
-  // Domaene tief -- so koennte der spaete Radius im Gefecht zaehlen.
-  // 0 = aus: drinnen voller Bonus, draussen keiner.
-  tiefeVoll: 0,
-
   // Jeder Spieler beginnt mit seinem Kommandanten (UNITS mit commander).
   // Aus nur fuer Vergleichsmessungen.
   kommandanten: true,
@@ -210,7 +210,7 @@ const BUILDINGS = {
     gegenwartOut: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    buildList: ['koehler', 'landwehr'],
+    buildList: ['bauer', 'soldat'],
     vital: true,
   },
   turm: {
@@ -257,7 +257,7 @@ const BUILDINGS = {
     prio: PRIO.werk,
     cost: { fron: 400 },
     buildTime: 480,
-    buildList: ['koehler', 'landwehr', 'soeldner'],
+    buildList: ['bauer', 'soldat', 'jaeger', 'soeldner'],
   },
   schacht: {
     name: 'Blutschacht',
@@ -272,6 +272,35 @@ const BUILDINGS = {
     buildTime: 300,
     needs: 'goetterblut', // nur auf einer Ader -- und die liegen in der Mitte
   },
+  // Schreine: Heimvorteil kommt aus der Domaene, nicht aus den Einheiten.
+  // Ein versorgter Schrein staerkt alle eigenen Einheiten, die im selben
+  // Domaenennetz stehen -- zorn: mehr Schaden, wehr: weniger Schaden
+  // genommen (Promille, mit der Versorgung skaliert, stapelt nicht).
+  // Sie haengen an den letzten Stufen der Drosselleiter. Designzahlen.
+  banner: {
+    name: 'Kriegsbanner',
+    short: 'BAN',
+    faction: 'mensch',
+    hp: 600,
+    radius: 40,
+    gegenwartIn: 15,
+    prio: PRIO.zorn,
+    cost: { fron: 160 },
+    buildTime: 240,
+    buff: { zorn: 250 },
+  },
+  kapelle: {
+    name: 'Kapelle',
+    short: 'KAP',
+    faction: 'mensch',
+    hp: 700,
+    radius: 50,
+    gegenwartIn: 15,
+    prio: PRIO.wehr,
+    cost: { fron: 160 },
+    buildTime: 240,
+    buff: { wehr: 200 },
+  },
 
   // --------------------------------------------------------------- Gott
   herzbaum: {
@@ -284,7 +313,7 @@ const BUILDINGS = {
     gegenwartOut: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    buildList: ['wurzler', 'schratt'],
+    buildList: ['dryade', 'wolf'],
     vital: true,
   },
   hain: {
@@ -331,7 +360,7 @@ const BUILDINGS = {
     prio: PRIO.werk,
     cost: { fron: 400 },
     buildTime: 480,
-    buildList: ['wurzler', 'schratt', 'geweihter'],
+    buildList: ['dryade', 'wolf', 'waldgeist', 'ent'],
   },
   blutwurz: {
     name: 'Blutwurz',
@@ -346,28 +375,68 @@ const BUILDINGS = {
     buildTime: 300,
     needs: 'goetterblut',
   },
+  // Beim Gott staerker: sein Wald ist sein Heimvorteil.
+  dornenschrein: {
+    name: 'Dornenschrein',
+    short: 'DOR',
+    faction: 'gott',
+    hp: 600,
+    radius: 40,
+    gegenwartIn: 15,
+    prio: PRIO.zorn,
+    cost: { fron: 160 },
+    buildTime: 240,
+    buff: { zorn: 450 },
+  },
+  steinkreis: {
+    name: 'Steinkreis',
+    short: 'STK',
+    faction: 'gott',
+    hp: 700,
+    radius: 50,
+    gegenwartIn: 15,
+    prio: PRIO.wehr,
+    cost: { fron: 160 },
+    buildTime: 240,
+    buff: { wehr: 300 },
+  },
 };
 const UNITS = {
-  // Menschen
-  koehler: {
-    name: 'Köhler',
+  // ------------------------------------------------------------- Menschen
+  // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
+  bauer: {
+    name: 'Bauer',
+    faction: 'mensch',
+    hp: 150,
+    radius: 24,
+    speed: 30,
+    cost: { fron: 40 },
+    buildTime: 100,
+    worker: true,
+    // Baut wie der Kommandant, nur schwaecher: die naechste eigene Baustelle
+    // in Reichweite waechst mit seiner Kraft, auch ausserhalb der Domaene.
+    build: { range: 400, power: 400 },
+    weapon: { range: 300, damage: 4, cooldown: 8 },
+  },
+  soldat: {
+    name: 'Soldat',
     faction: 'mensch',
     hp: 200,
     radius: 26,
+    speed: 30,
+    cost: { fron: 45 },
+    buildTime: 100,
+    weapon: { range: 380, damage: 9, cooldown: 6 },
+  },
+  jaeger: {
+    name: 'Jäger',
+    faction: 'mensch',
+    hp: 130,
+    radius: 24,
     speed: 32,
     cost: { fron: 55 },
-    buildTime: 140,
-    worker: true,
-  },
-  landwehr: {
-    name: 'Landwehr',
-    faction: 'mensch',
-    hp: 260,
-    radius: 28,
-    speed: 30,
-    cost: { fron: 70 },
-    buildTime: 150,
-    weapon: { range: 420, damage: 11, cooldown: 6 },
+    buildTime: 120,
+    weapon: { range: 540, damage: 10, cooldown: 8 },
   },
   soeldner: {
     name: 'Söldner',
@@ -377,8 +446,8 @@ const UNITS = {
     speed: 26,
     // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
     // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
-    cost: { fron: 130, goetterblut: 10 }, // war 180: pro Fron schlechter als Landwehr
-    buildTime: 300,
+    cost: { fron: 130, goetterblut: 10 },
+    buildTime: 240,
     weapon: { range: 480, damage: 26, cooldown: 8 },
   },
 
@@ -393,17 +462,18 @@ const UNITS = {
   held: {
     name: 'Held',
     faction: 'mensch',
-    hp: 6000, // etwa zehn Soeldner
+    hp: 6000,
     radius: 36,
     speed: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    weapon: { range: 480, damage: 45, cooldown: 6 }, // gut zwei Soeldner
+    weapon: { range: 480, damage: 45, cooldown: 6 },
     commander: true,
     build: { range: 500, power: 1000 },
   },
 
-  // Gott
+  // ------------------------------------------------------------- Gott
+  // Wenige, teuer, langsam ausgebildet -- jede einzelne zaehlt.
   waldgott: {
     name: 'Waldgott',
     faction: 'gott',
@@ -413,41 +483,50 @@ const UNITS = {
     cost: { fron: 0 },
     buildTime: 0,
     weapon: { range: 440, damage: 42, cooldown: 6 },
-    homeBonus: 1500,
     commander: true,
     build: { range: 500, power: 1000 },
   },
-  wurzler: {
-    name: 'Wurzler',
+  dryade: {
+    name: 'Dryade',
     faction: 'gott',
-    hp: 230,
-    radius: 26,
-    speed: 28,
-    cost: { fron: 55 },
-    buildTime: 140,
-    worker: true,
-  },
-  schratt: {
-    name: 'Schratt',
-    faction: 'gott',
-    hp: 300,
+    hp: 350,
     radius: 28,
-    speed: 32,
-    cost: { fron: 70 },
-    buildTime: 150,
-    weapon: { range: 380, damage: 10, cooldown: 6 },
-    homeBonus: 1500, // in eigener Domaene: Schaden x1,5
+    speed: 28,
+    cost: { fron: 90 },
+    buildTime: 220,
+    worker: true,
+    build: { range: 400, power: 700 },
+    weapon: { range: 380, damage: 8, cooldown: 7 },
   },
-  geweihter: {
-    name: 'Geweihter',
+  wolf: {
+    name: 'Wolf',
     faction: 'gott',
-    hp: 820,
-    radius: 34,
-    speed: 20,
-    cost: { fron: 135, goetterblut: 10 }, // war 190
-    buildTime: 325,
-    weapon: { range: 440, damage: 24, cooldown: 9 },
-    homeBonus: 1500,
+    hp: 640,
+    radius: 30,
+    speed: 34,
+    cost: { fron: 130 },
+    buildTime: 260,
+    weapon: { range: 260, damage: 24, cooldown: 6 },
+  },
+  waldgeist: {
+    name: 'Waldgeist',
+    faction: 'gott',
+    hp: 420,
+    radius: 30,
+    speed: 26,
+    cost: { fron: 150 },
+    buildTime: 300,
+    weapon: { range: 600, damage: 22, cooldown: 8 },
+  },
+  ent: {
+    name: 'Ent',
+    faction: 'gott',
+    hp: 2100,
+    radius: 44,
+    speed: 16,
+    cost: { fron: 300, goetterblut: 20 },
+    buildTime: 600,
+    weapon: { range: 360, damage: 52, cooldown: 10 },
   },
 };
 const START_FRON = 900;
@@ -833,18 +912,25 @@ function inDomain(world, player, x, y) {
   return false;
 }
 
-/** Wie tief liegt der Punkt in der eigenen Domaene? Abstand zum naechsten Rand, 0 = draussen. */
-function domainDepth(world, player, x, y) {
-  let best = 0;
+/**
+ * Schrein-Wirkung an einem Punkt fuer einen Spieler: die staerkste aus allen
+ * eigenen Domaenennetzen, deren Anker den Punkt abdecken. Ausserhalb der
+ * eigenen Domaene nichts.
+ */
+function buffAt(world, player, x, y) {
+  let zorn = 0;
+  let wehr = 0;
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.player !== player || e.kind !== 'building') continue;
     const r = anchorRadius(world, e);
-    if (r === 0) continue;
-    const t = r - isqrt(dist2(x, y, e.x, e.y));
-    if (t > best) best = t;
+    if (r === 0 || dist2(x, y, e.x, e.y) > r * r) continue;
+    const reg = world.regions[e.region];
+    if (!reg) continue;
+    if (reg.zorn > zorn) zorn = reg.zorn;
+    if (reg.wehr > wehr) wehr = reg.wehr;
   }
-  return best;
+  return { zorn, wehr };
 }
 
 /** Liegt der Punkt in der Domaene irgendeines anderen Spielers? */
@@ -910,6 +996,8 @@ function computeRegions(world) {
       demand: 0,
       byPrio: [0, 0, 0, 0],
       satPrio: [1000, 1000, 1000, 1000],
+      zorn: 0, // staerkster versorgter Schrein im Netz, Promille
+      wehr: 0,
     });
   }
   world.regions = regions;
@@ -953,9 +1041,19 @@ function distributeGegenwart(world) {
       }
     }
 
+    reg.zorn = 0;
+    reg.wehr = 0;
     for (let i = 0; i < reg.members.length; i++) {
       const e = reg.members[i];
       e.powered = demandOf(e) > 0 ? reg.satPrio[prioOf(e)] : 1000;
+      const buff = BUILDINGS[e.type].buff;
+      if (buff && e.done) {
+        // Schreine wirken anteilig zur Versorgung und stapeln nicht.
+        const z = (((buff.zorn || 0) * e.powered) / 1000) | 0;
+        const w = (((buff.wehr || 0) * e.powered) / 1000) | 0;
+        if (z > reg.zorn) reg.zorn = z;
+        if (w > reg.wehr) reg.wehr = w;
+      }
     }
   }
 }
@@ -1273,14 +1371,9 @@ function combat(world) {
 
     let dmg = def.weapon.damage;
     // Heimvorteil: auf eigenem Boden staerker. Der Gott lebt davon.
-    if (def.homeBonus && RULES.tiefeVoll === 0 && inDomain(world, e.player, e.x, e.y)) {
-      dmg = ((dmg * def.homeBonus) / 1000) | 0;
-    } else if (def.homeBonus && RULES.tiefeVoll > 0) {
-      // Nach Tiefe: am Rand nichts, ab tiefeVoll der volle Bonus.
-      const t = Math.min(RULES.tiefeVoll, domainDepth(world, e.player, e.x, e.y));
-      const bonus = 1000 + (((def.homeBonus - 1000) * t) / RULES.tiefeVoll) | 0;
-      dmg = ((dmg * bonus) / 1000) | 0;
-    }
+    // Zorn: ein versorgter Schrein im Netz, in dem der Schuetze steht.
+    const zorn = buffAt(world, e.player, e.x, e.y).zorn;
+    if (zorn) dmg = ((dmg * (1000 + zorn)) / 1000) | 0;
     // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
     // schwaecher zu. Gilt fuer alle Fraktionen gleich.
     if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
@@ -1291,7 +1384,12 @@ function combat(world) {
     world.events.push({ t: 'shot', from: e.id, to: target.id });
   }
 
-  for (let i = 0; i < shots.length; i += 2) shots[i].hp -= shots[i + 1];
+  // Wehr: ein versorgter Schrein im Netz, in dem das Ziel steht.
+  for (let i = 0; i < shots.length; i += 2) {
+    const t = shots[i];
+    const wehr = buffAt(world, t.player, t.x, t.y).wehr;
+    t.hp -= wehr ? ((shots[i + 1] * (1000 - wehr)) / 1000) | 0 : shots[i + 1];
+  }
   for (let i = 0; i < shots.length; i += 2) {
     const target = shots[i];
     if (target.hp <= 0 && !target.dead) {
@@ -1368,6 +1466,8 @@ function gridReport(world, player) {
       x: r.members[0].x,
       y: r.members[0].y,
       throttled: r.demand > r.supply,
+      zorn: r.zorn,
+      wehr: r.wehr,
     });
   }
   return out;
@@ -1420,27 +1520,46 @@ function hash(world) {
 
 
 const PLAN = {
-  mensch: { anker: 'turm', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne', leicht: 'landwehr', schwer: 'soeldner' },
-  gott: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', leicht: 'schratt', schwer: 'geweihter' },
+  mensch: {
+    anker: 'turm', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
+    zorn: 'banner', wehr: 'kapelle',
+    bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner',
+  },
+  gott: {
+    anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht',
+    zorn: 'dornenschrein', wehr: 'steinkreis',
+    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent',
+  },
 };
+
+// Reihenfolge der Ausbildung; "schwer" nur mit Goetterblut.
+const MISCHUNG = ['leicht', 'fern', 'leicht', 'fern', 'schwer'];
+
+/** Heereswert in Fron -- Wellen und Leibwache zaehlen Wert, nicht Koepfe. */
+const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
 
 /**
  * Spielstile, fraktionsneutral. Messungen mit nur einem Stil messen vor
  * allem diesen Stil (docs/scope.md); tools/sweep.mjs kann alle Paarungen
  * gegeneinander spielen lassen.
- *   welle:     Truppen fuer die erste Welle, plus wellePlus je weitere
+ *   welle:     Heereswert (Fron) fuer die erste Welle, plus wellePlus je
+ *              weitere -- Wert statt Koepfe, sonst griffe der Gott mit seinen
+ *              wenigen starken Einheiten nie an
  *   ankerAb:   Fron-Polster, ab dem zusaetzliche Anker gesetzt werden
  *   ankerTakt: Minuten je zusaetzlichem Anker
  *   kdtVorn:   Kommandant geht nach vorn (kaempft, baut Aussenposten an
  *              den Adern) statt hinten beim Hauptgebaeude zu bauen
- *   wache:     so viele Einheiten bleiben mindestens als Leibwache beim
+ *   wache:     so viel Heereswert bleibt mindestens als Leibwache beim
  *              Kommandanten, mehr bei grossem Heer (drei Zehntel)
  */
 const STILE = {
-  sturm: { welle: 5, wellePlus: 2, ankerAb: 400, ankerTakt: 2, kdtVorn: true, wache: 2 },
-  standard: { welle: 8, wellePlus: 3, ankerAb: 250, ankerTakt: 1, kdtVorn: false, wache: 3 },
-  burg: { welle: 14, wellePlus: 4, ankerAb: 150, ankerTakt: 1, kdtVorn: false, wache: 4 },
+  sturm: { welle: 300, wellePlus: 120, ankerAb: 400, ankerTakt: 2, kdtVorn: true, wache: 120 },
+  standard: { welle: 550, wellePlus: 200, ankerAb: 250, ankerTakt: 1, kdtVorn: false, wache: 220 },
+  burg: { welle: 900, wellePlus: 300, ankerAb: 150, ankerTakt: 1, kdtVorn: false, wache: 320 },
 };
+
+// So viele Anker setzt die KI hoechstens von sich aus (ohne Vorstoss zur Ader).
+const ANKER_HOECHSTENS = 8;
 
 // Wie weit "hinten" fuer die KI reicht: Umkreis um das eigene Hauptgebaeude.
 const HINTEN = 3000;
@@ -1461,6 +1580,9 @@ function stepAI(ai, world) {
   const einheiten = mine.filter((e) => e.kind === 'unit');
   // Der Kommandant kaempft mit, baut aber vor allem: er geht nicht mit Wellen.
   const kdt = einheiten.find((u) => UNITS[u.type].commander) || null;
+  // Arbeiter bauen, Kaempfer kaempfen -- Wellen, Wache und Abwehr ohne Arbeiter.
+  const arbeiter = einheiten.filter((u) => UNITS[u.type].worker);
+  const kaempfer = einheiten.filter((u) => !UNITS[u.type].worker && u !== kdt);
   const zahl = (t) => bauten.filter((b) => b.type === t).length;
   const kosten = (t) => BUILDINGS[t].cost.fron;
   const fron = p.fron;
@@ -1522,6 +1644,16 @@ function stepAI(ai, world) {
     return bau(plan.fabrik, ...daheim(world, haupt, 900, front + 200 + n * 70));
   }
 
+  // 3a. Schreine: ab Minute 5 je einer fuer Zorn und Wehr beim Hauptgebaeude --
+  //     dort wird verteidigt, dort zaehlt der Heimvorteil.
+  if (minute >= 5 && zahl(plan.fabrik) > 0) {
+    for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
+      const typ = plan[rolle];
+      if (zahl(typ) > 0 || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
+      return bau(typ, ...daheim(world, haupt, 600, front + grad));
+    }
+  }
+
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
   if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
     return bau(plan.blut, vene.x, vene.y);
@@ -1562,7 +1694,8 @@ function stepAI(ai, world) {
   // 4. Anker. Die Zahl steigt mit der Zeit. Jeder neue Anker kommt an den
   //    Rand der eigenen Domaene, moeglichst weit weg von den bestehenden --
   //    sonst ueberdecken sich die Kreise und Wachstum bringt keine Flaeche.
-  const ankerZiel = 2 + ((minute / ai.stil.ankerTakt) | 0);
+  // Gedeckelt: spaet im Spiel braucht es Truppen, nicht den zwanzigsten Anker.
+  const ankerZiel = Math.min(ANKER_HOECHSTENS, 2 + ((minute / ai.stil.ankerTakt) | 0));
   if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + ai.stil.ankerAb) {
     const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
     if (platz) return bau(plan.anker, platz.x, platz.y);
@@ -1588,26 +1721,45 @@ function stepAI(ai, world) {
     }
   }
 
-  // 6. Produktion: zwei leichte auf eine schwere, soweit die Fabrik sie kennt.
-  //    Solange die Wirtschaft unvollstaendig ist, wird fuer den naechsten
-  //    Bau gespart statt alles in Einheiten zu stecken.
-  const sparen = naechster ? kosten(naechster) : vene ? kosten(plan.anker) + 100 : 0;
+  // 6. Produktion. Erst genug Arbeiter, dann Kaempfer in fester Mischung;
+  //    schwer nur mit Goetterblut. Solange die Wirtschaft unvollstaendig ist,
+  //    wird fuer den naechsten Bau gespart.
+  // Ist das Heer kleiner als eine Welle, wird nicht gespart: ohne Truppen ist
+  // jede Wirtschaft nur Beute (und der Kommandant schutzlos).
+  const heerSchwach = minute >= 5 && wert(kaempfer) < ai.stil.welle;
+  const sparen = heerSchwach ? 0 : naechster ? kosten(naechster) : vene ? kosten(plan.anker) + 100 : 0;
   let rest = fron;
   let blutRest = p.goetterblut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
+  const arbeiterZiel = 2 + (minute >= 6 ? 1 : 0) + (minute >= 12 ? 1 : 0);
+  let arbeiterBestellt = arbeiter.length;
+  for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
   for (const f of bauten) {
     if (!f.done || !BUILDINGS[f.type].buildList || f.queue.length >= tiefe) continue;
     const liste = BUILDINGS[f.type].buildList;
-    // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
-    const schwerMoeglich = blutRest >= blutSchwer;
-    const reichlich = blutSchwer > 0 && blutRest >= 3 * blutSchwer;
-    const wunsch = schwerMoeglich && (ai.zug % 3 === 2 || reichlich) ? plan.schwer : plan.leicht;
-    const unit = liste.includes(wunsch) ? wunsch : liste.includes(plan.leicht) ? plan.leicht : null;
+    let unit = null;
+    if (arbeiterBestellt < arbeiterZiel && liste.includes(plan.bauer)) {
+      unit = plan.bauer;
+      arbeiterBestellt++;
+    } else {
+      // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
+      // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
+      const schwerMoeglich = blutRest >= blutSchwer;
+      const reichlich = blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+      if (reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
+      for (let k = 0; !unit && k < MISCHUNG.length; k++) {
+        const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
+        if (rolle === 'schwer' && !schwerMoeglich) continue;
+        if (liste.includes(plan[rolle])) {
+          unit = plan[rolle];
+          ai.zug += k + 1;
+        }
+      }
+    }
     if (!unit || rest - UNITS[unit].cost.fron < sparen) continue;
     rest -= UNITS[unit].cost.fron;
     blutRest -= UNITS[unit].cost.goetterblut || 0;
-    ai.zug++;
     issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
   }
 
@@ -1631,8 +1783,9 @@ function stepAI(ai, world) {
       !rueckzug &&
       inDomain(world, ai.player, bedrohung.x, bedrohung.y) &&
       (ai.stil.kdtVorn || imHinterland(bedrohung));
-    const ids = einheiten
-      .filter((u) => !ai.unterwegs.includes(u.id) && (u !== kdt || kdtHilft))
+    const ids = kaempfer
+      .concat(kdtHilft ? [kdt] : [])
+      .filter((u) => !ai.unterwegs.includes(u.id))
       .map((u) => u.id);
     if (ids.length) issue(world, { type: 'attack', player: ai.player, ids, x: bedrohung.x, y: bedrohung.y });
   }
@@ -1643,13 +1796,15 @@ function stepAI(ai, world) {
   ai.unterwegs = ai.unterwegs.filter((id) => einheiten.some((u) => u.id === id));
   // Leibwache: Wer seinen Kommandanten verliert, verliert die Partie. Die ihm
   // naechsten Einheiten bleiben bei ihm, nur der Rest geht mit Wellen.
-  const daheimAlle = einheiten.filter((u) => !ai.unterwegs.includes(u.id) && u !== kdt);
+  const daheimAlle = kaempfer.filter((u) => !ai.unterwegs.includes(u.id));
   const nachNaehe = kdt
     ? daheimAlle
         .slice()
         .sort((a, b) => dist2(a.x, a.y, kdt.x, kdt.y) - dist2(b.x, b.y, kdt.x, kdt.y) || a.id - b.id)
     : daheimAlle;
-  const wacheZahl = kdt ? Math.min(nachNaehe.length, Math.max(ai.stil.wache, ((nachNaehe.length * 3) / 10) | 0)) : 0;
+  const wacheWert = kdt ? Math.max(ai.stil.wache, ((wert(nachNaehe) * 3) / 10) | 0) : 0;
+  let wacheZahl = 0;
+  for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
   const angriff = gegnerFoerderung(world, ai.player, haupt) || ziel;
@@ -1657,7 +1812,11 @@ function stepAI(ai, world) {
     ai.welleZiel = angriff.id;
     issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
   }
-  if (!bedrohung && daheimStehend.length >= ai.stil.welle + ai.welle * ai.stil.wellePlus && angriff) {
+  // Nur angreifen, wenn die Welle das gegnerische Heer daheim samt dessen
+  // Heimvorteil uebertrifft -- sonst zerschellt sie an der Verteidigung.
+  const gegnerDaheim = heimHeer(world, ai.player);
+  const genug = Math.max(ai.stil.welle + ai.welle * ai.stil.wellePlus, ((gegnerDaheim * 12) / 10) | 0);
+  if (!bedrohung && wert(daheimStehend) >= genug && angriff) {
     ai.welle++;
     ai.welleZiel = angriff.id;
     const ids = daheimStehend.map((u) => u.id);
@@ -1704,6 +1863,23 @@ function stepAI(ai, world) {
     const nah = site ? reichweite : 700;
     if (hin && dist2(kdt.x, kdt.y, hin.x, hin.y) > nah * nah && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
       issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
+    }
+  }
+
+  // 9c. Arbeiter: reihum auf die Baustellen, die am wenigsten Gegenwart haben;
+  //     ohne Baustelle zurueck zum Hauptgebaeude.
+  if (arbeiter.length) {
+    const baustellen = bauten
+      .filter((b) => !b.done && sicher(b, 1200))
+      .sort((a, b) => a.powered - b.powered || a.id - b.id);
+    const reihe = arbeiter.slice().sort((a, b) => a.id - b.id);
+    for (let i = 0; i < reihe.length; i++) {
+      const u = reihe[i];
+      const hin = baustellen.length ? baustellen[i % baustellen.length] : haupt;
+      const nah = baustellen.length ? UNITS[u.type].build.range - 100 : 900;
+      if (dist2(u.x, u.y, hin.x, hin.y) > nah * nah && (u.tx !== hin.x || u.ty !== hin.y)) {
+        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: hin.x, y: hin.y });
+      }
     }
   }
 
@@ -1819,6 +1995,23 @@ function blockiert(world, x, y, radius) {
     if (dist2(x, y, e.x, e.y) < min * min) return true;
   }
   return false;
+}
+
+/**
+ * Wert des gegnerischen Heers, das in seiner eigenen Domaene steht, gewichtet
+ * mit der Wirkung seiner Schreine dort (Zorn und Wehr). Arbeiter zaehlen nicht.
+ */
+function heimHeer(world, me) {
+  let summe = 0;
+  for (const o of world.entities) {
+    if (o.dead || o.player === me || o.kind !== 'unit') continue;
+    const d = UNITS[o.type];
+    if (d.worker || !d.weapon || !inDomain(world, o.player, o.x, o.y)) continue;
+    const kosten = d.commander ? 600 : d.cost.fron;
+    const b = buffAt(world, o.player, o.x, o.y);
+    summe += ((((kosten * (1000 + b.zorn)) / 1000) * 1000) / (1000 - b.wehr)) | 0;
+  }
+  return summe;
 }
 
 /** Feindliche Kaempfer im Umkreis r um einen Punkt. */
@@ -2110,7 +2303,7 @@ cv.addEventListener(
 
 addEventListener('keydown', (e) => {
   const liste = bauListe();
-  const i = '12345'.indexOf(e.key);
+  const i = '1234567'.indexOf(e.key);
   if (i >= 0 && liste[i]) placing = liste[i];
   if (e.key === 'Escape') {
     placing = null;
@@ -2140,11 +2333,11 @@ addEventListener('keydown', (e) => {
     const b = byId(world, sel[0]);
     if (b && b.kind === 'building') issue(world, { type: 'demolish', player: ME, id: b.id });
   }
-  if ((e.key === 'q' || e.key === 'w') && sel.length === 1) {
+  const slot = 'qwer'.indexOf(e.key);
+  if (slot >= 0 && sel.length === 1) {
     const b = byId(world, sel[0]);
     if (b && b.kind === 'building' && b.done && BUILDINGS[b.type].buildList) {
-      const l = BUILDINGS[b.type].buildList;
-      const u = e.key === 'q' ? l[1] : l[2] || l[1];
+      const u = BUILDINGS[b.type].buildList[slot];
       if (u) issue(world, { type: 'produce', player: ME, id: b.id, unit: u });
     }
   }
@@ -2157,8 +2350,8 @@ mini.addEventListener('mousedown', (e) => {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht']
-    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz'];
+    ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht', 'banner', 'kapelle']
+    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis'];
 }
 
 function renderBar() {
@@ -2552,7 +2745,7 @@ function drawHud() {
     rows += `<div class="reg ${r.throttled ? 'bad' : 'ok'}">
       <span class="rn">Domäne ${r.index + 1}</span><span class="rb">${r.supply}/${r.demand}</span>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}</span></div>`;
+      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}${schreinText(r)}</span></div>`;
   }
   if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
 
@@ -2722,13 +2915,20 @@ function auswahlHtml() {
       : 'versorgt';
   const tasten = def.buildList
     ? def.buildList
-        .slice(1)
-        .map((u, i) => `<kbd>${'QW'[i]}</kbd> ${UNITS[u].name}${UNITS[u].cost.goetterblut ? ` (${UNITS[u].cost.goetterblut} Götterblut)` : ''}`)
+        .map((u, i) => `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}${UNITS[u].cost.goetterblut ? ` (${UNITS[u].cost.goetterblut} Götterblut)` : ''}`)
         .join(' · ')
     : '';
   const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';
   return `<div class="sel"><b>${def.name}</b> — ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
     <div class="keys">${tasten}${abriss}</div></div>`;
+}
+
+/** Schrein-Wirkung eines Netzes fuer die HUD-Zeile. */
+function schreinText(r) {
+  const teile = [];
+  if (r.zorn) teile.push('Zorn +' + Math.round(r.zorn / 10) + ' %');
+  if (r.wehr) teile.push('Wehr −' + Math.round(r.wehr / 10) + ' %');
+  return teile.length ? ' · ' + teile.join(' · ') : '';
 }
 
 function drossel(r) {
@@ -2782,25 +2982,30 @@ function introHtml() {
   const gg = FACTIONS.gott.growth;
   const proMin = gg.perTick * 600;
   const bis = Math.round(((gg.max - gg.start) / gg.perTick / 600) * 10) / 10;
-  const bonus = UNITS.schratt.homeBonus / 1000;
+  const pz = (b) => Math.round(BUILDINGS[b].buff.zorn / 10) + ' %';
+  const pw = (b) => Math.round(BUILDINGS[b].buff.wehr / 10) + ' %';
   return `<h1>Die drei Reiche</h1>
-    <p class="frage">Eine Frage: Fühlt sich eine Domäne mit festem Radius anders an als eine, die wächst?</p>
+    <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
     <div class="cols">
       <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
-        <p>Jeder Wachturm deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
-        Sägewerke roden den Boden; dort pflanzt der Gott keinen Hain.</p></div>
+        <p>Viele günstige Einheiten: Bauern, Soldaten, Jäger, Söldner.
+        Jeder Wachturm deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
+        Sägewerke roden den Boden; dort pflanzt der Gott keinen Hain.
+        Schreine: Kriegsbanner +${pz('banner')} Schaden, Kapelle −${pw('kapelle')} Schaden.</p></div>
       <div><h2 style="color:${FACTIONS.gott.color}">Wald- und Wiesengott</h2>
         <p>Ein Hain beginnt bei <b>${meter(gg.start)}</b> und wächst um ${meter(proMin)} pro Minute,
-        nach ${bis.toLocaleString('de')} Minuten auf <b>${meter(gg.max)}</b>. Seine Krieger schlagen in
-        eigener Domäne ${bonus.toLocaleString('de')}× zu.</p></div>
+        nach ${bis.toLocaleString('de')} Minuten auf <b>${meter(gg.max)}</b>.
+        Wenige starke Einheiten: Dryaden, Wölfe, Waldgeister, Ents.
+        Schreine: Dornenschrein +${pz('dornenschrein')} Schaden, Steinkreis −${pw('steinkreis')} Schaden.</p></div>
     </div>
-    <p>Für beide gilt: Gegenwart fließt nur in der Domäne, Baustellen außerhalb stehen still.
-    Götterblut liegt in der Kartenmitte; schwere Einheiten brauchen es.</p>
+    <p>Für beide gilt: Gegenwart fließt nur in der Domäne — Fabriken, Förderung und Schreine brauchen
+    sie. Schreine wirken auf eigene Einheiten im selben Domänennetz. Götterblut liegt in der
+    Kartenmitte; schwere Einheiten brauchen es.</p>
     <p>Jede Seite hat einen <b>Kommandanten</b> — ${UNITS[FACTIONS.mensch.kommandant].name} bzw.
     ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut, was in seiner Nähe steht,
     auch außerhalb der Domäne. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
     vorn kämpft, entscheidest du.</p>
-    <p class="achten">Worauf achten: Wann fordert die Domäne eine Entscheidung — und wann nervt sie?</p>
+    <p class="achten">Die Domäne ist das Werkzeug, nicht das Ziel: Wann fordert sie eine Entscheidung — und wann nervt sie?</p>
     <div class="stil">Gegner:
       ${Object.keys(STILE)
         .map((s) => `<label><input type="radio" name="stil" value="${s}"${s === gegnerStil ? ' checked' : ''}> ${STIL_NAMEN[s]}</label>`)

@@ -158,7 +158,7 @@ cv.addEventListener(
 
 addEventListener('keydown', (e) => {
   const liste = bauListe();
-  const i = '12345'.indexOf(e.key);
+  const i = '1234567'.indexOf(e.key);
   if (i >= 0 && liste[i]) placing = liste[i];
   if (e.key === 'Escape') {
     placing = null;
@@ -188,11 +188,11 @@ addEventListener('keydown', (e) => {
     const b = byId(world, sel[0]);
     if (b && b.kind === 'building') issue(world, { type: 'demolish', player: ME, id: b.id });
   }
-  if ((e.key === 'q' || e.key === 'w') && sel.length === 1) {
+  const slot = 'qwer'.indexOf(e.key);
+  if (slot >= 0 && sel.length === 1) {
     const b = byId(world, sel[0]);
     if (b && b.kind === 'building' && b.done && BUILDINGS[b.type].buildList) {
-      const l = BUILDINGS[b.type].buildList;
-      const u = e.key === 'q' ? l[1] : l[2] || l[1];
+      const u = BUILDINGS[b.type].buildList[slot];
       if (u) issue(world, { type: 'produce', player: ME, id: b.id, unit: u });
     }
   }
@@ -205,8 +205,8 @@ mini.addEventListener('mousedown', (e) => {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht']
-    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz'];
+    ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht', 'banner', 'kapelle']
+    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis'];
 }
 
 function renderBar() {
@@ -600,7 +600,7 @@ function drawHud() {
     rows += `<div class="reg ${r.throttled ? 'bad' : 'ok'}">
       <span class="rn">Domäne ${r.index + 1}</span><span class="rb">${r.supply}/${r.demand}</span>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}</span></div>`;
+      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}${schreinText(r)}</span></div>`;
   }
   if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
 
@@ -770,13 +770,20 @@ function auswahlHtml() {
       : 'versorgt';
   const tasten = def.buildList
     ? def.buildList
-        .slice(1)
-        .map((u, i) => `<kbd>${'QW'[i]}</kbd> ${UNITS[u].name}${UNITS[u].cost.goetterblut ? ` (${UNITS[u].cost.goetterblut} Götterblut)` : ''}`)
+        .map((u, i) => `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}${UNITS[u].cost.goetterblut ? ` (${UNITS[u].cost.goetterblut} Götterblut)` : ''}`)
         .join(' · ')
     : '';
   const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';
   return `<div class="sel"><b>${def.name}</b> — ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
     <div class="keys">${tasten}${abriss}</div></div>`;
+}
+
+/** Schrein-Wirkung eines Netzes fuer die HUD-Zeile. */
+function schreinText(r) {
+  const teile = [];
+  if (r.zorn) teile.push('Zorn +' + Math.round(r.zorn / 10) + ' %');
+  if (r.wehr) teile.push('Wehr −' + Math.round(r.wehr / 10) + ' %');
+  return teile.length ? ' · ' + teile.join(' · ') : '';
 }
 
 function drossel(r) {
@@ -830,25 +837,30 @@ function introHtml() {
   const gg = FACTIONS.gott.growth;
   const proMin = gg.perTick * 600;
   const bis = Math.round(((gg.max - gg.start) / gg.perTick / 600) * 10) / 10;
-  const bonus = UNITS.schratt.homeBonus / 1000;
+  const pz = (b) => Math.round(BUILDINGS[b].buff.zorn / 10) + ' %';
+  const pw = (b) => Math.round(BUILDINGS[b].buff.wehr / 10) + ' %';
   return `<h1>Die drei Reiche</h1>
-    <p class="frage">Eine Frage: Fühlt sich eine Domäne mit festem Radius anders an als eine, die wächst?</p>
+    <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
     <div class="cols">
       <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
-        <p>Jeder Wachturm deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
-        Sägewerke roden den Boden; dort pflanzt der Gott keinen Hain.</p></div>
+        <p>Viele günstige Einheiten: Bauern, Soldaten, Jäger, Söldner.
+        Jeder Wachturm deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
+        Sägewerke roden den Boden; dort pflanzt der Gott keinen Hain.
+        Schreine: Kriegsbanner +${pz('banner')} Schaden, Kapelle −${pw('kapelle')} Schaden.</p></div>
       <div><h2 style="color:${FACTIONS.gott.color}">Wald- und Wiesengott</h2>
         <p>Ein Hain beginnt bei <b>${meter(gg.start)}</b> und wächst um ${meter(proMin)} pro Minute,
-        nach ${bis.toLocaleString('de')} Minuten auf <b>${meter(gg.max)}</b>. Seine Krieger schlagen in
-        eigener Domäne ${bonus.toLocaleString('de')}× zu.</p></div>
+        nach ${bis.toLocaleString('de')} Minuten auf <b>${meter(gg.max)}</b>.
+        Wenige starke Einheiten: Dryaden, Wölfe, Waldgeister, Ents.
+        Schreine: Dornenschrein +${pz('dornenschrein')} Schaden, Steinkreis −${pw('steinkreis')} Schaden.</p></div>
     </div>
-    <p>Für beide gilt: Gegenwart fließt nur in der Domäne, Baustellen außerhalb stehen still.
-    Götterblut liegt in der Kartenmitte; schwere Einheiten brauchen es.</p>
+    <p>Für beide gilt: Gegenwart fließt nur in der Domäne — Fabriken, Förderung und Schreine brauchen
+    sie. Schreine wirken auf eigene Einheiten im selben Domänennetz. Götterblut liegt in der
+    Kartenmitte; schwere Einheiten brauchen es.</p>
     <p>Jede Seite hat einen <b>Kommandanten</b> — ${UNITS[FACTIONS.mensch.kommandant].name} bzw.
     ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut, was in seiner Nähe steht,
     auch außerhalb der Domäne. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
     vorn kämpft, entscheidest du.</p>
-    <p class="achten">Worauf achten: Wann fordert die Domäne eine Entscheidung — und wann nervt sie?</p>
+    <p class="achten">Die Domäne ist das Werkzeug, nicht das Ziel: Wann fordert sie eine Entscheidung — und wann nervt sie?</p>
     <div class="stil">Gegner:
       ${Object.keys(STILE)
         .map((s) => `<label><input type="radio" name="stil" value="${s}"${s === gegnerStil ? ' checked' : ''}> ${STIL_NAMEN[s]}</label>`)

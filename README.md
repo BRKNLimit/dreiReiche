@@ -1,22 +1,34 @@
-# Die drei Reiche — Prototyp 0.9
+# Die drei Reiche — Prototyp 0.10
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
-Wiesengott.** Er existiert, um **eine Frage** zu beantworten: Fühlt sich eine
-Domäne, deren Radius bei einer Fraktion fest ist und bei der anderen mit der
-Zeit wächst, tatsächlich unterschiedlich an?
+Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
+oder Kommandant des Gegners zerstören. Die Menschen spielen mit vielen
+günstigen Einheiten, der Gott mit wenigen starken. Zentrale Mechanik ist die
+**Domäne**: Ihr Radius steht bei den Menschen fest und wächst beim Gott mit
+der Zeit; in ihr fließt Gegenwart, und dort wirken die Schreine.
 
 ## Loslegen
 
 ```bash
-npm test          # 51 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
-npm run bundle    # baut dist/resonit.html (eine Datei, kein Server)
-npm run smoke     # fährt die Oberfläche headless 1000 Frames
+npm test          # 55 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
+npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
+npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
 npm run sweep     # Einstellungen vergleichen: node tools/sweep.mjs [seeds] [minuten] [filter] [stile]
 ```
 
-`dist/resonit.html` öffnet direkt im Browser. Kein Build, keine
-Abhängigkeiten, kein `npm install`.
+`dist/resonit.html` (Draufsicht) und `dist/drei-reiche-3d.html` (3D) öffnen
+direkt im Browser. Kein Build, keine Abhängigkeiten, kein `npm install`, auch
+kein Internet: Die 3D-Ansicht zeichnet mit WebGL 2 ohne Bibliothek.
+
+## 3D-Ansicht
+
+Dieselbe Simulation, gezeichnet mit einfachen Modellen aus Grundkörpern —
+bewusst rudimentär. Einheiten drehen sich in Laufrichtung und wippen beim
+Gehen, Schüsse sind Linien, Domänen eine Fläche mit Außenkante.
+Pfeiltasten oder mittlere Maustaste schieben, Mausrad zoomt, `,` und `.`
+drehen (oder Umschalt + mittlere Maustaste). Sonst dieselbe Steuerung wie in
+der Draufsicht.
 
 ## Steuerung
 
@@ -34,10 +46,10 @@ Abhängigkeiten, kein `npm install`.
 | Leertaste | Pause · `+` / `−` Tempo |
 | Knöpfe unten rechts | Seite wechseln und neu starten · „Zuschauen“: KI gegen KI |
 
-## Der Kern
+## Die Domäne
 
-Die gesamte Asymmetrie steckt in `anchorRadius()` in `src/sim/sim.js` und drei
-Zahlen pro Fraktion:
+Die Asymmetrie der Domäne steckt in `anchorRadius()` in `src/sim/sim.js` und
+drei Zahlen pro Fraktion:
 
 | Fraktion | start | max | perTick |
 | --- | --- | --- | --- |
@@ -57,6 +69,11 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
   schwere Einheiten kosten Götterblut
 - Kommandanten nach Vorbild der ACU: Held und Waldgott, extrem stark, bauen
   auch außerhalb der Domäne; fällt er, ist die Partie verloren
+- Menschen: viele günstige Einheiten (Bauer, Soldat, Jäger, Söldner); Gott:
+  wenige starke (Dryade, Wolf, Waldgeist, Ent). Arbeiter bauen wie der
+  Kommandant, nur schwächer
+- Heimvorteil aus Schreinen: Zorn (mehr Schaden) und Wehr (weniger Schaden)
+  für eigene Einheiten im selben Domänennetz
 - Abriss mit Teilerstattung
 - Gebäude sind Hindernisse: Einheiten gleiten seitlich herum (kein Pathfinding)
 - Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine),
@@ -83,10 +100,13 @@ Netzwerk. Siehe `docs/scope.md` — dort stehen auch die offenen Balance-Befunde
 src/sim/defs.js   Daten: Fraktionen, Gebäude, Einheiten, Prioritäten
 src/sim/sim.js    Simulationskern — engine-frei, deterministisch
 src/sim/ai.js     Gegner
-src/ui.js         Canvas-Darstellung und Eingabe
-src/shell.html    Rahmen und Styles
+src/ui.js         Draufsicht: Canvas-Darstellung und Eingabe
+src/ui3d.js       3D-Ansicht: WebGL 2, Modelle aus Grundkörpern
+src/shell.html    Rahmen und Styles (Draufsicht)
+src/shell3d.html  Rahmen und Styles (3D)
 tools/bundle.mjs  fügt alles zu einer HTML-Datei zusammen
-tools/smoke.mjs   fährt die Oberfläche ohne Browser
+tools/smoke.mjs   fährt die Draufsicht ohne Browser
+tools/smoke3d.mjs fährt die 3D-Ansicht ohne Browser (WebGL als Platzhalter)
 tools/match.mjs   KI gegen KI, misst Siege, Dauer, Fläche, Kampfort
 tools/sweep.mjs   Einstellungen parallel vergleichen
 docs/konzept.md   das Designdokument

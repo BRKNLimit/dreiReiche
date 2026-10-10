@@ -1,13 +1,13 @@
 {
   "name": "drei-reiche-proto",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "RTS-Prototyp: fester gegen wachsenden Domänenradius",
   "scripts": {
     "test": "node --test",
     "bundle": "node tools/bundle.mjs",
-    "smoke": "node tools/bundle.mjs && node tools/smoke.mjs",
+    "smoke": "node tools/bundle.mjs && node tools/smoke.mjs && node tools/smoke3d.mjs",
     "match": "node tools/match.mjs",
     "sweep": "node tools/sweep.mjs"
   }

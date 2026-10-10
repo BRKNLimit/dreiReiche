@@ -149,8 +149,9 @@ const FACTIONS = {
     name: 'Wald- und Wiesengott',
     color: '#7fb069',
     // Radius waechst mit dem Alter des Ankers. Frueh winzig, spaet riesig.
-    // 1 dm/Tick: nach 10 Minuten (6000 Ticks) am Maximum.
-    growth: { start: 900, max: 5200, perTick: 1 },
+    // 1 dm/Tick: nach gut 7 Minuten (4250 Ticks) am Maximum.
+    // start 950 statt 900: bei 160 KI-Partien ausgeglichen (docs/scope.md).
+    growth: { start: 950, max: 5200, perTick: 1 },
   },
 };
 const BUILDINGS = {

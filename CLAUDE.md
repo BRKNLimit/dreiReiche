@@ -17,7 +17,7 @@ Die gesamte Asymmetrie zwischen den Fraktionen steckt in `anchorRadius()` in
 | Fraktion | start | max | perTick | Wirkung |
 | --- | --- | --- | --- | --- |
 | Menschen | 2600 | 2600 | 0 | Fest ab Bauende, planbar |
-| Gott | 900 | 5200 | 1 | Früh winzig, nach 10 min am Maximum |
+| Gott | 950 | 5200 | 1 | Früh winzig, nach gut 7 min am Maximum |
 
 Eine dritte Fraktion ist eine dritte Zeile, kein drittes Regelwerk. Wenn eine
 Fraktionsidee ein eigenes System braucht, ist die Idee falsch, nicht das
@@ -73,7 +73,7 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 ## Bewusst weggelassen (v1)
 
 Pathfinding (Einheiten fahren gerade), Gelände, Fog of War, Todesgott,
-Zielverfolgung, Bergung der Gefallenen, Belagerung, Netzwerk.
+Angriffsbewegung, Bergung der Gefallenen, Belagerung, Netzwerk.
 Siehe `docs/scope.md`.
 
 ## Teststrategie

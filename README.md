@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.5
+# Die drei Reiche — Prototyp 0.6
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Er existiert, um **eine Frage** zu beantworten: Fühlt sich eine
@@ -8,7 +8,7 @@ Zeit wächst, tatsächlich unterschiedlich an?
 ## Loslegen
 
 ```bash
-npm test          # 36 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
+npm test          # 39 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
 npm run bundle    # baut dist/resonit.html (eine Datei, kein Server)
 npm run smoke     # fährt die Oberfläche headless 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -39,7 +39,7 @@ Zahlen pro Fraktion:
 | Fraktion | start | max | perTick |
 | --- | --- | --- | --- |
 | Menschen | 2600 | 2600 | 0 |
-| Gott | 900 | 5200 | 1 |
+| Gott | 950 | 5200 | 1 |
 
 Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 
@@ -53,6 +53,7 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 - Götterblut: Adern auf der Mittelachse, Förderbau braucht versorgte Domäne,
   schwere Einheiten kosten Götterblut
 - Abriss mit Teilerstattung
+- Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine)
 - Faire Simulation: Befehle reihum, Kampf gleichzeitig, punktsymmetrische
   Rundung — per Spiegeltest geprüft
 - Gegner-KI mit Gegenwart-Bilanz, Vorstoß zu den Adern, Verteidigung und
@@ -62,7 +63,7 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 
 ## Was bewusst fehlt
 
-Pathfinding, Zielverfolgung, Gelände, Fog of War, Todesgott, Bergung,
+Pathfinding, Angriffsbewegung, Gelände, Fog of War, Todesgott, Bergung,
 Netzwerk. Siehe `docs/scope.md` — dort stehen auch die offenen Balance-Befunde.
 
 ## Struktur

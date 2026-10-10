@@ -18,7 +18,8 @@ Tabellen in `docs/scope.md`.
   höchstens acht eigene Anker.
 - **3D-Ansicht** `dist/drei-reiche-3d.html`: WebGL 2 ohne Bibliothek,
   Modelle aus Grundkörpern für alle Einheiten und Gebäude, Interpolation
-  zwischen den Ticks, Domänen per Stencil, RTS-Kamera, dieselbe Steuerung.
+  zwischen den Ticks, Schrittbewegung und Ausfall beim Angriff, Schatten,
+  Domänen per Stencil, RTS-Kamera, dieselbe Steuerung.
   Eigener Smoke-Test.
 - Messung: Menschen 51 : Gott 106; ohne Kommandant 160 : 0.
 

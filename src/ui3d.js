@@ -38,6 +38,7 @@ const vorher = new Map(); // id -> [x, y] vor dem letzten Tick, fuer Interpolati
 const blick = new Map(); // id -> Blickrichtung in Bogenmass
 let schuesse = []; // { ax, ay, bx, by, farbe, t }
 let staub = []; // { x, y, r, t }
+const ausfall = new Map(); // id -> Zeitpunkt des letzten Schusses (ms), fuer den Ruck nach vorn
 
 const kam = { x: 420, z: 420, dist: 300, yaw: -Math.PI * 0.75, pitch: 0.95 };
 
@@ -473,14 +474,18 @@ layout(location=1) in vec3 aNor;
 layout(location=2) in vec4 aCol;
 layout(location=3) in vec4 iA; // x, y, z, Drehung
 layout(location=4) in vec4 iB; // Massstab, Hoehenfaktor, Helligkeit, Alpha
-layout(location=5) in vec4 iC; // Teamfarbe
+layout(location=5) in vec4 iC; // Teamfarbe, w: Schrittphase (-1..1)
 uniform mat4 uVP;
 uniform vec3 uLicht;
 out vec4 vCol;
 out float vTiefe;
 void main() {
   float c = cos(iA.w), s = sin(iA.w);
-  vec3 p = aPos * vec3(iB.x, iB.x * iB.y, iB.x);
+  // Schritt: der untere Teil des Modells schwingt vor und zurueck -- Beine,
+  // Rocksaum, Laeufe. Ohne Skelett, nur nach Hoehe im Modell.
+  vec3 a = aPos;
+  a.z += iC.w * 0.45 * max(0.0, 0.65 - a.y);
+  vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
   vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
   vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
   vec3 col = mix(aCol.rgb, iC.rgb, aCol.a) * iB.z;
@@ -642,10 +647,10 @@ function initGL() {
 }
 
 /** Eine Instanz vormerken: Modell, Ort (m), Drehung, Massstab, Hoehe, Helligkeit, Alpha, Teamfarbe. */
-function instanz(key, x, y, z, rot, scale, team, yScale = 1, hell = 1, alpha = 1) {
+function instanz(key, x, y, z, rot, scale, team, yScale = 1, hell = 1, alpha = 1, schritt = 0) {
   const m = MODELLE[key];
   if (!m) return;
-  m.inst.push(x, y, z, rot, scale, yScale, hell, alpha, team[0], team[1], team[2], 0);
+  m.inst.push(x, y, z, rot, scale, yScale, hell, alpha, team[0], team[1], team[2], schritt);
 }
 
 function zeichneInstanzen(m) {
@@ -936,7 +941,10 @@ function tick() {
       if (!a || !b) continue;
       schuesse.push({ a: ev.from, b: ev.to, ax: a.x, ay: a.y, bx: b.x, by: b.y, farbe: teamFarbe(a.player), t: 0.22 });
       // Schuetzen schauen zum Ziel
-      if (a.kind === 'unit') blick.set(a.id, Math.atan2(b.x - a.x, b.y - a.y));
+      if (a.kind === 'unit') {
+        blick.set(a.id, Math.atan2(b.x - a.x, b.y - a.y));
+        ausfall.set(a.id, performance.now());
+      }
     } else if (ev.t === 'died') {
       staub.push({ x: ev.x, y: ev.y, r: ev.kind === 'unit' ? 2.5 : 8, t: 0 });
       vorher.delete(ev.id);
@@ -1067,7 +1075,12 @@ function zeichne(now, dt) {
     const s = def.radius * DM * ZEIGE_EINHEIT;
     const schwebt = e.type === 'waldgeist' ? 0.5 + Math.sin(t * 2 + e.id) * 0.25 : 0;
     const huepf = bewegt && e.type !== 'waldgeist' ? Math.abs(Math.sin(t * 9 + e.id)) * 0.12 * s : 0;
-    instanz(e.type, x * DM, schwebt * s + huepf, y * DM, blick.get(e.id) || 0, s, team);
+    const schritt = bewegt && e.type !== 'waldgeist' ? Math.sin(t * 9 + e.id) : 0;
+    // Ausfall: kurz nach vorn beim Schuss oder Hieb
+    const seit = now - (ausfall.get(e.id) || -1e9);
+    const ruck = seit < 220 ? Math.sin((seit / 220) * Math.PI) * 0.4 * s : 0;
+    const w = blick.get(e.id) || 0;
+    instanz(e.type, x * DM + Math.sin(w) * ruck, schwebt * s + huepf, y * DM + Math.cos(w) * ruck, w, s, team, 1, 1, 1, schritt);
   }
 
   // Platzierungs-Geist

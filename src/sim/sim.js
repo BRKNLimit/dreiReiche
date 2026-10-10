@@ -89,6 +89,7 @@ function setupMap(world) {
     const home = f === 'mensch' ? 'halle' : 'herzbaum';
     spawnBuilding(world, p, home, p === 0 ? lo : hi, p === 0 ? lo : hi, true);
   }
+  if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
 
   const spots = [
     [lo + 1800, lo - 800],
@@ -132,6 +133,7 @@ export function spawnBuilding(world, player, type, x, y, finished = false) {
     powered: 1000,
     queue: [],
     spawned: 0,
+    hilfe: 0, // Baukraft eines Kommandanten in diesem Tick, siehe erschaffen()
     queueProgress: 0,
     cooldown: 0,
     dead: false,
@@ -161,6 +163,38 @@ export function spawnUnit(world, player, type, x, y) {
   };
   world.entities.push(e);
   return e;
+}
+
+/**
+ * Setzt den Kommandanten eines Spielers neben sein Hauptgebaeude, zur
+ * Kartenmitte hin. Einmalig zu Spielbeginn -- es gibt keinen zweiten.
+ */
+export function spawnKommandant(world, player) {
+  let haupt = null;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (!e.dead && e.player === player && e.kind === 'building' && BUILDINGS[e.type].vital) haupt = e;
+  }
+  if (!haupt) return null;
+  const type = FACTIONS[world.players[player].faction].kommandant;
+  const off = BUILDINGS[haupt.type].radius + 250;
+  const dx = (MAP >> 1) - haupt.x;
+  const dy = (MAP >> 1) - haupt.y;
+  const d = isqrt(dx * dx + dy * dy) || 1;
+  const x = clamp(haupt.x + (((dx * off) / d) | 0));
+  const y = clamp(haupt.y + (((dy * off) / d) | 0));
+  const u = spawnUnit(world, player, type, x, y);
+  world.events.push({ t: 'spawned', id: u.id });
+  return u;
+}
+
+/** Der lebende Kommandant eines Spielers, oder null. */
+export function kommandantVon(world, player) {
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (!e.dead && e.player === player && e.kind === 'unit' && UNITS[e.type].commander) return e;
+  }
+  return null;
 }
 
 /** Ein Saegewerk rodet den Boden ringsum. Dort kann der Gott nicht pflanzen. */
@@ -492,6 +526,7 @@ export function step(world) {
   applyCommands(world);
   computeRegions(world);
   distributeGegenwart(world);
+  erschaffen(world);
 
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
@@ -503,7 +538,8 @@ export function step(world) {
       // es kommt nur der Zuwachs dazu, nicht der Sollwert.
       const need = def.buildTime * 1000;
       const before = siteHp(def, e.progress, need);
-      e.progress += e.powered;
+      e.progress += e.powered + e.hilfe;
+      e.hilfe = 0;
       e.hp = Math.min(def.hp, e.hp + siteHp(def, e.progress, need) - before);
       if (e.progress >= need) {
         e.done = true;
@@ -565,6 +601,36 @@ export function step(world) {
 
   world.tick++;
   return world;
+}
+
+/**
+ * Erschaffen: Jeder Kommandant gibt der naechsten eigenen Baustelle in
+ * seiner Reichweite seine Baukraft -- zusaetzlich zur Gegenwart und auch
+ * ausserhalb der Domaene. Lagen vom Tickbeginn, also reihenfolgefrei.
+ */
+function erschaffen(world) {
+  for (let i = 0; i < world.entities.length; i++) {
+    const u = world.entities[i];
+    if (u.dead || u.kind !== 'unit') continue;
+    const b = UNITS[u.type].build;
+    if (!b) continue;
+    u.baut = 0;
+    let best = null;
+    let bestD = b.range * b.range;
+    for (let k = 0; k < world.entities.length; k++) {
+      const e = world.entities[k];
+      if (e.dead || e.kind !== 'building' || e.done || e.player !== u.player) continue;
+      const dd = dist2(u.x, u.y, e.x, e.y);
+      if (dd < bestD) {
+        bestD = dd;
+        best = e;
+      }
+    }
+    if (best) {
+      best.hilfe += b.power;
+      u.baut = best.id;
+    }
+  }
 }
 
 /** Leben einer Baustelle beim Fortschritt progress: ein Zehntel bis voll. */
@@ -819,9 +885,9 @@ function cleanup(world) {
     for (let d = 0; d < world.deposits.length; d++) {
       if (world.deposits[d].takenBy === e.id) world.deposits[d].takenBy = 0;
     }
-    if (e.kind === 'building' && BUILDINGS[e.type].vital) {
-      world.players[e.player].alive = false;
-    }
+    // Hauptgebaeude und Kommandant sind vital: Faellt einer, ist die Partie verloren.
+    const vital = e.kind === 'building' ? BUILDINGS[e.type].vital : UNITS[e.type].commander;
+    if (vital) world.players[e.player].alive = false;
   }
   world.entities = world.entities.filter((e) => !e.dead);
 

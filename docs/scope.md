@@ -7,7 +7,7 @@
 
 Alles im Code dient dieser Frage. Was sie nicht berührt, fehlt absichtlich.
 
-## Befunde (Stand 0.8)
+## Befunde (Stand 0.9)
 
 Messbasis: `npm run sweep -- 80 45`, also 80 Seeds × beide Sitzplätze =
 160 KI-Partien je Einstellung, Abbruch nach 45 Minuten. Bei 160 Partien
@@ -199,6 +199,52 @@ spielen (358 Partien):
   würde sie mit Leben füllen und frühe Angriffe bremsen. Das ist neuer
   Inhalt, also deine Entscheidung.
 
+### 8. Kommandanten (Stand 0.9)
+
+> **Designentscheidung des Nutzers:** Jede Seite hat einen Kommandanten nach
+> dem Vorbild der ACU aus Supreme Commander — der **Held** und der
+> **Waldgott** selbst. Extrem stark (6000 Leben, etwa zehn Söldner; Schaden
+> wie gut zwei Söldner), er baut, und sein Verlust bedeutet die Niederlage.
+> Einmalig, keine Rückkehr. Sonst gibt die Regel nichts vor: Ob er hinten
+> baut oder vorn kämpft (ACU-Rush), entscheidet der Spieler.
+
+Bauen heißt: Die nächste eigene Baustelle in 50 m Umkreis wächst mit seiner
+Kraft, so schnell wie bei voller Gegenwart — **auch außerhalb der Domäne**.
+So entstehen Außenposten: ein Anker dort, wo die Domäne nicht hinreicht, dann
+eine Quelle, dann ein Schacht. In der Domäne baut er zusätzlich zur
+Gegenwart, also etwa doppelt so schnell.
+
+*Zwischenstände, die wieder entfernt wurden:* ein beweglicher Anker (der
+Kommandant trägt die Domäne mit sich), Aura, Heilung in der eigenen
+Domäne, ein Hinterland-Bonus mit Schutz. Alle verworfen nach der Vorgabe
+„so wenig vorgeben wie möglich“.
+
+**Messung** (KI gegen KI, 160 bzw. 358 Partien):
+
+| Einstellung | Menschen : Gott | Ø Dauer |
+| --- | --- | --- |
+| ohne Kommandant (zum Vergleich) | 60 : 100 | 14,6 min |
+| **mit Kommandant** | **28 : 122** | 17,1 min |
+
+- **Wie Partien enden** (60 Partien): 45-mal fällt der Held *zu Hause*, nur
+  2-mal der Waldgott. Ein vitaler Kommandant macht die Schlacht um die
+  eigene Basis zur Entscheidung — und dort verteidigt der Gott mit
+  Heimvorteil, die Menschen nicht.
+- **Kommandant vorn oder hinten**, bei gleichen Angriffswellen: Menschen
+  32 % gegen 18 %, Gott 99 % gegen 82 %. Vorn lohnt sich für beide.
+- **Stil-Matrix:** Sturm (frühe Wellen, Kommandant vorn) gewinnt weiter gegen
+  alles; im Sturm-Spiegel siegen die Menschen. Ein langsamerer Kommandant
+  (16 statt 24) oder weniger Leben (4000) ändern die Matrix kaum — die
+  Dominanz früher Angriffe hängt nicht am Kommandanten.
+
+**Offen für dich:**
+- Die Menschen verlieren mit Kommandant deutlich öfter. Hebel ohne neue
+  Regel wären Zahlen (Startradius oder Heimvorteil des Gottes); mit neuer
+  Regel eine Verteidigungsanlage — die Stufen Zorn und Wehr der
+  Drosselleiter sind weiter ungenutzt.
+- Der ACU-Rush ist in KI-Partien nicht riskant, sondern stark. Ob er das für
+  Menschen am Steuer auch ist, zeigt nur Selbstspielen.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,
@@ -256,6 +302,7 @@ mehrfach.
    - *Früher Angriff dominiert* (Abschnitt 7). Die Stufen Zorn und Wehr der
      Drosselleiter sind ungenutzt — eine Verteidigungsanlage je Fraktion
      läge nahe.
+   - *Kommandanten*: Die Menschen verlieren mit ihnen öfter (Abschnitt 8).
 3. Erst danach Todesgott oder Gelände.
 
 ## Bekannte Schwächen

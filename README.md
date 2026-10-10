@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.8
+# Die drei Reiche — Prototyp 0.9
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Er existiert, um **eine Frage** zu beantworten: Fühlt sich eine
@@ -8,7 +8,7 @@ Zeit wächst, tatsächlich unterschiedlich an?
 ## Loslegen
 
 ```bash
-npm test          # 45 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
+npm test          # 51 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
 npm run bundle    # baut dist/resonit.html (eine Datei, kein Server)
 npm run smoke     # fährt die Oberfläche headless 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -29,6 +29,7 @@ Abhängigkeiten, kein `npm install`.
 | `1`–`5` | Gebäude wählen, dann Linksklick setzen (`5` = Förderbau auf Götterblut) |
 | Gebäude anklicken, `Q` / `W` | Einheiten bauen (schwere kosten Götterblut) |
 | Gebäude anklicken, `Entf` | Abreißen: Baustelle ¾, fertig ½ der Kosten zurück |
+| `K` | Kommandant wählen und hinspringen |
 | `I` | Auswertung: Reibung, Kampfort, Anker, Götterblut (am Ende automatisch) |
 | Leertaste | Pause · `+` / `−` Tempo |
 | Knöpfe unten rechts | Seite wechseln und neu starten · „Zuschauen“: KI gegen KI |
@@ -54,6 +55,8 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 - Fron, Roden sperrt Haine aus, Heimvorteil für den Gott
 - Götterblut: Adern auf der Mittelachse, Förderbau braucht versorgte Domäne,
   schwere Einheiten kosten Götterblut
+- Kommandanten nach Vorbild der ACU: Held und Waldgott, extrem stark, bauen
+  auch außerhalb der Domäne; fällt er, ist die Partie verloren
 - Abriss mit Teilerstattung
 - Gebäude sind Hindernisse: Einheiten gleiten seitlich herum (kein Pathfinding)
 - Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine),

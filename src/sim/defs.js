@@ -44,6 +44,10 @@ export const RULES = {
   // Domaene tief -- so koennte der spaete Radius im Gefecht zaehlen.
   // 0 = aus: drinnen voller Bonus, draussen keiner.
   tiefeVoll: 0,
+
+  // Jeder Spieler beginnt mit seinem Kommandanten (UNITS mit commander).
+  // Aus nur fuer Vergleichsmessungen.
+  kommandanten: true,
 };
 
 export const FACTIONS = {
@@ -52,6 +56,7 @@ export const FACTIONS = {
     color: '#d8b06a',
     // Radius steht bei Bauende fest. Planbar, sofort, ueberall gleich.
     growth: { start: 2600, max: 2600, perTick: 0 },
+    kommandant: 'held',
   },
   gott: {
     name: 'Wald- und Wiesengott',
@@ -60,6 +65,7 @@ export const FACTIONS = {
     // 1 dm/Tick: nach gut 7 Minuten (4250 Ticks) am Maximum.
     // start 950 statt 900: bei 160 KI-Partien ausgeglichen (docs/scope.md).
     growth: { start: 950, max: 5200, perTick: 1 },
+    kommandant: 'waldgott',
   },
 };
 
@@ -248,7 +254,41 @@ export const UNITS = {
     weapon: { range: 480, damage: 26, cooldown: 8 },
   },
 
+  // Kommandanten -- Designentscheidung, siehe docs/scope.md. Vorbild ist die
+  // ACU aus Supreme Commander: eine extrem starke Einheit, die auch baut.
+  // Jeder Spieler hat genau einen, einmalig: Faellt er, ist die Partie
+  // verloren. Sonst gibt die Regel nichts vor -- ob er hinten baut oder
+  // vorn kaempft, entscheidet der Spieler.
+  //   build: die naechste eigene Baustelle in Reichweite waechst mit seiner
+  //          Kraft (Promille je Tick, wie volle Gegenwart), auch ausserhalb
+  //          der Domaene -- so entstehen Aussenposten.
+  held: {
+    name: 'Held',
+    faction: 'mensch',
+    hp: 6000, // etwa zehn Soeldner
+    radius: 36,
+    speed: 24,
+    cost: { fron: 0 },
+    buildTime: 0,
+    weapon: { range: 480, damage: 45, cooldown: 6 }, // gut zwei Soeldner
+    commander: true,
+    build: { range: 500, power: 1000 },
+  },
+
   // Gott
+  waldgott: {
+    name: 'Waldgott',
+    faction: 'gott',
+    hp: 6000,
+    radius: 40,
+    speed: 22,
+    cost: { fron: 0 },
+    buildTime: 0,
+    weapon: { range: 440, damage: 42, cooldown: 6 },
+    homeBonus: 1500,
+    commander: true,
+    build: { range: 500, power: 1000 },
+  },
   wurzler: {
     name: 'Wurzler',
     faction: 'gott',

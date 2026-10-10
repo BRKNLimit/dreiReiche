@@ -58,7 +58,7 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
   `blutOut`) in Einheiten **pro Minute**.
 - Versorgungsgrad (`powered`) in Promille, 1000 = voll.
 - `RULES` in `defs.js`: Regeln, die für alle Fraktionen gelten (`werkFloor`,
-  `fremdMalus`, `ankerKraft`, `tiefeVoll`). Ein Objekt, damit `tools/sweep.mjs`
+  `fremdMalus`, `ankerKraft`, `tiefeVoll`, `kommandanten`). Ein Objekt, damit `tools/sweep.mjs`
   sie umschalten kann.
 
 ## Begriffe

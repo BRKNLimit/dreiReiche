@@ -3,6 +3,20 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.9 — Kommandanten
+
+- Held (Menschen) und Waldgott: je einer, einmalig, nach Vorbild der ACU aus
+  Supreme Commander. 6000 Leben, starke Waffe, baut die nächste eigene
+  Baustelle mit voller Kraft — auch außerhalb der Domäne (Außenposten).
+  Fällt er, ist die Partie verloren.
+- KI: Kommandant geht nicht mit Wellen, hat eine Leibwache, zieht sich unter
+  halbem Leben zurück. Stil Sturm schickt ihn nach vorn (Außenposten an den
+  Adern), Standard und Burg lassen ihn beim Hauptgebäude bauen.
+- UI: `K` wählt ihn aus, Baulinie zur Baustelle, Lebensbalken, HUD-Zeile.
+- Messung: Menschen 28 : Gott 122 (ohne Kommandant 60 : 100); der Held
+  fällt meist zu Hause. Spiegeltest vergleicht jetzt bis zur ersten
+  Ader-Belegung statt fester Tickzahl.
+
 ## 0.8 — Werkzeuge für den Selbsttest
 
 - Startbildschirm: die eine Frage, beide Fraktionen, Zahlen aus `defs.js`;

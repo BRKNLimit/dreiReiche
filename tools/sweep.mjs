@@ -16,9 +16,16 @@ import { availableParallelism } from 'node:os';
 // Name -> Aenderungen. g/m: Wachstum Gott/Menschen, hb: homeBonus, rules: RULES.
 export const CONFIGS = {
   Ausgang: {},
-  'ohne Blutkosten': { units: { soeldner: { goetterblut: 0 }, geweihter: { goetterblut: 0 } } },
+  'ohne Blutkosten': { units: { soeldner: { cost: { goetterblut: 0 } }, geweihter: { cost: { goetterblut: 0 } } } },
+  // Kommandant: langsamer bzw. weniger zaeh -- macht das den Vorstoss riskanter?
+  'Kdt langsam': { units: { held: { speed: 16 }, waldgott: { speed: 15 } } },
+  'Kdt 4000 HP': { units: { held: { hp: 4000 }, waldgott: { hp: 4000 } } },
+  'Kdt langsam + 4000 HP': { units: { held: { speed: 16, hp: 4000 }, waldgott: { speed: 15, hp: 4000 } } },
   'homeBonus 1250': { hb: 1250 },
   'homeBonus 1300 + Gott start 1000': { hb: 1300, g: { start: 1000 } },
+  'ohne Kommandant': { rules: { kommandanten: false } },
+  'homeBonus 1200': { hb: 1200 },
+  'Gott start 850': { g: { start: 850 } },
   'Gott start 900': { g: { start: 900 } },
   'Gott start 925': { g: { start: 925 } },
   'Gott start 950': { g: { start: 950 } },
@@ -116,7 +123,13 @@ if (isMainThread) {
     for (const k of Object.keys(UNITS)) if (UNITS[k].homeBonus) UNITS[k].homeBonus = c.hb;
   }
   Object.assign(RULES, c.rules || {});
-  for (const [u, cost] of Object.entries(c.units || {})) Object.assign(UNITS[u].cost, cost);
+  // units: { typ: { feld: wert } } -- Objekte werden zusammengefuehrt, Zahlen ersetzt
+  for (const [u, werte] of Object.entries(c.units || {})) {
+    for (const [k, v] of Object.entries(werte)) {
+      if (typeof v === 'object') Object.assign(UNITS[u][k], v);
+      else UNITS[u][k] = v;
+    }
+  }
   for (const [b, werte] of Object.entries(c.buildings || {})) Object.assign(BUILDINGS[b], werte);
 
   const games = [];

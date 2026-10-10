@@ -174,6 +174,14 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
+  if (e.key === 'k') {
+    const k = kommandantVon(world, ME);
+    if (k) {
+      sel = [k.id];
+      cam.x = k.x;
+      cam.y = k.y;
+    }
+  }
   if (e.key === '+') speed = Math.min(8, speed * 2);
   if (e.key === '-') speed = Math.max(0.5, speed / 2);
   if ((e.key === 'Delete' || e.key === 'Backspace') && sel.length === 1) {
@@ -428,10 +436,37 @@ function drawEntities() {
       }
     } else {
       const def = UNITS[e.type];
-      const r = Math.max(2.5, def.radius * cam.z);
+      const r = Math.max(def.commander ? 6 : 2.5, def.radius * cam.z);
+      if (def.commander) {
+        // Baulinie zur Baustelle, an der er gerade erschafft
+        const site = e.baut ? byId(world, e.baut) : null;
+        if (site) {
+          ctx.strokeStyle = col;
+          ctx.globalAlpha = 0.7;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(w2sx(site.x), w2sy(site.y));
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+        }
+        ctx.strokeStyle = COL.gold;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        if (r > 8) {
+          ctx.fillStyle = COL.text;
+          ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(def.name, x, y + r + 16);
+        }
+      }
       ctx.fillStyle = col;
       ctx.beginPath();
-      if (def.worker) ctx.arc(x, y, r * 0.8, 0, Math.PI * 2);
+      if (def.commander) ctx.arc(x, y, r, 0, Math.PI * 2);
+      else if (def.worker) ctx.arc(x, y, r * 0.8, 0, Math.PI * 2);
       else if (def.hp > 500) ctx.rect(x - r, y - r * 0.9, r * 2, r * 1.8);
       else {
         ctx.moveTo(x, y - r);
@@ -440,11 +475,13 @@ function drawEntities() {
         ctx.closePath();
       }
       ctx.fill();
-      if (e.hp < e.maxHp) {
+      if (e.hp < e.maxHp || def.commander) {
+        const bw = def.commander ? Math.max(24, r * 3) : r * 2;
+        const by = y - r - (def.commander ? 10 : 4);
         ctx.fillStyle = '#000';
-        ctx.fillRect(x - r, y - r - 4, r * 2, 2);
-        ctx.fillStyle = '#8fc46a';
-        ctx.fillRect(x - r, y - r - 4, (r * 2 * e.hp) / e.maxHp, 2);
+        ctx.fillRect(x - bw / 2, by, bw, def.commander ? 3 : 2);
+        ctx.fillStyle = e.hp * 3 < e.maxHp ? COL.bad : '#8fc46a';
+        ctx.fillRect(x - bw / 2, by, (bw * e.hp) / e.maxHp, def.commander ? 3 : 2);
       }
     }
   }
@@ -549,7 +586,7 @@ function drawGhost() {
     ? def.name + ' — gerodeter Boden trägt nicht'
     : drin
       ? def.name
-      : def.name + ' — außerhalb der Domäne';
+      : def.name + ' — außerhalb der Domäne: nur der Kommandant baut hier';
   ctx.fillText(txt, x, y - r - 8);
 }
 
@@ -573,6 +610,7 @@ function drawHud() {
       <b>Fron</b><span>${p.fron}</span>
       <b>Götterblut</b><span>${p.goetterblut}</span>
       <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>
+      ${kommandantZeile()}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''} ×${speed}</span>
     </div>
     ${flaecheHtml()}
@@ -580,6 +618,15 @@ function drawHud() {
     <div class="regs">${rows}</div>
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
     ${world.over || zeigeAuswertung ? auswertungHtml() : ''}`;
+}
+
+function kommandantZeile() {
+  const k = kommandantVon(world, ME);
+  if (!k) return '';
+  const pct = Math.round((100 * k.hp) / k.maxHp);
+  const farbe = pct < 34 ? COL.bad : COL.text;
+  const baut = k.baut ? ' · baut' : '';
+  return `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span style="color:${farbe}">${pct} %${baut}</span>`;
 }
 
 // ------------------------------------------------------------ Auswertung
@@ -797,6 +844,10 @@ function introHtml() {
     </div>
     <p>Für beide gilt: Gegenwart fließt nur in der Domäne, Baustellen außerhalb stehen still.
     Götterblut liegt in der Kartenmitte; schwere Einheiten brauchen es.</p>
+    <p>Jede Seite hat einen <b>Kommandanten</b> — ${UNITS[FACTIONS.mensch.kommandant].name} bzw.
+    ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut, was in seiner Nähe steht,
+    auch außerhalb der Domäne. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
+    vorn kämpft, entscheidest du.</p>
     <p class="achten">Worauf achten: Wann fordert die Domäne eine Entscheidung — und wann nervt sie?</p>
     <div class="stil">Gegner:
       ${Object.keys(STILE)

@@ -315,7 +315,7 @@ test('beide KIs bauen eine Wirtschaft und beide Einheitentypen', () => {
     stepAI(ais[0], w);
     stepAI(ais[1], w);
     step(w);
-    for (const e of w.entities) if (e.kind === 'unit') typen[e.player].add(e.type);
+    for (const e of w.entities) if (e.kind === 'unit' && !UNITS[e.type].commander) typen[e.player].add(e.type);
   }
   for (let p = 0; p < 2; p++) {
     assert.ok(typen[p].size >= 2, `Spieler ${p} baut mehr als einen Typ: ${[...typen[p]]}`);
@@ -497,13 +497,24 @@ test('Spiegelpartie bleibt punktsymmetrisch, bis eine geteilte Ader umkämpft is
       .map((e) => `${e.type}:${spiegel ? MAP - e.x : e.x},${spiegel ? MAP - e.y : e.y}:${e.hp}`)
       .sort()
       .join(' ');
-  for (let i = 0; i < 3800; i++) {
+  // Bis zum ersten Zugriff auf eine Goetterblut-Ader: Die Adern liegen auf
+  // der Spiegelachse, wer sie zuerst belegt, bricht die Symmetrie zu Recht.
+  const belegt = () => w.deposits.some((d) => d.kind === 'goetterblut' && d.takenBy !== 0);
+  let ticks = 0;
+  while (ticks < 9000) {
+    const vorher = { a: lage(0, false), b: lage(1, true), f0: w.players[0].fron, f1: w.players[1].fron };
     stepAI(ais[0], w);
     stepAI(ais[1], w);
     step(w);
+    ticks++;
+    if (belegt()) {
+      assert.equal(vorher.b, vorher.a, 'Lage bis Tick ' + (ticks - 1));
+      assert.equal(vorher.f1, vorher.f0);
+      break;
+    }
+    assert.equal(lage(1, true), lage(0, false), 'Lage in Tick ' + ticks);
   }
-  assert.equal(lage(1, true), lage(0, false));
-  assert.equal(w.players[0].fron, w.players[1].fron);
+  assert.ok(ticks > 2000, 'lange genug symmetrisch verglichen: ' + ticks + ' Ticks');
 });
 
 // ---------------------------------------------------- Verfolgung
@@ -630,4 +641,74 @@ test('ein Todesereignis nennt Art, Typ und Spieler', () => {
   step(w);
   const ev = w.events.find((e) => e.t === 'died');
   assert.deepEqual([ev.kind, ev.type, ev.player], ['unit', 'wurzler', 1]);
+});
+
+// ---------------------------------------------------- Kommandant
+
+test('jeder Spieler beginnt mit genau einem Kommandanten seiner Fraktion', () => {
+  const w = createWorld({ factions: ['mensch', 'gott'] });
+  const k = w.entities.filter((e) => e.kind === 'unit' && UNITS[e.type].commander);
+  assert.deepEqual(k.map((e) => [e.player, e.type]).sort(), [
+    [0, FACTIONS.mensch.kommandant],
+    [1, FACTIONS.gott.kommandant],
+  ]);
+});
+
+test('der Kommandant baut auch außerhalb der Domäne', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  const turm = tryPlace(w, 0, 'turm', 12000, 12000);
+  const k = spawnUnit(w, 0, 'held', 12200, 12000);
+  for (let i = 0; i < BUILDINGS.turm.buildTime + 2; i++) step(w);
+  assert.equal(turm.done, true, 'fertig ohne Gegenwart, allein durch den Kommandanten');
+  assert.equal(k.dead, false);
+});
+
+test('ohne Kommandant in der Nähe steht dieselbe Baustelle still', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  const turm = tryPlace(w, 0, 'turm', 12000, 12000);
+  spawnUnit(w, 0, 'held', 14000, 14000); // zu weit weg
+  for (let i = 0; i < BUILDINGS.turm.buildTime + 2; i++) step(w);
+  assert.equal(turm.progress, 0);
+});
+
+test('in der Domäne baut der Kommandant zusätzlich zur Gegenwart', () => {
+  const zeit = (mitKdt) => {
+    const w = bare();
+    spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+    spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
+    const b = spawnBuilding(w, 0, 'kaserne', 6000, 5800, false);
+    if (mitKdt) spawnUnit(w, 0, 'held', 6200, 5800);
+    let t = 0;
+    while (!b.done && t < 5000) {
+      step(w);
+      t++;
+    }
+    return t;
+  };
+  assert.ok(zeit(true) * 3 < zeit(false) * 2, 'deutlich schneller mit Kommandant');
+});
+
+test('fällt der Kommandant, ist die Partie verloren', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  spawnBuilding(w, 1, 'herzbaum', 17000, 17000, true);
+  const k = spawnUnit(w, 1, 'waldgott', 10000, 10000);
+  k.hp = 1;
+  spawnUnit(w, 0, 'soeldner', 10300, 10000);
+  for (let i = 0; i < 20 && !w.over; i++) step(w);
+  assert.equal(w.over, true);
+  assert.equal(w.winner, 0);
+});
+
+test('RULES.kommandanten = false: keine Kommandanten', () => {
+  const alt = RULES.kommandanten;
+  try {
+    RULES.kommandanten = false;
+    const w = createWorld();
+    assert.equal(w.entities.some((e) => e.kind === 'unit'), false);
+  } finally {
+    RULES.kommandanten = alt;
+  }
 });

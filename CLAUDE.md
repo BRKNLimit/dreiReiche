@@ -57,7 +57,8 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
   sie ist ein Fluss und wird nie gespeichert. Förderung (`fronOut`,
   `blutOut`) in Einheiten **pro Minute**.
 - Versorgungsgrad (`powered`) in Promille, 1000 = voll.
-- `WERK_FLOOR`: Promille der Versorgung, die Baustellen immer erreichen.
+- `RULES` in `defs.js`: Regeln, die für alle Fraktionen gelten (`werkFloor`,
+  `fremdMalus`). Ein Objekt, damit `tools/sweep.mjs` sie umschalten kann.
 
 ## Begriffe
 
@@ -81,4 +82,5 @@ Siehe `docs/scope.md`.
 Ankerregel braucht einen Test, der sie in Isolation zeigt.
 `npm run smoke` fährt die Oberfläche headless 1000 Frames.
 `npm run match` lässt KI gegen KI spielen (beide Sitzplätze, mehrere Seeds).
+`npm run sweep` vergleicht Einstellungen aus `tools/sweep.mjs` parallel.
 Balance-Aussagen in `docs/scope.md` nur mit Messung von dort, nie geschätzt.

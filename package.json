@@ -8,6 +8,7 @@
     "test": "node --test",
     "bundle": "node tools/bundle.mjs",
     "smoke": "node tools/bundle.mjs && node tools/smoke.mjs",
-    "match": "node tools/match.mjs"
+    "match": "node tools/match.mjs",
+    "sweep": "node tools/sweep.mjs"
   }
 }

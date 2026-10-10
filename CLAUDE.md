@@ -73,7 +73,7 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 ## Bewusst weggelassen (v1)
 
 Pathfinding (Einheiten fahren gerade), Gelände, Fog of War, Todesgott,
-Götterblut-Förderung und -Verbrauch, Bergung der Gefallenen, Belagerung, Netzwerk.
+Zielverfolgung, Bergung der Gefallenen, Belagerung, Netzwerk.
 Siehe `docs/scope.md`.
 
 ## Teststrategie

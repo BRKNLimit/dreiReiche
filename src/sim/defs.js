@@ -111,6 +111,19 @@ export const BUILDINGS = {
     buildTime: 480,
     buildList: ['koehler', 'landwehr', 'soeldner'],
   },
+  schacht: {
+    name: 'Blutschacht',
+    short: 'BLS',
+    faction: 'mensch',
+    hp: 900,
+    radius: 60,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    blutOut: 40, // Goetterblut pro Minute bei voller Versorgung
+    cost: { fron: 250 },
+    buildTime: 300,
+    needs: 'goetterblut', // nur auf einer Ader -- und die liegen in der Mitte
+  },
 
   // --------------------------------------------------------------- Gott
   herzbaum: {
@@ -172,6 +185,19 @@ export const BUILDINGS = {
     buildTime: 480,
     buildList: ['wurzler', 'schratt', 'geweihter'],
   },
+  blutwurz: {
+    name: 'Blutwurz',
+    short: 'BLW',
+    faction: 'gott',
+    hp: 900,
+    radius: 60,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    blutOut: 40,
+    cost: { fron: 250 },
+    buildTime: 300,
+    needs: 'goetterblut',
+  },
 };
 
 export const UNITS = {
@@ -202,7 +228,9 @@ export const UNITS = {
     hp: 620,
     radius: 32,
     speed: 26,
-    cost: { fron: 180 },
+    // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
+    // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
+    cost: { fron: 130, goetterblut: 10 }, // war 180: pro Fron schlechter als Landwehr
     buildTime: 300,
     weapon: { range: 480, damage: 26, cooldown: 8 },
   },
@@ -235,7 +263,7 @@ export const UNITS = {
     hp: 820,
     radius: 34,
     speed: 20,
-    cost: { fron: 190 },
+    cost: { fron: 135, goetterblut: 10 }, // war 190
     buildTime: 325,
     weapon: { range: 440, damage: 24, cooldown: 9 },
     homeBonus: 1500,
@@ -243,6 +271,9 @@ export const UNITS = {
 };
 
 export const START_FRON = 900;
+
+/** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
+export const RESOURCES = ['fron', 'goetterblut'];
 
 /** Alle Gebäude bzw. Einheiten einer Fraktion. */
 export function buildingsOf(f) {

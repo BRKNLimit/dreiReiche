@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.3
+# Die drei Reiche — Prototyp 0.5
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Er existiert, um **eine Frage** zu beantworten: Fühlt sich eine
@@ -8,10 +8,11 @@ Zeit wächst, tatsächlich unterschiedlich an?
 ## Loslegen
 
 ```bash
-npm test          # 25 Tests: Ankerregel, Domäne, Drosselleiter, KI, Determinismus
+npm test          # 36 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
 npm run bundle    # baut dist/resonit.html (eine Datei, kein Server)
 npm run smoke     # fährt die Oberfläche headless 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
+npm run sweep     # Einstellungen vergleichen: node tools/sweep.mjs [seeds] [minuten] [filter]
 ```
 
 `dist/resonit.html` öffnet direkt im Browser. Kein Build, keine
@@ -24,8 +25,9 @@ Abhängigkeiten, kein `npm install`.
 | Linksklick / Ziehen | Einheiten wählen |
 | Rechtsklick | Bewegen |
 | Mittlere Maustaste | Karte schieben · Mausrad zoomen |
-| `1`–`4` | Gebäude wählen, dann Linksklick setzen |
-| Hauptgebäude anklicken, `Q` / `W` | Einheiten bauen |
+| `1`–`5` | Gebäude wählen, dann Linksklick setzen (`5` = Förderbau auf Götterblut) |
+| Gebäude anklicken, `Q` / `W` | Einheiten bauen (schwere kosten Götterblut) |
+| Gebäude anklicken, `Entf` | Abreißen: Baustelle ¾, fertig ½ der Kosten zurück |
 | Leertaste | Pause · `+` / `−` Tempo |
 | Knöpfe unten rechts | Seite wechseln und neu starten |
 
@@ -48,13 +50,20 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 - Drosselleiter Werk → Segen → Wehr → Zorn, anteilig statt binär, mit
   Mindestfluss für Baustellen
 - Fron, Roden sperrt Haine aus, Heimvorteil für den Gott
-- Gegner-KI mit Gegenwart-Bilanz, Verteidigung und Angriffswellen
+- Götterblut: Adern auf der Mittelachse, Förderbau braucht versorgte Domäne,
+  schwere Einheiten kosten Götterblut
+- Abriss mit Teilerstattung
+- Faire Simulation: Befehle reihum, Kampf gleichzeitig, punktsymmetrische
+  Rundung — per Spiegeltest geprüft
+- Gegner-KI mit Gegenwart-Bilanz, Vorstoß zu den Adern, Verteidigung und
+  Angriffswellen
+- HUD mit Domänenfläche beider Seiten und Verlauf
 - Karte 2000 × 2000 m
 
 ## Was bewusst fehlt
 
-Pathfinding, Gelände, Fog of War, Todesgott, Götterblut (Adern liegen, nichts
-fördert), Bergung, Netzwerk. Siehe `docs/scope.md` — dort stehen auch die offenen Balance-Befunde.
+Pathfinding, Zielverfolgung, Gelände, Fog of War, Todesgott, Bergung,
+Netzwerk. Siehe `docs/scope.md` — dort stehen auch die offenen Balance-Befunde.
 
 ## Struktur
 
@@ -66,7 +75,8 @@ src/ui.js         Canvas-Darstellung und Eingabe
 src/shell.html    Rahmen und Styles
 tools/bundle.mjs  fügt alles zu einer HTML-Datei zusammen
 tools/smoke.mjs   fährt die Oberfläche ohne Browser
-tools/match.mjs   KI gegen KI, misst Siege, Dauer, Fläche
+tools/match.mjs   KI gegen KI, misst Siege, Dauer, Fläche, Kampfort
+tools/sweep.mjs   Einstellungen parallel vergleichen
 docs/konzept.md   das Designdokument
 docs/scope.md     Umfang, Befunde, bekannte Schwächen
 test/             node:test

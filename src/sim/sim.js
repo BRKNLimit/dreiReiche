@@ -1,7 +1,7 @@
 // Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
 
-import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES } from './defs.js';
+import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES, RESOURCES } from './defs.js';
 
 // ---------------------------------------------------------------- Mathematik
 
@@ -131,6 +131,7 @@ export function spawnBuilding(world, player, type, x, y, finished = false) {
     region: -1,
     powered: 1000,
     queue: [],
+    spawned: 0,
     queueProgress: 0,
     cooldown: 0,
     dead: false,
@@ -180,9 +181,24 @@ export function issue(world, cmd) {
   world.pending.push(cmd);
 }
 
+/**
+ * Befehle reihum: in jedem Tick beginnt ein anderer Spieler. Wollen zwei
+ * dieselbe Ader im selben Tick, gewinnt nicht immer derselbe Sitzplatz.
+ * Innerhalb eines Spielers bleibt die Reihenfolge seiner Befehle erhalten.
+ */
 function applyCommands(world) {
-  for (let i = 0; i < world.pending.length; i++) {
-    const c = world.pending[i];
+  const n = world.players.length;
+  for (let k = 0; k < n; k++) {
+    const player = (world.tick + k) % n;
+    for (let i = 0; i < world.pending.length; i++) {
+      if (world.pending[i].player === player) applyCommand(world, world.pending[i]);
+    }
+  }
+  world.pending.length = 0;
+}
+
+function applyCommand(world, c) {
+  {
     if (c.type === 'move') {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
@@ -200,16 +216,15 @@ function applyCommands(world) {
       if (e && e.player === c.player && e.done && !e.dead) {
         const def = BUILDINGS[e.type];
         if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8) {
-          const cost = UNITS[c.unit].cost.fron;
-          if (world.players[c.player].fron >= cost) {
-            world.players[c.player].fron -= cost;
+          const p = world.players[c.player];
+          if (canAfford(p, UNITS[c.unit].cost)) {
+            pay(p, UNITS[c.unit].cost, 1000);
             e.queue.push(c.unit);
           }
         }
       }
     }
   }
-  world.pending.length = 0;
 }
 
 /**
@@ -221,7 +236,7 @@ export function tryPlace(world, player, type, x, y) {
   if (!def || def.vital) return null;
   if (def.faction !== world.players[player].faction) return null;
   const p = world.players[player];
-  if (p.fron < def.cost.fron) return null;
+  if (!canAfford(p, def.cost)) return null;
   if (x < 200 || y < 200 || x > MAP - 200 || y > MAP - 200) return null;
 
   let dep = null;
@@ -241,7 +256,7 @@ export function tryPlace(world, player, type, x, y) {
     if (dist2(x, y, e.x, e.y) < min * min) return null;
   }
 
-  p.fron -= def.cost.fron;
+  pay(p, def.cost, 1000);
   const b = spawnBuilding(world, player, type, x, y, false);
   if (dep) dep.takenBy = b.id;
   return b;
@@ -257,12 +272,30 @@ export function demolish(world, player, id) {
   if (!e || e.dead || e.kind !== 'building' || e.player !== player) return false;
   const def = BUILDINGS[e.type];
   if (def.vital) return false;
-  let back = ((def.cost.fron * (e.done ? 500 : 750)) / 1000) | 0;
-  for (let i = 0; i < e.queue.length; i++) back += UNITS[e.queue[i]].cost.fron;
-  world.players[player].fron += back;
+  const p = world.players[player];
+  const vorher = p.fron;
+  pay(p, def.cost, e.done ? -500 : -750);
+  for (let i = 0; i < e.queue.length; i++) pay(p, UNITS[e.queue[i]].cost, -1000);
   e.dead = true;
-  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, fron: back });
+  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, fron: p.fron - vorher });
   return true;
+}
+
+/** Reicht der Vorrat fuer diese Kosten? Kosten sind { ressource: menge }. */
+export function canAfford(p, cost) {
+  for (let i = 0; i < RESOURCES.length; i++) {
+    const r = RESOURCES[i];
+    if ((cost[r] || 0) > p[r]) return false;
+  }
+  return true;
+}
+
+/** Zieht Kosten ab (promille > 0) oder erstattet sie anteilig (promille < 0). */
+function pay(p, cost, promille) {
+  for (let i = 0; i < RESOURCES.length; i++) {
+    const r = RESOURCES[i];
+    if (cost[r]) p[r] -= ((cost[r] * promille) / 1000) | 0;
+  }
 }
 
 export function findDeposit(world, x, y, kind, maxDist = 700) {
@@ -467,10 +500,22 @@ export function step(world) {
       if (e.queueProgress >= need) {
         const type = e.queue.shift();
         e.queueProgress = 0;
-        const ang = (e.id * 97 + world.tick) % 360;
+        // Einheiten treten zur Kartenmitte hin aus, seitlich gestreut nach
+        // einem Zaehler je Gebaeude. Punktsymmetrisch: beide Sitzplaetze
+        // erhalten dieselbe Lage. Versatz zur Null hin runden, nicht die Summe.
         const off = def.radius + 90;
-        const ux = e.x + ((off * cosDeg(ang)) / 1000) | 0;
-        const uy = e.y + ((off * sinDeg(ang)) / 1000) | 0;
+        const quer = ((e.spawned % 5) - 2) * 60;
+        e.spawned++;
+        let dx = (MAP >> 1) - e.x;
+        let dy = (MAP >> 1) - e.y;
+        let d = isqrt(dx * dx + dy * dy);
+        if (d === 0) {
+          dx = 1;
+          dy = 0;
+          d = 1;
+        }
+        const ux = e.x + (((dx * off - dy * quer) / d) | 0);
+        const uy = e.y + (((dy * off + dx * quer) / d) | 0);
         const u = spawnUnit(world, e.player, type, clamp(ux), clamp(uy));
         world.events.push({ t: 'spawned', id: u.id });
       }
@@ -543,6 +588,10 @@ function separate(world) {
     const e = world.entities[i];
     if (!e.dead && e.kind === 'unit') us.push(e);
   }
+  // Alle Stoesse aus denselben Ausgangslagen, dann gemeinsam anwenden --
+  // sonst haengt das Ergebnis von der Reihenfolge in der Liste ab.
+  const px = new Int32Array(us.length);
+  const py = new Int32Array(us.length);
   for (let i = 0; i < us.length; i++) {
     for (let j = i + 1; j < us.length; j++) {
       const a = us[i];
@@ -554,15 +603,26 @@ function separate(world) {
       const push = ((min - d) / 2) | 0 || 1;
       const nx = (((a.x - b.x) * push) / d) | 0;
       const ny = (((a.y - b.y) * push) / d) | 0;
-      a.x = clamp(a.x + nx);
-      a.y = clamp(a.y + ny);
-      b.x = clamp(b.x - nx);
-      b.y = clamp(b.y - ny);
+      px[i] += nx;
+      py[i] += ny;
+      px[j] -= nx;
+      py[j] -= ny;
     }
+  }
+  for (let i = 0; i < us.length; i++) {
+    us[i].x = clamp(us[i].x + px[i]);
+    us[i].y = clamp(us[i].y + py[i]);
   }
 }
 
+/**
+ * Kampf wird gleichzeitig aufgeloest: erst waehlt jeder Schuetze sein Ziel,
+ * dann trifft alles auf einmal. Sonst schoesse, wer frueher in der Liste
+ * steht, zuerst -- und Spieler 0, dessen Befehle zuerst gelten, gewaenne
+ * jeden Gleichstand.
+ */
 function combat(world) {
+  const shots = [];
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead) continue;
@@ -586,10 +646,15 @@ function combat(world) {
     if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
       dmg = ((dmg * RULES.fremdMalus) / 1000) | 0;
     }
-    target.hp -= dmg;
     e.cooldown = def.weapon.cooldown;
+    shots.push(target, dmg);
     world.events.push({ t: 'shot', from: e.id, to: target.id });
-    if (target.hp <= 0) {
+  }
+
+  for (let i = 0; i < shots.length; i += 2) shots[i].hp -= shots[i + 1];
+  for (let i = 0; i < shots.length; i += 2) {
+    const target = shots[i];
+    if (target.hp <= 0 && !target.dead) {
       target.dead = true;
       world.events.push({ t: 'died', id: target.id, x: target.x, y: target.y });
     }
@@ -690,6 +755,7 @@ export function hash(world) {
     mix(world.players[p].fron);
     mix(world.players[p].goetterblut);
     mix(world.players[p].fronAcc || 0);
+    mix(world.players[p].blutAcc || 0);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   mix(world.cleared.length);

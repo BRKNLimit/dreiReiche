@@ -17,7 +17,7 @@ import {
   isqrt,
   inForeignDomain,
 } from '../src/sim/sim.js';
-import { FACTIONS, BUILDINGS, UNITS, RULES } from '../src/sim/defs.js';
+import { FACTIONS, BUILDINGS, UNITS, RULES, MAP } from '../src/sim/defs.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
 
 function bare(f0 = 'mensch', f1 = 'gott') {
@@ -304,7 +304,10 @@ test('eine unbeschädigte Baustelle ist bei Fertigstellung voll', () => {
 // ---------------------------------------------------- KI
 
 test('beide KIs bauen eine Wirtschaft und beide Einheitentypen', () => {
+  // Mit Goetterblut im Vorrat: prueft die Produktionslogik, nicht das
+  // Rennen um die Adern (das misst tools/sweep.mjs).
   const w = createWorld({ seed: 4242 });
+  for (const p of w.players) p.goetterblut = 200;
   const ais = [createAI(0, 1), createAI(1, 2)];
   const typen = [new Set(), new Set()];
   for (let i = 0; i < 600 * 12 && !w.over; i++) {
@@ -385,4 +388,119 @@ test('Malus in fremder Domäne wirkt nur, wenn eingeschaltet', () => {
   } finally {
     RULES.fremdMalus = alt;
   }
+});
+
+// ---------------------------------------------------- Götterblut
+
+function blutWelt() {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
+  w.deposits.push({ x: 5000, y: 6500, kind: 'goetterblut', takenBy: 0 });
+  return w;
+}
+
+test('ein Blutschacht in versorgter Domäne fördert blutOut pro Minute', () => {
+  const w = blutWelt();
+  const s = spawnBuilding(w, 0, 'schacht', 5000, 6500, true);
+  w.deposits[0].takenBy = s.id;
+  for (let i = 0; i < 600; i++) step(w);
+  assert.equal(w.players[0].goetterblut, BUILDINGS.schacht.blutOut);
+});
+
+test('ein Blutschacht außerhalb jeder Domäne fördert nichts', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  spawnBuilding(w, 0, 'schacht', 14000, 14000, true);
+  for (let i = 0; i < 600; i++) step(w);
+  assert.equal(w.players[0].goetterblut, 0);
+});
+
+test('der Schacht steht nur auf einer Götterblut-Ader', () => {
+  const w = blutWelt();
+  assert.equal(tryPlace(w, 0, 'schacht', 7000, 7000), null, 'ohne Ader kein Schacht');
+  const s = tryPlace(w, 0, 'schacht', 5100, 6400);
+  assert.ok(s, 'nahe der Ader rastet er ein');
+  assert.equal(s.x, 5000);
+  assert.equal(s.y, 6500);
+});
+
+test('schwere Einheiten brauchen Götterblut', () => {
+  const w = bare();
+  const kas = spawnBuilding(w, 0, 'kaserne', 5000, 5000, true);
+  w.players[0].fron = 5000;
+  issue(w, { type: 'produce', player: 0, id: kas.id, unit: 'soeldner' });
+  step(w);
+  assert.equal(kas.queue.length, 0, 'ohne Götterblut kein Söldner');
+
+  w.players[0].goetterblut = UNITS.soeldner.cost.goetterblut;
+  const fron = w.players[0].fron;
+  issue(w, { type: 'produce', player: 0, id: kas.id, unit: 'soeldner' });
+  step(w);
+  assert.equal(kas.queue.length, 1);
+  assert.equal(w.players[0].goetterblut, 0);
+  assert.equal(w.players[0].fron, fron - UNITS.soeldner.cost.fron);
+});
+
+test('Abriss erstattet auch das Götterblut wartender Aufträge', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const kas = spawnBuilding(w, 0, 'kaserne', 6000, 5000, true);
+  w.players[0].fron = 5000;
+  w.players[0].goetterblut = 30;
+  issue(w, { type: 'produce', player: 0, id: kas.id, unit: 'soeldner' });
+  step(w);
+  issue(w, { type: 'demolish', player: 0, id: kas.id });
+  step(w);
+  assert.equal(w.players[0].goetterblut, 30);
+});
+
+// ---------------------------------------------------- Fairness
+
+test('Kampf ist gleichzeitig: kein Erstschlag durch Listenplatz', () => {
+  const w = bare('mensch', 'mensch');
+  const a = spawnUnit(w, 0, 'landwehr', 5000, 5000);
+  const b = spawnUnit(w, 1, 'landwehr', 5300, 5000);
+  a.hp = UNITS.landwehr.weapon.damage; // stirbt am ersten Treffer
+  b.hp = UNITS.landwehr.weapon.damage;
+  step(w);
+  assert.equal(a.dead, true);
+  assert.equal(b.dead, true, 'beide treffen im selben Tick');
+});
+
+test('Befehle reihum: dieselbe Ader geht nicht immer an Spieler 0', () => {
+  const sieger = [];
+  for (let t = 0; t < 2; t++) {
+    const w = bare('mensch', 'mensch');
+    spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+    spawnBuilding(w, 1, 'halle', 15000, 15000, true);
+    w.deposits.push({ x: 10000, y: 10000, kind: 'fron', takenBy: 0 });
+    w.tick = t;
+    issue(w, { type: 'build', player: 0, building: 'saege', x: 10000, y: 10000 });
+    issue(w, { type: 'build', player: 1, building: 'saege', x: 10000, y: 10000 });
+    step(w);
+    const s = w.entities.find((e) => e.type === 'saege');
+    sieger.push(s.player);
+  }
+  assert.deepEqual(sieger.sort(), [0, 1]);
+});
+
+test('Spiegelpartie bleibt punktsymmetrisch, bis eine geteilte Ader umkämpft ist', () => {
+  // Gleiche Fraktion, gleicher KI-Seed: Spieler 1 muss Spieler 0 spiegeln.
+  // Bricht das frueher, hat ein Sitzplatz einen eingebauten Vorteil.
+  const w = createWorld({ factions: ['mensch', 'mensch'], seed: 5 });
+  const ais = [createAI(0, 7), createAI(1, 7)];
+  const lage = (p, spiegel) =>
+    w.entities
+      .filter((e) => e.player === p)
+      .map((e) => `${e.type}:${spiegel ? MAP - e.x : e.x},${spiegel ? MAP - e.y : e.y}:${e.hp}`)
+      .sort()
+      .join(' ');
+  for (let i = 0; i < 3800; i++) {
+    stepAI(ais[0], w);
+    stepAI(ais[1], w);
+    step(w);
+  }
+  assert.equal(lage(1, true), lage(0, false));
+  assert.equal(w.players[0].fron, w.players[1].fron);
 });

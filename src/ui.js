@@ -144,7 +144,7 @@ cv.addEventListener(
 
 addEventListener('keydown', (e) => {
   const liste = bauListe();
-  const i = '1234'.indexOf(e.key);
+  const i = '12345'.indexOf(e.key);
   if (i >= 0 && liste[i]) placing = liste[i];
   if (e.key === 'Escape') {
     placing = null;
@@ -177,8 +177,8 @@ mini.addEventListener('mousedown', (e) => {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'turm', 'kaserne']
-    : ['quelle', 'moos', 'hain', 'dickicht'];
+    ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht']
+    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz'];
 }
 
 function renderBar() {
@@ -406,12 +406,23 @@ function drawSelection() {
 
 function drawGhost() {
   const def = BUILDINGS[placing];
-  const x = w2sx(hover.x);
-  const y = w2sy(hover.y);
+  // Foerderbauten rasten auf die naechste Ader ein, wie in tryPlace().
+  let gx = hover.x;
+  let gy = hover.y;
+  let ohneAder = false;
+  if (def.needs) {
+    const dep = findDeposit(world, hover.x, hover.y, def.needs);
+    if (dep && !dep.takenBy) {
+      gx = dep.x;
+      gy = dep.y;
+    } else ohneAder = true;
+  }
+  const x = w2sx(gx);
+  const y = w2sy(gy);
   const r = Math.max(4, def.radius * cam.z);
-  const drin = inDomain(world, ME, hover.x, hover.y);
-  const gerodet = def.needsGrowth && isCleared(world, hover.x, hover.y);
-  const col = gerodet ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
+  const drin = inDomain(world, ME, gx, gy);
+  const gerodet = def.needsGrowth && isCleared(world, gx, gy);
+  const col = gerodet || ohneAder ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
 
   if (def.anchor) {
     ctx.strokeStyle = col;
@@ -430,7 +441,10 @@ function drawGhost() {
   ctx.fillStyle = COL.text;
   ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'center';
-  const txt = gerodet
+  const ader = def.needs === 'goetterblut' ? 'Götterblut-Ader' : 'Fron-Ader';
+  const txt = ohneAder
+    ? def.name + ' — braucht eine freie ' + ader
+    : gerodet
     ? def.name + ' — gerodeter Boden trägt nicht'
     : drin
       ? def.name
@@ -525,7 +539,7 @@ function auswahlHtml() {
   const tasten = def.buildList
     ? def.buildList
         .slice(1)
-        .map((u, i) => `<kbd>${'QW'[i]}</kbd> ${UNITS[u].name}`)
+        .map((u, i) => `<kbd>${'QW'[i]}</kbd> ${UNITS[u].name}${UNITS[u].cost.goetterblut ? ` (${UNITS[u].cost.goetterblut} Götterblut)` : ''}`)
         .join(' · ')
     : '';
   const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';

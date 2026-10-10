@@ -100,7 +100,7 @@
     <button id="asGott">Als Gott</button>
     <span class="hint">
       Linksklick wählt · Rechtsklick bewegt · Mausrad zoomt · Mittlere Taste schiebt ·
-      Gebäude anklicken: <b>Q</b>/<b>W</b> Einheiten, <b>Entf</b> abreißen · Leertaste pausiert · +/− Tempo
+      <b>1</b>–<b>5</b> bauen · Gebäude anklicken: <b>Q</b>/<b>W</b> Einheiten, <b>Entf</b> abreißen · Leertaste pausiert · +/− Tempo
     </span>
   </div>
 </div>
@@ -214,6 +214,19 @@ const BUILDINGS = {
     buildTime: 480,
     buildList: ['koehler', 'landwehr', 'soeldner'],
   },
+  schacht: {
+    name: 'Blutschacht',
+    short: 'BLS',
+    faction: 'mensch',
+    hp: 900,
+    radius: 60,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    blutOut: 40, // Goetterblut pro Minute bei voller Versorgung
+    cost: { fron: 250 },
+    buildTime: 300,
+    needs: 'goetterblut', // nur auf einer Ader -- und die liegen in der Mitte
+  },
 
   // --------------------------------------------------------------- Gott
   herzbaum: {
@@ -275,6 +288,19 @@ const BUILDINGS = {
     buildTime: 480,
     buildList: ['wurzler', 'schratt', 'geweihter'],
   },
+  blutwurz: {
+    name: 'Blutwurz',
+    short: 'BLW',
+    faction: 'gott',
+    hp: 900,
+    radius: 60,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    blutOut: 40,
+    cost: { fron: 250 },
+    buildTime: 300,
+    needs: 'goetterblut',
+  },
 };
 const UNITS = {
   // Menschen
@@ -304,7 +330,9 @@ const UNITS = {
     hp: 620,
     radius: 32,
     speed: 26,
-    cost: { fron: 180 },
+    // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
+    // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
+    cost: { fron: 130, goetterblut: 10 }, // war 180: pro Fron schlechter als Landwehr
     buildTime: 300,
     weapon: { range: 480, damage: 26, cooldown: 8 },
   },
@@ -337,13 +365,16 @@ const UNITS = {
     hp: 820,
     radius: 34,
     speed: 20,
-    cost: { fron: 190 },
+    cost: { fron: 135, goetterblut: 10 }, // war 190
     buildTime: 325,
     weapon: { range: 440, damage: 24, cooldown: 9 },
     homeBonus: 1500,
   },
 };
 const START_FRON = 900;
+
+/** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
+const RESOURCES = ['fron', 'goetterblut'];
 
 /** Alle Gebäude bzw. Einheiten einer Fraktion. */
 function buildingsOf(f) {
@@ -483,6 +514,7 @@ function spawnBuilding(world, player, type, x, y, finished = false) {
     region: -1,
     powered: 1000,
     queue: [],
+    spawned: 0,
     queueProgress: 0,
     cooldown: 0,
     dead: false,
@@ -529,9 +561,24 @@ function issue(world, cmd) {
   world.pending.push(cmd);
 }
 
+/**
+ * Befehle reihum: in jedem Tick beginnt ein anderer Spieler. Wollen zwei
+ * dieselbe Ader im selben Tick, gewinnt nicht immer derselbe Sitzplatz.
+ * Innerhalb eines Spielers bleibt die Reihenfolge seiner Befehle erhalten.
+ */
 function applyCommands(world) {
-  for (let i = 0; i < world.pending.length; i++) {
-    const c = world.pending[i];
+  const n = world.players.length;
+  for (let k = 0; k < n; k++) {
+    const player = (world.tick + k) % n;
+    for (let i = 0; i < world.pending.length; i++) {
+      if (world.pending[i].player === player) applyCommand(world, world.pending[i]);
+    }
+  }
+  world.pending.length = 0;
+}
+
+function applyCommand(world, c) {
+  {
     if (c.type === 'move') {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
@@ -549,16 +596,15 @@ function applyCommands(world) {
       if (e && e.player === c.player && e.done && !e.dead) {
         const def = BUILDINGS[e.type];
         if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8) {
-          const cost = UNITS[c.unit].cost.fron;
-          if (world.players[c.player].fron >= cost) {
-            world.players[c.player].fron -= cost;
+          const p = world.players[c.player];
+          if (canAfford(p, UNITS[c.unit].cost)) {
+            pay(p, UNITS[c.unit].cost, 1000);
             e.queue.push(c.unit);
           }
         }
       }
     }
   }
-  world.pending.length = 0;
 }
 
 /**
@@ -570,7 +616,7 @@ function tryPlace(world, player, type, x, y) {
   if (!def || def.vital) return null;
   if (def.faction !== world.players[player].faction) return null;
   const p = world.players[player];
-  if (p.fron < def.cost.fron) return null;
+  if (!canAfford(p, def.cost)) return null;
   if (x < 200 || y < 200 || x > MAP - 200 || y > MAP - 200) return null;
 
   let dep = null;
@@ -590,7 +636,7 @@ function tryPlace(world, player, type, x, y) {
     if (dist2(x, y, e.x, e.y) < min * min) return null;
   }
 
-  p.fron -= def.cost.fron;
+  pay(p, def.cost, 1000);
   const b = spawnBuilding(world, player, type, x, y, false);
   if (dep) dep.takenBy = b.id;
   return b;
@@ -606,12 +652,30 @@ function demolish(world, player, id) {
   if (!e || e.dead || e.kind !== 'building' || e.player !== player) return false;
   const def = BUILDINGS[e.type];
   if (def.vital) return false;
-  let back = ((def.cost.fron * (e.done ? 500 : 750)) / 1000) | 0;
-  for (let i = 0; i < e.queue.length; i++) back += UNITS[e.queue[i]].cost.fron;
-  world.players[player].fron += back;
+  const p = world.players[player];
+  const vorher = p.fron;
+  pay(p, def.cost, e.done ? -500 : -750);
+  for (let i = 0; i < e.queue.length; i++) pay(p, UNITS[e.queue[i]].cost, -1000);
   e.dead = true;
-  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, fron: back });
+  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, fron: p.fron - vorher });
   return true;
+}
+
+/** Reicht der Vorrat fuer diese Kosten? Kosten sind { ressource: menge }. */
+function canAfford(p, cost) {
+  for (let i = 0; i < RESOURCES.length; i++) {
+    const r = RESOURCES[i];
+    if ((cost[r] || 0) > p[r]) return false;
+  }
+  return true;
+}
+
+/** Zieht Kosten ab (promille > 0) oder erstattet sie anteilig (promille < 0). */
+function pay(p, cost, promille) {
+  for (let i = 0; i < RESOURCES.length; i++) {
+    const r = RESOURCES[i];
+    if (cost[r]) p[r] -= ((cost[r] * promille) / 1000) | 0;
+  }
 }
 function findDeposit(world, x, y, kind, maxDist = 700) {
   let best = null;
@@ -812,10 +876,22 @@ function step(world) {
       if (e.queueProgress >= need) {
         const type = e.queue.shift();
         e.queueProgress = 0;
-        const ang = (e.id * 97 + world.tick) % 360;
+        // Einheiten treten zur Kartenmitte hin aus, seitlich gestreut nach
+        // einem Zaehler je Gebaeude. Punktsymmetrisch: beide Sitzplaetze
+        // erhalten dieselbe Lage. Versatz zur Null hin runden, nicht die Summe.
         const off = def.radius + 90;
-        const ux = e.x + ((off * cosDeg(ang)) / 1000) | 0;
-        const uy = e.y + ((off * sinDeg(ang)) / 1000) | 0;
+        const quer = ((e.spawned % 5) - 2) * 60;
+        e.spawned++;
+        let dx = (MAP >> 1) - e.x;
+        let dy = (MAP >> 1) - e.y;
+        let d = isqrt(dx * dx + dy * dy);
+        if (d === 0) {
+          dx = 1;
+          dy = 0;
+          d = 1;
+        }
+        const ux = e.x + (((dx * off - dy * quer) / d) | 0);
+        const uy = e.y + (((dy * off + dx * quer) / d) | 0);
         const u = spawnUnit(world, e.player, type, clamp(ux), clamp(uy));
         world.events.push({ t: 'spawned', id: u.id });
       }
@@ -888,6 +964,10 @@ function separate(world) {
     const e = world.entities[i];
     if (!e.dead && e.kind === 'unit') us.push(e);
   }
+  // Alle Stoesse aus denselben Ausgangslagen, dann gemeinsam anwenden --
+  // sonst haengt das Ergebnis von der Reihenfolge in der Liste ab.
+  const px = new Int32Array(us.length);
+  const py = new Int32Array(us.length);
   for (let i = 0; i < us.length; i++) {
     for (let j = i + 1; j < us.length; j++) {
       const a = us[i];
@@ -899,15 +979,26 @@ function separate(world) {
       const push = ((min - d) / 2) | 0 || 1;
       const nx = (((a.x - b.x) * push) / d) | 0;
       const ny = (((a.y - b.y) * push) / d) | 0;
-      a.x = clamp(a.x + nx);
-      a.y = clamp(a.y + ny);
-      b.x = clamp(b.x - nx);
-      b.y = clamp(b.y - ny);
+      px[i] += nx;
+      py[i] += ny;
+      px[j] -= nx;
+      py[j] -= ny;
     }
+  }
+  for (let i = 0; i < us.length; i++) {
+    us[i].x = clamp(us[i].x + px[i]);
+    us[i].y = clamp(us[i].y + py[i]);
   }
 }
 
+/**
+ * Kampf wird gleichzeitig aufgeloest: erst waehlt jeder Schuetze sein Ziel,
+ * dann trifft alles auf einmal. Sonst schoesse, wer frueher in der Liste
+ * steht, zuerst -- und Spieler 0, dessen Befehle zuerst gelten, gewaenne
+ * jeden Gleichstand.
+ */
 function combat(world) {
+  const shots = [];
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead) continue;
@@ -931,10 +1022,15 @@ function combat(world) {
     if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
       dmg = ((dmg * RULES.fremdMalus) / 1000) | 0;
     }
-    target.hp -= dmg;
     e.cooldown = def.weapon.cooldown;
+    shots.push(target, dmg);
     world.events.push({ t: 'shot', from: e.id, to: target.id });
-    if (target.hp <= 0) {
+  }
+
+  for (let i = 0; i < shots.length; i += 2) shots[i].hp -= shots[i + 1];
+  for (let i = 0; i < shots.length; i += 2) {
+    const target = shots[i];
+    if (target.hp <= 0 && !target.dead) {
       target.dead = true;
       world.events.push({ t: 'died', id: target.id, x: target.x, y: target.y });
     }
@@ -1033,6 +1129,7 @@ function hash(world) {
     mix(world.players[p].fron);
     mix(world.players[p].goetterblut);
     mix(world.players[p].fronAcc || 0);
+    mix(world.players[p].blutAcc || 0);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   mix(world.cleared.length);
@@ -1049,8 +1146,8 @@ function hash(world) {
 
 
 const PLAN = {
-  mensch: { anker: 'turm', kraft: 'schmiede', fron: 'saege', fabrik: 'kaserne', leicht: 'landwehr', schwer: 'soeldner' },
-  gott: { anker: 'hain', kraft: 'quelle', fron: 'moos', fabrik: 'dickicht', leicht: 'schratt', schwer: 'geweihter' },
+  mensch: { anker: 'turm', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne', leicht: 'landwehr', schwer: 'soeldner' },
+  gott: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', leicht: 'schratt', schwer: 'geweihter' },
 };
 function createAI(player = 1, seed = 1) {
   return { player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [] };
@@ -1086,9 +1183,18 @@ function stepAI(ai, world) {
 
   // Wer keine Fabrik hat, baut sie zuerst nach der ersten Foerderung -- ohne
   // Armee ist jede Wirtschaft nur Beute.
-  const fabrikZiel = Math.min(3, 1 + ((fron / 1500) | 0));
+  // Fabriken nach Spielzeit, nicht nach Vorrat: wer spart, soll nicht weniger bauen.
+  const fabrikZiel = 1 + (minute >= 6 ? 1 : 0) + (minute >= 11 ? 1 : 0);
   const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3;
   const ader = freieAder(world, haupt, 'fron');
+
+  // Goetterblut liegt in der Mitte. Ein Schacht braucht Gegenwart, also muss
+  // die Ader in einer versorgten eigenen Domaene liegen -- hier zaehlt Reichweite.
+  // Erst wenn Fron-Foerderung und Fabrik stehen -- sonst frisst der Vorstoss die Wirtschaft.
+  const wirtschaftSteht = zahl(plan.fabrik) > 0 && (zahl(plan.fron) >= 3 || !ader);
+  const blutZiel = !wirtschaftSteht ? 0 : minute >= 12 ? 2 : 1;
+  const vene = zahl(plan.blut) < blutZiel ? freieAder(world, haupt, 'goetterblut') : null;
+  const veneBereit = vene && versorgt(world, ai.player, vene);
 
   // 1. Foerderung, aber nur mit Deckung.
   if (ader && zahl(plan.fron) < fronZiel && fron >= kosten(plan.fron)) {
@@ -1101,7 +1207,9 @@ function stepAI(ai, world) {
       ? plan.fron
       : zahl(plan.fabrik) < fabrikZiel
         ? plan.fabrik
-        : ader && zahl(plan.fron) < 3
+        : veneBereit
+          ? plan.blut
+          : ader && zahl(plan.fron) < 3
           ? plan.fron
           : null;
   const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
@@ -1116,11 +1224,27 @@ function stepAI(ai, world) {
     return bau(plan.fabrik, ...daheim(world, haupt, 900, front + 200 + n * 70));
   }
 
+  // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
+  if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
+    return bau(plan.blut, vene.x, vene.y);
+  }
+  const ankerImBau = bauten.some((b) => !b.done && BUILDINGS[b.type].anchor);
+  if (vene && !veneBereit && !ankerImBau && fron >= kosten(plan.anker) + 100) {
+    // Lohnt der Vorstoss? Nur wenn zwei neue Anker die Luecke schliessen.
+    // Sonst warten: wachsende Kreise oder Anker am Rand bringen die Ader naeher.
+    // Dieselbe Regel fuer alle -- der Startradius der Fraktion entscheidet.
+    const platz = vorstoss(world, ai.player, haupt, vene, plan.anker);
+    const start = FACTIONS[p.faction].growth.start;
+    if (platz && dist2(platz.x, platz.y, vene.x, vene.y) <= 4 * start * start) {
+      return bau(plan.anker, platz.x, platz.y);
+    }
+  }
+
   // 4. Anker. Die Zahl steigt mit der Zeit. Jeder neue Anker kommt an den
   //    Rand der eigenen Domaene, moeglichst weit weg von den bestehenden --
   //    sonst ueberdecken sich die Kreise und Wachstum bringt keine Flaeche.
   const ankerZiel = 2 + minute;
-  if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + 150) {
+  if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + 250) {
     const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
     if (platz) return bau(plan.anker, platz.x, platz.y);
   }
@@ -1130,8 +1254,8 @@ function stepAI(ai, world) {
   if (steht && fron >= kosten(plan.anker)) {
     const quelle = naechsteVersorgte(world, bauten, steht);
     if (quelle) {
-      const x = (quelle.x + steht.x) >> 1;
-      const y = (quelle.y + steht.y) >> 1;
+      const x = quelle.x + (((steht.x - quelle.x) / 2) | 0);
+      const y = quelle.y + (((steht.y - quelle.y) / 2) | 0);
       if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) return bau(plan.anker, x, y);
     }
   }
@@ -1139,16 +1263,21 @@ function stepAI(ai, world) {
   // 6. Produktion: zwei leichte auf eine schwere, soweit die Fabrik sie kennt.
   //    Solange die Wirtschaft unvollstaendig ist, wird fuer den naechsten
   //    Bau gespart statt alles in Einheiten zu stecken.
-  const sparen = naechster ? kosten(naechster) : 0;
+  const sparen = naechster ? kosten(naechster) : vene ? kosten(plan.anker) + 100 : 0;
   let rest = fron;
-  const tiefe = fron > 900 ? 3 : 1;
+  let blutRest = p.goetterblut;
+  const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
+  const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
   for (const f of bauten) {
     if (!f.done || !BUILDINGS[f.type].buildList || f.queue.length >= tiefe) continue;
     const liste = BUILDINGS[f.type].buildList;
-    const wunsch = ai.zug % 3 === 2 ? plan.schwer : plan.leicht;
+    // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
+    const schwerMoeglich = blutRest >= blutSchwer;
+    const wunsch = schwerMoeglich && (ai.zug % 3 === 2 || blutRest >= 3 * blutSchwer) ? plan.schwer : plan.leicht;
     const unit = liste.includes(wunsch) ? wunsch : liste.includes(plan.leicht) ? plan.leicht : null;
     if (!unit || rest - UNITS[unit].cost.fron < sparen) continue;
     rest -= UNITS[unit].cost.fron;
+    blutRest -= UNITS[unit].cost.goetterblut || 0;
     ai.zug++;
     issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
   }
@@ -1199,8 +1328,8 @@ function randplatz(world, ai, haupt, front, bauten, typ) {
   for (let g = -90; g <= 90; g += 10) {
     const grad = front + g + versatz;
     for (let d = 1000; d <= 14000; d += 400) {
-      const x = grenze(haupt.x + ((d * cosDeg(grad)) / 1000) | 0);
-      const y = grenze(haupt.y + ((d * sinDeg(grad)) / 1000) | 0);
+      const x = grenze(haupt.x + (((d * cosDeg(grad)) / 1000) | 0));
+      const y = grenze(haupt.y + (((d * sinDeg(grad)) / 1000) | 0));
       if (!inDomain(world, ai.player, x, y)) continue;
       if (def.needsGrowth && isCleared(world, x, y)) continue;
       if (blockiert(world, x, y, def.radius)) continue;
@@ -1213,6 +1342,42 @@ function randplatz(world, ai, haupt, front, bauten, typ) {
     }
   }
   return best;
+}
+
+/** Liegt der Punkt im Kreis eines eigenen fertigen Ankers, dessen Netz Gegenwart hat? */
+function versorgt(world, me, pt) {
+  for (const e of world.entities) {
+    if (e.dead || e.player !== me || e.kind !== 'building') continue;
+    const r = anchorRadius(world, e);
+    if (r === 0 || dist2(pt.x, pt.y, e.x, e.y) > r * r) continue;
+    const reg = world.regions[e.region];
+    if (reg && reg.supply > 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Bauplatz fuer einen Anker auf dem Weg zu einer Ader: der Punkt der eigenen
+ * Domaene, der ihr am naechsten liegt. Gesucht wird auf der Linie von der
+ * Ader zum Hauptgebaeude, mit etwas seitlichem Spielraum.
+ */
+function vorstoss(world, me, haupt, ziel, typ) {
+  const def = BUILDINGS[typ];
+  const dx = haupt.x - ziel.x;
+  const dy = haupt.y - ziel.y;
+  const d = isqrt(dx * dx + dy * dy);
+  if (d === 0) return null;
+  for (let s = 0; s <= d; s += 300) {
+    for (const quer of [0, 300, -300, 600, -600]) {
+      const x = grenze(ziel.x + (((dx * s - dy * quer) / d) | 0));
+      const y = grenze(ziel.y + (((dy * s + dx * quer) / d) | 0));
+      if (!inDomain(world, me, x, y)) continue;
+      if (def.needsGrowth && isCleared(world, x, y)) continue;
+      if (blockiert(world, x, y, def.radius)) continue;
+      return { x, y };
+    }
+  }
+  return null;
 }
 
 /** Steht hier schon ein Gebaeude im Weg? Dieselbe Regel wie tryPlace(). */
@@ -1305,7 +1470,7 @@ const grenze = (v) => Math.max(400, Math.min(MAP - 400, v | 0));
 /** Platz um das Hauptgebaeude, aber innerhalb der eigenen Domaene, solange sie klein ist. */
 function daheim(world, haupt, radius, grad) {
   const r = Math.min(radius, Math.max(300, anchorRadius(world, haupt) - 150));
-  return [grenze(haupt.x + ((r * cosDeg(grad)) / 1000) | 0), grenze(haupt.y + ((r * sinDeg(grad)) / 1000) | 0)];
+  return [grenze(haupt.x + (((r * cosDeg(grad)) / 1000) | 0)), grenze(haupt.y + (((r * sinDeg(grad)) / 1000) | 0))];
 }
 
 /** Richtung von a nach b in ganzen Grad, ueber eine Integer-Suche in der Tabelle. */
@@ -1475,7 +1640,7 @@ cv.addEventListener(
 
 addEventListener('keydown', (e) => {
   const liste = bauListe();
-  const i = '1234'.indexOf(e.key);
+  const i = '12345'.indexOf(e.key);
   if (i >= 0 && liste[i]) placing = liste[i];
   if (e.key === 'Escape') {
     placing = null;
@@ -1508,8 +1673,8 @@ mini.addEventListener('mousedown', (e) => {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'turm', 'kaserne']
-    : ['quelle', 'moos', 'hain', 'dickicht'];
+    ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht']
+    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz'];
 }
 
 function renderBar() {
@@ -1737,12 +1902,23 @@ function drawSelection() {
 
 function drawGhost() {
   const def = BUILDINGS[placing];
-  const x = w2sx(hover.x);
-  const y = w2sy(hover.y);
+  // Foerderbauten rasten auf die naechste Ader ein, wie in tryPlace().
+  let gx = hover.x;
+  let gy = hover.y;
+  let ohneAder = false;
+  if (def.needs) {
+    const dep = findDeposit(world, hover.x, hover.y, def.needs);
+    if (dep && !dep.takenBy) {
+      gx = dep.x;
+      gy = dep.y;
+    } else ohneAder = true;
+  }
+  const x = w2sx(gx);
+  const y = w2sy(gy);
   const r = Math.max(4, def.radius * cam.z);
-  const drin = inDomain(world, ME, hover.x, hover.y);
-  const gerodet = def.needsGrowth && isCleared(world, hover.x, hover.y);
-  const col = gerodet ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
+  const drin = inDomain(world, ME, gx, gy);
+  const gerodet = def.needsGrowth && isCleared(world, gx, gy);
+  const col = gerodet || ohneAder ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
 
   if (def.anchor) {
     ctx.strokeStyle = col;
@@ -1761,7 +1937,10 @@ function drawGhost() {
   ctx.fillStyle = COL.text;
   ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'center';
-  const txt = gerodet
+  const ader = def.needs === 'goetterblut' ? 'Götterblut-Ader' : 'Fron-Ader';
+  const txt = ohneAder
+    ? def.name + ' — braucht eine freie ' + ader
+    : gerodet
     ? def.name + ' — gerodeter Boden trägt nicht'
     : drin
       ? def.name
@@ -1856,7 +2035,7 @@ function auswahlHtml() {
   const tasten = def.buildList
     ? def.buildList
         .slice(1)
-        .map((u, i) => `<kbd>${'QW'[i]}</kbd> ${UNITS[u].name}`)
+        .map((u, i) => `<kbd>${'QW'[i]}</kbd> ${UNITS[u].name}${UNITS[u].cost.goetterblut ? ` (${UNITS[u].cost.goetterblut} Götterblut)` : ''}`)
         .join(' · ')
     : '';
   const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';

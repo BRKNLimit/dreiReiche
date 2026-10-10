@@ -1,7 +1,7 @@
 // Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
 
-import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, WERK_FLOOR } from './defs.js';
+import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES } from './defs.js';
 
 // ---------------------------------------------------------------- Mathematik
 
@@ -193,6 +193,8 @@ function applyCommands(world) {
       }
     } else if (c.type === 'build') {
       tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
+    } else if (c.type === 'demolish') {
+      demolish(world, c.player, c.id);
     } else if (c.type === 'produce') {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
@@ -245,6 +247,24 @@ export function tryPlace(world, player, type, x, y) {
   return b;
 }
 
+/**
+ * Abriss. Ein Ausweg aus Fehlplanungen: Baustellen bringen drei Viertel der
+ * Kosten zurueck, fertige Gebaeude die Haelfte, Bauauftraege voll. Gerodeter
+ * Boden bleibt gerodet. Hauptgebaeude lassen sich nicht abreissen.
+ */
+export function demolish(world, player, id) {
+  const e = byId(world, id);
+  if (!e || e.dead || e.kind !== 'building' || e.player !== player) return false;
+  const def = BUILDINGS[e.type];
+  if (def.vital) return false;
+  let back = ((def.cost.fron * (e.done ? 500 : 750)) / 1000) | 0;
+  for (let i = 0; i < e.queue.length; i++) back += UNITS[e.queue[i]].cost.fron;
+  world.players[player].fron += back;
+  e.dead = true;
+  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, fron: back });
+  return true;
+}
+
 export function findDeposit(world, x, y, kind, maxDist = 700) {
   let best = null;
   let bestD = maxDist * maxDist;
@@ -276,6 +296,14 @@ export function inDomain(world, player, x, y) {
     if (e.dead || e.player !== player || e.kind !== 'building') continue;
     const r = anchorRadius(world, e);
     if (r > 0 && dist2(x, y, e.x, e.y) <= r * r) return true;
+  }
+  return false;
+}
+
+/** Liegt der Punkt in der Domaene irgendeines anderen Spielers? */
+export function inForeignDomain(world, player, x, y) {
+  for (let p = 0; p < world.players.length; p++) {
+    if (p !== player && inDomain(world, p, x, y)) return true;
   }
   return false;
 }
@@ -361,7 +389,7 @@ export function distributeGegenwart(world) {
 
     // Mindestfluss: ein kleiner Teil bleibt fuer Werk reserviert, damit eine
     // ueberbuchte Domaene sich selbst aus dem Loch bauen kann.
-    const reserve = Math.min(demand[PRIO.werk], ((supply * WERK_FLOOR) / 1000) | 0);
+    const reserve = Math.min(demand[PRIO.werk], ((supply * RULES.werkFloor) / 1000) | 0);
     let left = supply - reserve;
     for (let p = 0; p < 4; p++) {
       if (p === PRIO.werk) left += reserve;
@@ -552,6 +580,11 @@ function combat(world) {
     // Heimvorteil: auf eigenem Boden staerker. Der Gott lebt davon.
     if (def.homeBonus && inDomain(world, e.player, e.x, e.y)) {
       dmg = ((dmg * def.homeBonus) / 1000) | 0;
+    }
+    // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
+    // schwaecher zu. Gilt fuer alle Fraktionen gleich.
+    if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
+      dmg = ((dmg * RULES.fremdMalus) / 1000) | 0;
     }
     target.hp -= dmg;
     e.cooldown = def.weapon.cooldown;

@@ -19,11 +19,20 @@ export const PRIO = {
 
 export const PRIO_NAMES = ['Zorn', 'Wehr', 'Segen', 'Werk'];
 
-// Mindestfluss fuer Werk, in Promille der Versorgung einer Domaene.
-// Ohne ihn kann Segen die gesamte Gegenwart binden, und die Baustelle der
-// Quelle, die das aendern wuerde, steht fuer immer still. Werk faellt weiter
-// zuerst -- aber nie ganz auf null, solange ueberhaupt Gegenwart fliesst.
-export const WERK_FLOOR = 125;
+// Regeln, die fuer alle Fraktionen gleich gelten. Ein Objekt, damit Messungen
+// (tools/match.mjs) sie umschalten koennen, ohne die Datei zu aendern.
+export const RULES = {
+  // Mindestfluss fuer Werk, in Promille der Versorgung einer Domaene.
+  // Ohne ihn kann Segen die gesamte Gegenwart binden, und die Baustelle der
+  // Quelle, die das aendern wuerde, steht fuer immer still. Werk faellt weiter
+  // zuerst -- aber nie ganz auf null, solange ueberhaupt Gegenwart fliesst.
+  werkFloor: 125,
+
+  // Schaden in fremder Domaene, in Promille. 1000 = kein Malus.
+  // Offene Designfrage aus docs/konzept.md: Macht ein Malus die Grenze zum
+  // eigentlichen Schlachtfeld? Messung in docs/scope.md.
+  fremdMalus: 1000,
+};
 
 export const FACTIONS = {
   mensch: {

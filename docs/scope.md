@@ -7,7 +7,7 @@
 
 Alles im Code dient dieser Frage. Was sie nicht berührt, fehlt absichtlich.
 
-## Befunde aus den Testläufen (Stand 0.3)
+## Befunde aus den Testläufen (Stand 0.4)
 
 Gemessen mit `npm run match` bzw. einem Sweep über 12 Seeds × beide
 Sitzplätze = 24 KI-Partien je Einstellung, Abbruch nach 45 Minuten.
@@ -17,7 +17,7 @@ gewinnt immer“, „beide horten Fron“ und „die Menschen bauen kaum Anker�
 eine Ursache: Zwei Sägewerke banden die gesamte Gegenwart der Thingstätte
 (Segen), alle Baustellen (Werk) bekamen null, auch die Schmiede, die das
 gelöst hätte. Die Menschen-KI baute in keiner Partie eine einzige Einheit.
-Behoben durch den Mindestfluss (`WERK_FLOOR`, siehe `docs/konzept.md`).
+Behoben durch den Mindestfluss (`RULES.werkFloor`, siehe `docs/konzept.md`).
 
 **Das Tempo war zu hoch, um die Frage zu stellen.** Ein Sägewerk lieferte
 4200 Fron pro Minute, Gebäude standen nach 3,5 Sekunden, Partien endeten nach
@@ -25,11 +25,13 @@ Behoben durch den Mindestfluss (`WERK_FLOOR`, siehe `docs/konzept.md`).
 Jetzt: Förderung pro Minute (240), Bauzeiten ×6 bzw. ×5. Partien dauern
 8–34 Minuten, im Mittel um 20.
 
-**Ausgangseinstellung: 12 : 12.** Der Sitzplatz entscheidet nur noch schwach
-(Spieler 0 gewinnt 14 von 24). Vorher waren Karte und KI-Bauwinkel
-asymmetrisch und Spieler 1 gewann 20 von 24.
+**Ausgangseinstellung: ausgeglichen.** Über zwei Seed-Reihen 11 : 13 und
+14 : 10. Der Sitzplatz entscheidet nur noch schwach (Spieler 0 gewinnt 13–14
+von 24). Vorher waren Karte und KI-Bauwinkel asymmetrisch und Spieler 1
+gewann 20 von 24.
 
-**Die Balance steht auf einer Messerschneide:**
+**Die Balance steht auf einer Messerschneide.** Gemessen mit der KI aus 0.3
+(vor Randplatzierung der Anker); die Tendenzen gelten weiter:
 
 | Einstellung | Menschen : Gott |
 | --- | --- |
@@ -37,17 +39,50 @@ asymmetrisch und Spieler 1 gewann 20 von 24.
 | Gott start 600 | 6 : 0 (von 6, alle in Minute 8) |
 | Gott start 1000 | 5 : 19 |
 | homeBonus 1250 | 21 : 3 |
-| homeBonus 1000 | 6 : 0 (von 6) |
+| homeBonus 1300, start 900 / 1000 / 1100 | 16 : 8 / 9 : 15 / 6 : 18 |
 | Menschen-Radius 3000 statt 2600 | 13 : 11 |
-| Gott max 3900 statt 5200 | 14 : 10 |
-| Gott max 7000 statt 5200 | 13 : 11 |
 
-**Was das für die eine Frage heißt:** Entschieden wird über den *frühen*
-Radius und den Heimvorteil, kaum über die große späte Domäne. `max` bewegt
-das Ergebnis um höchstens zwei Partien. Die Fläche des Gottes überholt die
-der Menschen um Minute 5 und ist ab Minute 12 mehr als doppelt so groß — aber
-die KI nutzt diese Fläche nicht, sie kämpft nahe der eigenen Basis. Ob ein
-Mensch am Steuer die späte Domäne ausspielt, kann nur Selbstspielen zeigen.
+Ein flacherer Heimvorteil macht die Balance *nicht* robuster: Auch bei 1300
+kippen 100 dm Startradius sechs bis sieben von 24 Partien.
+
+**Der späte Radius entscheidet nichts — und liefert kaum Fläche.** Aktuelle
+KI, 24 Partien je Zeile, Fläche als Vereinigung der Kreise in Minute 10:
+
+| Gott max | Menschen : Gott | Fläche Menschen | Fläche Gott |
+| --- | --- | --- | --- |
+| 3900 | 13 : 11 | 104 ha | 91 ha |
+| 5200 | 14 : 10 | 104 ha | 98 ha |
+| 7000 | 15 : 9 | 104 ha | 98 ha |
+
+Der Verlauf ist der eigentliche Unterschied der Fraktionen: In Minute 3 hat
+der Gott 26 ha gegen 62 ha, bis Minute 10 holt er auf — überholt aber nicht.
+Gründe:
+
+- Ein neuer Hain muss *in* der eigenen Domäne stehen, sonst hat die Baustelle
+  keine Gegenwart. Wachsen die Kreise später auf 520 m, überdecken sie sich
+  fast ganz. Ein großer Radius macht die eigenen älteren Anker überflüssig.
+- Die Basen liegen nahe der Kartenecke; ein Teil jedes großen Kreises liegt
+  außerhalb der Karte.
+- Die Menschen halten mit der Anzahl ihrer Türme mit.
+
+*Korrektur:* Die frühere Angabe „ab Minute 12 mehr als doppelt so groß“
+beruhte auf der Summe der Kreisflächen und zählte Überlappungen mehrfach.
+
+**Wo gekämpft wird.** Rund 60–67 % aller Schüsse fallen in der Domäne des
+Gegners, 32–39 % in der eigenen, fast nichts im Niemandsland. Entschieden wird
+durch Angriffswellen auf das gegnerische Hauptgebäude, also auf fremdem Boden.
+
+**Malus auf fremdem Boden** (`RULES.fremdMalus`, offene Frage aus dem
+Konzept), gemessen mit der KI vor Randplatzierung:
+
+| fremdMalus | Menschen : Gott | Ø Dauer |
+| --- | --- | --- |
+| 1000 (aus) | 11–12 : 12–13 | 13,5 min |
+| 800 | 12–13 : 11–12 | 16 min |
+| 650 | 14–15 : 9–10 | 23 min |
+
+Der Malus verlängert Partien deutlich (Angriffe werden teurer), macht `max`
+aber ebenfalls nicht wirksam. Standard bleibt 1000.
 
 ## Bewusst weggelassen
 
@@ -64,20 +99,22 @@ Mensch am Steuer die späte Domäne ausspielt, kann nur Selbstspielen zeigen.
 
 ## Nächste sinnvolle Schritte
 
-1. **Selbst spielen** und notieren, wann die Domäne fordert statt zu nerven —
-   besonders: Lohnt es sich als Gott, Haine früh weit vorn zu pflanzen?
-2. Entscheiden, ob die Messerschneide gewollt ist. Wenn nicht: `homeBonus`
-   flacher machen (z. B. 1300) und dafür `start` leicht anheben.
-3. KI, die die große Domäne nutzt (vorgeschobene Quellen, Kämpfe an der
-   Grenze), sonst misst `npm run match` den späten Radius nicht.
-4. Erst danach Todesgott, Götterblut oder Gelände.
+1. **Selbst spielen.** Das HUD zeigt jetzt die Fläche beider Domänen und
+   ihren Verlauf. Frage: Fühlt sich der frühe Rückstand des Gottes als
+   Spannung an — und lohnt es sich, Haine früh weit vorn zu pflanzen?
+2. **Entscheiden, was der späte Radius bewirken soll.** Im jetzigen
+   Regelwerk ist ein großer Radius vor allem Versorgung und Heimvorteil
+   nahe der eigenen Basis. Kandidaten, jeweils für alle Fraktionen gleich:
+   Anker dürfen außerhalb der Domäne mit eigener Kleinstversorgung entstehen
+   (dann zählt Reichweite), oder der Heimvorteil hängt am Abstand zur
+   Grenze statt nur an drinnen/draußen.
+3. Erst danach Todesgott, Götterblut oder Gelände.
 
 ## Bekannte Schwächen
 
-- Die KI nutzt die späte Gott-Domäne nicht; `max` ist in KI-Partien fast
-  wirkungslos.
+- Partien entscheiden sich durch Wellen auf das Hauptgebäude; die KI hält
+  keine Grenze und erobert keine Fläche.
 - Einheiten laufen durch Gebäude hindurch.
 - Gerodeter Boden erholt sich nie wieder — der Wurzler kann das noch nicht.
 - Arbeiter (Köhler, Wurzler) haben keine Funktion; Gebäude entstehen per
   Befehl.
-- Gebäude lassen sich nicht abreißen.

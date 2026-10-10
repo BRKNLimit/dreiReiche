@@ -2571,6 +2571,15 @@ const MODELLE_DEF = {
     ['z', [0, 0.7, 1.8, 6], [0, 1.9, 0], '#2f5a2a'],
   ],
   staubwolke: [['k', [1, 6], [0, 0, 0], '#b0a890']],
+  pfeil: [
+    ['q', [0.05, 0.05, 1.0], [0, 0, 0], HOLZ],
+    ['z', [0, 0.06, 0.18, 4], [0, 0, 0.55], EISEN, 0, [Math.PI / 2, 0, 0]],
+    ['q', [0.16, 0.02, 0.18], [0, 0, -0.45], '#e8e2d0', 0.6],
+  ],
+  kugel: [
+    ['k', [0.32, 6], [0, 0, 0], '#e2f7d4', 0.25],
+    ['k', [0.16, 5], [0, 0, -0.35], '#bfe8b0', 0.25],
+  ],
 };
 
 // ------------------------------------------------------------ WebGL
@@ -3045,7 +3054,11 @@ function tick() {
       const a = byId(world, ev.from);
       const b = byId(world, ev.to);
       if (!a || !b) continue;
-      schuesse.push({ a: ev.from, b: ev.to, ax: a.x, ay: a.y, bx: b.x, by: b.y, farbe: teamFarbe(a.player), t: 0.22 });
+      // Fernkaempfer schiessen sichtbar: Jaeger Pfeile, Waldgeist und Waldgott
+      // Lichtkugeln. Sonst ein kurzer Blitz zwischen Angreifer und Ziel.
+      const art = a.type === 'jaeger' ? 'pfeil' : a.type === 'waldgeist' || a.type === 'waldgott' ? 'kugel' : 'blitz';
+      const dauer = art === 'blitz' ? 0.22 : 0.4;
+      schuesse.push({ a: ev.from, b: ev.to, ax: a.x, ay: a.y, bx: b.x, by: b.y, farbe: teamFarbe(a.player), t: dauer, dauer, art });
       // Schuetzen schauen zum Ziel
       if (a.kind === 'unit') {
         blick.set(a.id, Math.atan2(b.x - a.x, b.y - a.y));
@@ -3263,10 +3276,24 @@ function zeichneSchuesse(dt) {
     const b = byId(world, s.b);
     const [ax, ay] = a ? lage(a) : [s.ax, s.ay];
     const [bx, by] = b ? lage(b) : [s.bx, s.by];
+    if (s.art !== 'blitz') {
+      // Geschoss im Bogen vom Schuetzen zum Ziel
+      const f = 1 - s.t / s.dauer;
+      const bogen = Math.sin(f * Math.PI) * (s.art === 'pfeil' ? 3 : 1.2);
+      const w = Math.atan2(bx - ax, by - ay);
+      const x = ax + (bx - ax) * f;
+      const y = ay + (by - ay) * f;
+      // Geschosse uebertrieben gross, sonst sind sie aus Spielhoehe unsichtbar
+      instanz(s.art, x * DM, 2 + bogen, y * DM, w, s.art === 'pfeil' ? 2.8 : 2.4, s.farbe, 1, s.art === 'kugel' ? 1.4 : 1);
+      continue;
+    }
     const al = Math.min(1, s.t / 0.22);
     v.push(ax * DM, 1.4, ay * DM, s.farbe[0], s.farbe[1], s.farbe[2], al);
     v.push(bx * DM, 1.0, by * DM, 1, 0.95, 0.8, al);
   }
+  zeichneInstanzen(MODELLE.pfeil);
+  zeichneInstanzen(MODELLE.kugel);
+  if (!v.length) return;
   gl.useProgram(PROG_L);
   gl.uniformMatrix4fv(gl.getUniformLocation(PROG_L, 'uVP'), false, VP);
   gl.bindVertexArray(linienVao);

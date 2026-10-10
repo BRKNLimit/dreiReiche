@@ -19,6 +19,7 @@ Tabellen in `docs/scope.md`.
 - **3D-Ansicht** `dist/drei-reiche-3d.html`: WebGL 2 ohne Bibliothek,
   Modelle aus Grundkörpern für alle Einheiten und Gebäude, Interpolation
   zwischen den Ticks, Schrittbewegung und Ausfall beim Angriff, Schatten,
+  Pfeile und Lichtkugeln als Geschosse,
   Domänen per Stencil, RTS-Kamera, dieselbe Steuerung.
   Eigener Smoke-Test.
 - Messung: Menschen 51 : Gott 106; ohne Kommandant 160 : 0.

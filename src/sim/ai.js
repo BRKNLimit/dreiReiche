@@ -2,7 +2,7 @@
 // Domänenmechanik unter Stress zeigt. Nutzt nur issue(), nie direkten Zugriff.
 // Nur Integer-Arithmetik und rng() -- dieselben Regeln wie die Simulation.
 
-import { issue, dist2, isqrt, isCleared, anchorRadius, rng, cosDeg, sinDeg } from './sim.js';
+import { issue, dist2, isqrt, isCleared, anchorRadius, inDomain, rng, cosDeg, sinDeg } from './sim.js';
 import { BUILDINGS, UNITS, MAP } from './defs.js';
 
 const PLAN = {
@@ -75,18 +75,13 @@ export function stepAI(ai, world) {
     return bau(plan.fabrik, ...daheim(world, haupt, 900, front + 200 + n * 70));
   }
 
-  // 4. Anker. Die Zahl steigt mit der Zeit, ausgebreitet in einem Faecher
-  //    Richtung Gegner -- der eigentliche Vorteil fester Kreise.
+  // 4. Anker. Die Zahl steigt mit der Zeit. Jeder neue Anker kommt an den
+  //    Rand der eigenen Domaene, moeglichst weit weg von den bestehenden --
+  //    sonst ueberdecken sich die Kreise und Wachstum bringt keine Flaeche.
   const ankerZiel = 2 + minute;
   if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + 150) {
-    const n = zahl(plan.anker);
-    const basis = front;
-    const streu = (rng(ai) % 41) - 20;
-    const faecher = ((n % 5) - 2) * 25 + streu;
-    const schritt = 1800 + ((n / 5) | 0) * 1700 + (rng(ai) % 600);
-    const x = grenze(haupt.x + ((schritt * cosDeg(basis + faecher)) / 1000) | 0);
-    const y = grenze(haupt.y + ((schritt * sinDeg(basis + faecher)) / 1000) | 0);
-    if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) return bau(plan.anker, x, y);
+    const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
+    if (platz) return bau(plan.anker, platz.x, platz.y);
   }
 
   // 5. Stockende Baustelle: einen Anker dazwischensetzen.
@@ -133,16 +128,90 @@ export function stepAI(ai, world) {
     const ids = daheimStehend.map((u) => u.id);
     ai.unterwegs.push(...ids);
     issue(world, { type: 'move', player: ai.player, ids, x: ziel.x, y: ziel.y });
+    return;
+  }
+
+  // 9. Sammeln am vordersten Anker. Wer wartet, wartet an der Grenze -- dort,
+  //    wo die eigene Domaene dem Gegner am naechsten ist.
+  if (!bedrohung && ziel) {
+    const vorn = vordersterAnker(world, bauten, ziel);
+    if (vorn) {
+      const ids = daheimStehend
+        .filter((u) => dist2(u.x, u.y, vorn.x, vorn.y) > 700 * 700)
+        .map((u) => u.id);
+      if (ids.length) issue(world, { type: 'move', player: ai.player, ids, x: vorn.x, y: vorn.y });
+    }
   }
 }
 
-/** Feindliche Einheit, die einem eigenen Gebaeude am naechsten gekommen ist. */
+/**
+ * Bauplatz fuer einen Anker: in der eigenen Domaene (sonst steht die
+ * Baustelle ohne Gegenwart), im Halbkreis Richtung Front, und dort, wo der
+ * naechste eigene Anker am weitesten weg ist.
+ */
+function randplatz(world, ai, haupt, front, bauten, typ) {
+  const def = BUILDINGS[typ];
+  const anker = bauten.filter((b) => BUILDINGS[b.type].anchor);
+  const versatz = (rng(ai) % 9) - 4;
+  let best = null;
+  let bestS = -1;
+  for (let g = -90; g <= 90; g += 10) {
+    const grad = front + g + versatz;
+    for (let d = 1000; d <= 14000; d += 400) {
+      const x = grenze(haupt.x + ((d * cosDeg(grad)) / 1000) | 0);
+      const y = grenze(haupt.y + ((d * sinDeg(grad)) / 1000) | 0);
+      if (!inDomain(world, ai.player, x, y)) continue;
+      if (def.needsGrowth && isCleared(world, x, y)) continue;
+      if (blockiert(world, x, y, def.radius)) continue;
+      let s = Infinity;
+      for (const a of anker) s = Math.min(s, dist2(x, y, a.x, a.y));
+      if (s > bestS) {
+        bestS = s;
+        best = { x, y };
+      }
+    }
+  }
+  return best;
+}
+
+/** Steht hier schon ein Gebaeude im Weg? Dieselbe Regel wie tryPlace(). */
+function blockiert(world, x, y, radius) {
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'building') continue;
+    const min = radius + BUILDINGS[e.type].radius + 20;
+    if (dist2(x, y, e.x, e.y) < min * min) return true;
+  }
+  return false;
+}
+
+/** Fertiger Anker, der dem Ziel am naechsten steht. */
+function vordersterAnker(world, bauten, ziel) {
+  let best = null;
+  let bestD = Infinity;
+  for (const b of bauten) {
+    if (!b.done || anchorRadius(world, b) === 0) continue;
+    const dd = dist2(b.x, b.y, ziel.x, ziel.y);
+    if (dd < bestD) {
+      bestD = dd;
+      best = b;
+    }
+  }
+  return best;
+}
+
+/**
+ * Feindliche Einheit, die einem eigenen Gebaeude am naechsten gekommen ist --
+ * oder die irgendwo in der eigenen Domaene steht. Eine grosse Domaene ist
+ * damit auch ein grosses Gebiet, das verteidigt wird.
+ */
 function naechsterEindringling(world, me, bauten) {
   const nah = 3000 * 3000;
   let best = null;
   let bestD = nah;
+  let drin = null;
   for (const o of world.entities) {
     if (o.dead || o.player === me || o.kind !== 'unit') continue;
+    if (!drin && inDomain(world, me, o.x, o.y)) drin = o;
     for (const b of bauten) {
       const dd = dist2(o.x, o.y, b.x, b.y);
       if (dd < bestD) {
@@ -151,7 +220,7 @@ function naechsterEindringling(world, me, bauten) {
       }
     }
   }
-  return best;
+  return best || drin;
 }
 
 function gegnerHaupt(world, me) {

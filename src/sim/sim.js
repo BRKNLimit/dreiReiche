@@ -669,6 +669,44 @@ function separate(world) {
     us[i].x = clamp(us[i].x + px[i]);
     us[i].y = clamp(us[i].y + py[i]);
   }
+  for (let i = 0; i < us.length; i++) umgehen(world, us[i]);
+}
+
+/**
+ * Gebaeude sind fest. Wer hineingeraet, wird an den Rand geschoben und
+ * gleitet seitlich in die Richtung, in der sein Ziel liegt -- ein Ersatz
+ * fuer Pathfinding auf offener Karte. Liegt das Ziel im Gebaeude selbst
+ * (Angriff aufs Hauptgebaeude), bleibt die Einheit am Rand stehen.
+ */
+function umgehen(world, u) {
+  const ur = UNITS[u.type].radius;
+  const slide = UNITS[u.type].speed >> 1;
+  for (let i = 0; i < world.entities.length; i++) {
+    const b = world.entities[i];
+    if (b.dead || b.kind !== 'building') continue;
+    const min = ur + BUILDINGS[b.type].radius;
+    let ox = u.x - b.x;
+    let oy = u.y - b.y;
+    const dd = ox * ox + oy * oy;
+    if (dd >= min * min) continue;
+    let d = isqrt(dd);
+    if (d === 0) {
+      ox = 1;
+      oy = 0;
+      d = 1;
+    }
+    let nx = b.x + (((ox * min) / d) | 0);
+    let ny = b.y + (((oy * min) / d) | 0);
+    if (dist2(u.tx, u.ty, b.x, b.y) >= min * min) {
+      // Tangente in Richtung des Ziels
+      const dot = -oy * (u.tx - u.x) + ox * (u.ty - u.y);
+      const s = dot >= 0 ? 1 : -1;
+      nx += ((-oy * s * slide) / d) | 0;
+      ny += ((ox * s * slide) / d) | 0;
+    }
+    u.x = clamp(nx);
+    u.y = clamp(ny);
+  }
 }
 
 /**

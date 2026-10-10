@@ -194,7 +194,6 @@ mehrfach.
 
 - Die KI greift in Wellen an (erst Förderbauten, dann das Hauptgebäude) und
   hält keine Grenze.
-- Einheiten laufen durch Gebäude hindurch.
 - Gerodeter Boden erholt sich nie wieder — der Wurzler kann das noch nicht.
 - Arbeiter (Köhler, Wurzler) haben keine Funktion; Gebäude entstehen per
   Befehl.

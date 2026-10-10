@@ -16,6 +16,7 @@ import {
   gridReport,
   isqrt,
   inForeignDomain,
+  dist2,
 } from '../src/sim/sim.js';
 import { FACTIONS, BUILDINGS, UNITS, RULES, MAP } from '../src/sim/defs.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
@@ -548,4 +549,33 @@ test('eine Angriffsbewegung stellt Feinde unterwegs und zieht danach weiter', ()
   for (let i = 0; i < 600; i++) step(w);
   assert.equal(lw.x, 9000, 'und das Ziel wird noch erreicht');
   assert.equal(lw.y, 5000);
+});
+
+// ---------------------------------------------------- Gebäude als Hindernis
+
+test('Einheiten laufen um Gebäude herum statt hindurch', () => {
+  const w = bare();
+  const b = spawnBuilding(w, 0, 'kaserne', 6000, 5000, true);
+  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
+  issue(w, { type: 'move', player: 0, ids: [lw.id], x: 7000, y: 5000 });
+  const min = BUILDINGS.kaserne.radius + UNITS.landwehr.radius;
+  let drin = 0;
+  for (let i = 0; i < 200; i++) {
+    step(w);
+    if (dist2(lw.x, lw.y, b.x, b.y) < (min - 2) * (min - 2)) drin++;
+  }
+  assert.equal(drin, 0, 'nie im Gebäude');
+  assert.equal(lw.x, 7000, 'kommt trotzdem an');
+  assert.equal(lw.y, 5000);
+});
+
+test('ein Ziel im Gebäude: Einheit bleibt am Rand stehen', () => {
+  const w = bare();
+  const b = spawnBuilding(w, 1, 'herzbaum', 6000, 5000, true);
+  const lw = spawnUnit(w, 0, 'koehler', 5000, 5000);
+  issue(w, { type: 'move', player: 0, ids: [lw.id], x: 6000, y: 5000 });
+  for (let i = 0; i < 200; i++) step(w);
+  const min = BUILDINGS.herzbaum.radius + UNITS.koehler.radius;
+  const d = isqrt(dist2(lw.x, lw.y, b.x, b.y));
+  assert.ok(d >= min - 2 && d <= min + UNITS.koehler.speed, `am Rand: ${d}`);
 });

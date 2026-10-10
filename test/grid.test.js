@@ -621,3 +621,13 @@ test('Heimvorteil nach Tiefe: am Rand nichts, tief drinnen voll', () => {
     RULES.tiefeVoll = alt;
   }
 });
+
+test('ein Todesereignis nennt Art, Typ und Spieler', () => {
+  const w = bare();
+  spawnUnit(w, 0, 'soeldner', 5000, 5000);
+  const opfer = spawnUnit(w, 1, 'wurzler', 5300, 5000);
+  opfer.hp = 1;
+  step(w);
+  const ev = w.events.find((e) => e.t === 'died');
+  assert.deepEqual([ev.kind, ev.type, ev.player], ['unit', 'wurzler', 1]);
+});

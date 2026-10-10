@@ -775,7 +775,15 @@ function combat(world) {
     const target = shots[i];
     if (target.hp <= 0 && !target.dead) {
       target.dead = true;
-      world.events.push({ t: 'died', id: target.id, x: target.x, y: target.y });
+      world.events.push({
+        t: 'died',
+        id: target.id,
+        kind: target.kind,
+        type: target.type,
+        player: target.player,
+        x: target.x,
+        y: target.y,
+      });
     }
   }
 }

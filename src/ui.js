@@ -10,6 +10,8 @@ const mctx = mini.getContext('2d');
 let meFaction = 'mensch';
 let world, ai, aiMe;
 let angriff = false; // A gedrueckt: naechster Klick ist eine Angriffsbewegung
+let stats; // Auswertung der Partie, siehe zaehle()
+let zeigeAuswertung = false;
 const ME = 0;
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
@@ -41,6 +43,8 @@ function neu(f, zuschauen = false) {
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
   angriff = false;
+  zeigeAuswertung = false;
+  stats = neueStats();
   sel = [];
   placing = null;
   flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
@@ -168,6 +172,7 @@ addEventListener('keydown', (e) => {
     paused = !paused;
     e.preventDefault();
   }
+  if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
   if (e.key === '+') speed = Math.min(8, speed * 2);
   if (e.key === '-') speed = Math.max(0.5, speed / 2);
   if ((e.key === 'Delete' || e.key === 'Backspace') && sel.length === 1) {
@@ -214,6 +219,7 @@ function frame(now) {
       if (aiMe) stepAI(aiMe, world);
       stepAI(ai, world);
       step(world);
+      zaehle();
       acc -= TICK_MS;
       sel = sel.filter((id) => byId(world, id));
     }
@@ -571,7 +577,91 @@ function drawHud() {
     ${flaecheHtml()}
     ${auswahlHtml()}
     <div class="regs">${rows}</div>
-    ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}`;
+    ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
+    ${world.over || zeigeAuswertung ? auswertungHtml() : ''}`;
+}
+
+// ------------------------------------------------------------ Auswertung
+// Die Leitfrage beim Selbstspielen: Wann fordert die Domaene eine
+// Entscheidung, wann nervt sie? Reibung (gedrosselte und stillstehende
+// Baustellen), Kampfort, Anker und Goetterblut -- je Seite gezaehlt.
+function neueStats() {
+  const seite = () => ({
+    blut: -1,
+    heim: 0,
+    fremd: 0,
+    frei: 0,
+    ankerGebaut: 0,
+    ankerVerloren: 0,
+    gebaut: 0,
+    gefallen: 0,
+    gedrosselt: 0,
+    still: 0,
+  });
+  return [seite(), seite()];
+}
+
+function zaehle() {
+  for (let p = 0; p < 2; p++) {
+    if (stats[p].blut < 0 && world.players[p].goetterblut > 0) stats[p].blut = world.tick;
+  }
+  for (const ev of world.events) {
+    if (ev.t === 'shot') {
+      const s = byId(world, ev.from);
+      if (!s) continue;
+      const z = stats[s.player];
+      if (inDomain(world, s.player, s.x, s.y)) z.heim++;
+      else if (inForeignDomain(world, s.player, s.x, s.y)) z.fremd++;
+      else z.frei++;
+    } else if (ev.t === 'built') {
+      const b = byId(world, ev.id);
+      if (b && BUILDINGS[b.type].anchor) stats[b.player].ankerGebaut++;
+    } else if (ev.t === 'spawned') {
+      const u = byId(world, ev.id);
+      if (u) stats[u.player].gebaut++;
+    } else if (ev.t === 'died') {
+      if (ev.kind === 'unit') stats[ev.player].gefallen++;
+      else if (BUILDINGS[ev.type].anchor) stats[ev.player].ankerVerloren++;
+    }
+  }
+  // Reibung: ein Tick zaehlt, wenn irgendeine Baustelle gedrosselt ist bzw.
+  // ganz ohne Gegenwart steht (meist: ausserhalb der Domaene gebaut).
+  const gedrosselt = [false, false];
+  const still = [false, false];
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'building' || e.done) continue;
+    if (e.powered === 0) still[e.player] = true;
+    else if (e.powered < 1000) gedrosselt[e.player] = true;
+  }
+  for (let p = 0; p < 2; p++) {
+    if (gedrosselt[p]) stats[p].gedrosselt++;
+    if (still[p]) stats[p].still++;
+  }
+}
+
+function auswertungHtml() {
+  const min = (t) => (t < 0 ? '—' : (t / 600).toFixed(1).replace('.', ','));
+  const sek = (t) => Math.round(t / 10) + ' s';
+  const ort = (z) => {
+    const n = z.heim + z.fremd + z.frei;
+    if (!n) return '—';
+    const pct = (x) => Math.round((100 * x) / n);
+    return `${pct(z.heim)}·${pct(z.fremd)}·${pct(z.frei)}`;
+  };
+  const a = stats[ME];
+  const b = stats[1 - ME];
+  const zeile = (name, f) => `<b>${name}</b><span>${f(a)}</span><span>${f(b)}</span>`;
+  return `<div class="eval">
+    <div class="fac">Auswertung${world.over ? '' : ' (I)'}</div>
+    <div class="evg">
+      <b></b><span class="evh">du</span><span class="evh">Gegner</span>
+      ${zeile('Götterblut ab', (s) => min(s.blut))}
+      ${zeile('Schüsse % heim·fremd·frei', ort)}
+      ${zeile('Anker +/−', (s) => s.ankerGebaut + '/' + s.ankerVerloren)}
+      ${zeile('Einheiten +/−', (s) => s.gebaut + '/' + s.gefallen)}
+      ${zeile('Bau gedrosselt', (s) => sek(s.gedrosselt))}
+      ${zeile('Bau ohne Gegenwart', (s) => sek(s.still))}
+    </div></div>`;
 }
 
 // ------------------------------------------------------------ Domänenfläche

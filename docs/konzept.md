@@ -53,6 +53,12 @@ fester Reihenfolge:
 
 Ein Gott lässt seine Waffen als Letztes fallen.
 
+**Mindestfluss.** Ein Achtel der Gegenwart eines Domänenteils erreicht immer
+die Baustellen, solange es welche gibt. Ohne diese Reserve kann eine
+überbuchte Domäne sich nicht mehr selbst retten: Die Förderung bindet alles,
+und die Baustelle der neuen Quelle steht für immer still. Werk fällt weiter
+zuerst — nur nicht ganz auf null.
+
 ### Kein Tech-Tree, keine Zeitalter
 
 Was gebaut werden kann, kann ab Minute eins gebaut werden. Eskalation kommt

@@ -26,7 +26,7 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 ## Harte Regeln
 
 1. **Die Simulation ist engine-frei.** `src/sim/` importiert nichts aus
-   `web/` oder `src/ui.js`, kein `document`, kein `window`. Dieselben Dateien
+   `src/ui.js`, kein `document`, kein `window`. Dieselben Dateien
    laufen headless unter Node und im Browser.
 
 2. **Die Simulation ist deterministisch.** Gleicher Startzustand + gleiche
@@ -37,9 +37,8 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
    - Zufall nur über `rng(state)`; Wurzeln über `isqrt()`.
    - Iteration in stabiler Reihenfolge (Array-Index, nie `Object.keys` auf
      dynamischen Objekten, nie `Set`-Iteration).
-   - `src/sim/ai.js` nutzt an zwei Stellen `Math.cos`/`Math.sqrt` für
-     Bauplatzwahl. Das ist für den Prototyp hinnehmbar, muss aber vor
-     Multiplayer auf Integer umgestellt werden.
+   - Das gilt auch für `src/sim/ai.js`: Winkel über `cosDeg`/`sinDeg`,
+     Zufall über `rng(ai)` mit eigenem Seed.
 
 3. **Einheiten und Gebäude sind Daten, keine Klassen.** Alles in
    `src/sim/defs.js`. Eine neue Einheit ist ein Eintrag, keine Logik. Wenn
@@ -54,9 +53,11 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 ## Einheiten
 
 - Entfernungen in **Dezimetern** (1 dm = 0,1 m), Integer. Karte 2000 × 2000 m.
-- Gegenwart, Fron und Götterblut als Integer pro Tick. Gegenwart ist ein Fluss
-  und wird nie gespeichert.
+- Zeiten (`buildTime`, `cooldown`) in Ticks. Gegenwart als Integer pro Tick;
+  sie ist ein Fluss und wird nie gespeichert. Förderung (`fronOut`,
+  `blutOut`) in Einheiten **pro Minute**.
 - Versorgungsgrad (`powered`) in Promille, 1000 = voll.
+- `WERK_FLOOR`: Promille der Versorgung, die Baustellen immer erreichen.
 
 ## Begriffe
 
@@ -71,7 +72,7 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 ## Bewusst weggelassen (v1)
 
 Pathfinding (Einheiten fahren gerade), Gelände, Fog of War, Todesgott,
-Götterblut-Verbrauch, Bergung der Gefallenen, Belagerung, Netzwerk.
+Götterblut-Förderung und -Verbrauch, Bergung der Gefallenen, Belagerung, Netzwerk.
 Siehe `docs/scope.md`.
 
 ## Teststrategie
@@ -79,3 +80,5 @@ Siehe `docs/scope.md`.
 `npm test` muss grün sein, bevor etwas als fertig gilt. Jede Eigenschaft der
 Ankerregel braucht einen Test, der sie in Isolation zeigt.
 `npm run smoke` fährt die Oberfläche headless 1000 Frames.
+`npm run match` lässt KI gegen KI spielen (beide Sitzplätze, mehrere Seeds).
+Balance-Aussagen in `docs/scope.md` nur mit Messung von dort, nie geschätzt.

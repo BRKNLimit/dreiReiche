@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.2
+# Die drei Reiche — Prototyp 0.3
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Er existiert, um **eine Frage** zu beantworten: Fühlt sich eine
@@ -8,9 +8,10 @@ Zeit wächst, tatsächlich unterschiedlich an?
 ## Loslegen
 
 ```bash
-npm test          # 19 Tests: Ankerregel, Domäne, Drosselleiter, Determinismus
+npm test          # 25 Tests: Ankerregel, Domäne, Drosselleiter, KI, Determinismus
 npm run bundle    # baut dist/resonit.html (eine Datei, kein Server)
 npm run smoke     # fährt die Oberfläche headless 1000 Frames
+npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
 ```
 
 `dist/resonit.html` öffnet direkt im Browser. Kein Build, keine
@@ -44,15 +45,16 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 
 - Deterministische Simulation, fester Zeitschritt (10 Hz), nur Integer
 - Domäne als Vereinigung von Ankerkreisen, getrennte Teile sind getrennte Netze
-- Drosselleiter Werk → Segen → Wehr → Zorn, anteilig statt binär
-- Fron und Götterblut, Roden sperrt Haine aus, Heimvorteil für den Gott
-- Einfache Gegner-KI, die bei stockenden Baustellen Anker nachsetzt
+- Drosselleiter Werk → Segen → Wehr → Zorn, anteilig statt binär, mit
+  Mindestfluss für Baustellen
+- Fron, Roden sperrt Haine aus, Heimvorteil für den Gott
+- Gegner-KI mit Gegenwart-Bilanz, Verteidigung und Angriffswellen
 - Karte 2000 × 2000 m
 
 ## Was bewusst fehlt
 
-Pathfinding, Gelände, Fog of War, Todesgott, Götterblut-Verbrauch, Bergung,
-Netzwerk. Siehe `docs/scope.md` — dort stehen auch die offenen Balance-Befunde.
+Pathfinding, Gelände, Fog of War, Todesgott, Götterblut (Adern liegen, nichts
+fördert), Bergung, Netzwerk. Siehe `docs/scope.md` — dort stehen auch die offenen Balance-Befunde.
 
 ## Struktur
 
@@ -64,6 +66,7 @@ src/ui.js         Canvas-Darstellung und Eingabe
 src/shell.html    Rahmen und Styles
 tools/bundle.mjs  fügt alles zu einer HTML-Datei zusammen
 tools/smoke.mjs   fährt die Oberfläche ohne Browser
+tools/match.mjs   KI gegen KI, misst Siege, Dauer, Fläche
 docs/konzept.md   das Designdokument
 docs/scope.md     Umfang, Befunde, bekannte Schwächen
 test/             node:test

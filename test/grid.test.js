@@ -15,8 +15,9 @@ import {
   hash,
   gridReport,
   isqrt,
+  inForeignDomain,
 } from '../src/sim/sim.js';
-import { FACTIONS, BUILDINGS } from '../src/sim/defs.js';
+import { FACTIONS, BUILDINGS, UNITS, RULES } from '../src/sim/defs.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
 
 function bare(f0 = 'mensch', f1 = 'gott') {
@@ -329,4 +330,59 @@ test('KI-Partie ist deterministisch', () => {
     return hash(w);
   };
   assert.equal(run(), run());
+});
+
+// ---------------------------------------------------- Abriss
+
+test('Abriss erstattet Kosten und gibt die Ader frei', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  w.deposits.push({ x: 5000, y: 6200, kind: 'fron', takenBy: 0 });
+  const vorher = w.players[0].fron;
+  const s = tryPlace(w, 0, 'saege', 5000, 6200);
+  assert.equal(w.players[0].fron, vorher - BUILDINGS.saege.cost.fron);
+  issue(w, { type: 'demolish', player: 0, id: s.id });
+  step(w);
+  assert.equal(w.entities.includes(s), false, 'Gebäude ist weg');
+  assert.equal(w.deposits[0].takenBy, 0, 'Ader wieder frei');
+  const zurueck = ((BUILDINGS.saege.cost.fron * 750) / 1000) | 0;
+  assert.equal(w.players[0].fron, vorher - BUILDINGS.saege.cost.fron + zurueck, 'Baustelle bringt drei Viertel zurück');
+});
+
+test('Hauptgebäude und fremde Gebäude lassen sich nicht abreißen', () => {
+  const w = bare();
+  const halle = spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const hain = spawnBuilding(w, 1, 'hain', 12000, 12000, true);
+  issue(w, { type: 'demolish', player: 0, id: halle.id });
+  issue(w, { type: 'demolish', player: 0, id: hain.id });
+  step(w);
+  assert.ok(w.entities.includes(halle));
+  assert.ok(w.entities.includes(hain));
+  assert.equal(w.over, false);
+});
+
+// ---------------------------------------------------- Fremder Boden
+
+test('Malus in fremder Domäne wirkt nur, wenn eingeschaltet', () => {
+  const gefecht = () => {
+    const w = bare();
+    spawnBuilding(w, 1, 'hain', 4300, 5000, true); // Gott-Domäne, Hain außer Reichweite
+    const lw = spawnUnit(w, 0, 'landwehr', 5100, 5000); // Mensch steht darin
+    const ziel = spawnUnit(w, 1, 'wurzler', 5300, 5000);
+    assert.equal(inForeignDomain(w, 0, lw.x, lw.y), true);
+    const hp = ziel.hp;
+    step(w);
+    return hp - ziel.hp;
+  };
+  const alt = RULES.fremdMalus;
+  try {
+    RULES.fremdMalus = 1000;
+    const voll = gefecht();
+    RULES.fremdMalus = 500;
+    const halb = gefecht();
+    assert.equal(voll, UNITS.landwehr.weapon.damage);
+    assert.equal(halb, (UNITS.landwehr.weapon.damage * 500 / 1000) | 0);
+  } finally {
+    RULES.fremdMalus = alt;
+  }
 });

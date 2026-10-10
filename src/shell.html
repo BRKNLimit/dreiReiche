@@ -80,6 +80,23 @@
   .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
   .hint { color: var(--dim); font-size: 11px; margin-left: auto; }
 
+  #intro {
+    position: absolute; inset: 0; display: grid; place-content: center;
+    background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(3px);
+    padding: 24px; overflow: auto;
+  }
+  #intro > * { max-width: 640px; }
+  #intro h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: .02em; }
+  #intro h2 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  #intro p { margin: 8px 0; color: var(--text); }
+  #intro .frage { color: var(--accent); }
+  #intro .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+  #intro .cols > div { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; }
+  #intro .achten { color: var(--dim); font-style: italic; }
+  #intro .go { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  #intro .go button { padding: 8px 14px; font-size: 13px; }
+  @media (max-width: 560px) { #intro .cols { grid-template-columns: 1fr; } }
+
   #mini {
     position: absolute; right: 12px; top: 12px;
     width: 170px; height: 170px;
@@ -93,6 +110,7 @@
   <canvas id="cv"></canvas>
   <div id="hud"></div>
   <canvas id="mini" width="340" height="340"></canvas>
+  <div id="intro"></div>
   <div id="bar">
     <span id="builds"></span>
     <div class="sep"></div>

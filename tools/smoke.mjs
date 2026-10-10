@@ -76,6 +76,10 @@ const nodes = {
   builds: makeEl('builds'),
   asMensch: makeEl('asMensch'),
   asGott: makeEl('asGott'),
+  intro: makeEl('intro'),
+  introMensch: makeEl('introMensch'),
+  introGott: makeEl('introGott'),
+  introSchau: makeEl('introSchau'),
 };
 
 globalThis.document = {
@@ -98,6 +102,8 @@ process.on('uncaughtException', (e) => errors.push(e));
 
 try {
   new Function(code)();
+  // Startbildschirm: wie ein Klick auf "Als Menschen spielen".
+  nodes.introMensch.onclick();
 } catch (e) {
   console.log('FEHLER beim Start:', e.message);
   console.log('   ', (e.stack || '').split('\n')[1]);

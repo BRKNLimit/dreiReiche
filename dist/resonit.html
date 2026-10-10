@@ -80,6 +80,23 @@
   .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
   .hint { color: var(--dim); font-size: 11px; margin-left: auto; }
 
+  #intro {
+    position: absolute; inset: 0; display: grid; place-content: center;
+    background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(3px);
+    padding: 24px; overflow: auto;
+  }
+  #intro > * { max-width: 640px; }
+  #intro h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: .02em; }
+  #intro h2 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  #intro p { margin: 8px 0; color: var(--text); }
+  #intro .frage { color: var(--accent); }
+  #intro .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+  #intro .cols > div { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; }
+  #intro .achten { color: var(--dim); font-style: italic; }
+  #intro .go { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  #intro .go button { padding: 8px 14px; font-size: 13px; }
+  @media (max-width: 560px) { #intro .cols { grid-template-columns: 1fr; } }
+
   #mini {
     position: absolute; right: 12px; top: 12px;
     width: 170px; height: 170px;
@@ -93,6 +110,7 @@
   <canvas id="cv"></canvas>
   <div id="hud"></div>
   <canvas id="mini" width="340" height="340"></canvas>
+  <div id="intro"></div>
   <div id="bar">
     <span id="builds"></span>
     <div class="sep"></div>
@@ -1872,9 +1890,29 @@ function drawDomains() {
     ctx.strokeStyle = col;
     ctx.lineWidth = p === ME ? 1.5 : 1;
     ctx.stroke();
+
+    // Vorschau: so weit reicht jeder wachsende Anker in zwei Minuten.
+    const g = FACTIONS[world.players[p].faction].growth;
+    if (g.perTick > 0) {
+      ctx.beginPath();
+      for (const e of anker) {
+        const r = anchorRadius(world, e);
+        if (r >= g.max) continue;
+        const spaeter = Math.min(g.max, r + g.perTick * VORSCHAU_TICKS) * cam.z;
+        ctx.moveTo(w2sx(e.x) + spaeter, w2sy(e.y));
+        ctx.arc(w2sx(e.x), w2sy(e.y), spaeter, 0, Math.PI * 2);
+      }
+      ctx.globalAlpha = p === ME ? 0.3 : 0.18;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     ctx.restore();
   }
 }
+
+const VORSCHAU_TICKS = 1200; // zwei Minuten
 
 function drawDeposits() {
   for (const d of world.deposits) {
@@ -2040,6 +2078,13 @@ function drawGhost() {
     ctx.beginPath();
     ctx.arc(x, y, FACTIONS[meFaction].growth.start * cam.z, 0, Math.PI * 2);
     ctx.stroke();
+    if (FACTIONS[meFaction].growth.max > FACTIONS[meFaction].growth.start) {
+      ctx.globalAlpha = 0.2;
+      ctx.setLineDash([2, 6]);
+      ctx.beginPath();
+      ctx.arc(x, y, FACTIONS[meFaction].growth.max * cam.z, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
   }
@@ -2199,6 +2244,47 @@ function drawMini() {
 }
 
 // ------------------------------------------------------------ Start
+// ------------------------------------------------------------ Startbildschirm
+// Zahlen kommen aus den Daten, damit der Text nie veraltet.
+const meter = (dm) => Math.round(dm / 10) + ' m';
+function introHtml() {
+  const gm = FACTIONS.mensch.growth;
+  const gg = FACTIONS.gott.growth;
+  const proMin = gg.perTick * 600;
+  const bis = Math.round(((gg.max - gg.start) / gg.perTick / 600) * 10) / 10;
+  const bonus = UNITS.schratt.homeBonus / 1000;
+  return `<h1>Die drei Reiche</h1>
+    <p class="frage">Eine Frage: Fühlt sich eine Domäne mit festem Radius anders an als eine, die wächst?</p>
+    <div class="cols">
+      <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
+        <p>Jeder Wachturm deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
+        Sägewerke roden den Boden; dort pflanzt der Gott keinen Hain.</p></div>
+      <div><h2 style="color:${FACTIONS.gott.color}">Wald- und Wiesengott</h2>
+        <p>Ein Hain beginnt bei <b>${meter(gg.start)}</b> und wächst um ${meter(proMin)} pro Minute,
+        nach ${bis.toLocaleString('de')} Minuten auf <b>${meter(gg.max)}</b>. Seine Krieger schlagen in
+        eigener Domäne ${bonus.toLocaleString('de')}× zu.</p></div>
+    </div>
+    <p>Für beide gilt: Gegenwart fließt nur in der Domäne, Baustellen außerhalb stehen still.
+    Götterblut liegt in der Kartenmitte; schwere Einheiten brauchen es.</p>
+    <p class="achten">Worauf achten: Wann fordert die Domäne eine Entscheidung — und wann nervt sie?</p>
+    <div class="go">
+      <button id="introMensch">Als Menschen spielen</button>
+      <button id="introGott">Als Gott spielen</button>
+      <button id="introSchau">Zuschauen</button>
+    </div>`;
+}
+function starte(f, zuschauen) {
+  document.getElementById('intro').style.display = 'none';
+  paused = false;
+  neu(f, zuschauen);
+}
+const intro = document.getElementById('intro');
+intro.innerHTML = introHtml();
+document.getElementById('introMensch').onclick = () => starte('mensch', false);
+document.getElementById('introGott').onclick = () => starte('gott', false);
+document.getElementById('introSchau').onclick = () => starte('mensch', true);
+paused = true;
+
 document.getElementById('asMensch').onclick = () => neu('mensch');
 document.getElementById('asGott').onclick = () => neu('gott');
 document.getElementById('zuschauen').onclick = () => neu(meFaction, true);

@@ -292,9 +292,29 @@ function drawDomains() {
     ctx.strokeStyle = col;
     ctx.lineWidth = p === ME ? 1.5 : 1;
     ctx.stroke();
+
+    // Vorschau: so weit reicht jeder wachsende Anker in zwei Minuten.
+    const g = FACTIONS[world.players[p].faction].growth;
+    if (g.perTick > 0) {
+      ctx.beginPath();
+      for (const e of anker) {
+        const r = anchorRadius(world, e);
+        if (r >= g.max) continue;
+        const spaeter = Math.min(g.max, r + g.perTick * VORSCHAU_TICKS) * cam.z;
+        ctx.moveTo(w2sx(e.x) + spaeter, w2sy(e.y));
+        ctx.arc(w2sx(e.x), w2sy(e.y), spaeter, 0, Math.PI * 2);
+      }
+      ctx.globalAlpha = p === ME ? 0.3 : 0.18;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     ctx.restore();
   }
 }
+
+const VORSCHAU_TICKS = 1200; // zwei Minuten
 
 function drawDeposits() {
   for (const d of world.deposits) {
@@ -460,6 +480,13 @@ function drawGhost() {
     ctx.beginPath();
     ctx.arc(x, y, FACTIONS[meFaction].growth.start * cam.z, 0, Math.PI * 2);
     ctx.stroke();
+    if (FACTIONS[meFaction].growth.max > FACTIONS[meFaction].growth.start) {
+      ctx.globalAlpha = 0.2;
+      ctx.setLineDash([2, 6]);
+      ctx.beginPath();
+      ctx.arc(x, y, FACTIONS[meFaction].growth.max * cam.z, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
   }
@@ -619,6 +646,47 @@ function drawMini() {
 }
 
 // ------------------------------------------------------------ Start
+// ------------------------------------------------------------ Startbildschirm
+// Zahlen kommen aus den Daten, damit der Text nie veraltet.
+const meter = (dm) => Math.round(dm / 10) + ' m';
+function introHtml() {
+  const gm = FACTIONS.mensch.growth;
+  const gg = FACTIONS.gott.growth;
+  const proMin = gg.perTick * 600;
+  const bis = Math.round(((gg.max - gg.start) / gg.perTick / 600) * 10) / 10;
+  const bonus = UNITS.schratt.homeBonus / 1000;
+  return `<h1>Die drei Reiche</h1>
+    <p class="frage">Eine Frage: Fühlt sich eine Domäne mit festem Radius anders an als eine, die wächst?</p>
+    <div class="cols">
+      <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
+        <p>Jeder Wachturm deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
+        Sägewerke roden den Boden; dort pflanzt der Gott keinen Hain.</p></div>
+      <div><h2 style="color:${FACTIONS.gott.color}">Wald- und Wiesengott</h2>
+        <p>Ein Hain beginnt bei <b>${meter(gg.start)}</b> und wächst um ${meter(proMin)} pro Minute,
+        nach ${bis.toLocaleString('de')} Minuten auf <b>${meter(gg.max)}</b>. Seine Krieger schlagen in
+        eigener Domäne ${bonus.toLocaleString('de')}× zu.</p></div>
+    </div>
+    <p>Für beide gilt: Gegenwart fließt nur in der Domäne, Baustellen außerhalb stehen still.
+    Götterblut liegt in der Kartenmitte; schwere Einheiten brauchen es.</p>
+    <p class="achten">Worauf achten: Wann fordert die Domäne eine Entscheidung — und wann nervt sie?</p>
+    <div class="go">
+      <button id="introMensch">Als Menschen spielen</button>
+      <button id="introGott">Als Gott spielen</button>
+      <button id="introSchau">Zuschauen</button>
+    </div>`;
+}
+function starte(f, zuschauen) {
+  document.getElementById('intro').style.display = 'none';
+  paused = false;
+  neu(f, zuschauen);
+}
+const intro = document.getElementById('intro');
+intro.innerHTML = introHtml();
+document.getElementById('introMensch').onclick = () => starte('mensch', false);
+document.getElementById('introGott').onclick = () => starte('gott', false);
+document.getElementById('introSchau').onclick = () => starte('mensch', true);
+paused = true;
+
 document.getElementById('asMensch').onclick = () => neu('mensch');
 document.getElementById('asGott').onclick = () => neu('gott');
 document.getElementById('zuschauen').onclick = () => neu(meFaction, true);

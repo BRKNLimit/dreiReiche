@@ -1,5 +1,6 @@
 // Datenschicht. Keine Logik hier drin.
-// Alle Werte Integer. Entfernungen in Dezimetern, Raten pro Tick (10 Hz).
+// Alle Werte Integer. Entfernungen in Dezimetern, Zeiten in Ticks (10 Hz),
+// Gegenwart pro Tick, Foerderung (fronOut, blutOut) pro Minute.
 //
 // Zwei Fraktionen, dieselben Systeme, dieselben Ressourcen. Der einzige
 // strukturelle Unterschied steckt in anchor.growth -- siehe FACTIONS.
@@ -17,6 +18,12 @@ export const PRIO = {
 };
 
 export const PRIO_NAMES = ['Zorn', 'Wehr', 'Segen', 'Werk'];
+
+// Mindestfluss fuer Werk, in Promille der Versorgung einer Domaene.
+// Ohne ihn kann Segen die gesamte Gegenwart binden, und die Baustelle der
+// Quelle, die das aendern wuerde, steht fuer immer still. Werk faellt weiter
+// zuerst -- aber nie ganz auf null, solange ueberhaupt Gegenwart fliesst.
+export const WERK_FLOOR = 125;
 
 export const FACTIONS = {
   mensch: {
@@ -57,7 +64,7 @@ export const BUILDINGS = {
     radius: 48,
     anchor: true,
     cost: { fron: 120 },
-    buildTime: 35,
+    buildTime: 210,
   },
   schmiede: {
     name: 'Schmiede',
@@ -67,7 +74,7 @@ export const BUILDINGS = {
     radius: 60,
     gegenwartOut: 40,
     cost: { fron: 280 },
-    buildTime: 55,
+    buildTime: 330,
   },
   saege: {
     name: 'Sägewerk',
@@ -77,9 +84,9 @@ export const BUILDINGS = {
     radius: 55,
     gegenwartIn: 14,
     prio: PRIO.segen,
-    fronOut: 7,
+    fronOut: 240, // Fron pro Minute bei voller Versorgung
     cost: { fron: 150 },
-    buildTime: 40,
+    buildTime: 240,
     needs: 'fron',
     clears: 2200, // rodet den Boden ringsum -- nimmt dem Gott Wachstumsgrund
   },
@@ -92,7 +99,7 @@ export const BUILDINGS = {
     gegenwartIn: 55,
     prio: PRIO.werk,
     cost: { fron: 400 },
-    buildTime: 80,
+    buildTime: 480,
     buildList: ['koehler', 'landwehr', 'soeldner'],
   },
 
@@ -118,7 +125,7 @@ export const BUILDINGS = {
     radius: 48,
     anchor: true,
     cost: { fron: 110 },
-    buildTime: 45,
+    buildTime: 270,
     needsGrowth: true, // nur auf ungerodetem Boden
   },
   quelle: {
@@ -129,7 +136,7 @@ export const BUILDINGS = {
     radius: 60,
     gegenwartOut: 40,
     cost: { fron: 280 },
-    buildTime: 55,
+    buildTime: 330,
   },
   moos: {
     name: 'Moosgrube',
@@ -139,9 +146,9 @@ export const BUILDINGS = {
     radius: 55,
     gegenwartIn: 14,
     prio: PRIO.segen,
-    fronOut: 7,
+    fronOut: 240, // Fron pro Minute bei voller Versorgung
     cost: { fron: 150 },
-    buildTime: 40,
+    buildTime: 240,
     needs: 'fron',
   },
   dickicht: {
@@ -153,7 +160,7 @@ export const BUILDINGS = {
     gegenwartIn: 55,
     prio: PRIO.werk,
     cost: { fron: 400 },
-    buildTime: 80,
+    buildTime: 480,
     buildList: ['wurzler', 'schratt', 'geweihter'],
   },
 };
@@ -167,7 +174,7 @@ export const UNITS = {
     radius: 26,
     speed: 32,
     cost: { fron: 55 },
-    buildTime: 28,
+    buildTime: 140,
     worker: true,
   },
   landwehr: {
@@ -177,7 +184,7 @@ export const UNITS = {
     radius: 28,
     speed: 30,
     cost: { fron: 70 },
-    buildTime: 30,
+    buildTime: 150,
     weapon: { range: 420, damage: 11, cooldown: 6 },
   },
   soeldner: {
@@ -187,7 +194,7 @@ export const UNITS = {
     radius: 32,
     speed: 26,
     cost: { fron: 180 },
-    buildTime: 60,
+    buildTime: 300,
     weapon: { range: 480, damage: 26, cooldown: 8 },
   },
 
@@ -199,7 +206,7 @@ export const UNITS = {
     radius: 26,
     speed: 28,
     cost: { fron: 55 },
-    buildTime: 28,
+    buildTime: 140,
     worker: true,
   },
   schratt: {
@@ -209,7 +216,7 @@ export const UNITS = {
     radius: 28,
     speed: 32,
     cost: { fron: 70 },
-    buildTime: 30,
+    buildTime: 150,
     weapon: { range: 380, damage: 10, cooldown: 6 },
     homeBonus: 1500, // in eigener Domaene: Schaden x1,5
   },
@@ -220,7 +227,7 @@ export const UNITS = {
     radius: 34,
     speed: 20,
     cost: { fron: 190 },
-    buildTime: 65,
+    buildTime: 325,
     weapon: { range: 440, damage: 24, cooldown: 9 },
     homeBonus: 1500,
   },

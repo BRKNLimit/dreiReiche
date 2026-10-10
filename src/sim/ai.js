@@ -1,16 +1,17 @@
 // Einfacher Gegner. Bewusst dumm: er soll Druck erzeugen, damit sich die
 // Domänenmechanik unter Stress zeigt. Nutzt nur issue(), nie direkten Zugriff.
+// Nur Integer-Arithmetik und rng() -- dieselben Regeln wie die Simulation.
 
-import { issue, findDeposit, dist2, isCleared } from './sim.js';
-import { BUILDINGS, MAP } from './defs.js';
+import { issue, dist2, isqrt, isCleared, anchorRadius, rng, cosDeg, sinDeg } from './sim.js';
+import { BUILDINGS, UNITS, MAP } from './defs.js';
 
 const PLAN = {
-  mensch: { anker: 'turm', kraft: 'schmiede', fron: 'saege', fabrik: 'kaserne', einheiten: ['landwehr', 'soeldner'] },
-  gott: { anker: 'hain', kraft: 'quelle', fron: 'moos', fabrik: 'dickicht', einheiten: ['schratt', 'geweihter'] },
+  mensch: { anker: 'turm', kraft: 'schmiede', fron: 'saege', fabrik: 'kaserne', leicht: 'landwehr', schwer: 'soeldner' },
+  gott: { anker: 'hain', kraft: 'quelle', fron: 'moos', fabrik: 'dickicht', leicht: 'schratt', schwer: 'geweihter' },
 };
 
-export function createAI(player = 1) {
-  return { player, next: 20, welle: 0 };
+export function createAI(player = 1, seed = 1) {
+  return { player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [] };
 }
 
 export function stepAI(ai, world) {
@@ -26,72 +27,129 @@ export function stepAI(ai, world) {
   const bauten = mine.filter((e) => e.kind === 'building');
   const einheiten = mine.filter((e) => e.kind === 'unit');
   const zahl = (t) => bauten.filter((b) => b.type === t).length;
+  const kosten = (t) => BUILDINGS[t].cost.fron;
   const fron = p.fron;
+  const minute = (world.tick / 600) | 0;
 
-  // Bauordnung: Fron, dann Gegenwart, dann Anker nach vorn, dann Fabrik.
-  if (zahl(plan.fron) < 3 && fron > BUILDINGS[plan.fron].cost.fron) {
-    const ader = freieAder(world, haupt, 'fron');
-    if (ader) {
-      issue(world, { type: 'build', player: ai.player, building: plan.fron, x: ader.x, y: ader.y });
-      return;
-    }
+  // Geplante Gegenwart-Bilanz: alles, was steht oder entsteht, als waere es
+  // fertig. Wer Verbraucher setzt, ohne Quellen nachzuziehen, ueberbucht.
+  let bilanz = 0;
+  for (const b of bauten) {
+    const d = BUILDINGS[b.type];
+    bilanz += (d.gegenwartOut || 0) - (d.gegenwartIn || 0);
   }
-  if (zahl(plan.kraft) < 1 + zahl(plan.fabrik) && fron > BUILDINGS[plan.kraft].cost.fron) {
-    const q = nahe(haupt, 1100 + zahl(plan.kraft) * 300, zahl(plan.kraft) * 83);
-    issue(world, { type: 'build', player: ai.player, building: plan.kraft, x: q.x, y: q.y });
-    return;
-  }
-  if (zahl(plan.anker) < 3 && fron > BUILDINGS[plan.anker].cost.fron + 200) {
-    const ziel = gegnerHaupt(world, ai.player);
-    const schritt = 1800 + zahl(plan.anker) * 1500;
-    const a = richtung(haupt, ziel || haupt, schritt);
-    // Der Gott kann nicht auf gerodetem Boden pflanzen.
-    if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, a.x, a.y)) {
-      issue(world, { type: 'build', player: ai.player, building: plan.anker, x: a.x, y: a.y });
-      return;
-    }
-  }
-  if (zahl(plan.fabrik) < 2 && fron > BUILDINGS[plan.fabrik].cost.fron) {
-    const q = nahe(haupt, 1500, 200 + zahl(plan.fabrik) * 70);
-    issue(world, { type: 'build', player: ai.player, building: plan.fabrik, x: q.x, y: q.y });
-    return;
+  const ziel = gegnerHaupt(world, ai.player);
+  const bau = (building, x, y) => issue(world, { type: 'build', player: ai.player, building, x, y });
+
+  // Wer keine Fabrik hat, baut sie zuerst nach der ersten Foerderung -- ohne
+  // Armee ist jede Wirtschaft nur Beute.
+  const fabrikZiel = Math.min(3, 1 + ((fron / 1500) | 0));
+  const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3;
+  const ader = freieAder(world, haupt, 'fron');
+
+  // 1. Foerderung, aber nur mit Deckung.
+  if (ader && zahl(plan.fron) < fronZiel && fron >= kosten(plan.fron)) {
+    if (bilanz >= BUILDINGS[plan.fron].gegenwartIn) return bau(plan.fron, ader.x, ader.y);
   }
 
-  // Stockende Baustelle: einen Anker dazwischensetzen.
+  // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
+  const naechster =
+    ader && zahl(plan.fron) < fronZiel
+      ? plan.fron
+      : zahl(plan.fabrik) < fabrikZiel
+        ? plan.fabrik
+        : ader && zahl(plan.fron) < 3
+          ? plan.fron
+          : null;
+  const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
+  if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
+    const n = zahl(plan.kraft);
+    return bau(plan.kraft, ...daheim(world, haupt, 700 + n * 250, n * 83 + 40));
+  }
+
+  // 3. Fabrik
+  if (zahl(plan.fabrik) < fabrikZiel && fron >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].gegenwartIn) {
+    const n = zahl(plan.fabrik);
+    return bau(plan.fabrik, ...daheim(world, haupt, 900, 200 + n * 70));
+  }
+
+  // 4. Anker. Die Zahl steigt mit der Zeit, ausgebreitet in einem Faecher
+  //    Richtung Gegner -- der eigentliche Vorteil fester Kreise.
+  const ankerZiel = 2 + minute;
+  if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + 150) {
+    const n = zahl(plan.anker);
+    const basis = winkel(haupt, ziel || haupt);
+    const streu = (rng(ai) % 41) - 20;
+    const faecher = ((n % 5) - 2) * 25 + streu;
+    const schritt = 1800 + ((n / 5) | 0) * 1700 + (rng(ai) % 600);
+    const x = grenze(haupt.x + ((schritt * cosDeg(basis + faecher)) / 1000) | 0);
+    const y = grenze(haupt.y + ((schritt * sinDeg(basis + faecher)) / 1000) | 0);
+    if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) return bau(plan.anker, x, y);
+  }
+
+  // 5. Stockende Baustelle: einen Anker dazwischensetzen.
   const steht = bauten.find((b) => !b.done && b.powered === 0);
-  if (steht && fron > BUILDINGS[plan.anker].cost.fron) {
+  if (steht && fron >= kosten(plan.anker)) {
     const quelle = naechsteVersorgte(world, bauten, steht);
     if (quelle) {
-      const m = { x: (quelle.x + steht.x) >> 1, y: (quelle.y + steht.y) >> 1 };
-      if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, m.x, m.y)) {
-        issue(world, { type: 'build', player: ai.player, building: plan.anker, x: m.x, y: m.y });
-        return;
+      const x = (quelle.x + steht.x) >> 1;
+      const y = (quelle.y + steht.y) >> 1;
+      if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) return bau(plan.anker, x, y);
+    }
+  }
+
+  // 6. Produktion: zwei leichte auf eine schwere, soweit die Fabrik sie kennt.
+  //    Solange die Wirtschaft unvollstaendig ist, wird fuer den naechsten
+  //    Bau gespart statt alles in Einheiten zu stecken.
+  const sparen = naechster ? kosten(naechster) : 0;
+  let rest = fron;
+  const tiefe = fron > 900 ? 3 : 1;
+  for (const f of bauten) {
+    if (!f.done || !BUILDINGS[f.type].buildList || f.queue.length >= tiefe) continue;
+    const liste = BUILDINGS[f.type].buildList;
+    const wunsch = ai.zug % 3 === 2 ? plan.schwer : plan.leicht;
+    const unit = liste.includes(wunsch) ? wunsch : liste.includes(plan.leicht) ? plan.leicht : null;
+    if (!unit || rest - UNITS[unit].cost.fron < sparen) continue;
+    rest -= UNITS[unit].cost.fron;
+    ai.zug++;
+    issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
+  }
+
+  // 7. Verteidigung: Feinde nahe eigener Gebaeude ziehen alle Truppen an,
+  //    die nicht gerade mit einer Welle unterwegs sind.
+  const bedrohung = naechsterEindringling(world, ai.player, bauten);
+  if (bedrohung) {
+    const ids = einheiten.filter((u) => !ai.unterwegs.includes(u.id)).map((u) => u.id);
+    if (ids.length) issue(world, { type: 'move', player: ai.player, ids, x: bedrohung.x, y: bedrohung.y });
+  }
+
+  // 8. Angriff in wachsenden Wellen. Wer schon unterwegs ist, bleibt dabei.
+  ai.unterwegs = ai.unterwegs.filter((id) => einheiten.some((u) => u.id === id));
+  const daheimStehend = einheiten.filter((u) => !ai.unterwegs.includes(u.id));
+  if (!bedrohung && daheimStehend.length >= 8 + ai.welle * 3 && ziel) {
+    ai.welle++;
+    const ids = daheimStehend.map((u) => u.id);
+    ai.unterwegs.push(...ids);
+    issue(world, { type: 'move', player: ai.player, ids, x: ziel.x, y: ziel.y });
+  }
+}
+
+/** Feindliche Einheit, die einem eigenen Gebaeude am naechsten gekommen ist. */
+function naechsterEindringling(world, me, bauten) {
+  const nah = 3000 * 3000;
+  let best = null;
+  let bestD = nah;
+  for (const o of world.entities) {
+    if (o.dead || o.player === me || o.kind !== 'unit') continue;
+    for (const b of bauten) {
+      const dd = dist2(o.x, o.y, b.x, b.y);
+      if (dd < bestD) {
+        bestD = dd;
+        best = o;
       }
     }
   }
-
-  // Produktion
-  for (const f of bauten.filter((b) => b.done && BUILDINGS[b.type].buildList)) {
-    if (f.queue.length < (fron > 900 ? 4 : 2)) {
-      const u = (world.tick / 22) % 3 === 0 ? plan.einheiten[0] : plan.einheiten[1];
-      issue(world, { type: 'produce', player: ai.player, id: f.id, unit: u });
-    }
-  }
-
-  // Angriff
-  if (einheiten.length >= 5 + ai.welle * 2) {
-    ai.welle++;
-    const ziel = gegnerHaupt(world, ai.player);
-    if (ziel) {
-      issue(world, {
-        type: 'move',
-        player: ai.player,
-        ids: einheiten.map((u) => u.id),
-        x: ziel.x,
-        y: ziel.y,
-      });
-    }
-  }
+  return best;
 }
 
 function gegnerHaupt(world, me) {
@@ -132,14 +190,26 @@ function freieAder(world, von, kind) {
 
 const grenze = (v) => Math.max(400, Math.min(MAP - 400, v | 0));
 
-function nahe(von, radius, winkel) {
-  const a = (winkel * Math.PI) / 180;
-  return { x: grenze(von.x + Math.cos(a) * radius), y: grenze(von.y + Math.sin(a) * radius) };
+/** Platz um das Hauptgebaeude, aber innerhalb der eigenen Domaene, solange sie klein ist. */
+function daheim(world, haupt, radius, grad) {
+  const r = Math.min(radius, Math.max(300, anchorRadius(world, haupt) - 150));
+  return [grenze(haupt.x + ((r * cosDeg(grad)) / 1000) | 0), grenze(haupt.y + ((r * sinDeg(grad)) / 1000) | 0)];
 }
 
-function richtung(von, zu, schritt) {
-  const dx = zu.x - von.x;
-  const dy = zu.y - von.y;
-  const d = Math.max(1, Math.round(Math.sqrt(dx * dx + dy * dy)));
-  return { x: grenze(von.x + (dx * schritt) / d), y: grenze(von.y + (dy * schritt) / d) };
+/** Richtung von a nach b in ganzen Grad, ueber eine Integer-Suche in der Tabelle. */
+function winkel(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const d = isqrt(dx * dx + dy * dy);
+  if (d === 0) return 0;
+  let best = 0;
+  let bestS = -Infinity;
+  for (let g = 0; g < 360; g++) {
+    const s = dx * cosDeg(g) + dy * sinDeg(g);
+    if (s > bestS) {
+      bestS = s;
+      best = g;
+    }
+  }
+  return best;
 }

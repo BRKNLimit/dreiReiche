@@ -36,7 +36,7 @@ function neu(f) {
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
   world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
-  ai = createAI(1);
+  ai = createAI(1, world.seed);
   aiMe = null;
   sel = [];
   placing = null;

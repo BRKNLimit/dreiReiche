@@ -1,7 +1,7 @@
 // Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
 
-import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON } from './defs.js';
+import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, WERK_FLOOR } from './defs.js';
 
 // ---------------------------------------------------------------- Mathematik
 
@@ -51,6 +51,8 @@ export function anchorRadius(world, e) {
   const age = world.tick - e.doneAt;
   return Math.min(g.max, g.start + age * g.perTick);
 }
+
+const PER_MIN = 600 * 1000;
 
 // ------------------------------------------------------------------ Weltbau
 
@@ -360,8 +362,12 @@ export function distributeGegenwart(world) {
     reg.demand = demand[0] + demand[1] + demand[2] + demand[3];
     reg.byPrio = demand;
 
-    let left = supply;
+    // Mindestfluss: ein kleiner Teil bleibt fuer Werk reserviert, damit eine
+    // ueberbuchte Domaene sich selbst aus dem Loch bauen kann.
+    const reserve = Math.min(demand[PRIO.werk], ((supply * WERK_FLOOR) / 1000) | 0);
+    let left = supply - reserve;
     for (let p = 0; p < 4; p++) {
+      if (p === PRIO.werk) left += reserve;
       if (demand[p] === 0) {
         reg.satPrio[p] = 1000;
         continue;
@@ -411,14 +417,15 @@ export function step(world) {
     const def = BUILDINGS[e.type];
 
     if (!e.done) {
-      e.progress += e.powered;
+      // Leben waechst mit dem Fortschritt, Schaden bleibt aber stehen:
+      // es kommt nur der Zuwachs dazu, nicht der Sollwert.
       const need = def.buildTime * 1000;
-      const frac = Math.min(1000, (e.progress * 1000) / need) | 0;
-      e.hp = Math.max(1, ((def.hp * frac) / 1000) | 0);
+      const before = siteHp(def, e.progress, need);
+      e.progress += e.powered;
+      e.hp = Math.min(def.hp, e.hp + siteHp(def, e.progress, need) - before);
       if (e.progress >= need) {
         e.done = true;
         e.doneAt = world.tick;
-        e.hp = def.hp;
         if (def.clears) clearGround(world, e);
         world.events.push({ t: 'built', id: e.id });
       }
@@ -447,13 +454,14 @@ export function step(world) {
 
   for (let p = 0; p < world.players.length; p++) {
     const pl = world.players[p];
+    // Foerderung ist pro Minute angegeben, powered in Promille: 600 Ticks x 1000.
     if (pl.fronAcc) {
-      pl.fron += (pl.fronAcc / 1000) | 0;
-      pl.fronAcc %= 1000;
+      pl.fron += (pl.fronAcc / PER_MIN) | 0;
+      pl.fronAcc %= PER_MIN;
     }
     if (pl.blutAcc) {
-      pl.goetterblut += (pl.blutAcc / 1000) | 0;
-      pl.blutAcc %= 1000;
+      pl.goetterblut += (pl.blutAcc / PER_MIN) | 0;
+      pl.blutAcc %= PER_MIN;
     }
   }
 
@@ -465,10 +473,18 @@ export function step(world) {
   return world;
 }
 
-function cosDeg(a) {
+/** Leben einer Baustelle beim Fortschritt progress: ein Zehntel bis voll. */
+function siteHp(def, progress, need) {
+  const frac = Math.min(1000, ((progress * 1000) / need) | 0);
+  const base = (def.hp / 10) | 0;
+  return base + (((def.hp - base) * frac) / 1000) | 0;
+}
+
+/** Cosinus in Promille aus einer festen Tabelle. Kein Gleitkomma im Zustand. */
+export function cosDeg(a) {
   return COS[((a % 360) + 360) % 360];
 }
-function sinDeg(a) {
+export function sinDeg(a) {
   return COS[(((a + 270) % 360) + 360) % 360];
 }
 const COS = (() => {
@@ -629,10 +645,24 @@ export function hash(world) {
     mix(e.y);
     mix(e.hp);
     mix(e.done ? 1 : 0);
+    mix(e.cooldown);
+    if (e.kind === 'unit') {
+      mix(e.tx);
+      mix(e.ty);
+    } else {
+      mix(e.progress);
+      mix(e.queueProgress);
+      mix(e.queue.length);
+      mix(e.powered);
+    }
   }
   for (let p = 0; p < world.players.length; p++) {
     mix(world.players[p].fron);
     mix(world.players[p].goetterblut);
+    mix(world.players[p].fronAcc || 0);
   }
+  for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
+  mix(world.cleared.length);
+  mix(world.seed);
   return h >>> 0;
 }

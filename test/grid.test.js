@@ -16,7 +16,8 @@ import {
   gridReport,
   isqrt,
 } from '../src/sim/sim.js';
-import { FACTIONS } from '../src/sim/defs.js';
+import { FACTIONS, BUILDINGS } from '../src/sim/defs.js';
+import { createAI, stepAI } from '../src/sim/ai.js';
 
 function bare(f0 = 'mensch', f1 = 'gott') {
   return createWorld({ empty: true, factions: [f0, f1] });
@@ -136,7 +137,7 @@ test('Drosselleiter: Werk fällt vor Segen', () => {
 test('eine Baustelle ohne Gegenwart macht keinen Fortschritt', () => {
   const w = bare();
   const b = spawnBuilding(w, 0, 'kaserne', 15000, 15000, false);
-  for (let i = 0; i < 300; i++) step(w);
+  for (let i = 0; i < BUILDINGS.kaserne.buildTime * 3; i++) step(w);
   assert.equal(b.done, false);
   assert.equal(b.progress, 0);
 });
@@ -146,7 +147,7 @@ test('dieselbe Baustelle mit Gegenwart wird fertig', () => {
   spawnBuilding(w, 0, 'turm', 15000, 15000, true);
   spawnBuilding(w, 0, 'schmiede', 15800, 15000, true);
   const b = spawnBuilding(w, 0, 'kaserne', 16600, 15600, false);
-  for (let i = 0; i < 300; i++) step(w);
+  for (let i = 0; i < BUILDINGS.kaserne.buildTime + 1; i++) step(w);
   assert.equal(b.done, true);
 });
 
@@ -161,7 +162,7 @@ test('ein Sägewerk rodet den Boden und sperrt Haine aus', () => {
   assert.ok(s, 'Sägewerk steht');
   assert.equal(isCleared(w, 5000, 6200), false, 'erst nach Fertigstellung');
 
-  for (let i = 0; i < 200; i++) step(w);
+  for (let i = 0; i < BUILDINGS.saege.buildTime + 1; i++) step(w);
   assert.equal(s.done, true);
   assert.equal(isCleared(w, 5000, 6200), true, 'der Boden ist gerodet');
 
@@ -245,4 +246,87 @@ test('Startkarte stellt beide Fraktionen auf', () => {
   assert.ok(w.entities.find((e) => e.type === 'halle'));
   assert.ok(w.entities.find((e) => e.type === 'herzbaum'));
   assert.ok(w.deposits.some((d) => d.kind === 'goetterblut'));
+});
+
+// ---------------------------------------------------- Mindestfluss
+
+test('überbuchte Domäne: Baustellen bekommen trotzdem den Mindestfluss', () => {
+  // Thingstätte liefert 24, zwei Sägewerke wollen 28 Segen -- ohne
+  // Mindestfluss bliebe für die Schmiede-Baustelle nichts.
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  spawnBuilding(w, 0, 'saege', 5000, 6000, true);
+  spawnBuilding(w, 0, 'saege', 6000, 5000, true);
+  const schmiede = spawnBuilding(w, 0, 'schmiede', 4000, 5000, false);
+  computeRegions(w);
+  distributeGegenwart(w);
+  assert.ok(schmiede.powered > 0, 'Werk steht nicht still');
+
+  for (let i = 0; i < BUILDINGS.schmiede.buildTime * 40 && !schmiede.done; i++) step(w);
+  assert.equal(schmiede.done, true, 'die Quelle wird fertig und löst die Überbuchung');
+});
+
+test('ohne Überbuchung ändert der Mindestfluss nichts an der Leiter', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
+  const saege = spawnBuilding(w, 0, 'saege', 5000, 5800, true);
+  computeRegions(w);
+  distributeGegenwart(w);
+  assert.equal(saege.powered, 1000);
+});
+
+// ---------------------------------------------------- Baustellen
+
+test('Schaden an einer Baustelle bleibt bestehen', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
+  const b = spawnBuilding(w, 0, 'kaserne', 6000, 5800, false);
+  for (let i = 0; i < 20; i++) step(w);
+  const vorher = b.hp;
+  b.hp -= 100;
+  step(w);
+  assert.ok(b.hp < vorher, `Schaden heilt nicht weg: ${vorher} -> ${b.hp}`);
+});
+
+test('eine unbeschädigte Baustelle ist bei Fertigstellung voll', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
+  const b = spawnBuilding(w, 0, 'kaserne', 6000, 5800, false);
+  for (let i = 0; i < BUILDINGS.kaserne.buildTime + 1; i++) step(w);
+  assert.equal(b.done, true);
+  assert.equal(b.hp, BUILDINGS.kaserne.hp);
+});
+
+// ---------------------------------------------------- KI
+
+test('beide KIs bauen eine Wirtschaft und beide Einheitentypen', () => {
+  const w = createWorld({ seed: 4242 });
+  const ais = [createAI(0, 1), createAI(1, 2)];
+  const typen = [new Set(), new Set()];
+  for (let i = 0; i < 600 * 12 && !w.over; i++) {
+    stepAI(ais[0], w);
+    stepAI(ais[1], w);
+    step(w);
+    for (const e of w.entities) if (e.kind === 'unit') typen[e.player].add(e.type);
+  }
+  for (let p = 0; p < 2; p++) {
+    assert.ok(typen[p].size >= 2, `Spieler ${p} baut mehr als einen Typ: ${[...typen[p]]}`);
+  }
+});
+
+test('KI-Partie ist deterministisch', () => {
+  const run = () => {
+    const w = createWorld({ seed: 99 });
+    const ais = [createAI(0, 5), createAI(1, 6)];
+    for (let i = 0; i < 3000; i++) {
+      stepAI(ais[0], w);
+      stepAI(ais[1], w);
+      step(w);
+    }
+    return hash(w);
+  };
+  assert.equal(run(), run());
 });

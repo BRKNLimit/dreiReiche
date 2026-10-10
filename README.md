@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.6
+# Die drei Reiche — Prototyp 0.7
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Er existiert, um **eine Frage** zu beantworten: Fühlt sich eine
@@ -8,7 +8,7 @@ Zeit wächst, tatsächlich unterschiedlich an?
 ## Loslegen
 
 ```bash
-npm test          # 39 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
+npm test          # 40 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
 npm run bundle    # baut dist/resonit.html (eine Datei, kein Server)
 npm run smoke     # fährt die Oberfläche headless 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -23,13 +23,14 @@ Abhängigkeiten, kein `npm install`.
 | Eingabe | Wirkung |
 | --- | --- |
 | Linksklick / Ziehen | Einheiten wählen |
-| Rechtsklick | Bewegen |
+| Rechtsklick | Bewegen (Einheiten stellen Feinde erst am Ziel) |
+| `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |
 | Mittlere Maustaste | Karte schieben · Mausrad zoomen |
 | `1`–`5` | Gebäude wählen, dann Linksklick setzen (`5` = Förderbau auf Götterblut) |
 | Gebäude anklicken, `Q` / `W` | Einheiten bauen (schwere kosten Götterblut) |
 | Gebäude anklicken, `Entf` | Abreißen: Baustelle ¾, fertig ½ der Kosten zurück |
 | Leertaste | Pause · `+` / `−` Tempo |
-| Knöpfe unten rechts | Seite wechseln und neu starten |
+| Knöpfe unten rechts | Seite wechseln und neu starten · „Zuschauen“: KI gegen KI |
 
 ## Der Kern
 
@@ -53,7 +54,8 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 - Götterblut: Adern auf der Mittelachse, Förderbau braucht versorgte Domäne,
   schwere Einheiten kosten Götterblut
 - Abriss mit Teilerstattung
-- Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine)
+- Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine),
+  Angriffsbewegung verfolgt auch unterwegs
 - Faire Simulation: Befehle reihum, Kampf gleichzeitig, punktsymmetrische
   Rundung — per Spiegeltest geprüft
 - Gegner-KI mit Gegenwart-Bilanz, Vorstoß zu den Adern, Verteidigung und
@@ -63,7 +65,7 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 
 ## Was bewusst fehlt
 
-Pathfinding, Angriffsbewegung, Gelände, Fog of War, Todesgott, Bergung,
+Pathfinding, Gelände, Fog of War, Todesgott, Bergung,
 Netzwerk. Siehe `docs/scope.md` — dort stehen auch die offenen Balance-Befunde.
 
 ## Struktur

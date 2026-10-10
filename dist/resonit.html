@@ -98,8 +98,9 @@
     <div class="sep"></div>
     <button id="asMensch">Als Menschen</button>
     <button id="asGott">Als Gott</button>
+    <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
     <span class="hint">
-      Linksklick wählt · Rechtsklick bewegt · Mausrad zoomt · Mittlere Taste schiebt ·
+      Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Mausrad zoomt · Mittlere Taste schiebt ·
       <b>1</b>–<b>5</b> bauen · Gebäude anklicken: <b>Q</b>/<b>W</b> Einheiten, <b>Entf</b> abreißen · Leertaste pausiert · +/− Tempo
     </span>
   </div>
@@ -538,6 +539,7 @@ function spawnUnit(world, player, type, x, y) {
     tx: x | 0,
     ty: y | 0,
     arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
+    aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
     cooldown: 0,
     dead: false,
   };
@@ -581,13 +583,14 @@ function applyCommands(world) {
 
 function applyCommand(world, c) {
   {
-    if (c.type === 'move') {
+    if (c.type === 'move' || c.type === 'attack') {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
         if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
           e.tx = c.x | 0;
           e.ty = c.y | 0;
           e.arrived = false;
+          e.aggro = c.type === 'attack';
         }
       }
     } else if (c.type === 'build') {
@@ -945,7 +948,9 @@ const COS = (() => {
 // Verfolgung: Wer seinen Befehlspunkt erreicht hat, geht auf Feinde in
 // Reichweite + CHASE los, entfernt sich aber hoechstens LEASH vom
 // Befehlspunkt und kehrt danach dorthin zurueck. Ein Bewegungsbefehl hat
-// Vorrang: Unterwegs wird nur im Vorbeigehen geschossen.
+// Vorrang: Unterwegs wird nur im Vorbeigehen geschossen. Bei einer
+// Angriffsbewegung ('attack') wird auch unterwegs verfolgt, ohne Leine,
+// danach geht es weiter zum Ziel.
 const CHASE = 600;
 const LEASH = 1500;
 
@@ -964,8 +969,9 @@ function moveUnits(world) {
     gx[i] = e.tx;
     gy[i] = e.ty;
     const w = UNITS[e.type].weapon;
-    if (!w || !e.arrived) continue;
-    const o = chaseTarget(world, e, w.range + CHASE, LEASH + w.range);
+    if (!w || !(e.arrived || e.aggro)) continue;
+    const leine = e.arrived ? LEASH + w.range : MAP * 2;
+    const o = chaseTarget(world, e, w.range + CHASE, leine);
     if (!o) continue;
     const nah = w.range - 20;
     if (dist2(e.x, e.y, o.x, o.y) > nah * nah) {
@@ -1171,6 +1177,7 @@ function hash(world) {
       mix(e.tx);
       mix(e.ty);
       mix(e.arrived ? 1 : 0);
+      mix(e.aggro ? 1 : 0);
     } else {
       mix(e.progress);
       mix(e.queueProgress);
@@ -1326,7 +1333,8 @@ function stepAI(ai, world) {
     const liste = BUILDINGS[f.type].buildList;
     // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
     const schwerMoeglich = blutRest >= blutSchwer;
-    const wunsch = schwerMoeglich && (ai.zug % 3 === 2 || blutRest >= 3 * blutSchwer) ? plan.schwer : plan.leicht;
+    const reichlich = blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+    const wunsch = schwerMoeglich && (ai.zug % 3 === 2 || reichlich) ? plan.schwer : plan.leicht;
     const unit = liste.includes(wunsch) ? wunsch : liste.includes(plan.leicht) ? plan.leicht : null;
     if (!unit || rest - UNITS[unit].cost.fron < sparen) continue;
     rest -= UNITS[unit].cost.fron;
@@ -1340,7 +1348,7 @@ function stepAI(ai, world) {
   const bedrohung = naechsterEindringling(world, ai.player, bauten);
   if (bedrohung) {
     const ids = einheiten.filter((u) => !ai.unterwegs.includes(u.id)).map((u) => u.id);
-    if (ids.length) issue(world, { type: 'move', player: ai.player, ids, x: bedrohung.x, y: bedrohung.y });
+    if (ids.length) issue(world, { type: 'attack', player: ai.player, ids, x: bedrohung.x, y: bedrohung.y });
   }
 
   // 8. Angriff in wachsenden Wellen. Erstes Ziel ist ein gegnerischer
@@ -1351,14 +1359,14 @@ function stepAI(ai, world) {
   const angriff = gegnerFoerderung(world, ai.player, haupt) || ziel;
   if (ai.unterwegs.length && angriff && !world.entities.some((e) => e.id === ai.welleZiel && !e.dead)) {
     ai.welleZiel = angriff.id;
-    issue(world, { type: 'move', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
+    issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
   }
   if (!bedrohung && daheimStehend.length >= 8 + ai.welle * 3 && angriff) {
     ai.welle++;
     ai.welleZiel = angriff.id;
     const ids = daheimStehend.map((u) => u.id);
     ai.unterwegs.push(...ids);
-    issue(world, { type: 'move', player: ai.player, ids, x: angriff.x, y: angriff.y });
+    issue(world, { type: 'attack', player: ai.player, ids, x: angriff.x, y: angriff.y });
     return;
   }
 
@@ -1581,6 +1589,7 @@ const mctx = mini.getContext('2d');
 
 let meFaction = 'mensch';
 let world, ai, aiMe;
+let angriff = false; // A gedrueckt: naechster Klick ist eine Angriffsbewegung
 const ME = 0;
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
@@ -1604,12 +1613,14 @@ const COL = {
   blut: '#a86fb5',
 };
 
-function neu(f) {
+function neu(f, zuschauen = false) {
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
   world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
   ai = createAI(1, world.seed);
-  aiMe = null;
+  // Zuschauen: dieselbe KI spielt auch die eigene Seite.
+  aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
+  angriff = false;
   sel = [];
   placing = null;
   flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
@@ -1638,6 +1649,7 @@ cv.addEventListener('mousedown', (e) => {
   const my = e.offsetY;
   if (e.button === 2) {
     placing = null;
+    angriff = false;
     if (sel.length) {
       issue(world, { type: 'move', player: ME, ids: sel.slice(), x: s2wx(mx) | 0, y: s2wy(my) | 0 });
     }
@@ -1650,6 +1662,11 @@ cv.addEventListener('mousedown', (e) => {
   if (placing) {
     issue(world, { type: 'build', player: ME, building: placing, x: s2wx(mx) | 0, y: s2wy(my) | 0 });
     if (!e.shiftKey) placing = null;
+    return;
+  }
+  if (angriff && sel.length) {
+    issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: s2wx(mx) | 0, y: s2wy(my) | 0 });
+    angriff = false;
     return;
   }
   drag = { sx: mx, sy: my, x: mx, y: my, add: e.shiftKey };
@@ -1720,7 +1737,12 @@ addEventListener('keydown', (e) => {
   if (i >= 0 && liste[i]) placing = liste[i];
   if (e.key === 'Escape') {
     placing = null;
+    angriff = false;
     sel = [];
+  }
+  if (e.key === 'a' && sel.some((id) => byId(world, id)?.kind === 'unit')) {
+    angriff = true;
+    placing = null;
   }
   if (e.key === ' ') {
     paused = !paused;
@@ -1769,6 +1791,7 @@ function frame(now) {
     acc += dt * speed;
     let guard = 0;
     while (acc >= TICK_MS && guard++ < 12) {
+      if (aiMe) stepAI(aiMe, world);
       stepAI(ai, world);
       step(world);
       acc -= TICK_MS;
@@ -1958,6 +1981,20 @@ function drawEntities() {
 }
 
 function drawSelection() {
+  if (angriff) {
+    // Angriffsbewegung scharf: Fadenkreuz am Mauszeiger.
+    const x = w2sx(hover.x);
+    const y = w2sy(hover.y);
+    ctx.strokeStyle = COL.bad;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.moveTo(x - 15, y);
+    ctx.lineTo(x + 15, y);
+    ctx.moveTo(x, y - 15);
+    ctx.lineTo(x, y + 15);
+    ctx.stroke();
+  }
   ctx.strokeStyle = '#f0f4e8';
   ctx.lineWidth = 1;
   for (const id of sel) {
@@ -2039,7 +2076,7 @@ function drawHud() {
   if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
 
   document.getElementById('hud').innerHTML = `
-    <div class="fac">${FACTIONS[meFaction].name}</div>
+    <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''}</div>
     <div class="res">
       <b>Fron</b><span>${p.fron}</span>
       <b>Götterblut</b><span>${p.goetterblut}</span>
@@ -2164,6 +2201,7 @@ function drawMini() {
 // ------------------------------------------------------------ Start
 document.getElementById('asMensch').onclick = () => neu('mensch');
 document.getElementById('asGott').onclick = () => neu('gott');
+document.getElementById('zuschauen').onclick = () => neu(meFaction, true);
 neu('mensch');
 resize();
 requestAnimationFrame(frame);

@@ -7,7 +7,7 @@
 
 Alles im Code dient dieser Frage. Was sie nicht berührt, fehlt absichtlich.
 
-## Befunde (Stand 0.6)
+## Befunde (Stand 0.7)
 
 Messbasis: `npm run sweep -- 80 45`, also 80 Seeds × beide Sitzplätze =
 160 KI-Partien je Einstellung, Abbruch nach 45 Minuten. Bei 160 Partien
@@ -77,29 +77,38 @@ besser. *Auch das ist eine Zahl für dich.*
 
 ### 4. Aktueller Stand der Balance
 
-Seit Einheiten Feinde nahe ihres Befehlspunkts verfolgen und die KI
+Seit Einheiten Feinde verfolgen, die KI mit Angriffsbewegung vorrückt und
 gegnerische Förderbauten angreift, reagiert das Spiel glatt auf den
 Startradius des Gottes — die Messerschneide aus 0.4 ist weg:
 
 | Gott start | 900 | 925 | **950** | 975 | 1000 |
 | --- | --- | --- | --- | --- | --- |
-| Menschen : Gott | 102 : 58 | 95 : 65 | **76 : 84** | 68 : 91 | 47 : 113 |
+| ohne Angriffsbewegung | 102 : 58 | 95 : 65 | 76 : 84 | 68 : 91 | 47 : 113 |
+| mit Angriffsbewegung | 99 : 61 | 76 : 84 | **60 : 100** | 54 : 106 | 51 : 109 |
 
-Jeder Schritt von 25 dm verschiebt etwa zehn Prozentpunkte. **Standard ist
-jetzt 950** (vorher 900) — eine Parameteränderung, die du zurücknehmen kannst.
+Jeder Schritt von 25 dm verschiebt fünf bis zehn Prozentpunkte. Der
+Ausgleichspunkt liegt zwischen 925 und 950 und wandert mit dem
+KI-Verhalten. **Standard ist jetzt 950** (vorher 900) — eine
+Parameteränderung, die du zurücknehmen kannst.
 
 | Einstellung (sonst Standard) | Menschen : Gott | Ø Dauer | Gott fördert |
 | --- | --- | --- | --- |
-| **Ausgang** | **76 : 84** | 16,1 min | 121 von 160 |
-| ohne Götterblut-Kosten | 54 : 106 | 15,3 min | 93 |
-| homeBonus 1250 | 110 : 49 | 15,7 min | 111 |
-| Gott max 3900 | 70 : 90 | 16,1 min | 109 |
-| Gott max 7000 | 79 : 81 | 16,2 min | 121 |
-| fremdMalus 800 | 126 : 34 | 17,0 min | 127 |
-| fremdMalus 650 | 89 : 71 | 16,4 min | 86 |
+| **Ausgang** | **60 : 100** | 14,6 min | 100 von 160 |
+| ohne Götterblut-Kosten | 4 : 156 | 12,7 min | 74 |
+| homeBonus 1250 | 66 : 94 | 15,7 min | 112 |
+| Gott max 3900 | 59 : 101 | 14,6 min | 88 |
+| Gott max 7000 | 60 : 100 | 14,6 min | 100 |
+| fremdMalus 800 | 80 : 80 | 16,0 min | 118 |
+| fremdMalus 650 | 121 : 39 | 16,6 min | 98 |
 
-`max` bleibt im Rauschen: Die Partien sind entschieden, bevor die großen
-Kreise zählen. `fremdMalus` wirkt nicht monoton — vermutlich KI-Effekte.
+- **Götterblut-Kosten halten die Partie zusammen.** Ohne sie gewinnt der
+  Gott 156 von 160: Sein Heimvorteil wirkt auf jede Einheit, und schwere
+  Einheiten wären für beide billig. Mit ihnen gleicht der frühe Zugang der
+  Menschen zur Mitte den Heimvorteil aus.
+- **`max` bleibt im Rauschen.** Die Partien sind entschieden, bevor die
+  großen Kreise zählen.
+- **`fremdMalus` trifft vor allem den Gott**, der seit der
+  Angriffsbewegung meist auf fremdem Boden angreift.
 
 Fläche als Vereinigung der Kreise, Median aus 20 Partien (Stand vor der
 Verfolgung, Gott start 900):
@@ -123,8 +132,10 @@ Partien, noch vor der Fairness-Korrektur gemessen):
 
 Ein Strategiewechsel bewegt das Ergebnis stärker als jeder Parameter. Die
 Verfolgung allein verschob den Ausgang von 45 : 35 auf 64 : 16, das gezielte
-Angreifen von Förderbauten zurück auf 54 : 26 (je 80 Partien). Balance-Aussagen
-aus KI-Partien sind Hinweise, keine Wahrheit.
+Angreifen von Förderbauten zurück auf 54 : 26 (je 80 Partien); die
+Angriffsbewegung bei Gott start 950 von 76 : 84 auf 60 : 100 (je 160).
+Balance-Aussagen aus KI-Partien sind Hinweise, keine Wahrheit — deshalb
+wird der Startradius nicht nach jeder KI-Änderung nachgestellt.
 
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
@@ -159,7 +170,6 @@ mehrfach.
 | Fehlt | Warum | Aufwand später |
 | --- | --- | --- |
 | Pathfinding | Einheiten fahren gerade; auf offener Karte reicht das | hoch |
-| Angriffsbewegung | Verfolgung nur am Befehlspunkt, unterwegs nur im Vorbeigehen | niedrig |
 | Gelände und Wälder als Karte | Roden ist derzeit ein Kreis, kein Gelände | mittel |
 | Fog of War | Verdeckt den Test eher, als dass er schärft | mittel |
 | Todesgott | Dritte Fraktion erst nach dem Fundament | niedrig (eine Zahl) |
@@ -172,7 +182,8 @@ mehrfach.
 
 1. **Selbst spielen.** Das HUD zeigt Fläche und Götterblut beider Seiten.
    Fragen: Ist das Rennen um die Mitte als Mensch spannend oder trivial? Ist
-   Warten als Gott eine Entscheidung oder ein Zwang?
+   Warten als Gott eine Entscheidung oder ein Zwang? Wer erst schauen will:
+   „Zuschauen“ lässt die KI beide Seiten spielen.
 2. **Über die zwei Designzahlen entscheiden:** Götterblut-Kosten schwerer
    Einheiten (10) und ihr Fron-Preis (130/135).
 3. Wenn der späte Radius mehr tragen soll: Partien verlängern sich mit
@@ -183,8 +194,6 @@ mehrfach.
 
 - Die KI greift in Wellen an (erst Förderbauten, dann das Hauptgebäude) und
   hält keine Grenze.
-- Einheiten verfolgen Feinde erst am Befehlspunkt; Gruppen, die sich auf
-  dem Marsch begegnen, kämpfen nur im Vorbeigehen.
 - Einheiten laufen durch Gebäude hindurch.
 - Gerodeter Boden erholt sich nie wieder — der Wurzler kann das noch nicht.
 - Arbeiter (Köhler, Wurzler) haben keine Funktion; Gebäude entstehen per

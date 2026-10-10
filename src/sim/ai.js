@@ -135,7 +135,8 @@ export function stepAI(ai, world) {
     const liste = BUILDINGS[f.type].buildList;
     // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
     const schwerMoeglich = blutRest >= blutSchwer;
-    const wunsch = schwerMoeglich && (ai.zug % 3 === 2 || blutRest >= 3 * blutSchwer) ? plan.schwer : plan.leicht;
+    const reichlich = blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+    const wunsch = schwerMoeglich && (ai.zug % 3 === 2 || reichlich) ? plan.schwer : plan.leicht;
     const unit = liste.includes(wunsch) ? wunsch : liste.includes(plan.leicht) ? plan.leicht : null;
     if (!unit || rest - UNITS[unit].cost.fron < sparen) continue;
     rest -= UNITS[unit].cost.fron;
@@ -149,7 +150,7 @@ export function stepAI(ai, world) {
   const bedrohung = naechsterEindringling(world, ai.player, bauten);
   if (bedrohung) {
     const ids = einheiten.filter((u) => !ai.unterwegs.includes(u.id)).map((u) => u.id);
-    if (ids.length) issue(world, { type: 'move', player: ai.player, ids, x: bedrohung.x, y: bedrohung.y });
+    if (ids.length) issue(world, { type: 'attack', player: ai.player, ids, x: bedrohung.x, y: bedrohung.y });
   }
 
   // 8. Angriff in wachsenden Wellen. Erstes Ziel ist ein gegnerischer
@@ -160,14 +161,14 @@ export function stepAI(ai, world) {
   const angriff = gegnerFoerderung(world, ai.player, haupt) || ziel;
   if (ai.unterwegs.length && angriff && !world.entities.some((e) => e.id === ai.welleZiel && !e.dead)) {
     ai.welleZiel = angriff.id;
-    issue(world, { type: 'move', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
+    issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
   }
   if (!bedrohung && daheimStehend.length >= 8 + ai.welle * 3 && angriff) {
     ai.welle++;
     ai.welleZiel = angriff.id;
     const ids = daheimStehend.map((u) => u.id);
     ai.unterwegs.push(...ids);
-    issue(world, { type: 'move', player: ai.player, ids, x: angriff.x, y: angriff.y });
+    issue(world, { type: 'attack', player: ai.player, ids, x: angriff.x, y: angriff.y });
     return;
   }
 

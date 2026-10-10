@@ -535,3 +535,17 @@ test('ein Bewegungsbefehl hat Vorrang vor der Verfolgung', () => {
   assert.equal(lw.y, 5000, 'läuft geradeaus weiter');
   assert.ok(lw.x > 5000);
 });
+
+test('eine Angriffsbewegung stellt Feinde unterwegs und zieht danach weiter', () => {
+  const w = bare();
+  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
+  const ziel = spawnUnit(w, 1, 'wurzler', 5000, 5000 + UNITS.landwehr.weapon.range + 300);
+  issue(w, { type: 'attack', player: 0, ids: [lw.id], x: 9000, y: 5000 });
+  for (let i = 0; i < 20; i++) step(w);
+  assert.ok(lw.y > 5000, 'weicht zum Feind ab');
+  for (let i = 0; i < 600 && !ziel.dead; i++) step(w);
+  assert.equal(ziel.dead, true, 'der Feind fällt');
+  for (let i = 0; i < 600; i++) step(w);
+  assert.equal(lw.x, 9000, 'und das Ziel wird noch erreicht');
+  assert.equal(lw.y, 5000);
+});

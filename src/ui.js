@@ -9,6 +9,7 @@ const mctx = mini.getContext('2d');
 
 let meFaction = 'mensch';
 let world, ai, aiMe;
+let angriff = false; // A gedrueckt: naechster Klick ist eine Angriffsbewegung
 const ME = 0;
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
@@ -32,12 +33,14 @@ const COL = {
   blut: '#a86fb5',
 };
 
-function neu(f) {
+function neu(f, zuschauen = false) {
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
   world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
   ai = createAI(1, world.seed);
-  aiMe = null;
+  // Zuschauen: dieselbe KI spielt auch die eigene Seite.
+  aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
+  angriff = false;
   sel = [];
   placing = null;
   flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
@@ -66,6 +69,7 @@ cv.addEventListener('mousedown', (e) => {
   const my = e.offsetY;
   if (e.button === 2) {
     placing = null;
+    angriff = false;
     if (sel.length) {
       issue(world, { type: 'move', player: ME, ids: sel.slice(), x: s2wx(mx) | 0, y: s2wy(my) | 0 });
     }
@@ -78,6 +82,11 @@ cv.addEventListener('mousedown', (e) => {
   if (placing) {
     issue(world, { type: 'build', player: ME, building: placing, x: s2wx(mx) | 0, y: s2wy(my) | 0 });
     if (!e.shiftKey) placing = null;
+    return;
+  }
+  if (angriff && sel.length) {
+    issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: s2wx(mx) | 0, y: s2wy(my) | 0 });
+    angriff = false;
     return;
   }
   drag = { sx: mx, sy: my, x: mx, y: my, add: e.shiftKey };
@@ -148,7 +157,12 @@ addEventListener('keydown', (e) => {
   if (i >= 0 && liste[i]) placing = liste[i];
   if (e.key === 'Escape') {
     placing = null;
+    angriff = false;
     sel = [];
+  }
+  if (e.key === 'a' && sel.some((id) => byId(world, id)?.kind === 'unit')) {
+    angriff = true;
+    placing = null;
   }
   if (e.key === ' ') {
     paused = !paused;
@@ -197,6 +211,7 @@ function frame(now) {
     acc += dt * speed;
     let guard = 0;
     while (acc >= TICK_MS && guard++ < 12) {
+      if (aiMe) stepAI(aiMe, world);
       stepAI(ai, world);
       step(world);
       acc -= TICK_MS;
@@ -386,6 +401,20 @@ function drawEntities() {
 }
 
 function drawSelection() {
+  if (angriff) {
+    // Angriffsbewegung scharf: Fadenkreuz am Mauszeiger.
+    const x = w2sx(hover.x);
+    const y = w2sy(hover.y);
+    ctx.strokeStyle = COL.bad;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.moveTo(x - 15, y);
+    ctx.lineTo(x + 15, y);
+    ctx.moveTo(x, y - 15);
+    ctx.lineTo(x, y + 15);
+    ctx.stroke();
+  }
   ctx.strokeStyle = '#f0f4e8';
   ctx.lineWidth = 1;
   for (const id of sel) {
@@ -467,7 +496,7 @@ function drawHud() {
   if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
 
   document.getElementById('hud').innerHTML = `
-    <div class="fac">${FACTIONS[meFaction].name}</div>
+    <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''}</div>
     <div class="res">
       <b>Fron</b><span>${p.fron}</span>
       <b>Götterblut</b><span>${p.goetterblut}</span>
@@ -592,6 +621,7 @@ function drawMini() {
 // ------------------------------------------------------------ Start
 document.getElementById('asMensch').onclick = () => neu('mensch');
 document.getElementById('asGott').onclick = () => neu('gott');
+document.getElementById('zuschauen').onclick = () => neu(meFaction, true);
 neu('mensch');
 resize();
 requestAnimationFrame(frame);

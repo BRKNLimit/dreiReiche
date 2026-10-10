@@ -17,6 +17,7 @@ export const CONFIGS = {
   'ohne Blutkosten': { units: { soeldner: { goetterblut: 0 }, geweihter: { goetterblut: 0 } } },
   'homeBonus 1250': { hb: 1250 },
   'homeBonus 1300 + Gott start 1000': { hb: 1300, g: { start: 1000 } },
+  'Gott start 900': { g: { start: 900 } },
   'Gott start 925': { g: { start: 925 } },
   'Gott start 950': { g: { start: 950 } },
   'Gott start 975': { g: { start: 975 } },

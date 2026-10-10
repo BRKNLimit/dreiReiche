@@ -155,6 +155,7 @@ export function spawnUnit(world, player, type, x, y) {
     tx: x | 0,
     ty: y | 0,
     arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
+    aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
     cooldown: 0,
     dead: false,
   };
@@ -200,13 +201,14 @@ function applyCommands(world) {
 
 function applyCommand(world, c) {
   {
-    if (c.type === 'move') {
+    if (c.type === 'move' || c.type === 'attack') {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
         if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
           e.tx = c.x | 0;
           e.ty = c.y | 0;
           e.arrived = false;
+          e.aggro = c.type === 'attack';
         }
       }
     } else if (c.type === 'build') {
@@ -568,7 +570,9 @@ const COS = (() => {
 // Verfolgung: Wer seinen Befehlspunkt erreicht hat, geht auf Feinde in
 // Reichweite + CHASE los, entfernt sich aber hoechstens LEASH vom
 // Befehlspunkt und kehrt danach dorthin zurueck. Ein Bewegungsbefehl hat
-// Vorrang: Unterwegs wird nur im Vorbeigehen geschossen.
+// Vorrang: Unterwegs wird nur im Vorbeigehen geschossen. Bei einer
+// Angriffsbewegung ('attack') wird auch unterwegs verfolgt, ohne Leine,
+// danach geht es weiter zum Ziel.
 const CHASE = 600;
 const LEASH = 1500;
 
@@ -587,8 +591,9 @@ function moveUnits(world) {
     gx[i] = e.tx;
     gy[i] = e.ty;
     const w = UNITS[e.type].weapon;
-    if (!w || !e.arrived) continue;
-    const o = chaseTarget(world, e, w.range + CHASE, LEASH + w.range);
+    if (!w || !(e.arrived || e.aggro)) continue;
+    const leine = e.arrived ? LEASH + w.range : MAP * 2;
+    const o = chaseTarget(world, e, w.range + CHASE, leine);
     if (!o) continue;
     const nah = w.range - 20;
     if (dist2(e.x, e.y, o.x, o.y) > nah * nah) {
@@ -796,6 +801,7 @@ export function hash(world) {
       mix(e.tx);
       mix(e.ty);
       mix(e.arrived ? 1 : 0);
+      mix(e.aggro ? 1 : 0);
     } else {
       mix(e.progress);
       mix(e.queueProgress);

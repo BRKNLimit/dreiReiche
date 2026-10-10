@@ -10,8 +10,22 @@ const PLAN = {
   gott: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', leicht: 'schratt', schwer: 'geweihter' },
 };
 
-export function createAI(player = 1, seed = 1) {
-  return { player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0 };
+/**
+ * Spielstile, fraktionsneutral. Messungen mit nur einem Stil messen vor
+ * allem diesen Stil (docs/scope.md); tools/sweep.mjs kann alle Paarungen
+ * gegeneinander spielen lassen.
+ *   welle:     Truppen fuer die erste Welle, plus wellePlus je weitere
+ *   ankerAb:   Fron-Polster, ab dem zusaetzliche Anker gesetzt werden
+ *   ankerTakt: Minuten je zusaetzlichem Anker
+ */
+export const STILE = {
+  sturm: { welle: 5, wellePlus: 2, ankerAb: 400, ankerTakt: 2 },
+  standard: { welle: 8, wellePlus: 3, ankerAb: 250, ankerTakt: 1 },
+  burg: { welle: 14, wellePlus: 4, ankerAb: 150, ankerTakt: 1 },
+};
+
+export function createAI(player = 1, seed = 1, stil = 'standard') {
+  return { player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0, stil: STILE[stil] };
 }
 
 export function stepAI(ai, world) {
@@ -106,8 +120,8 @@ export function stepAI(ai, world) {
   // 4. Anker. Die Zahl steigt mit der Zeit. Jeder neue Anker kommt an den
   //    Rand der eigenen Domaene, moeglichst weit weg von den bestehenden --
   //    sonst ueberdecken sich die Kreise und Wachstum bringt keine Flaeche.
-  const ankerZiel = 2 + minute;
-  if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + 250) {
+  const ankerZiel = 2 + ((minute / ai.stil.ankerTakt) | 0);
+  if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + ai.stil.ankerAb) {
     const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
     if (platz) return bau(plan.anker, platz.x, platz.y);
   }
@@ -164,7 +178,7 @@ export function stepAI(ai, world) {
     ai.welleZiel = angriff.id;
     issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
   }
-  if (!bedrohung && daheimStehend.length >= 8 + ai.welle * 3 && angriff) {
+  if (!bedrohung && daheimStehend.length >= ai.stil.welle + ai.welle * ai.stil.wellePlus && angriff) {
     ai.welle++;
     ai.welleZiel = angriff.id;
     const ids = daheimStehend.map((u) => u.id);

@@ -4,6 +4,8 @@
 //
 //   node tools/sweep.mjs                    alle Einstellungen, 12 Seeds
 //   node tools/sweep.mjs 6 45 malus         nur Einstellungen mit "malus" im Namen
+//   node tools/sweep.mjs 40 45 "" stile     jede Partie mit einer der neun
+//                                           Stil-Paarungen (sturm/standard/burg)
 //
 // Ausgabe je Einstellung: Siege Menschen : Gott, Sitzplatz-Bilanz, Dauer,
 // und jede einzelne Partie als <Sieger><Minute>, z. B. G21 = Gott nach 21 min.
@@ -51,6 +53,7 @@ if (isMainThread) {
   const nSeeds = Number(process.argv[2] ?? 12);
   const maxMin = Number(process.argv[3] ?? 45);
   const filter = process.argv[4] ?? '';
+  const stile = process.argv[5] === 'stile';
   const names = Object.keys(CONFIGS).filter((n) => n.includes(filter));
   const seeds = SEEDS.slice(0, nSeeds);
   const limit = Math.max(1, availableParallelism() - 1);
@@ -62,7 +65,7 @@ if (isMainThread) {
       const step = () => {
         if (next >= names.length) return resolve();
         const name = names[next++];
-        const w = new Worker(new URL(import.meta.url), { workerData: { name, seeds, maxMin } });
+        const w = new Worker(new URL(import.meta.url), { workerData: { name, seeds, maxMin, stile } });
         w.on('message', (r) => (results[name] = r));
         w.on('error', (e) => (results[name] = { error: e.message }));
         w.on('exit', step);
@@ -71,7 +74,7 @@ if (isMainThread) {
     });
   await Promise.all(Array.from({ length: Math.min(limit, names.length) }, run));
 
-  console.log(`${seeds.length} Seeds × 2 Sitzplätze, Abbruch nach ${maxMin} min\n`);
+  console.log(`${seeds.length} Seeds × 2 Sitzplätze, Abbruch nach ${maxMin} min${stile ? ', Stil-Paarungen reihum' : ''}\n`);
   for (const name of names) {
     const r = results[name];
     if (r.error) {
@@ -86,11 +89,25 @@ if (isMainThread) {
       ` ${r.blutInfo}`
     );
     console.log(' '.repeat(35) + r.games.join(' '));
+    if (stile && names.length === 1) {
+      // Matrix: Zeilen = Stil der Menschen, Spalten = Stil des Gottes, Siegquote Menschen
+      const st = ['sturm', 'standard', 'burg'];
+      console.log('');
+      console.log('  Siegquote Menschen   Gott: ' + st.map((x) => x.padStart(9)).join(''));
+      for (const ms of st) {
+        const zellen = st.map((gs) => {
+          const z = r.paar[ms + '/' + gs];
+          return (z ? Math.round((100 * z.m) / z.n) + ' %' : '—').padStart(9);
+        });
+        console.log('  Menschen ' + ms.padEnd(10) + '        ' + zellen.join(''));
+      }
+    }
   }
 } else {
-  const { name, seeds, maxMin } = workerData;
+  const { name, seeds, maxMin, stile } = workerData;
   const { createWorld, step } = await import('../src/sim/sim.js');
-  const { createAI, stepAI } = await import('../src/sim/ai.js');
+  const { createAI, stepAI, STILE } = await import('../src/sim/ai.js');
+  const stilNamen = Object.keys(STILE);
   const { FACTIONS, UNITS, BUILDINGS, RULES } = await import('../src/sim/defs.js');
   const c = CONFIGS[name];
   Object.assign(FACTIONS.gott.growth, c.g || {});
@@ -110,13 +127,19 @@ if (isMainThread) {
   let sum = 0;
   // Erste Minute mit Goetterblut je Fraktion, nur Partien, in denen es dazu kam.
   const blut = { mensch: [], gott: [] };
-  for (const seed of seeds) {
+  // Siege der Menschen je Paarung "menschStil/gottStil"
+  const paar = {};
+  for (let k = 0; k < seeds.length; k++) {
+    const seed = seeds[k];
+    // Mit "stile": Paarung reihum; der Stil gehoert zur Fraktion, nicht zum
+    // Sitzplatz, beide Sitzplaetze spielen dieselbe Paarung.
+    const st = stile ? { mensch: stilNamen[k % 3], gott: stilNamen[((k / 3) | 0) % 3] } : { mensch: 'standard', gott: 'standard' };
     for (const f of [
       ['mensch', 'gott'],
       ['gott', 'mensch'],
     ]) {
       const w = createWorld({ factions: f, seed });
-      const ais = [createAI(0, seed), createAI(1, seed + 1)];
+      const ais = [createAI(0, seed, st[f[0]]), createAI(1, seed + 1, st[f[1]])];
       const erst = [-1, -1];
       while (!w.over && w.tick < maxMin * 600) {
         stepAI(ais[0], w);
@@ -131,6 +154,10 @@ if (isMainThread) {
         continue;
       }
       const fac = w.players[w.winner].faction;
+      const pk = st.mensch + '/' + st.gott;
+      paar[pk] = paar[pk] || { m: 0, n: 0 };
+      paar[pk].n++;
+      if (fac === 'mensch') paar[pk].m++;
       games.push((fac === 'mensch' ? 'M' : 'G') + min);
       if (fac === 'mensch') m++;
       else g++;
@@ -141,5 +168,5 @@ if (isMainThread) {
   }
   const median = (a) => (a.length ? a.sort((x, y) => x - y)[a.length >> 1].toFixed(1) : '—');
   const blutInfo = `Blut: M ${blut.mensch.length}× ab ${median(blut.mensch)}, G ${blut.gott.length}× ab ${median(blut.gott)} min`;
-  parentPort.postMessage({ m, g, seat0, n, avg: n ? (sum / n).toFixed(1) : '—', games, blutInfo });
+  parentPort.postMessage({ m, g, seat0, n, avg: n ? (sum / n).toFixed(1) : '—', games, blutInfo, paar });
 }

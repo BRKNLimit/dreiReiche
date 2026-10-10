@@ -174,6 +174,31 @@ Ziele, die nur eine große Domäne versorgt. Mehr Kampfkraft in der Fläche
 reicht nicht, solange dort nicht gekämpft wird. Das ist eine Designfrage,
 keine Zahl.
 
+### 7. Drei KI-Stile: früher Angriff dominiert
+
+Damit Befunde nicht an einer KI-Strategie hängen, gibt es drei
+fraktionsneutrale Stile (`STILE` in `ai.js`): *Sturm* (erste Welle mit
+5 Einheiten, wenige Anker), *Standard*, *Burg* (erste Welle mit 14, viele
+Anker). `npm run sweep -- 180 45 Ausgang stile` lässt alle neun Paarungen
+spielen (358 Partien):
+
+| Siegquote Menschen | Gott Sturm | Gott Standard | Gott Burg |
+| --- | --- | --- | --- |
+| **Menschen Sturm** | 100 % | 100 % | 100 % |
+| Menschen Standard | 0 % | 30 % | 75 % |
+| Menschen Burg | 0 % | 100 % | 87 % |
+
+- **Wer früh angreift, gewinnt** — gegen jeden anderen Stil, bei beiden
+  Fraktionen. Greifen beide früh an, gewinnen immer die Menschen: ihre
+  Grundeinheiten sind außerhalb der Gott-Domäne stärker (18 Landwehr schlagen
+  18 Schratte), und ihre Domäne steht ab Minute 0.
+- **`max` bleibt auch hier wirkungslos:** Die Matrix ist bei 3900, 5200 und
+  7000 bis auf einzelne Partien gleich.
+- **Die Stufen Zorn und Wehr der Drosselleiter sind ungenutzt** — kein
+  Gebäude hat Waffen oder Schilde. Eine Verteidigungsanlage je Fraktion
+  würde sie mit Leben füllen und frühe Angriffe bremsen. Das ist neuer
+  Inhalt, also deine Entscheidung.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

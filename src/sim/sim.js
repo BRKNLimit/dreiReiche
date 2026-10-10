@@ -97,20 +97,17 @@ function setupMap(world) {
     [hi - 1800, hi + 800],
     [hi + 800, hi - 1800],
     [hi - 3200, hi - 1500],
+    // Mitte: punktsymmetrisch, je eine Ader naeher an jedem Spieler.
     [MAP >> 1, (MAP >> 1) - 2600],
-    [(MAP >> 1) - 2600, MAP >> 1],
+    [MAP >> 1, (MAP >> 1) + 2600],
   ];
   for (const [x, y] of spots) {
     world.deposits.push({ x: clamp(x), y: clamp(y), kind: 'fron', takenBy: 0 });
   }
-  // Goetterblut: zwei Adern auf der Mittelachse, der Streitpunkt.
+  // Goetterblut: drei Adern auf der Mittelachse, der Streitpunkt.
   world.deposits.push({ x: MAP >> 1, y: MAP >> 1, kind: 'goetterblut', takenBy: 0 });
-  world.deposits.push({
-    x: (MAP >> 1) - 3400,
-    y: (MAP >> 1) + 3400,
-    kind: 'goetterblut',
-    takenBy: 0,
-  });
+  world.deposits.push({ x: (MAP >> 1) - 3400, y: (MAP >> 1) + 3400, kind: 'goetterblut', takenBy: 0 });
+  world.deposits.push({ x: (MAP >> 1) + 3400, y: (MAP >> 1) - 3400, kind: 'goetterblut', takenBy: 0 });
 }
 
 function clamp(v) {

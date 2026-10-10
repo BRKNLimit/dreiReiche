@@ -39,6 +39,8 @@ export function stepAI(ai, world) {
     bilanz += (d.gegenwartOut || 0) - (d.gegenwartIn || 0);
   }
   const ziel = gegnerHaupt(world, ai.player);
+  // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
+  const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
   const bau = (building, x, y) => issue(world, { type: 'build', player: ai.player, building, x, y });
 
   // Wer keine Fabrik hat, baut sie zuerst nach der ersten Foerderung -- ohne
@@ -64,13 +66,13 @@ export function stepAI(ai, world) {
   const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
   if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
     const n = zahl(plan.kraft);
-    return bau(plan.kraft, ...daheim(world, haupt, 700 + n * 250, n * 83 + 40));
+    return bau(plan.kraft, ...daheim(world, haupt, 700 + n * 250, front + 40 + n * 83));
   }
 
   // 3. Fabrik
   if (zahl(plan.fabrik) < fabrikZiel && fron >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].gegenwartIn) {
     const n = zahl(plan.fabrik);
-    return bau(plan.fabrik, ...daheim(world, haupt, 900, 200 + n * 70));
+    return bau(plan.fabrik, ...daheim(world, haupt, 900, front + 200 + n * 70));
   }
 
   // 4. Anker. Die Zahl steigt mit der Zeit, ausgebreitet in einem Faecher
@@ -78,7 +80,7 @@ export function stepAI(ai, world) {
   const ankerZiel = 2 + minute;
   if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + 150) {
     const n = zahl(plan.anker);
-    const basis = winkel(haupt, ziel || haupt);
+    const basis = front;
     const streu = (rng(ai) % 41) - 20;
     const faecher = ((n % 5) - 2) * 25 + streu;
     const schritt = 1800 + ((n / 5) | 0) * 1700 + (rng(ai) % 600);

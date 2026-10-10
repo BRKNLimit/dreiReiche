@@ -1,0 +1,81 @@
+# Die drei Reiche — Architekturregeln
+
+RTS-Prototyp. Mittelalter, Elder Gods. Zwei Fraktionen: Menschen und
+Wald- und Wiesengott. Ein Todesgott ist entworfen, aber zurückgestellt.
+
+Ziel dieses Prototyps ist **eine einzige Frage**:
+Fühlt sich eine Domäne, deren Radius bei einer Fraktion fest ist und bei der
+anderen mit der Zeit wächst, tatsächlich unterschiedlich an?
+
+Alles, was diese Frage nicht beantwortet, ist aufgeschoben.
+
+## Die eine Regel
+
+Die gesamte Asymmetrie zwischen den Fraktionen steckt in `anchorRadius()` in
+`src/sim/sim.js` und den drei Zahlen in `FACTIONS[...].growth`:
+
+| Fraktion | start | max | perTick | Wirkung |
+| --- | --- | --- | --- | --- |
+| Menschen | 2600 | 2600 | 0 | Fest ab Bauende, planbar |
+| Gott | 900 | 5200 | 1 | Früh winzig, nach 10 min am Maximum |
+
+Eine dritte Fraktion ist eine dritte Zeile, kein drittes Regelwerk. Wenn eine
+Fraktionsidee ein eigenes System braucht, ist die Idee falsch, nicht das
+System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
+
+## Harte Regeln
+
+1. **Die Simulation ist engine-frei.** `src/sim/` importiert nichts aus
+   `web/` oder `src/ui.js`, kein `document`, kein `window`. Dieselben Dateien
+   laufen headless unter Node und im Browser.
+
+2. **Die Simulation ist deterministisch.** Gleicher Startzustand + gleiche
+   Befehlsfolge = exakt gleicher Endzustand. Voraussetzung für späteres
+   Lockstep-Multiplayer.
+   - Nur Integer-Arithmetik. Kein `Math.random`, kein `Math.sqrt`, kein
+     `Date.now`, keine Gleitkommazahlen in Zustandsfeldern.
+   - Zufall nur über `rng(state)`; Wurzeln über `isqrt()`.
+   - Iteration in stabiler Reihenfolge (Array-Index, nie `Object.keys` auf
+     dynamischen Objekten, nie `Set`-Iteration).
+   - `src/sim/ai.js` nutzt an zwei Stellen `Math.cos`/`Math.sqrt` für
+     Bauplatzwahl. Das ist für den Prototyp hinnehmbar, muss aber vor
+     Multiplayer auf Integer umgestellt werden.
+
+3. **Einheiten und Gebäude sind Daten, keine Klassen.** Alles in
+   `src/sim/defs.js`. Eine neue Einheit ist ein Eintrag, keine Logik. Wenn
+   eine neue Einheit Logikänderungen erzwingt, sind die Daten zu dünn.
+
+4. **Fester Zeitschritt.** `TICK_MS = 100` (10 Hz). Rendering interpoliert und
+   ändert den Zustand nie.
+
+5. **Befehle, nicht Zustände.** Eingaben werden zu Befehlen (`issue()`) und
+   wirken im nächsten Tick.
+
+## Einheiten
+
+- Entfernungen in **Dezimetern** (1 dm = 0,1 m), Integer. Karte 2000 × 2000 m.
+- Gegenwart, Fron und Götterblut als Integer pro Tick. Gegenwart ist ein Fluss
+  und wird nie gespeichert.
+- Versorgungsgrad (`powered`) in Promille, 1000 = voll.
+
+## Begriffe
+
+| Code | Design |
+| --- | --- |
+| `gegenwart` | Energie, nicht lagerbar, fließt in der Domäne |
+| `fron` | Masse: Holz, Stein, Hände |
+| `goetterblut` | Die umkämpfte dritte Ressource |
+| `anchor` | Gebäude, das Domäne projiziert |
+| `cleared` | Gerodeter Boden — dort pflanzt der Gott keinen Hain |
+
+## Bewusst weggelassen (v1)
+
+Pathfinding (Einheiten fahren gerade), Gelände, Fog of War, Todesgott,
+Götterblut-Verbrauch, Bergung der Gefallenen, Belagerung, Netzwerk.
+Siehe `docs/scope.md`.
+
+## Teststrategie
+
+`npm test` muss grün sein, bevor etwas als fertig gilt. Jede Eigenschaft der
+Ankerregel braucht einen Test, der sie in Isolation zeigt.
+`npm run smoke` fährt die Oberfläche headless 1000 Frames.

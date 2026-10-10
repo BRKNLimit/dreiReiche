@@ -1,0 +1,12 @@
+{
+  "name": "resonit-proto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RTS-Prototyp: testet das regionale Energienetz",
+  "scripts": {
+    "test": "node --test 'test/*.test.js'",
+    "bundle": "node tools/bundle.mjs",
+    "smoke": "node tools/bundle.mjs && node tools/smoke.mjs"
+  }
+}

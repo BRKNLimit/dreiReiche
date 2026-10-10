@@ -1,0 +1,1621 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Die drei Reiche — Prototyp</title>
+<style>
+  :root {
+    --bg: #12140f;
+    --panel: #1a1e15;
+    --line: #2c3327;
+    --text: #d8dcd0;
+    --dim: #7d8575;
+    --me: #9ab87a;
+    --bad: #c4603f;
+    --ok: #8fb86a;
+    --accent: #d8b06a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  #cv { flex: 1; display: block; width: 100%; cursor: crosshair; }
+
+  #hud {
+    position: absolute; top: 12px; left: 12px; width: 268px;
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px;
+    backdrop-filter: blur(6px);
+  }
+  .fac {
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 8px;
+  }
+  #builds { display: contents; }
+  .res { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; font-variant-numeric: tabular-nums; }
+  .res b { font-weight: 500; color: var(--dim); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+  .res span { text-align: right; font-family: ui-monospace, monospace; }
+  .regs { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 7px; }
+  .reg { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 11px; }
+  .rn { color: var(--dim); letter-spacing: .04em; }
+  .rb { font-family: ui-monospace, monospace; color: var(--text); }
+  .rs { grid-column: 1 / -1; font-size: 10px; color: var(--dim); }
+  .reg.bad .rs { color: var(--bad); }
+  .reg.bad .rb { color: var(--bad); }
+  .bar { grid-column: 1 / -1; height: 3px; background: #232a1c; border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--ok); }
+  .reg.bad .bar i { background: var(--bad); }
+  .over {
+    margin-top: 10px; padding: 7px; text-align: center; letter-spacing: .1em;
+    text-transform: uppercase; font-size: 12px; background: #232a1c; border-radius: 3px;
+  }
+
+  #bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; gap: 6px; align-items: center;
+    padding: 9px 12px; background: var(--panel); border-top: 1px solid var(--line);
+  }
+  button {
+    font: inherit; font-size: 12px; color: var(--text);
+    background: #20261a; border: 1px solid var(--line);
+    padding: 6px 11px; border-radius: 3px; cursor: pointer;
+  }
+  button:hover { border-color: var(--me); color: #fff; }
+  button kbd {
+    font: 10px ui-monospace, monospace; color: var(--accent);
+    margin-left: 6px; opacity: .8;
+  }
+  .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+  .hint { color: var(--dim); font-size: 11px; margin-left: auto; }
+
+  #mini {
+    position: absolute; right: 12px; top: 12px;
+    width: 170px; height: 170px;
+    border: 1px solid var(--line); border-radius: 3px;
+    background: #0b0d08; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv"></canvas>
+  <div id="hud"></div>
+  <canvas id="mini" width="340" height="340"></canvas>
+  <div id="bar">
+    <span id="builds"></span>
+    <div class="sep"></div>
+    <button id="asMensch">Als Menschen</button>
+    <button id="asGott">Als Gott</button>
+    <span class="hint">
+      Linksklick wählt · Rechtsklick bewegt · Mausrad zoomt · Mittlere Taste schiebt ·
+      Hauptgebäude anklicken, dann <b>Q</b>/<b>W</b> für Einheiten · Leertaste pausiert · +/− Tempo
+    </span>
+  </div>
+</div>
+<script>
+// Datenschicht. Keine Logik hier drin.
+// Alle Werte Integer. Entfernungen in Dezimetern, Raten pro Tick (10 Hz).
+//
+// Zwei Fraktionen, dieselben Systeme, dieselben Ressourcen. Der einzige
+// strukturelle Unterschied steckt in anchor.growth -- siehe FACTIONS.
+const TICK_MS = 100;
+const MAP = 20000; // 2000 m -- Mittelalter, Fusstruppen
+
+// Gegenwart-Prioritaet: wer zuerst bedient wird, wird zuletzt gedrosselt.
+// Drosselleiter: Bauwerke zuerst, dann Segnungen, dann Wehr, zuletzt Zorn.
+const PRIO = {
+  zorn: 0, // Waffen -- fallen als Letztes
+  wehr: 1, // Schutzzauber
+  segen: 2, // Foerderung, Produktion
+  werk: 3, // Baustellen und Fabriken -- fallen zuerst
+};
+const PRIO_NAMES = ['Zorn', 'Wehr', 'Segen', 'Werk'];
+const FACTIONS = {
+  mensch: {
+    name: 'Menschen',
+    color: '#d8b06a',
+    // Radius steht bei Bauende fest. Planbar, sofort, ueberall gleich.
+    growth: { start: 2600, max: 2600, perTick: 0 },
+  },
+  gott: {
+    name: 'Wald- und Wiesengott',
+    color: '#7fb069',
+    // Radius waechst mit dem Alter des Ankers. Frueh winzig, spaet riesig.
+    // 1 dm/Tick: nach 10 Minuten (6000 Ticks) am Maximum.
+    growth: { start: 900, max: 5200, perTick: 1 },
+  },
+};
+const BUILDINGS = {
+  // --------------------------------------------------------------- Menschen
+  halle: {
+    name: 'Thingstätte',
+    short: 'HAL',
+    faction: 'mensch',
+    hp: 5000,
+    radius: 90,
+    anchor: true,
+    gegenwartOut: 24,
+    cost: { fron: 0 },
+    buildTime: 0,
+    buildList: ['koehler', 'landwehr'],
+    vital: true,
+  },
+  turm: {
+    name: 'Wachturm',
+    short: 'TRM',
+    faction: 'mensch',
+    hp: 800,
+    radius: 48,
+    anchor: true,
+    cost: { fron: 120 },
+    buildTime: 35,
+  },
+  schmiede: {
+    name: 'Schmiede',
+    short: 'SCM',
+    faction: 'mensch',
+    hp: 900,
+    radius: 60,
+    gegenwartOut: 40,
+    cost: { fron: 280 },
+    buildTime: 55,
+  },
+  saege: {
+    name: 'Sägewerk',
+    short: 'SÄG',
+    faction: 'mensch',
+    hp: 700,
+    radius: 55,
+    gegenwartIn: 14,
+    prio: PRIO.segen,
+    fronOut: 7,
+    cost: { fron: 150 },
+    buildTime: 40,
+    needs: 'fron',
+    clears: 2200, // rodet den Boden ringsum -- nimmt dem Gott Wachstumsgrund
+  },
+  kaserne: {
+    name: 'Kaserne',
+    short: 'KAS',
+    faction: 'mensch',
+    hp: 1500,
+    radius: 80,
+    gegenwartIn: 55,
+    prio: PRIO.werk,
+    cost: { fron: 400 },
+    buildTime: 80,
+    buildList: ['koehler', 'landwehr', 'soeldner'],
+  },
+
+  // --------------------------------------------------------------- Gott
+  herzbaum: {
+    name: 'Herzbaum',
+    short: 'HRZ',
+    faction: 'gott',
+    hp: 5000,
+    radius: 90,
+    anchor: true,
+    gegenwartOut: 24,
+    cost: { fron: 0 },
+    buildTime: 0,
+    buildList: ['wurzler', 'schratt'],
+    vital: true,
+  },
+  hain: {
+    name: 'Hain',
+    short: 'HAI',
+    faction: 'gott',
+    hp: 600,
+    radius: 48,
+    anchor: true,
+    cost: { fron: 110 },
+    buildTime: 45,
+    needsGrowth: true, // nur auf ungerodetem Boden
+  },
+  quelle: {
+    name: 'Quellgrund',
+    short: 'QUE',
+    faction: 'gott',
+    hp: 800,
+    radius: 60,
+    gegenwartOut: 40,
+    cost: { fron: 280 },
+    buildTime: 55,
+  },
+  moos: {
+    name: 'Moosgrube',
+    short: 'MOS',
+    faction: 'gott',
+    hp: 700,
+    radius: 55,
+    gegenwartIn: 14,
+    prio: PRIO.segen,
+    fronOut: 7,
+    cost: { fron: 150 },
+    buildTime: 40,
+    needs: 'fron',
+  },
+  dickicht: {
+    name: 'Dickicht',
+    short: 'DIC',
+    faction: 'gott',
+    hp: 1500,
+    radius: 80,
+    gegenwartIn: 55,
+    prio: PRIO.werk,
+    cost: { fron: 400 },
+    buildTime: 80,
+    buildList: ['wurzler', 'schratt', 'geweihter'],
+  },
+};
+const UNITS = {
+  // Menschen
+  koehler: {
+    name: 'Köhler',
+    faction: 'mensch',
+    hp: 200,
+    radius: 26,
+    speed: 32,
+    cost: { fron: 55 },
+    buildTime: 28,
+    worker: true,
+  },
+  landwehr: {
+    name: 'Landwehr',
+    faction: 'mensch',
+    hp: 260,
+    radius: 28,
+    speed: 30,
+    cost: { fron: 70 },
+    buildTime: 30,
+    weapon: { range: 420, damage: 11, cooldown: 6 },
+  },
+  soeldner: {
+    name: 'Söldner',
+    faction: 'mensch',
+    hp: 620,
+    radius: 32,
+    speed: 26,
+    cost: { fron: 180 },
+    buildTime: 60,
+    weapon: { range: 480, damage: 26, cooldown: 8 },
+  },
+
+  // Gott
+  wurzler: {
+    name: 'Wurzler',
+    faction: 'gott',
+    hp: 230,
+    radius: 26,
+    speed: 28,
+    cost: { fron: 55 },
+    buildTime: 28,
+    worker: true,
+  },
+  schratt: {
+    name: 'Schratt',
+    faction: 'gott',
+    hp: 300,
+    radius: 28,
+    speed: 32,
+    cost: { fron: 70 },
+    buildTime: 30,
+    weapon: { range: 380, damage: 10, cooldown: 6 },
+    homeBonus: 1500, // in eigener Domaene: Schaden x1,5
+  },
+  geweihter: {
+    name: 'Geweihter',
+    faction: 'gott',
+    hp: 820,
+    radius: 34,
+    speed: 20,
+    cost: { fron: 190 },
+    buildTime: 65,
+    weapon: { range: 440, damage: 24, cooldown: 9 },
+    homeBonus: 1500,
+  },
+};
+const START_FRON = 900;
+
+/** Alle Gebäude bzw. Einheiten einer Fraktion. */
+function buildingsOf(f) {
+  return Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].faction === f);
+}
+function unitsOf(f) {
+  return Object.keys(UNITS).filter((k) => UNITS[k].faction === f);
+}
+
+
+/* ---------------------------------- */
+
+// Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
+// Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
+
+// ---------------------------------------------------------------- Mathematik
+
+/** Deterministischer PRNG (mulberry32). Veraendert state.seed. */
+function rng(state) {
+  state.seed = (state.seed + 0x6d2b79f5) | 0;
+  let t = state.seed;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) % 1000000;
+}
+
+/** Integer-Wurzel. Kein Math.sqrt: Gleitkomma ist nicht plattformstabil. */
+function isqrt(n) {
+  if (n <= 0) return 0;
+  let x = n;
+  let y = (x + 1) >> 1;
+  while (y < x) {
+    x = y;
+    y = (x + ((n / x) | 0)) >> 1;
+  }
+  return x;
+}
+function dist2(ax, ay, bx, by) {
+  const dx = ax - bx;
+  const dy = ay - by;
+  return dx * dx + dy * dy;
+}
+function dist(ax, ay, bx, by) {
+  return isqrt(dist2(ax, ay, bx, by));
+}
+
+// ------------------------------------------------- DIE EINE REGEL
+
+/**
+ * Der Radius eines Ankers. Das ist die gesamte Asymmetrie zwischen den
+ * Fraktionen: eine Zeile, drei Zahlen aus FACTIONS[f].growth.
+ *
+ *   Menschen -> start == max, perTick 0  -> fest ab Bauende
+ *   Gott     -> start klein, waechst     -> frueh winzig, spaet riesig
+ */
+function anchorRadius(world, e) {
+  if (!BUILDINGS[e.type].anchor || !e.done) return 0;
+  const g = FACTIONS[world.players[e.player].faction].growth;
+  const age = world.tick - e.doneAt;
+  return Math.min(g.max, g.start + age * g.perTick);
+}
+
+// ------------------------------------------------------------------ Weltbau
+function createWorld(opts = {}) {
+  const f0 = opts.factions?.[0] ?? 'mensch';
+  const f1 = opts.factions?.[1] ?? 'gott';
+  const world = {
+    tick: 0,
+    seed: opts.seed ?? 12345,
+    nextId: 1,
+    entities: [],
+    players: [
+      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true },
+      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true },
+    ],
+    deposits: [],
+    cleared: [], // gerodete Flaechen: { x, y, r }
+    regions: [],
+    pending: [],
+    events: [],
+    over: false,
+    winner: -1,
+  };
+  if (!opts.empty) setupMap(world);
+  return world;
+}
+
+function setupMap(world) {
+  const lo = 3000;
+  const hi = MAP - 3000;
+
+  for (let p = 0; p < 2; p++) {
+    const f = world.players[p].faction;
+    const home = f === 'mensch' ? 'halle' : 'herzbaum';
+    spawnBuilding(world, p, home, p === 0 ? lo : hi, p === 0 ? lo : hi, true);
+  }
+
+  const spots = [
+    [lo + 1800, lo - 800],
+    [lo - 800, lo + 1800],
+    [lo + 3200, lo + 1500],
+    [hi - 1800, hi + 800],
+    [hi + 800, hi - 1800],
+    [hi - 3200, hi - 1500],
+    [MAP >> 1, (MAP >> 1) - 2600],
+    [(MAP >> 1) - 2600, MAP >> 1],
+  ];
+  for (const [x, y] of spots) {
+    world.deposits.push({ x: clamp(x), y: clamp(y), kind: 'fron', takenBy: 0 });
+  }
+  // Goetterblut: zwei Adern auf der Mittelachse, der Streitpunkt.
+  world.deposits.push({ x: MAP >> 1, y: MAP >> 1, kind: 'goetterblut', takenBy: 0 });
+  world.deposits.push({
+    x: (MAP >> 1) - 3400,
+    y: (MAP >> 1) + 3400,
+    kind: 'goetterblut',
+    takenBy: 0,
+  });
+}
+
+function clamp(v) {
+  return Math.max(300, Math.min(MAP - 300, v));
+}
+function spawnBuilding(world, player, type, x, y, finished = false) {
+  const def = BUILDINGS[type];
+  const e = {
+    id: world.nextId++,
+    kind: 'building',
+    type,
+    player,
+    x: x | 0,
+    y: y | 0,
+    hp: finished ? def.hp : Math.max(1, def.hp / 10) | 0,
+    maxHp: def.hp,
+    done: finished,
+    doneAt: finished ? 0 : -1,
+    progress: finished ? def.buildTime * 1000 : 0,
+    region: -1,
+    powered: 1000,
+    queue: [],
+    queueProgress: 0,
+    cooldown: 0,
+    dead: false,
+  };
+  world.entities.push(e);
+  if (finished && def.clears) clearGround(world, e);
+  return e;
+}
+function spawnUnit(world, player, type, x, y) {
+  const def = UNITS[type];
+  const e = {
+    id: world.nextId++,
+    kind: 'unit',
+    type,
+    player,
+    x: x | 0,
+    y: y | 0,
+    hp: def.hp,
+    maxHp: def.hp,
+    tx: x | 0,
+    ty: y | 0,
+    cooldown: 0,
+    dead: false,
+  };
+  world.entities.push(e);
+  return e;
+}
+
+/** Ein Saegewerk rodet den Boden ringsum. Dort kann der Gott nicht pflanzen. */
+function clearGround(world, e) {
+  world.cleared.push({ x: e.x, y: e.y, r: BUILDINGS[e.type].clears });
+  world.events.push({ t: 'cleared', x: e.x, y: e.y, r: BUILDINGS[e.type].clears });
+}
+function isCleared(world, x, y) {
+  for (let i = 0; i < world.cleared.length; i++) {
+    const c = world.cleared[i];
+    if (dist2(x, y, c.x, c.y) <= c.r * c.r) return true;
+  }
+  return false;
+}
+
+// ------------------------------------------------------------------ Befehle
+function issue(world, cmd) {
+  world.pending.push(cmd);
+}
+
+function applyCommands(world) {
+  for (let i = 0; i < world.pending.length; i++) {
+    const c = world.pending[i];
+    if (c.type === 'move') {
+      for (let k = 0; k < c.ids.length; k++) {
+        const e = byId(world, c.ids[k]);
+        if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
+          e.tx = c.x | 0;
+          e.ty = c.y | 0;
+        }
+      }
+    } else if (c.type === 'build') {
+      tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
+    } else if (c.type === 'produce') {
+      const e = byId(world, c.id);
+      if (e && e.player === c.player && e.done && !e.dead) {
+        const def = BUILDINGS[e.type];
+        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8) {
+          const cost = UNITS[c.unit].cost.fron;
+          if (world.players[c.player].fron >= cost) {
+            world.players[c.player].fron -= cost;
+            e.queue.push(c.unit);
+          }
+        }
+      }
+    }
+  }
+  world.pending.length = 0;
+}
+
+/**
+ * Platzierung. Bauen ausserhalb der eigenen Domaene ist erlaubt -- die
+ * Baustelle hat dann nur keine Gegenwart und steht still. Genau darum geht es.
+ */
+function tryPlace(world, player, type, x, y) {
+  const def = BUILDINGS[type];
+  if (!def || def.vital) return null;
+  if (def.faction !== world.players[player].faction) return null;
+  const p = world.players[player];
+  if (p.fron < def.cost.fron) return null;
+  if (x < 200 || y < 200 || x > MAP - 200 || y > MAP - 200) return null;
+
+  let dep = null;
+  if (def.needs) {
+    dep = findDeposit(world, x, y, def.needs);
+    if (!dep || dep.takenBy !== 0) return null;
+    x = dep.x;
+    y = dep.y;
+  }
+  // Ein Hain braucht ungerodeten Boden.
+  if (def.needsGrowth && isCleared(world, x, y)) return null;
+
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'building') continue;
+    const min = def.radius + BUILDINGS[e.type].radius;
+    if (dist2(x, y, e.x, e.y) < min * min) return null;
+  }
+
+  p.fron -= def.cost.fron;
+  const b = spawnBuilding(world, player, type, x, y, false);
+  if (dep) dep.takenBy = b.id;
+  return b;
+}
+function findDeposit(world, x, y, kind, maxDist = 700) {
+  let best = null;
+  let bestD = maxDist * maxDist;
+  for (let i = 0; i < world.deposits.length; i++) {
+    const d = world.deposits[i];
+    if (d.kind !== kind) continue;
+    const dd = dist2(x, y, d.x, d.y);
+    if (dd <= bestD) {
+      bestD = dd;
+      best = d;
+    }
+  }
+  return best;
+}
+function byId(world, id) {
+  for (let i = 0; i < world.entities.length; i++) {
+    if (world.entities[i].id === id) return world.entities[i];
+  }
+  return null;
+}
+
+// ------------------------------------------------------- Domäne und Gegenwart
+
+/** Liegt der Punkt in der Domäne dieses Spielers? */
+function inDomain(world, player, x, y) {
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.player !== player || e.kind !== 'building') continue;
+    const r = anchorRadius(world, e);
+    if (r > 0 && dist2(x, y, e.x, e.y) <= r * r) return true;
+  }
+  return false;
+}
+
+/**
+ * Regionen: zusammenhaengende Teile einer Domäne. Zwei Gebäude gehoeren
+ * zusammen, wenn sich ihre Ankerkreise ueberschneiden -- oder wenn ein
+ * Nicht-Anker im Kreis eines Ankers steht.
+ */
+function computeRegions(world) {
+  const bs = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (!e.dead && e.kind === 'building') {
+      e.region = -1;
+      e.anchorR = anchorRadius(world, e);
+      bs.push(e);
+    }
+  }
+
+  const linked = (a, b) => {
+    if (a.player !== b.player) return false;
+    const d2 = dist2(a.x, a.y, b.x, b.y);
+    const ra = a.anchorR;
+    const rb = b.anchorR;
+    if (ra > 0 && rb > 0) return d2 <= (ra + rb) * (ra + rb);
+    if (ra > 0) return d2 <= ra * ra;
+    if (rb > 0) return d2 <= rb * rb;
+    return false; // zwei Nicht-Anker verbinden sich nie direkt
+  };
+
+  const regions = [];
+  for (let i = 0; i < bs.length; i++) {
+    if (bs[i].region !== -1) continue;
+    const idx = regions.length;
+    const members = [];
+    const stack = [bs[i]];
+    bs[i].region = idx;
+    while (stack.length) {
+      const cur = stack.pop();
+      members.push(cur);
+      for (let j = 0; j < bs.length; j++) {
+        const other = bs[j];
+        if (other.region !== -1) continue;
+        if (linked(cur, other)) {
+          other.region = idx;
+          stack.push(other);
+        }
+      }
+    }
+    members.sort((a, b) => a.id - b.id);
+    regions.push({
+      index: idx,
+      player: members[0].player,
+      members,
+      supply: 0,
+      demand: 0,
+      byPrio: [0, 0, 0, 0],
+      satPrio: [1000, 1000, 1000, 1000],
+    });
+  }
+  world.regions = regions;
+  return regions;
+}
+function distributeGegenwart(world) {
+  for (let r = 0; r < world.regions.length; r++) {
+    const reg = world.regions[r];
+    let supply = 0;
+    const demand = [0, 0, 0, 0];
+
+    for (let i = 0; i < reg.members.length; i++) {
+      const e = reg.members[i];
+      const def = BUILDINGS[e.type];
+      if (e.done && def.gegenwartOut) supply += def.gegenwartOut;
+      const d = demandOf(e);
+      if (d > 0) demand[prioOf(e)] += d;
+    }
+
+    reg.supply = supply;
+    reg.demand = demand[0] + demand[1] + demand[2] + demand[3];
+    reg.byPrio = demand;
+
+    let left = supply;
+    for (let p = 0; p < 4; p++) {
+      if (demand[p] === 0) {
+        reg.satPrio[p] = 1000;
+        continue;
+      }
+      if (left >= demand[p]) {
+        reg.satPrio[p] = 1000;
+        left -= demand[p];
+      } else {
+        reg.satPrio[p] = ((left * 1000) / demand[p]) | 0;
+        left = 0;
+      }
+    }
+
+    for (let i = 0; i < reg.members.length; i++) {
+      const e = reg.members[i];
+      e.powered = demandOf(e) > 0 ? reg.satPrio[prioOf(e)] : 1000;
+    }
+  }
+}
+
+function demandOf(e) {
+  const def = BUILDINGS[e.type];
+  if (!e.done) return Math.max(8, (def.gegenwartIn || 20) >> 1);
+  if (!def.gegenwartIn) return 0;
+  if (def.buildList && e.queue.length === 0) return 0;
+  return def.gegenwartIn;
+}
+
+function prioOf(e) {
+  const def = BUILDINGS[e.type];
+  if (!e.done) return PRIO.werk;
+  return def.prio === undefined ? PRIO.segen : def.prio;
+}
+
+// --------------------------------------------------------------- Tick
+function step(world) {
+  if (world.over) return world;
+  world.events.length = 0;
+  applyCommands(world);
+  computeRegions(world);
+  distributeGegenwart(world);
+
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'building') continue;
+    const def = BUILDINGS[e.type];
+
+    if (!e.done) {
+      e.progress += e.powered;
+      const need = def.buildTime * 1000;
+      const frac = Math.min(1000, (e.progress * 1000) / need) | 0;
+      e.hp = Math.max(1, ((def.hp * frac) / 1000) | 0);
+      if (e.progress >= need) {
+        e.done = true;
+        e.doneAt = world.tick;
+        e.hp = def.hp;
+        if (def.clears) clearGround(world, e);
+        world.events.push({ t: 'built', id: e.id });
+      }
+      continue;
+    }
+
+    const pl = world.players[e.player];
+    if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + def.fronOut * e.powered;
+    if (def.blutOut) pl.blutAcc = (pl.blutAcc || 0) + def.blutOut * e.powered;
+
+    if (e.queue.length > 0) {
+      e.queueProgress += e.powered;
+      const need = UNITS[e.queue[0]].buildTime * 1000;
+      if (e.queueProgress >= need) {
+        const type = e.queue.shift();
+        e.queueProgress = 0;
+        const ang = (e.id * 97 + world.tick) % 360;
+        const off = def.radius + 90;
+        const ux = e.x + ((off * cosDeg(ang)) / 1000) | 0;
+        const uy = e.y + ((off * sinDeg(ang)) / 1000) | 0;
+        const u = spawnUnit(world, e.player, type, clamp(ux), clamp(uy));
+        world.events.push({ t: 'spawned', id: u.id });
+      }
+    }
+  }
+
+  for (let p = 0; p < world.players.length; p++) {
+    const pl = world.players[p];
+    if (pl.fronAcc) {
+      pl.fron += (pl.fronAcc / 1000) | 0;
+      pl.fronAcc %= 1000;
+    }
+    if (pl.blutAcc) {
+      pl.goetterblut += (pl.blutAcc / 1000) | 0;
+      pl.blutAcc %= 1000;
+    }
+  }
+
+  moveUnits(world);
+  combat(world);
+  cleanup(world);
+
+  world.tick++;
+  return world;
+}
+
+function cosDeg(a) {
+  return COS[((a % 360) + 360) % 360];
+}
+function sinDeg(a) {
+  return COS[(((a + 270) % 360) + 360) % 360];
+}
+const COS = (() => {
+  const t = new Int32Array(360);
+  for (let i = 0; i < 360; i++) t[i] = Math.round(Math.cos((i * Math.PI) / 180) * 1000);
+  return t;
+})();
+
+function moveUnits(world) {
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'unit') continue;
+    const def = UNITS[e.type];
+    const dx = e.tx - e.x;
+    const dy = e.ty - e.y;
+    const d = isqrt(dx * dx + dy * dy);
+    if (d <= def.speed) {
+      e.x = e.tx;
+      e.y = e.ty;
+      continue;
+    }
+    e.x += ((dx * def.speed) / d) | 0;
+    e.y += ((dy * def.speed) / d) | 0;
+  }
+  separate(world);
+}
+
+function separate(world) {
+  const us = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (!e.dead && e.kind === 'unit') us.push(e);
+  }
+  for (let i = 0; i < us.length; i++) {
+    for (let j = i + 1; j < us.length; j++) {
+      const a = us[i];
+      const b = us[j];
+      const min = UNITS[a.type].radius + UNITS[b.type].radius;
+      const dd = dist2(a.x, a.y, b.x, b.y);
+      if (dd >= min * min || dd === 0) continue;
+      const d = isqrt(dd) || 1;
+      const push = ((min - d) / 2) | 0 || 1;
+      const nx = (((a.x - b.x) * push) / d) | 0;
+      const ny = (((a.y - b.y) * push) / d) | 0;
+      a.x = clamp(a.x + nx);
+      a.y = clamp(a.y + ny);
+      b.x = clamp(b.x - nx);
+      b.y = clamp(b.y - ny);
+    }
+  }
+}
+
+function combat(world) {
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead) continue;
+    const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
+    if (!def.weapon) continue;
+    if (e.kind === 'building' && !e.done) continue;
+    if (e.cooldown > 0) {
+      e.cooldown--;
+      continue;
+    }
+    const target = nearestEnemy(world, e, def.weapon.range);
+    if (!target) continue;
+
+    let dmg = def.weapon.damage;
+    // Heimvorteil: auf eigenem Boden staerker. Der Gott lebt davon.
+    if (def.homeBonus && inDomain(world, e.player, e.x, e.y)) {
+      dmg = ((dmg * def.homeBonus) / 1000) | 0;
+    }
+    target.hp -= dmg;
+    e.cooldown = def.weapon.cooldown;
+    world.events.push({ t: 'shot', from: e.id, to: target.id });
+    if (target.hp <= 0) {
+      target.dead = true;
+      world.events.push({ t: 'died', id: target.id, x: target.x, y: target.y });
+    }
+  }
+}
+
+function nearestEnemy(world, e, range) {
+  let best = null;
+  let bestD = range * range;
+  for (let i = 0; i < world.entities.length; i++) {
+    const o = world.entities[i];
+    if (o.dead || o.player === e.player) continue;
+    const dd = dist2(e.x, e.y, o.x, o.y);
+    if (dd <= bestD) {
+      bestD = dd;
+      best = o;
+    }
+  }
+  return best;
+}
+
+function cleanup(world) {
+  let any = false;
+  for (let i = 0; i < world.entities.length; i++) {
+    if (world.entities[i].dead) {
+      any = true;
+      break;
+    }
+  }
+  if (!any) return;
+
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (!e.dead) continue;
+    for (let d = 0; d < world.deposits.length; d++) {
+      if (world.deposits[d].takenBy === e.id) world.deposits[d].takenBy = 0;
+    }
+    if (e.kind === 'building' && BUILDINGS[e.type].vital) {
+      world.players[e.player].alive = false;
+    }
+  }
+  world.entities = world.entities.filter((e) => !e.dead);
+
+  const alive = world.players.filter((p) => p.alive);
+  if (alive.length === 1) {
+    world.over = true;
+    world.winner = alive[0].id;
+  }
+}
+
+// ------------------------------------------------------------- Hilfsabfragen
+function gridReport(world, player) {
+  const out = [];
+  for (let i = 0; i < world.regions.length; i++) {
+    const r = world.regions[i];
+    if (r.player !== player) continue;
+    out.push({
+      index: r.index,
+      supply: r.supply,
+      demand: r.demand,
+      satPrio: r.satPrio.slice(),
+      size: r.members.length,
+      x: r.members[0].x,
+      y: r.members[0].y,
+      throttled: r.demand > r.supply,
+    });
+  }
+  return out;
+}
+function hash(world) {
+  let h = 2166136261;
+  const mix = (v) => {
+    h ^= v | 0;
+    h = Math.imul(h, 16777619);
+  };
+  mix(world.tick);
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    mix(e.id);
+    mix(e.x);
+    mix(e.y);
+    mix(e.hp);
+    mix(e.done ? 1 : 0);
+  }
+  for (let p = 0; p < world.players.length; p++) {
+    mix(world.players[p].fron);
+    mix(world.players[p].goetterblut);
+  }
+  return h >>> 0;
+}
+
+
+/* ---------------------------------- */
+
+// Einfacher Gegner. Bewusst dumm: er soll Druck erzeugen, damit sich die
+// Domänenmechanik unter Stress zeigt. Nutzt nur issue(), nie direkten Zugriff.
+
+
+const PLAN = {
+  mensch: { anker: 'turm', kraft: 'schmiede', fron: 'saege', fabrik: 'kaserne', einheiten: ['landwehr', 'soeldner'] },
+  gott: { anker: 'hain', kraft: 'quelle', fron: 'moos', fabrik: 'dickicht', einheiten: ['schratt', 'geweihter'] },
+};
+function createAI(player = 1) {
+  return { player, next: 20, welle: 0 };
+}
+function stepAI(ai, world) {
+  if (world.over || world.tick < ai.next) return;
+  ai.next = world.tick + 22;
+
+  const p = world.players[ai.player];
+  const plan = PLAN[p.faction];
+  const mine = world.entities.filter((e) => e.player === ai.player && !e.dead);
+  const haupt = mine.find((e) => e.kind === 'building' && BUILDINGS[e.type].vital);
+  if (!haupt) return;
+
+  const bauten = mine.filter((e) => e.kind === 'building');
+  const einheiten = mine.filter((e) => e.kind === 'unit');
+  const zahl = (t) => bauten.filter((b) => b.type === t).length;
+  const fron = p.fron;
+
+  // Bauordnung: Fron, dann Gegenwart, dann Anker nach vorn, dann Fabrik.
+  if (zahl(plan.fron) < 3 && fron > BUILDINGS[plan.fron].cost.fron) {
+    const ader = freieAder(world, haupt, 'fron');
+    if (ader) {
+      issue(world, { type: 'build', player: ai.player, building: plan.fron, x: ader.x, y: ader.y });
+      return;
+    }
+  }
+  if (zahl(plan.kraft) < 1 + zahl(plan.fabrik) && fron > BUILDINGS[plan.kraft].cost.fron) {
+    const q = nahe(haupt, 1100 + zahl(plan.kraft) * 300, zahl(plan.kraft) * 83);
+    issue(world, { type: 'build', player: ai.player, building: plan.kraft, x: q.x, y: q.y });
+    return;
+  }
+  if (zahl(plan.anker) < 3 && fron > BUILDINGS[plan.anker].cost.fron + 200) {
+    const ziel = gegnerHaupt(world, ai.player);
+    const schritt = 1800 + zahl(plan.anker) * 1500;
+    const a = richtung(haupt, ziel || haupt, schritt);
+    // Der Gott kann nicht auf gerodetem Boden pflanzen.
+    if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, a.x, a.y)) {
+      issue(world, { type: 'build', player: ai.player, building: plan.anker, x: a.x, y: a.y });
+      return;
+    }
+  }
+  if (zahl(plan.fabrik) < 2 && fron > BUILDINGS[plan.fabrik].cost.fron) {
+    const q = nahe(haupt, 1500, 200 + zahl(plan.fabrik) * 70);
+    issue(world, { type: 'build', player: ai.player, building: plan.fabrik, x: q.x, y: q.y });
+    return;
+  }
+
+  // Stockende Baustelle: einen Anker dazwischensetzen.
+  const steht = bauten.find((b) => !b.done && b.powered === 0);
+  if (steht && fron > BUILDINGS[plan.anker].cost.fron) {
+    const quelle = naechsteVersorgte(world, bauten, steht);
+    if (quelle) {
+      const m = { x: (quelle.x + steht.x) >> 1, y: (quelle.y + steht.y) >> 1 };
+      if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, m.x, m.y)) {
+        issue(world, { type: 'build', player: ai.player, building: plan.anker, x: m.x, y: m.y });
+        return;
+      }
+    }
+  }
+
+  // Produktion
+  for (const f of bauten.filter((b) => b.done && BUILDINGS[b.type].buildList)) {
+    if (f.queue.length < (fron > 900 ? 4 : 2)) {
+      const u = (world.tick / 22) % 3 === 0 ? plan.einheiten[0] : plan.einheiten[1];
+      issue(world, { type: 'produce', player: ai.player, id: f.id, unit: u });
+    }
+  }
+
+  // Angriff
+  if (einheiten.length >= 5 + ai.welle * 2) {
+    ai.welle++;
+    const ziel = gegnerHaupt(world, ai.player);
+    if (ziel) {
+      issue(world, {
+        type: 'move',
+        player: ai.player,
+        ids: einheiten.map((u) => u.id),
+        x: ziel.x,
+        y: ziel.y,
+      });
+    }
+  }
+}
+
+function gegnerHaupt(world, me) {
+  return world.entities.find(
+    (e) => e.player !== me && !e.dead && e.kind === 'building' && BUILDINGS[e.type].vital
+  );
+}
+
+function naechsteVersorgte(world, bauten, zu) {
+  let best = null;
+  let bestD = Infinity;
+  for (const b of bauten) {
+    if (!b.done) continue;
+    const reg = world.regions[b.region];
+    if (!reg || reg.supply === 0) continue;
+    const dd = dist2(b.x, b.y, zu.x, zu.y);
+    if (dd < bestD) {
+      bestD = dd;
+      best = b;
+    }
+  }
+  return best;
+}
+
+function freieAder(world, von, kind) {
+  let best = null;
+  let bestD = Infinity;
+  for (const d of world.deposits) {
+    if (d.kind !== kind || d.takenBy !== 0) continue;
+    const dd = dist2(von.x, von.y, d.x, d.y);
+    if (dd < bestD) {
+      bestD = dd;
+      best = d;
+    }
+  }
+  return best;
+}
+
+const grenze = (v) => Math.max(400, Math.min(MAP - 400, v | 0));
+
+function nahe(von, radius, winkel) {
+  const a = (winkel * Math.PI) / 180;
+  return { x: grenze(von.x + Math.cos(a) * radius), y: grenze(von.y + Math.sin(a) * radius) };
+}
+
+function richtung(von, zu, schritt) {
+  const dx = zu.x - von.x;
+  const dy = zu.y - von.y;
+  const d = Math.max(1, Math.round(Math.sqrt(dx * dx + dy * dy)));
+  return { x: grenze(von.x + (dx * schritt) / d), y: grenze(von.y + (dy * schritt) / d) };
+}
+
+
+/* ---------------------------------- */
+
+// Darstellung und Eingabe. Aendert den Simulationszustand nie direkt,
+// sondern nur ueber issue(). Wird von tools/bundle.mjs mit der Sim
+// zusammengefuegt -- deshalb hier keine Imports.
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const mini = document.getElementById('mini');
+const mctx = mini.getContext('2d');
+
+let meFaction = 'mensch';
+let world, ai, aiMe;
+const ME = 0;
+
+const cam = { x: 3000, y: 3000, z: 0.038 };
+let sel = [];
+let drag = null;
+let placing = null;
+let hover = { x: 0, y: 0 };
+let paused = false;
+let speed = 1;
+let acc = 0;
+let last = performance.now();
+
+const COL = {
+  bg: '#12140f',
+  grid: '#1b1f17',
+  cleared: '#2a2318',
+  text: '#d8dcd0',
+  dim: '#7d8575',
+  bad: '#c4603f',
+  gold: '#d8b06a',
+  blut: '#a86fb5',
+};
+
+function neu(f) {
+  meFaction = f;
+  const gegner = f === 'mensch' ? 'gott' : 'mensch';
+  world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
+  ai = createAI(1);
+  aiMe = null;
+  sel = [];
+  placing = null;
+  cam.x = 3000;
+  cam.y = 3000;
+  renderBar();
+}
+
+function resize() {
+  cv.width = cv.clientWidth * devicePixelRatio;
+  cv.height = cv.clientHeight * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+addEventListener('resize', resize);
+
+const w2sx = (x) => (x - cam.x) * cam.z + cv.clientWidth / 2;
+const w2sy = (y) => (y - cam.y) * cam.z + cv.clientHeight / 2;
+const s2wx = (x) => (x - cv.clientWidth / 2) / cam.z + cam.x;
+const s2wy = (y) => (y - cv.clientHeight / 2) / cam.z + cam.y;
+
+// ------------------------------------------------------------ Eingabe
+cv.addEventListener('contextmenu', (e) => e.preventDefault());
+
+cv.addEventListener('mousedown', (e) => {
+  const mx = e.offsetX;
+  const my = e.offsetY;
+  if (e.button === 2) {
+    placing = null;
+    if (sel.length) {
+      issue(world, { type: 'move', player: ME, ids: sel.slice(), x: s2wx(mx) | 0, y: s2wy(my) | 0 });
+    }
+    return;
+  }
+  if (e.button === 1) {
+    drag = { pan: true, sx: mx, sy: my, cx: cam.x, cy: cam.y };
+    return;
+  }
+  if (placing) {
+    issue(world, { type: 'build', player: ME, building: placing, x: s2wx(mx) | 0, y: s2wy(my) | 0 });
+    if (!e.shiftKey) placing = null;
+    return;
+  }
+  drag = { sx: mx, sy: my, x: mx, y: my, add: e.shiftKey };
+});
+
+addEventListener('mousemove', (e) => {
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left;
+  const my = e.clientY - r.top;
+  hover = { x: s2wx(mx) | 0, y: s2wy(my) | 0 };
+  if (!drag) return;
+  if (drag.pan) {
+    cam.x = drag.cx - (mx - drag.sx) / cam.z;
+    cam.y = drag.cy - (my - drag.sy) / cam.z;
+  } else {
+    drag.x = mx;
+    drag.y = my;
+  }
+});
+
+addEventListener('mouseup', () => {
+  if (drag && !drag.pan) {
+    const x1 = Math.min(drag.sx, drag.x);
+    const x2 = Math.max(drag.sx, drag.x);
+    const y1 = Math.min(drag.sy, drag.y);
+    const y2 = Math.max(drag.sy, drag.y);
+    const box = x2 - x1 > 4 || y2 - y1 > 4;
+    const picked = [];
+    for (const e of world.entities) {
+      if (e.player !== ME || e.kind !== 'unit') continue;
+      const sx = w2sx(e.x);
+      const sy = w2sy(e.y);
+      if (box) {
+        if (sx >= x1 && sx <= x2 && sy >= y1 && sy <= y2) picked.push(e.id);
+      } else if (Math.hypot(sx - x1, sy - y1) < 16) picked.push(e.id);
+    }
+    if (!box && picked.length === 0) {
+      for (const e of world.entities) {
+        if (e.player !== ME || e.kind !== 'building' || !e.done) continue;
+        if (!BUILDINGS[e.type].buildList) continue;
+        if (Math.hypot(w2sx(e.x) - x1, w2sy(e.y) - y1) < BUILDINGS[e.type].radius * cam.z + 12) {
+          sel = [e.id];
+          drag = null;
+          return;
+        }
+      }
+    }
+    sel = drag.add ? [...new Set([...sel, ...picked])] : picked;
+  }
+  drag = null;
+});
+
+cv.addEventListener(
+  'wheel',
+  (e) => {
+    e.preventDefault();
+    const wx = s2wx(e.offsetX);
+    const wy = s2wy(e.offsetY);
+    cam.z = Math.max(0.012, Math.min(0.2, cam.z * (e.deltaY < 0 ? 1.15 : 0.87)));
+    cam.x = wx - (e.offsetX - cv.clientWidth / 2) / cam.z;
+    cam.y = wy - (e.offsetY - cv.clientHeight / 2) / cam.z;
+  },
+  { passive: false }
+);
+
+addEventListener('keydown', (e) => {
+  const liste = bauListe();
+  const i = '1234'.indexOf(e.key);
+  if (i >= 0 && liste[i]) placing = liste[i];
+  if (e.key === 'Escape') {
+    placing = null;
+    sel = [];
+  }
+  if (e.key === ' ') {
+    paused = !paused;
+    e.preventDefault();
+  }
+  if (e.key === '+') speed = Math.min(8, speed * 2);
+  if (e.key === '-') speed = Math.max(0.5, speed / 2);
+  if ((e.key === 'q' || e.key === 'w') && sel.length === 1) {
+    const b = byId(world, sel[0]);
+    if (b && b.kind === 'building' && b.done && BUILDINGS[b.type].buildList) {
+      const l = BUILDINGS[b.type].buildList;
+      const u = e.key === 'q' ? l[1] : l[2] || l[1];
+      if (u) issue(world, { type: 'produce', player: ME, id: b.id, unit: u });
+    }
+  }
+});
+
+mini.addEventListener('mousedown', (e) => {
+  cam.x = (e.offsetX / mini.clientWidth) * MAP;
+  cam.y = (e.offsetY / mini.clientHeight) * MAP;
+});
+
+function bauListe() {
+  return meFaction === 'mensch'
+    ? ['schmiede', 'saege', 'turm', 'kaserne']
+    : ['quelle', 'moos', 'hain', 'dickicht'];
+}
+
+function renderBar() {
+  const bar = document.getElementById('builds');
+  bar.innerHTML = bauListe()
+    .map((t, i) => `<button data-b="${t}">${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`)
+    .join('');
+  for (const b of bar.querySelectorAll('[data-b]')) b.onclick = () => (placing = b.dataset.b);
+}
+
+// ------------------------------------------------------------ Schleife
+function frame(now) {
+  const dt = Math.min(250, now - last);
+  last = now;
+  if (!paused && !world.over) {
+    acc += dt * speed;
+    let guard = 0;
+    while (acc >= TICK_MS && guard++ < 12) {
+      stepAI(ai, world);
+      step(world);
+      acc -= TICK_MS;
+      sel = sel.filter((id) => byId(world, id));
+    }
+  }
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ------------------------------------------------------------ Zeichnen
+function draw() {
+  const W = cv.clientWidth;
+  const H = cv.clientHeight;
+  ctx.fillStyle = COL.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  drawGrid(W, H);
+  drawCleared();
+  drawDomains();
+  drawDeposits();
+  drawEntities();
+  drawSelection();
+  if (placing) drawGhost();
+  drawHud();
+  drawMini();
+}
+
+function drawGrid(W, H) {
+  const s = 2000;
+  ctx.strokeStyle = COL.grid;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = Math.floor(s2wx(0) / s) * s; x < s2wx(W) + s; x += s) {
+    const sx = Math.round(w2sx(x)) + 0.5;
+    ctx.moveTo(sx, 0);
+    ctx.lineTo(sx, H);
+  }
+  for (let y = Math.floor(s2wy(0) / s) * s; y < s2wy(H) + s; y += s) {
+    const sy = Math.round(w2sy(y)) + 0.5;
+    ctx.moveTo(0, sy);
+    ctx.lineTo(W, sy);
+  }
+  ctx.stroke();
+  ctx.strokeStyle = '#2a3022';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(w2sx(0), w2sy(0), MAP * cam.z, MAP * cam.z);
+}
+
+function drawCleared() {
+  ctx.fillStyle = COL.cleared;
+  for (const c of world.cleared) {
+    ctx.beginPath();
+    ctx.arc(w2sx(c.x), w2sy(c.y), c.r * cam.z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** Die Domäne ist die wichtigste Linie im Spiel -- also die auffälligste. */
+function drawDomains() {
+  for (let p = 0; p < 2; p++) {
+    const col = FACTIONS[world.players[p].faction].color;
+    const anker = world.entities.filter(
+      (e) => !e.dead && e.player === p && e.kind === 'building' && anchorRadius(world, e) > 0
+    );
+    if (!anker.length) continue;
+
+    ctx.save();
+    ctx.beginPath();
+    for (const e of anker) {
+      ctx.moveTo(w2sx(e.x) + anchorRadius(world, e) * cam.z, w2sy(e.y));
+      ctx.arc(w2sx(e.x), w2sy(e.y), anchorRadius(world, e) * cam.z, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = col;
+    ctx.globalAlpha = p === ME ? 0.1 : 0.07;
+    ctx.fill();
+    ctx.globalAlpha = p === ME ? 0.65 : 0.4;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = p === ME ? 1.5 : 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawDeposits() {
+  for (const d of world.deposits) {
+    const x = w2sx(d.x);
+    const y = w2sy(d.y);
+    const r = Math.max(3, (d.kind === 'goetterblut' ? 150 : 90) * cam.z);
+    ctx.strokeStyle = d.kind === 'goetterblut' ? COL.blut : COL.dim;
+    ctx.globalAlpha = d.takenBy ? 0.3 : 0.85;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (d.kind === 'goetterblut') {
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r;
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.closePath();
+    } else ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawEntities() {
+  for (const e of world.entities) {
+    const col = FACTIONS[world.players[e.player].faction].color;
+    const x = w2sx(e.x);
+    const y = w2sy(e.y);
+    if (x < -60 || y < -60 || x > cv.clientWidth + 60 || y > cv.clientHeight + 60) continue;
+
+    if (e.kind === 'building') {
+      const def = BUILDINGS[e.type];
+      const r = Math.max(4, def.radius * cam.z);
+      ctx.fillStyle = e.done ? '#1d2118' : '#171a13';
+      ctx.strokeStyle = col;
+      ctx.lineWidth = def.vital ? 2.5 : 1.5;
+      ctx.beginPath();
+      ctx.rect(x - r, y - r, r * 2, r * 2);
+      ctx.fill();
+      if (!e.done) ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (e.done && e.powered < 1000) {
+        ctx.fillStyle = COL.bad;
+        ctx.globalAlpha = 0.2 + 0.3 * Math.sin(performance.now() / 200);
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        ctx.globalAlpha = 1;
+      }
+      if (r > 10) {
+        ctx.fillStyle = COL.text;
+        ctx.font = '9px ui-monospace, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(def.short, x, y + 3);
+      }
+      if (!e.done) {
+        const f = Math.min(1, e.progress / (def.buildTime * 1000));
+        ctx.fillStyle = f > 0 ? col : COL.bad;
+        ctx.fillRect(x - r, y + r + 2, Math.max(1, r * 2 * f), 2);
+      }
+      if (e.queue && e.queue.length) {
+        ctx.fillStyle = COL.gold;
+        const f = Math.min(1, e.queueProgress / (UNITS[e.queue[0]].buildTime * 1000));
+        ctx.fillRect(x - r, y - r - 5, r * 2 * f, 3);
+      }
+    } else {
+      const def = UNITS[e.type];
+      const r = Math.max(2.5, def.radius * cam.z);
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      if (def.worker) ctx.arc(x, y, r * 0.8, 0, Math.PI * 2);
+      else if (def.hp > 500) ctx.rect(x - r, y - r * 0.9, r * 2, r * 1.8);
+      else {
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y + r);
+        ctx.lineTo(x - r, y + r);
+        ctx.closePath();
+      }
+      ctx.fill();
+      if (e.hp < e.maxHp) {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(x - r, y - r - 4, r * 2, 2);
+        ctx.fillStyle = '#8fc46a';
+        ctx.fillRect(x - r, y - r - 4, (r * 2 * e.hp) / e.maxHp, 2);
+      }
+    }
+  }
+
+  ctx.strokeStyle = '#e8c87a';
+  ctx.globalAlpha = 0.8;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const ev of world.events) {
+    if (ev.t !== 'shot') continue;
+    const a = byId(world, ev.from);
+    const b = byId(world, ev.to);
+    if (!a || !b) continue;
+    ctx.moveTo(w2sx(a.x), w2sy(a.y));
+    ctx.lineTo(w2sx(b.x), w2sy(b.y));
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawSelection() {
+  ctx.strokeStyle = '#f0f4e8';
+  ctx.lineWidth = 1;
+  for (const id of sel) {
+    const e = byId(world, id);
+    if (!e) continue;
+    const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
+    ctx.beginPath();
+    ctx.arc(w2sx(e.x), w2sy(e.y), Math.max(5, def.radius * cam.z) + 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  if (drag && !drag.pan) {
+    ctx.strokeStyle = '#c8d8b0';
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(drag.sx, drag.sy, drag.x - drag.sx, drag.y - drag.sy);
+    ctx.setLineDash([]);
+  }
+}
+
+function drawGhost() {
+  const def = BUILDINGS[placing];
+  const x = w2sx(hover.x);
+  const y = w2sy(hover.y);
+  const r = Math.max(4, def.radius * cam.z);
+  const drin = inDomain(world, ME, hover.x, hover.y);
+  const gerodet = def.needsGrowth && isCleared(world, hover.x, hover.y);
+  const col = gerodet ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
+
+  if (def.anchor) {
+    ctx.strokeStyle = col;
+    ctx.globalAlpha = 0.45;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.arc(x, y, FACTIONS[meFaction].growth.start * cam.z, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x - r, y - r, r * 2, r * 2);
+  ctx.fillStyle = COL.text;
+  ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  const txt = gerodet
+    ? def.name + ' — gerodeter Boden trägt nicht'
+    : drin
+      ? def.name
+      : def.name + ' — außerhalb der Domäne';
+  ctx.fillText(txt, x, y - r - 8);
+}
+
+// ------------------------------------------------------------ HUD
+function drawHud() {
+  const p = world.players[ME];
+  const regionen = gridReport(world, ME);
+  let rows = '';
+  for (const r of regionen) {
+    const pct = r.demand === 0 ? 100 : Math.min(100, Math.round((r.supply / r.demand) * 100));
+    rows += `<div class="reg ${r.throttled ? 'bad' : 'ok'}">
+      <span class="rn">Domäne ${r.index + 1}</span><span class="rb">${r.supply}/${r.demand}</span>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}</span></div>`;
+  }
+  if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
+
+  document.getElementById('hud').innerHTML = `
+    <div class="fac">${FACTIONS[meFaction].name}</div>
+    <div class="res">
+      <b>Fron</b><span>${p.fron}</span>
+      <b>Götterblut</b><span>${p.goetterblut}</span>
+      <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>
+      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''} ×${speed}</span>
+    </div>
+    <div class="regs">${rows}</div>
+    ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}`;
+}
+
+function drossel(r) {
+  for (let i = 3; i >= 0; i--) if (r.satPrio[i] < 1000) return PRIO_NAMES[i] + ' gedrosselt';
+  return 'stabil';
+}
+
+function drawMini() {
+  mctx.fillStyle = '#0b0d08';
+  mctx.fillRect(0, 0, mini.width, mini.height);
+  const s = mini.width / MAP;
+  mctx.fillStyle = COL.cleared;
+  for (const c of world.cleared) {
+    mctx.beginPath();
+    mctx.arc(c.x * s, c.y * s, c.r * s, 0, Math.PI * 2);
+    mctx.fill();
+  }
+  for (let p = 0; p < 2; p++) {
+    mctx.fillStyle = FACTIONS[world.players[p].faction].color;
+    mctx.globalAlpha = 0.18;
+    for (const e of world.entities) {
+      if (e.player !== p || e.kind !== 'building') continue;
+      const r = anchorRadius(world, e);
+      if (!r) continue;
+      mctx.beginPath();
+      mctx.arc(e.x * s, e.y * s, r * s, 0, Math.PI * 2);
+      mctx.fill();
+    }
+    mctx.globalAlpha = 1;
+    for (const e of world.entities) {
+      if (e.player !== p) continue;
+      const sz = e.kind === 'building' ? 3 : 2;
+      mctx.fillRect(e.x * s - sz / 2, e.y * s - sz / 2, sz, sz);
+    }
+  }
+  mctx.strokeStyle = '#4a5442';
+  mctx.strokeRect(
+    (cam.x - cv.clientWidth / 2 / cam.z) * s,
+    (cam.y - cv.clientHeight / 2 / cam.z) * s,
+    (cv.clientWidth / cam.z) * s,
+    (cv.clientHeight / cam.z) * s
+  );
+}
+
+// ------------------------------------------------------------ Start
+document.getElementById('asMensch').onclick = () => neu('mensch');
+document.getElementById('asGott').onclick = () => neu('gott');
+neu('mensch');
+resize();
+requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>

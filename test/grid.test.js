@@ -504,3 +504,34 @@ test('Spiegelpartie bleibt punktsymmetrisch, bis eine geteilte Ader umkämpft is
   assert.equal(lage(1, true), lage(0, false));
   assert.equal(w.players[0].fron, w.players[1].fron);
 });
+
+// ---------------------------------------------------- Verfolgung
+
+test('eine stehende Einheit verfolgt einen Feind knapp außer Reichweite', () => {
+  const w = bare();
+  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
+  const ziel = spawnUnit(w, 1, 'wurzler', 5000 + UNITS.landwehr.weapon.range + 400, 5000);
+  for (let i = 0; i < 60; i++) step(w);
+  assert.ok(lw.x > 5000, 'geht auf den Feind zu');
+  assert.ok(ziel.hp < ziel.maxHp || ziel.dead, 'und trifft ihn');
+});
+
+test('Verfolgung endet an der Leine und führt zum Befehlspunkt zurück', () => {
+  const w = bare();
+  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
+  // Steht weit vom Befehlspunkt: wird nicht verfolgt.
+  spawnUnit(w, 1, 'wurzler', 5000 + 1500 + UNITS.landwehr.weapon.range + 300, 5000);
+  for (let i = 0; i < 60; i++) step(w);
+  assert.equal(lw.x, 5000);
+  assert.equal(lw.y, 5000);
+});
+
+test('ein Bewegungsbefehl hat Vorrang vor der Verfolgung', () => {
+  const w = bare();
+  const lw = spawnUnit(w, 0, 'landwehr', 5000, 5000);
+  spawnUnit(w, 1, 'wurzler', 5000, 5000 + UNITS.landwehr.weapon.range + 300);
+  issue(w, { type: 'move', player: 0, ids: [lw.id], x: 9000, y: 5000 });
+  for (let i = 0; i < 20; i++) step(w);
+  assert.equal(lw.y, 5000, 'läuft geradeaus weiter');
+  assert.ok(lw.x > 5000);
+});

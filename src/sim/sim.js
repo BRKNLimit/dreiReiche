@@ -154,6 +154,7 @@ export function spawnUnit(world, player, type, x, y) {
     maxHp: def.hp,
     tx: x | 0,
     ty: y | 0,
+    arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
     cooldown: 0,
     dead: false,
   };
@@ -205,6 +206,7 @@ function applyCommand(world, c) {
         if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
           e.tx = c.x | 0;
           e.ty = c.y | 0;
+          e.arrived = false;
         }
       }
     } else if (c.type === 'build') {
@@ -563,23 +565,72 @@ const COS = (() => {
   return t;
 })();
 
+// Verfolgung: Wer seinen Befehlspunkt erreicht hat, geht auf Feinde in
+// Reichweite + CHASE los, entfernt sich aber hoechstens LEASH vom
+// Befehlspunkt und kehrt danach dorthin zurueck. Ein Bewegungsbefehl hat
+// Vorrang: Unterwegs wird nur im Vorbeigehen geschossen.
+const CHASE = 600;
+const LEASH = 1500;
+
 function moveUnits(world) {
+  // Erst alle Ziele aus denselben Ausgangslagen, dann alle bewegen --
+  // sonst haengt die Verfolgung von der Reihenfolge in der Liste ab.
+  const us = [];
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
-    if (e.dead || e.kind !== 'unit') continue;
-    const def = UNITS[e.type];
-    const dx = e.tx - e.x;
-    const dy = e.ty - e.y;
-    const d = isqrt(dx * dx + dy * dy);
-    if (d <= def.speed) {
-      e.x = e.tx;
-      e.y = e.ty;
-      continue;
+    if (!e.dead && e.kind === 'unit') us.push(e);
+  }
+  const gx = new Int32Array(us.length);
+  const gy = new Int32Array(us.length);
+  for (let i = 0; i < us.length; i++) {
+    const e = us[i];
+    gx[i] = e.tx;
+    gy[i] = e.ty;
+    const w = UNITS[e.type].weapon;
+    if (!w || !e.arrived) continue;
+    const o = chaseTarget(world, e, w.range + CHASE, LEASH + w.range);
+    if (!o) continue;
+    const nah = w.range - 20;
+    if (dist2(e.x, e.y, o.x, o.y) > nah * nah) {
+      gx[i] = o.x;
+      gy[i] = o.y;
+    } else {
+      gx[i] = e.x; // in Reichweite: stehen bleiben und schiessen
+      gy[i] = e.y;
     }
-    e.x += ((dx * def.speed) / d) | 0;
-    e.y += ((dy * def.speed) / d) | 0;
+  }
+  for (let i = 0; i < us.length; i++) {
+    const e = us[i];
+    const speed = UNITS[e.type].speed;
+    const dx = gx[i] - e.x;
+    const dy = gy[i] - e.y;
+    const d = isqrt(dx * dx + dy * dy);
+    if (d <= speed) {
+      e.x = gx[i];
+      e.y = gy[i];
+    } else {
+      e.x += ((dx * speed) / d) | 0;
+      e.y += ((dy * speed) / d) | 0;
+    }
+    if (e.x === e.tx && e.y === e.ty) e.arrived = true;
   }
   separate(world);
+}
+
+/** Naechster Feind im Umkreis r der Einheit, der nicht weiter als leash vom Befehlspunkt liegt. */
+function chaseTarget(world, e, r, leash) {
+  let best = null;
+  let bestD = r * r;
+  for (let i = 0; i < world.entities.length; i++) {
+    const o = world.entities[i];
+    if (o.dead || o.player === e.player) continue;
+    const dd = dist2(e.x, e.y, o.x, o.y);
+    if (dd >= bestD) continue;
+    if (dist2(e.tx, e.ty, o.x, o.y) > leash * leash) continue;
+    bestD = dd;
+    best = o;
+  }
+  return best;
 }
 
 function separate(world) {
@@ -744,6 +795,7 @@ export function hash(world) {
     if (e.kind === 'unit') {
       mix(e.tx);
       mix(e.ty);
+      mix(e.arrived ? 1 : 0);
     } else {
       mix(e.progress);
       mix(e.queueProgress);

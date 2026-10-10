@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.7
+# Die drei Reiche — Prototyp 0.8
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Er existiert, um **eine Frage** zu beantworten: Fühlt sich eine
@@ -12,7 +12,7 @@ npm test          # 45 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, K
 npm run bundle    # baut dist/resonit.html (eine Datei, kein Server)
 npm run smoke     # fährt die Oberfläche headless 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
-npm run sweep     # Einstellungen vergleichen: node tools/sweep.mjs [seeds] [minuten] [filter]
+npm run sweep     # Einstellungen vergleichen: node tools/sweep.mjs [seeds] [minuten] [filter] [stile]
 ```
 
 `dist/resonit.html` öffnet direkt im Browser. Kein Build, keine
@@ -65,7 +65,8 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 - Domänengrenze als eine Außenkante der Kreisvereinigung, ohne innere Bögen
 - HUD mit Domänenfläche beider Seiten und Verlauf; Vorschauring zeigt, wie
   weit wachsende Anker in zwei Minuten reichen
-- Startbildschirm mit der einen Frage und den Regeln, Zahlen aus den Daten
+- Startbildschirm mit der einen Frage und den Regeln, Zahlen aus den Daten;
+  Gegner-Stil wählbar (Sturm, Standard, Burg)
 - Karte 2000 × 2000 m
 
 ## Was bewusst fehlt

@@ -12,6 +12,7 @@ let world, ai, aiMe;
 let angriff = false; // A gedrueckt: naechster Klick ist eine Angriffsbewegung
 let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
+let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 const ME = 0;
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
@@ -39,7 +40,7 @@ function neu(f, zuschauen = false) {
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
   world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
-  ai = createAI(1, world.seed);
+  ai = createAI(1, world.seed, gegnerStil);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
   angriff = false;
@@ -567,7 +568,7 @@ function drawHud() {
   if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
 
   document.getElementById('hud').innerHTML = `
-    <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''}</div>
+    <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}</div>
     <div class="res">
       <b>Fron</b><span>${p.fron}</span>
       <b>Götterblut</b><span>${p.goetterblut}</span>
@@ -797,13 +798,21 @@ function introHtml() {
     <p>Für beide gilt: Gegenwart fließt nur in der Domäne, Baustellen außerhalb stehen still.
     Götterblut liegt in der Kartenmitte; schwere Einheiten brauchen es.</p>
     <p class="achten">Worauf achten: Wann fordert die Domäne eine Entscheidung — und wann nervt sie?</p>
+    <div class="stil">Gegner:
+      ${Object.keys(STILE)
+        .map((s) => `<label><input type="radio" name="stil" value="${s}"${s === gegnerStil ? ' checked' : ''}> ${STIL_NAMEN[s]}</label>`)
+        .join('')}
+    </div>
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
       <button id="introGott">Als Gott spielen</button>
       <button id="introSchau">Zuschauen</button>
     </div>`;
 }
+const STIL_NAMEN = { sturm: 'Sturm — greift früh an', standard: 'Standard', burg: 'Burg — baut aus, greift spät an' };
 function starte(f, zuschauen) {
+  const gewaehlt = document.querySelector?.('#intro input[name="stil"]:checked');
+  if (gewaehlt) gegnerStil = gewaehlt.value;
   document.getElementById('intro').style.display = 'none';
   paused = false;
   neu(f, zuschauen);

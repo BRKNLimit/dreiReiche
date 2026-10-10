@@ -7,7 +7,7 @@
 
 Alles im Code dient dieser Frage. Was sie nicht berührt, fehlt absichtlich.
 
-## Befunde (Stand 0.7)
+## Befunde (Stand 0.8)
 
 Messbasis: `npm run sweep -- 80 45`, also 80 Seeds × beide Sitzplätze =
 160 KI-Partien je Einstellung, Abbruch nach 45 Minuten. Bei 160 Partien
@@ -242,15 +242,21 @@ mehrfach.
 
 ## Nächste sinnvolle Schritte
 
-1. **Selbst spielen.** Das HUD zeigt Fläche und Götterblut beider Seiten.
-   Fragen: Ist das Rennen um die Mitte als Mensch spannend oder trivial? Ist
-   Warten als Gott eine Entscheidung oder ein Zwang? Wer erst schauen will:
-   „Zuschauen“ lässt die KI beide Seiten spielen.
-2. **Über die zwei Designzahlen entscheiden:** Götterblut-Kosten schwerer
-   Einheiten (10) und ihr Fron-Preis (130/135).
-3. Wenn der späte Radius mehr tragen soll: Partien verlängern sich mit
-   `fremdMalus` (Angriffe werden teurer), oder Götterblut wird stärker.
-4. Erst danach Todesgott oder Gelände.
+1. **Selbst spielen.** Der Startbildschirm erklärt die Regel; im Spiel zeigen
+   HUD und Vorschauringe, wie die Domänen wachsen; `I` öffnet die Auswertung
+   (Reibung, Kampfort, Anker, Götterblut). Gegner-Stil wählbar. Fragen: Ist
+   das Rennen um die Mitte als Mensch spannend oder trivial? Ist Warten als
+   Gott eine Entscheidung oder ein Zwang? „Zuschauen“ lässt die KI beide
+   Seiten spielen.
+2. **Drei Designentscheidungen**, die keine Messung abnehmen kann:
+   - *Götterblut-Kosten* schwerer Einheiten (10) und ihr Fron-Preis
+     (130/135) — Abschnitte 2 und 3.
+   - *Was soll der späte Radius bewirken?* Vier Versuche ohne Effekt
+     (Abschnitt 6). Er braucht etwas, das nur er erreicht.
+   - *Früher Angriff dominiert* (Abschnitt 7). Die Stufen Zorn und Wehr der
+     Drosselleiter sind ungenutzt — eine Verteidigungsanlage je Fraktion
+     läge nahe.
+3. Erst danach Todesgott oder Gelände.
 
 ## Bekannte Schwächen
 

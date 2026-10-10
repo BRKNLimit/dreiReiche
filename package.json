@@ -1,12 +1,13 @@
 {
-  "name": "resonit-proto",
-  "version": "0.1.0",
+  "name": "drei-reiche-proto",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "RTS-Prototyp: testet das regionale Energienetz",
+  "description": "RTS-Prototyp: fester gegen wachsenden Domänenradius",
   "scripts": {
-    "test": "node --test 'test/*.test.js'",
+    "test": "node --test",
     "bundle": "node tools/bundle.mjs",
-    "smoke": "node tools/bundle.mjs && node tools/smoke.mjs"
+    "smoke": "node tools/bundle.mjs && node tools/smoke.mjs",
+    "match": "node tools/match.mjs"
   }
 }

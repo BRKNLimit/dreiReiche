@@ -16,6 +16,10 @@ const gl = cv3.getContext('webgl2', { antialias: true, stencil: true });
 
 const ME = 0;
 const DM = 0.1; // Dezimeter -> Meter
+// Darstellungsmassstab: Einheiten und Gebaeude groesser als ihr Kollisionskreis,
+// wie in jedem RTS -- sonst sind 3 m grosse Soldaten auf 2 km Karte Punkte.
+const ZEIGE_EINHEIT = 1.6;
+const ZEIGE_GEBAEUDE = 1.25;
 let meFaction = 'mensch';
 let world, ai, aiMe;
 let gegnerStil = 'standard';
@@ -556,27 +560,49 @@ function ladeModell(daten) {
   return { vao, ib, anzahl: daten.length / 10, inst: [], cap: 0 };
 }
 
-/** Boden: grosses Raster mit leicht wechselnder Farbe, deterministisch. */
+/**
+ * Boden: Raster mit Farbe je Eckpunkt aus zwei Rauschlagen -- die Farben
+ * verlaufen weich zwischen den Ecken, deterministisch, ohne Textur.
+ */
 function baueBoden() {
-  const n = 50;
+  const n = 90;
   const g = (MAP * DM) / n;
-  const v = [];
   const hash = (i, j) => {
     let h = (i * 374761393 + j * 668265263) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
     return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
   };
+  // Wertrauschen: Gitterwerte alle 'schritt' Ecken, dazwischen weich
+  const rauschen = (i, j, schritt, salz) => {
+    const gi = Math.floor(i / schritt);
+    const gj = Math.floor(j / schritt);
+    const fi = i / schritt - gi;
+    const fj = j / schritt - gj;
+    const w = (t) => t * t * (3 - 2 * t);
+    const v = (a, b) => hash(a * 7 + salz, b * 13 + salz);
+    const o = v(gi, gj) + (v(gi + 1, gj) - v(gi, gj)) * w(fi);
+    const u = v(gi, gj + 1) + (v(gi + 1, gj + 1) - v(gi, gj + 1)) * w(fi);
+    return o + (u - o) * w(fj);
+  };
+  const farbe = [];
+  for (let i = 0; i <= n; i++) {
+    farbe.push([]);
+    for (let j = 0; j <= n; j++) {
+      const k = 0.65 * rauschen(i, j, 9, 1) + 0.35 * rauschen(i, j, 3, 2);
+      const trocken = rauschen(i, j, 14, 3);
+      farbe[i].push([0.2 + 0.07 * k + 0.06 * trocken, 0.3 + 0.1 * k, 0.15 + 0.04 * k]);
+    }
+  }
+  const v = [];
+  const ecke = (i, j) => v.push(i * g, 0, j * g, 0, 1, 0, ...farbe[i][j], 0);
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
-      const k = hash(i, j);
-      const r = 0.2 + 0.05 * k;
-      const gr = 0.27 + 0.07 * k;
-      const b = 0.15 + 0.03 * k;
-      const x0 = i * g;
-      const z0 = j * g;
-      const x1 = x0 + g;
-      const z1 = z0 + g;
-      for (const P of [[x0, z0], [x1, z1], [x1, z0], [x0, z0], [x0, z1], [x1, z1]]) v.push(P[0], 0, P[1], 0, 1, 0, r, gr, b, 0);
+      ecke(i, j);
+      ecke(i + 1, j + 1);
+      ecke(i + 1, j);
+      ecke(i, j);
+      ecke(i, j + 1);
+      ecke(i + 1, j + 1);
     }
   }
   return ladeModell(new Float32Array(v));
@@ -985,7 +1011,19 @@ function zeichne(now, dt) {
 
   // Gerodeter Boden
   gl.depthMask(false);
-  for (const c of world.cleared) instanz('scheibe', c.x * DM, 0.05, c.y * DM, 0, c.r * DM, [0.24, 0.19, 0.12], 1, 1, 0.75);
+  for (const c of world.cleared) instanz('scheibe', c.x * DM, 0.05, c.y * DM, 0, c.r * DM, [0.36, 0.3, 0.2], 1, 1, 0.32);
+  zeichneInstanzen(MODELLE.scheibe);
+  gl.depthMask(true);
+
+  // Schatten: dunkle Scheiben unter allem, was steht oder laeuft -- billig und
+  // macht Bodenkontakt und Tiefe lesbar.
+  gl.depthMask(false);
+  for (const e of world.entities) {
+    const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
+    const [x, y] = lage(e);
+    const r = def.radius * DM * (e.kind === 'unit' ? 1.05 * ZEIGE_EINHEIT : 1.25 * ZEIGE_GEBAEUDE);
+    instanz('scheibe', x * DM + r * 0.12, 0.06, y * DM + r * 0.08, 0, r, [0, 0, 0], 1, 1, e.kind === 'unit' ? 0.32 : 0.26);
+  }
   zeichneInstanzen(MODELLE.scheibe);
   gl.depthMask(true);
 
@@ -1006,7 +1044,7 @@ function zeichne(now, dt) {
     const team = teamFarbe(e.player);
     if (e.kind === 'building') {
       const def = BUILDINGS[e.type];
-      const r = def.radius * DM;
+      const r = def.radius * DM * ZEIGE_GEBAEUDE;
       if (e.done) instanz(e.type, e.x * DM, 0, e.y * DM, (e.id % 4) * (Math.PI / 2) + 0.4, r, team);
       else {
         const f = Math.min(1, e.progress / (def.buildTime * 1000));
@@ -1026,7 +1064,7 @@ function zeichne(now, dt) {
       while (d < -Math.PI) d += Math.PI * 2;
       blick.set(e.id, alt + d * Math.min(1, dt / 120));
     }
-    const s = def.radius * DM;
+    const s = def.radius * DM * ZEIGE_EINHEIT;
     const schwebt = e.type === 'waldgeist' ? 0.5 + Math.sin(t * 2 + e.id) * 0.25 : 0;
     const huepf = bewegt && e.type !== 'waldgeist' ? Math.abs(Math.sin(t * 9 + e.id)) * 0.12 * s : 0;
     instanz(e.type, x * DM, schwebt * s + huepf, y * DM, blick.get(e.id) || 0, s, team);
@@ -1047,7 +1085,7 @@ function zeichne(now, dt) {
     }
     if (def.needsGrowth && isCleared(world, gx, gy)) ok = false;
     const farbe = ok ? teamFarbe(ME) : [0.8, 0.3, 0.2];
-    instanz(placing, gx * DM, 0, gy * DM, 0.4, def.radius * DM, farbe, 1, ok ? 1.1 : 0.8, 0.55);
+    instanz(placing, gx * DM, 0, gy * DM, 0.4, def.radius * DM * ZEIGE_GEBAEUDE, farbe, 1, ok ? 1.1 : 0.8, 0.55);
   }
 
   for (const k of Object.keys(MODELLE)) if (k !== 'staubwolke') zeichneInstanzen(MODELLE[k]);
@@ -1088,7 +1126,7 @@ function zeichneDomaenen() {
     gl.colorMask(true, true, true, true);
     gl.stencilFunc(gl.EQUAL, 1, 0xff);
     gl.stencilOp(gl.KEEP, gl.KEEP, gl.INCR);
-    kreise(0, p === ME ? 0.13 : 0.09);
+    kreise(0, p === ME ? 0.08 : 0.06);
     gl.stencilFunc(gl.EQUAL, 0, 0xff);
     gl.stencilOp(gl.KEEP, gl.KEEP, gl.INCR);
     kreise(randBreite, p === ME ? 0.85 : 0.6);
@@ -1131,7 +1169,7 @@ function zeichneUeberlagerung(now) {
     const e = byId(world, id);
     if (!e) continue;
     const [x, y] = lage(e);
-    const r = (e.kind === 'unit' ? UNITS[e.type].radius : BUILDINGS[e.type].radius) * DM * 1.4;
+    const r = (e.kind === 'unit' ? UNITS[e.type].radius * ZEIGE_EINHEIT : BUILDINGS[e.type].radius * ZEIGE_GEBAEUDE) * DM * 1.4;
     const m = aufSchirm(x * DM, 0.2, y * DM);
     const rr = aufSchirm(x * DM + r, 0.2, y * DM);
     if (!m || !rr) continue;
@@ -1146,7 +1184,7 @@ function zeichneUeberlagerung(now) {
     const zeigen = e.hp < e.maxHp || sel.includes(e.id) || def.commander || (e.kind === 'building' && !e.done);
     if (!zeigen) continue;
     const [x, y] = lage(e);
-    const hoehe = e.kind === 'unit' ? def.radius * DM * (def.commander ? 3.6 : 2.6) : def.radius * DM * 3.2;
+    const hoehe = e.kind === 'unit' ? def.radius * DM * ZEIGE_EINHEIT * (def.commander ? 3.6 : 2.6) : def.radius * DM * ZEIGE_GEBAEUDE * 3.2;
     const s = aufSchirm(x * DM, hoehe, y * DM);
     if (!s) continue;
     const w = def.commander ? 44 : e.kind === 'building' ? 34 : 18;

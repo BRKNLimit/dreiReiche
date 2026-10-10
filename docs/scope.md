@@ -286,6 +286,7 @@ gleichen das die Schreine des Gottes aus.
 | Ausgang | 51 : 106 | 21,3 min |
 | ohne Kommandant | 160 : 0 | 8,9 min |
 | Schreine ohne Wirkung | 50 : 108 | 18,4 min |
+| Gott-Schreine so schwach wie die der Menschen | 61 : 96 | 20,9 min |
 
 - **Ohne Kommandanten überrennt die Masse den Gott** in jeder Partie, im
   Mittel nach 9 Minuten. Mit Kommandanten kippt es zum Gott: Der vitale

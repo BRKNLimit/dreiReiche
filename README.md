@@ -61,6 +61,7 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
   Rundung — per Spiegeltest geprüft
 - Gegner-KI mit Gegenwart-Bilanz, Vorstoß zu den Adern, Verteidigung und
   Angriffswellen
+- Domänengrenze als eine Außenkante der Kreisvereinigung, ohne innere Bögen
 - HUD mit Domänenfläche beider Seiten und Verlauf; Vorschauring zeigt, wie
   weit wachsende Anker in zwei Minuten reichen
 - Startbildschirm mit der einen Frage und den Regeln, Zahlen aus den Daten

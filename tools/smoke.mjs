@@ -84,6 +84,7 @@ const nodes = {
 
 globalThis.document = {
   getElementById: (id) => nodes[id] ?? makeEl(id),
+  createElement: () => makeCanvas(1, 1),
   querySelectorAll: () => [],
 };
 globalThis.window = globalThis;

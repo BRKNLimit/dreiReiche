@@ -288,10 +288,11 @@ function drawDomains() {
     ctx.fillStyle = col;
     ctx.globalAlpha = p === ME ? 0.1 : 0.07;
     ctx.fill();
-    ctx.globalAlpha = p === ME ? 0.65 : 0.4;
-    ctx.strokeStyle = col;
-    ctx.lineWidth = p === ME ? 1.5 : 1;
-    ctx.stroke();
+    ctx.restore();
+    // Nur die Aussenkante der Vereinigung, keine inneren Boegen: die Grenze
+    // ist die wichtigste Linie im Spiel (konzept.md, offene Frage).
+    grenzlinie(anker, col, p === ME ? 2 : 1.5, p === ME ? 0.8 : 0.5);
+    ctx.save();
 
     // Vorschau: so weit reicht jeder wachsende Anker in zwei Minuten.
     const g = FACTIONS[world.players[p].faction].growth;
@@ -315,6 +316,43 @@ function drawDomains() {
 }
 
 const VORSCHAU_TICKS = 1200; // zwei Minuten
+
+// Aussenkante einer Kreisvereinigung: auf einer eigenen Ebene alle Kreise
+// doppelt so breit umranden, dann alle Kreisflaechen wieder ausstanzen.
+// Uebrig bleibt die aeussere Haelfte der Linie -- nur dort, wo kein anderer
+// Kreis liegt.
+const randCv = document.createElement('canvas');
+const rctx = randCv.getContext('2d');
+function grenzlinie(anker, farbe, breite, alpha) {
+  if (randCv.width !== cv.width || randCv.height !== cv.height) {
+    randCv.width = cv.width;
+    randCv.height = cv.height;
+  }
+  rctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  rctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight);
+  const kreise = () => {
+    rctx.beginPath();
+    for (const e of anker) {
+      const r = anchorRadius(world, e) * cam.z;
+      rctx.moveTo(w2sx(e.x) + r, w2sy(e.y));
+      rctx.arc(w2sx(e.x), w2sy(e.y), r, 0, Math.PI * 2);
+    }
+  };
+  rctx.globalCompositeOperation = 'source-over';
+  rctx.strokeStyle = farbe;
+  rctx.lineWidth = breite * 2;
+  kreise();
+  rctx.stroke();
+  rctx.globalCompositeOperation = 'destination-out';
+  kreise();
+  rctx.fill();
+  rctx.globalCompositeOperation = 'source-over';
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(randCv, 0, 0);
+  ctx.restore();
+}
 
 function drawDeposits() {
   for (const d of world.deposits) {

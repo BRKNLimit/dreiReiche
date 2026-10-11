@@ -264,6 +264,28 @@ geprüft (Tests, Galerie, Spiel).
       - `staubwolke`, `schilf`, `wasser`, Adern und Felsen.
 - **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (Galerie-Smoke-Test und 3D-Smoke-Test fehlerfrei bestanden; Karten- und Effektansichten schalten nahtlos um).
 
+### Runde 19: Auftrag 3, Aufgabe 10 — Feinschliff im Spiel (dist/drei-reiche-3d.html, src/modelle3d.js)
+- **Was war schwach:** Der Rabe war im Vergleich zu Soldaten und Bäumen mit fast 7 m Spannweite überdimensioniert; Silhouetten mussten aus steiler Spielkameraperspektive geprüft werden; es galt sicherzustellen, dass keine Modelle oder Geländelayer flackern oder unnatürlich schwanken.
+- **Was wurde geändert:**
+  - **Größenverhältnisse angepasst (`src/modelle3d.js`):**
+    - `rabe`: Auf echte Späher-Vogelproportionen herunterskaliert (Faktor 0.42; Spannweite im Spiel nun ca. 2.8 m statt 7 m). Er wirkt am Himmel wendig, klein und schnell, während Ent (ca. 28 m Spielhöhe) und Waldgott (ca. 27 m Spielhöhe) wahrhaft kolossale Giganten bleiben.
+    - Soldaten, Jäger, Bauern und Wölfe besitzen exakt stimmige Proportionen zueinander.
+  - **Silhouetten-Prägnanz aus Spielhöhe:**
+    - Bauer: Breiter Strohhut und geschwungene Sense.
+    - Soldat: Markanter Dreiecksschild links, blankes Schwert rechts.
+    - Jäger: Hoher Bogen und Rückenköcher.
+    - Söldner: Lange, hoch aufragende Hellebarde mit Axtblatt.
+    - Held: Goldene Königskrone auf Großhelm, roter Umhang, breites Breitschwert.
+    - Katapult: Breite Ballisten-Bogenarme auf vierrädrigem Fahrgestell.
+    - Wolf: Flacher, dynamischer Vierbeiner mit Rute und spitzem Fang.
+    - Waldgeist: Schlanke Silhouette mit Jahreszeitenkrone und Rankenbogen.
+    - Ent & Waldgott: Gewaltige, furchterregende Titanen mit verzweigten Geweihen und leuchtenden Augen/Herzkernen.
+  - **Bewegungsruhe und Stabilität:**
+    - Gangart deformiert ausschließlich Gliedmaßen unterhalb der Hüfte; Oberkörper, Rumpf und Kopf bleiben stabil in der Vertikalen (kein betrunkenes Wanken, kein Schwanken).
+    - Alle Boden- und Geländelayer (Boden 0.0, Rodung 0.05, Schatten 0.06, Uferschlick 0.08, Furten 0.09, Tiefwasser 0.12, Wellenkamm 0.14) sind mit festem vertikalem Abstand gestaffelt, sodass Null Z-Fighting oder Flackern auftritt.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (1000 Frames 2D, 1000 Frames 3D im Spielmodus, Galerie-Smoke-Test fehlerfrei; 60 FPS stabil).
+
+
 
 
 

@@ -2463,7 +2463,7 @@ export const WALDGOTT_VARIANTEN = {
 // Das vom Nutzer gewaehlte finale Spiel-Asset: G.2 Glutherz (High-Res)
 MODELLE_DEF.waldgott = WALDGOTT_VARIANTEN['G.2 — Glutherz (High-Res)'];
 
-/** Rabe: Gott-Späher. Kleiner schwarzer Rabe mit weit gespreizten Schwingen und goldenen Augen. */
+/** Rabe: Gott-Späher. Eleganter schwarzer Rabe mit weit gespreizten Schwingen und goldenen Augen. */
 function rabeModell() {
   const SCHWARZ1 = '#131118';
   const SCHWARZ2 = '#1c1924';
@@ -2472,52 +2472,54 @@ function rabeModell() {
   const AUGE_G = '#ffa000';
   const t = [];
 
+  const F = 0.42; // Massstabsanpassung: echter Vogel (Spannweite ~2.8m im Spiel statt 7m)
+
   // Rumpf & Brust
   t.push(
-    ['z', [0.22, 0.36, 0.72, 8], [0, 0.44, -0.05], SCHWARZ1, 0.25, [-0.35, 0, 0]],
-    ['k', [0.32, 7], [0, 0.46, 0.12], SCHWARZ2, 0.25],
+    ['z', [0.22 * F, 0.36 * F, 0.72 * F, 8], [0, 0.44 * F, -0.05 * F], SCHWARZ1, 0.25, [-0.35, 0, 0]],
+    ['k', [0.32 * F, 7], [0, 0.46 * F, 0.12 * F], SCHWARZ2, 0.25],
     // Hals
-    ['z', [0.18, 0.24, 0.30, 6], [0, 0.60, 0.30], SCHWARZ1, 0.2, [0.45, 0, 0]],
+    ['z', [0.18 * F, 0.24 * F, 0.30 * F, 6], [0, 0.60 * F, 0.30 * F], SCHWARZ1, 0.2, [0.45, 0, 0]],
     // Kopf
-    ['k', [0.20, 7], [0, 0.70, 0.44], SCHWARZ2, 0.15],
+    ['k', [0.20 * F, 7], [0, 0.70 * F, 0.44 * F], SCHWARZ2, 0.15],
     // Kraeftiger Rabenschnabel (gebogen)
-    ['z', [0, 0.08, 0.36, 5], [0, 0.69, 0.70], SCHNABEL, 0, [Math.PI / 2 + 0.15, 0, 0]],
-    ['z', [0, 0.065, 0.28, 4], [0, 0.64, 0.66], SCHNABEL, 0, [Math.PI / 2, 0, 0]],
+    ['z', [0, 0.08 * F, 0.36 * F, 5], [0, 0.69 * F, 0.70 * F], SCHNABEL, 0, [Math.PI / 2 + 0.15, 0, 0]],
+    ['z', [0, 0.065 * F, 0.28 * F, 4], [0, 0.64 * F, 0.66 * F], SCHNABEL, 0, [Math.PI / 2, 0, 0]],
     // Federschopf am Hinterkopf
-    ['z', [0, 0.09, 0.22, 4], [0, 0.77, 0.32], SCHWARZ3, 0.2, [-0.8, 0, 0]]
+    ['z', [0, 0.09 * F, 0.22 * F, 4], [0, 0.77 * F, 0.32 * F], SCHWARZ3, 0.2, [-0.8, 0, 0]]
   );
 
   // Leuchtende Bernstein-Augen (wie beim Waldgott)
   for (const s of [1, -1]) {
     t.push(
-      ['k', [0.038, 5], [s * 0.12, 0.73, 0.50], AUGE_G, GLUEHT],
-      ['k', [0.018, 4], [s * 0.125, 0.73, 0.51], '#ffffff', GLUEHT]
+      ['k', [0.038 * F, 5], [s * 0.12 * F, 0.73 * F, 0.50 * F], AUGE_G, GLUEHT],
+      ['k', [0.018 * F, 4], [s * 0.125 * F, 0.73 * F, 0.51 * F], '#ffffff', GLUEHT]
     );
   }
 
   // Schwingen: 2-stufig geschwungen mit Handschwingen und Federfahnen
   for (const s of [1, -1]) {
-    t.push(stab([s * 0.18, 0.48, 0.15], [s * 0.75, 0.56, 0.12], [0.28, 0.08], SCHWARZ2, 0.25));
-    t.push(stab([s * 0.75, 0.56, 0.12], [s * 1.45, 0.52, -0.05], [0.24, 0.06], SCHWARZ1, 0.25));
-    t.push(stab([s * 1.45, 0.52, -0.05], [s * 2.15, 0.45, -0.25], [0.18, 0.04], SCHWARZ3, 0.25));
+    t.push(stab([s * 0.18 * F, 0.48 * F, 0.15 * F], [s * 0.75 * F, 0.56 * F, 0.12 * F], [0.28 * F, 0.08 * F], SCHWARZ2, 0.25));
+    t.push(stab([s * 0.75 * F, 0.56 * F, 0.12 * F], [s * 1.45 * F, 0.52 * F, -0.05 * F], [0.24 * F, 0.06 * F], SCHWARZ1, 0.25));
+    t.push(stab([s * 1.45 * F, 0.52 * F, -0.05 * F], [s * 2.15 * F, 0.45 * F, -0.25 * F], [0.18 * F, 0.04 * F], SCHWARZ3, 0.25));
 
     t.push(
-      ['q', [0.55, 0.03, 0.35], [s * 0.65, 0.52, -0.08], SCHWARZ1, 0.2, [0.15, 0, s * -0.1]],
-      ['q', [0.65, 0.03, 0.40], [s * 1.25, 0.48, -0.22], SCHWARZ2, 0.2, [0.15, 0, s * -0.15]],
-      ['q', [0.55, 0.03, 0.45], [s * 1.75, 0.44, -0.38], SCHWARZ3, 0.2, [0.15, 0, s * -0.2]]
+      ['q', [0.55 * F, 0.03 * F, 0.35 * F], [s * 0.65 * F, 0.52 * F, -0.08 * F], SCHWARZ1, 0.2, [0.15, 0, s * -0.1]],
+      ['q', [0.65 * F, 0.03 * F, 0.40 * F], [s * 1.25 * F, 0.48 * F, -0.22 * F], SCHWARZ2, 0.2, [0.15, 0, s * -0.15]],
+      ['q', [0.55 * F, 0.03 * F, 0.45 * F], [s * 1.75 * F, 0.44 * F, -0.38 * F], SCHWARZ3, 0.2, [0.15, 0, s * -0.2]]
     );
   }
 
   // Stossgefieder (Faecher-Schwanz)
   t.push(
-    ['q', [0.22, 0.03, 0.65], [0, 0.38, -0.62], SCHWARZ1, 0.2, [-0.22, 0, 0]],
-    ['q', [0.18, 0.03, 0.58], [0.14, 0.38, -0.58], SCHWARZ2, 0.2, [-0.22, 0, -0.2]],
-    ['q', [0.18, 0.03, 0.58], [-0.14, 0.38, -0.58], SCHWARZ2, 0.2, [-0.22, 0, 0.2]]
+    ['q', [0.22 * F, 0.03 * F, 0.65 * F], [0, 0.38 * F, -0.62 * F], SCHWARZ1, 0.2, [-0.22, 0, 0]],
+    ['q', [0.18 * F, 0.03 * F, 0.58 * F], [0.14 * F, 0.38 * F, -0.58 * F], SCHWARZ2, 0.2, [-0.22, 0, -0.2]],
+    ['q', [0.18 * F, 0.03 * F, 0.58 * F], [-0.14 * F, 0.38 * F, -0.58 * F], SCHWARZ2, 0.2, [-0.22, 0, 0.2]]
   );
 
   // Eingeholte Klauen am Bauch
   for (const s of [1, -1]) {
-    t.push(['z', [0.03, 0.05, 0.22, 4], [s * 0.12, 0.25, -0.05], '#2a2218', 0, [0.8, 0, 0]]);
+    t.push(['z', [0.03 * F, 0.05 * F, 0.22 * F, 4], [s * 0.12 * F, 0.25 * F, -0.05 * F], '#2a2218', 0, [0.8, 0, 0]]);
   }
 
   return t;

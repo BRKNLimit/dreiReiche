@@ -659,6 +659,25 @@ Menschen-KI Erbauer, die in der Mitte fielen, und brachten ihr wenig.
 Stellschrauben, falls die Menschen aufholen sollen: Sicht oder Preis des
 Raben, Sicht des Postens.
 
+### 21. Zweite Karte: Flusstal (Stand 0.30)
+
+> **Vorgabe des Nutzers:** Skizze `docs/bilder/Maps/Map1.png` als zweite
+> Karte; Fluss nur an der Furt passierbar; Wald nur Optik.
+
+`node tools/sweep.mjs 36 45 Ausgang stile karte=flusstal`:
+
+| Karte | Menschen : Gott | offen | Ø Dauer |
+| --- | --- | --- | --- |
+| Klassisch (0.29) | 22 : 38 | 12 | — |
+| Flusstal | 18 : 36 | 18 | 26,0 min |
+
+Mehr offene Partien: Der Fluss trennt die Basen, jeder Angriff geht über
+eine Furt an der Flanke. Der Gott im Sturm-Stil holt sich das Götterblut
+in der Wiese auf seiner Flussseite schon nach rund 3 Minuten — der Waldgott
+baut den Außenposten selbst, und die Ader liegt ohne Flussquerung etwa so
+weit wie die seitliche Ader der klassischen Karte. Die Menschen kommen im
+Schnitt erst nach 8,5 Minuten an Götterblut.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.29
+# Die drei Reiche — Prototyp 0.30
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -41,6 +41,9 @@ Gegenwart-Überschuss, Götterblut, Fron.
 | --- | --- |
 | `H` oder `?` unten rechts | Steuerung einblenden |
 | Linksklick / Ziehen | Einheiten wählen (Auswahl zeigt Werte, Fabriken ihre Ausbildungsliste) |
+| `Strg`+`1`–`0`, `1`–`0` | Steuergruppe speichern, abrufen (zweimal: Kamera hin). Eine belegte Gruppe geht vor der Bautaste |
+| Fabrik gewählt + Rechtsklick | Sammelpunkt für neue Einheiten |
+| `M` | Ton an/aus |
 | Icon in der Leiste unten | Je Einheitentyp der Auswahl ein Icon mit Anzahl; ein Klick behält nur diesen Typ |
 | Bauleiste überfahren | Info-Karte: Kosten, Bauzeit, Gegenwart, Wirkung, Sperre. Die Bauleiste erscheint nur, wenn ein Erbauer gewählt ist |
 | Rechtsklick | Bewegen (Einheiten stellen Feinde erst am Ziel) |

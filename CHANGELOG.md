@@ -3,6 +3,37 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.30 — Steuergruppen, Effekte, zweite Karte, Wiederholungen
+
+- **Steuergruppen:** Strg+Ziffer speichert die Auswahl, Ziffer ruft sie ab,
+  zweimal schnell springt die Kamera hin. Eine belegte Gruppe geht vor; ist
+  sie leer, bleibt die Ziffer eine Bautaste.
+- **Sammelpunkte:** Fabrik wählen, Rechtsklick — neue Einheiten laufen
+  dorthin (Fahne und Linie zeigen ihn).
+- **Projektile und Treffer** (`src/effekte.js`): je Schütze ein eigenes
+  Geschoss — Pfeil, Ballistenbolzen, Dorn, Lichtpfeil, Glutball —,
+  Nahkämpfer hauen am Ziel (Klinge, Biss, Wucht). Funken, Splitter, Glut,
+  Staub, Druckringe; Getroffene blitzen auf; schwere Einschläge und
+  einstürzende Gebäude lassen das Bild beben.
+- **Klänge**, synthetisch erzeugt (WebAudio, keine Dateien): Sehnen, Klingen,
+  Einschläge, Einsturz, „fertig“, neue Einheit; leiser mit Abstand, links
+  und rechts nach Lage. Horn und Ping auf der Minikarte, wenn Eigenes
+  außerhalb des Bildes angegriffen wird. `M` schaltet den Ton.
+- **Zweite Karte „Flusstal“** nach der Skizze des Nutzers: ein Fluss vom
+  linken Rand durch die Mitte zum rechten Rand, nur an zwei Furten
+  passierbar; Grat am Ufer, Felsmassiv im Wald, Götterblut in den Wiesen
+  jenseits des Flusses. Wald und Wiesen nur Optik. Wahl im Startbildschirm;
+  `tools/sweep.mjs … karte=flusstal`.
+- **Wiederholungen:** Jede Partie wird mitgeschrieben (Startwerte und die
+  Befehle des Spielers — Simulation und KI sind deterministisch). Am Ende
+  als Datei speichern, im Startbildschirm laden und ansehen.
+- **Siegbildschirm** mit Zahlen beider Seiten und dem Verlauf von Heer,
+  Förderung und Gebäuden.
+- Katapult heißt jetzt **Balliste**; Waldgeister wählen je Einheit eine
+  Jahreszeit, sobald Gemini die Modelle liefert.
+- Auftrag 2 an Gemini (`docs/grafik/auftrag-2.md`): alle Modelle auf das
+  Niveau von Waldgott G.2, ohne Rückfragen.
+
 ## 0.29 — Rabe sieht weniger, Waldgott G.2
 
 - Rabe sieht 100 statt 150 m (Vorgabe des Nutzers). Messung: Menschen 22 :

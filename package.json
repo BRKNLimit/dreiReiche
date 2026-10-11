@@ -1,6 +1,6 @@
 {
   "name": "drei-reiche-proto",
-  "version": "0.29.0",
+  "version": "0.30.0",
   "private": true,
   "type": "module",
   "description": "RTS-Prototyp: fester gegen wachsenden Domänenradius",

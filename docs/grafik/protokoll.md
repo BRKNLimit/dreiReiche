@@ -285,6 +285,42 @@ geprüft (Tests, Galerie, Spiel).
     - Alle Boden- und Geländelayer (Boden 0.0, Rodung 0.05, Schatten 0.06, Uferschlick 0.08, Furten 0.09, Tiefwasser 0.12, Wellenkamm 0.14) sind mit festem vertikalem Abstand gestaffelt, sodass Null Z-Fighting oder Flackern auftritt.
 - **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (1000 Frames 2D, 1000 Frames 3D im Spielmodus, Galerie-Smoke-Test fehlerfrei; 60 FPS stabil).
 
+### Runde 20: High-Res Modell- und Shader-Upgrade (src/modelle3d.js, src/render3d.js)
+- **Was war schwach:** Frühere Modelle waren funktionale Prototypen, nutzten ihr Eckenbudget (bis 6.000 je Einheit, bis 9.000 je Gebäude) kaum aus und wirkten teilweise blockartig. Zudem fehlte auf blanken Metallen und Goldornamenten das dynamische Lichtfunkeln im Sonnenlicht.
+- **Was wurde geändert:**
+  - **Menschliche Einheiten (`src/modelle3d.js`):**
+    - `held` (4.104 Ecken): Prunkvoller gotischer Ritterschmuck, Wappenschild mit goldenem Randbeschlag und Kreuzrelief, artikulierte Plattenpanzer-Gelenke, runengravierte Klinge, Goldkrone mit Rubinen und dreifach gestaffelter Helmfederbusch.
+    - `soldat` (2.478 Ecken): Genieteter Eisenhut mit Helmkamm, Kettenhaube mit Halsberg, Normannenschild mit Nietenband, gegurtetes Seitschwert mit Parierstange, Eschenspeer mit Schaftringen und rot-goldener Wimpelfahne.
+    - `bauer` (2.628 Ecken): Breitkrempiger geflochtener Strohhut mit Band, Leder-Arbeitsschürze, Werkzeuggürtel mit Rinderhorn-Wetzsteinhalter, Feldflasche und Saattasche, geschwungene Erntesense mit gedrehten Holzgriffen.
+    - `jaeger` (2.448 Ecken): Jägerkappe mit Fasanenfeder, geschlitzter Wams, lederne Armschutzmanschette, geschnitztes Jagdsignalhorn, Eiben-Reflexlangbogen mit Hornnocken und Sehnenwicklung, Pfeilköcher mit Befiederung.
+    - `soeldner` (2.436 Ecken): Geriefter Schallerhelm mit Klappvisier und beweglichem Kinnbart, geplättete Panzerhandschuhe und Eisenschuhe, massive Hellebarde mit Mond-Axtblatt, rückseitigem Reißdorn und Tüllen-Stoßklinge.
+    - `katapult` / Balliste (4.056 Ecken): Schwere vierrädrige Lafette mit Eichenradspeichen und eisernen Radkränzen, doppelte Torsions-Seilbündel in Bronzebeschlägen, Windenwelle mit Ratsche und Kurbel, Richtkeil.
+  - **Gott-Einheiten (`src/modelle3d.js`):**
+    - `dryade` (3.336 Ecken): Blütenkrone mit leuchtenden Pollenkelchen, laubbesetzte Rankenstola, zierliche Rindencorsage, geschnitzter Lebensholzstab mit schwebendem bernsteinglühendem Samenkern.
+    - `wolf` (1.884 Ecken): Geöffneter Kiefer mit elfenbeinfarbenen Fangzähnen, schattierte Pfotenballen und Krallen, buschiger Mähnenkragen in Farbschattierungen, dynamische Schweifkrümmung.
+    - `wurzelbrecher` (2.466 Ecken): Versteinerter Granit-Rammsporn mit Moospatina, krallenförmige Wurzelfüße, massiver Holzrippenkäfig um ein pulsierendes Magma-Glutherz, Dornenauswüchse.
+  - **Gebäude beider Reiche (`src/modelle3d.js`):**
+    - `halle` (1.632 Ecken): Gehölzte Steintreppe, Kreuzfachwerk, Giebelwappen, bernsteinfarben leuchtende Buntglasfenster, Kamin mit Schornstein und Glutpartikeln.
+    - `wachturm` (1.704 Ecken): Schießscharten mit Sturzbogen, auskragender Holzwehrgang mit Zinnen, vierseitiges Schindeldach, Signal-Feuerkorb mit Rauch/Glut.
+    - `schmiede` (924 Ecken): Gemauerte Esse mit glühendem Kohlenbett und Funken, Doppelhorn-Amboss auf Eichenklotz, Zange, Vorschlaghammer und zischender Wassereimer.
+    - `saege` (1.092 Ecken): 8-Schaufel-Wasserrad mit Kropfgerinne, Blockbandsägen-Rahmen über Holzrollengang, Schnittholzstapel und Kiefernstamm.
+    - `kaserne` (936 Ecken): Strohfechtpuppe auf Dreibeingestell, Waffenrack mit Spießen, Wachbalkon im Obergeschoss und Dachwimpel.
+    - `schacht` (1.230 Ecken): Bergwerks-Fördergerüst aus Rüstbalken mit Speichenrad, Schachtkabel, Erzkübel mit leuchtenden Götterblutkristallen und Lorenspurgleise.
+    - `herzbaum` (3.900 Ecken): 8 mächtige Stützwurzeln auf Moosfindlingen, goldene Lebenssaftadern, pulsierende Herzkammer, vielschichtiges Blätterdach mit Blütenlaternen.
+    - `waechterbaum` (1.500 Ecken): Knorriges Baumgesicht mit glimmenden Bernsteinaugen, dornenbesetzte Katapultkrone, ausladender Wurzelwall.
+    - `quelle` (1.764 Ecken): Steingefasstes Stufenbecken, schimmerndes Quellwasser mit Seerosen, 6 uralte Runenmenhire.
+    - `moos` (1.296 Ecken): Schattierte Torfterrassen, samtige Moosdecken, biolumineszente Pilzkolonien mit schwebenden Sporen.
+    - `dickicht` (1.404 Ecken): Dornenverhau mit Astbögen, gehörnter Schädel-Totem mit glühenden Seelenaugen.
+    - `blutwurz` (1.014 Ecken): Raubwurzeln, die gigantische facettierte Götterblutkristalle umschlingen.
+    - `dornenschrein` (1.452 Ecken): Spitz zulaufende Dornenbögen, Altarbecken mit schwebenden Flammenzungen.
+    - `steinkreis` (1.356 Ecken): 8 Megalithen mit leuchtenden Ritzungen, Dolmen-Opferaltar mit schwebender azurblauer Magiesphäre.
+    - `eiche` (2.154 Ecken): Ältestengesicht im Eichenstamm, vielteilige Laubkrone mit goldenen Weisheitslaternen.
+  - **Shader-Upgrade (`src/render3d.js`):**
+    - **Blinn-Phong Glanzlicht:** Spekularer Schimmer auf Waffen (Klingen, Tüllen, Spitzen), Rüstungseisen (Helme, Kürasse, Schilde) und Edelmetall (Krone, Wappenornamente, göttliche Relikte).
+    - Berücksichtigt Ambient Occlusion, sodass Scharten und Vertiefungen matt bleiben, während exponierte Rundungen im Sonnenlicht aufblitzen.
+- **Wie geprüft:** `npm test` (137/137 Tests grün, Eckenbudgets strikt eingehalten), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
+
+
 
 
 

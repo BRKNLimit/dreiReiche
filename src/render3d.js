@@ -441,6 +441,20 @@ void main() {
       }
 
       farbe = clamp(farbe * (1.0 + rausch) * ao, 0.0, 1.0);
+
+      // 4. Metall- und Goldschimmer: Blinn-Phong Glanzlicht fuer Waffen, Ruestungen und Ornamente
+      vec3 blick = normalize(vec3(0.0, 1.25, 0.95));
+      vec3 halb = normalize(uLicht + blick);
+      vec3 n = normalize(vNor);
+      float nDotH = max(dot(n, halb), 0.0);
+
+      if (abs(farbe.r - farbe.g) < 0.08 && abs(farbe.g - farbe.b) < 0.08 && farbe.r > 0.28) {
+        float metallGlanz = pow(nDotH, 22.0) * (0.38 * smoothstep(0.28, 0.70, farbe.r));
+        farbe += vec3(0.85, 0.92, 1.0) * metallGlanz * ao;
+      } else if (farbe.r > 0.60 && farbe.g > 0.42 && farbe.b < 0.32) {
+        float goldGlanz = pow(nDotH, 18.0) * 0.45;
+        farbe += vec3(1.0, 0.85, 0.35) * goldGlanz * ao;
+      }
     }
   }
 

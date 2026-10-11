@@ -130,7 +130,10 @@ cv.addEventListener('mousedown', (e) => {
     placing = null;
     angriff = false;
     zielen = null;
-    if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0, e.shiftKey);
+    // Rechtsklick auf einen sichtbaren Feind: gezielter Angriff
+    const feind = sel.length ? feindBei(world, s2wx(mx), s2wy(my), 8 / cam.z, ME, (o) => !verborgen(o)) : null;
+    if (feind) issue(world, { type: 'angreifen', player: ME, ids: sel.slice(), id: feind.id });
+    else if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0, e.shiftKey);
     return;
   }
   if (e.button === 1) {
@@ -272,6 +275,7 @@ addEventListener('keydown', (e) => {
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
   if (e.key === 'm') stummSchalten(fx);
   if (e.key === '.') naechsterUntaetiger();
+  if (e.key === 's' && sel.length) issue(world, { type: 'stopp', player: ME, ids: sel.slice() });
   if (e.key === 'F2') {
     e.preventDefault();
     sel = heerAuswahl(world, ME);

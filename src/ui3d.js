@@ -331,7 +331,10 @@ cv3.addEventListener('mousedown', (e) => {
     placing = null;
     zielen = null;
     if (sel.length) {
+      // Rechtsklick auf einen sichtbaren Feind: gezielter Angriff
+      const feind = angriff ? null : feindBei(world, p.x, p.y, 40, ME, (o) => !verborgen(o));
       if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y, anhaengen: e.shiftKey });
+      else if (feind) issue(world, { type: 'angreifen', player: ME, ids: sel.slice(), id: feind.id });
       else befehl3(p.x, p.y, e.shiftKey);
     }
     angriff = false;
@@ -464,6 +467,7 @@ addEventListener('keydown', (e) => {
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
   if (e.key === 'm') stummSchalten(fx);
   if (e.key === '.') naechsterUntaetiger();
+  if (e.key === 's' && sel.length) issue(world, { type: 'stopp', player: ME, ids: sel.slice() });
   if (e.key === 'F2') {
     e.preventDefault();
     sel = heerAuswahl(world, ME);

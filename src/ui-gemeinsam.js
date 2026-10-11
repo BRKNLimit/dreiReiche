@@ -224,6 +224,27 @@ export function heerAuswahl(world, ich) {
     .map((e) => e.id);
 }
 
+/**
+ * Feind unter dem Mauszeiger (Weltkoordinaten, Toleranz in dm), den man sehen
+ * darf -- Ziel fuer einen gezielten Angriff. Einheiten vor Gebaeuden.
+ */
+export function feindBei(world, x, y, toleranz, ich, sichtbar) {
+  let best = null;
+  let bestD = Infinity;
+  for (const e of world.entities) {
+    if (e.dead || e.player === ich || !sichtbar(e)) continue;
+    const r = (e.kind === 'unit' ? UNITS[e.type].radius : BUILDINGS[e.type].radius) + toleranz;
+    const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+    if (d > r * r) continue;
+    const rang = e.kind === 'unit' ? 0 : 1;
+    if (!best || rang < best.rang || (rang === best.rang && d < bestD)) {
+      best = { e, rang };
+      bestD = d;
+    }
+  }
+  return best ? best.e : null;
+}
+
 /** Eigene Arbeiter, die nichts tun: kein Auftrag, keine Reihe, angekommen. */
 export function untaetigeArbeiter(world, ich) {
   return world.entities.filter(

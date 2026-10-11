@@ -157,6 +157,7 @@ export function spawnUnit(world, player, type, x, y) {
     reihe: [], // weitere Auftraege, der Reihe nach (Shift beim Setzen)
     wege: [], // weitere Wegpunkte [x, y, angriff], der Reihe nach (Shift beim Bewegen)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
+    ziel: 0, // gezielter Angriff: Id des Ziels, bis es faellt
     befX: x | 0, // Ziel des letzten Bewegungsbefehls -- wer dasselbe hat, gehoert zur Gruppe
     befY: y | 0,
     seit: world.tick, // fuer die Erfahrung
@@ -215,6 +216,7 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
     e.auftrag = site.id;
     e.reihe = [];
     e.wege = [];
+    e.ziel = 0;
     e.tx = site.x;
     e.ty = site.y;
     e.arrived = false;
@@ -382,6 +384,7 @@ function applyCommand(world, c) {
             continue;
           }
           e.wege = [];
+          e.ziel = 0;
           e.tx = c.x | 0;
           e.ty = c.y | 0;
           e.befX = e.tx;
@@ -391,6 +394,37 @@ function applyCommand(world, c) {
           e.auftrag = 0; // ein neuer Befehl ersetzt den Bauauftrag
           e.reihe = [];
         }
+      }
+    } else if (c.type === 'angreifen') {
+      // Gezielter Angriff auf eine feindliche Entity -- verfolgen, bis sie faellt.
+      const t = byId(world, c.id);
+      if (t && !t.dead && t.player !== c.player) {
+        for (let k = 0; k < c.ids.length; k++) {
+          const e = byId(world, c.ids[k]);
+          if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || !UNITS[e.type].weapon || !erreicht(e, t)) continue;
+          e.ziel = t.id;
+          e.tx = e.befX = t.x;
+          e.ty = e.befY = t.y;
+          e.arrived = false;
+          e.aggro = false;
+          e.auftrag = 0;
+          e.reihe = [];
+          e.wege = [];
+        }
+      }
+    } else if (c.type === 'stopp') {
+      // Stehen bleiben: kein Ziel, kein Auftrag, keine Wege.
+      for (let k = 0; k < c.ids.length; k++) {
+        const e = byId(world, c.ids[k]);
+        if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player) continue;
+        e.tx = e.befX = e.x;
+        e.ty = e.befY = e.y;
+        e.arrived = true;
+        e.aggro = false;
+        e.ziel = 0;
+        e.auftrag = 0;
+        e.reihe = [];
+        e.wege = [];
       }
     } else if (c.type === 'build') {
       // Ein Bauplan; mit ids bekommen die genannten Erbauer den Auftrag dafuer
@@ -1179,6 +1213,25 @@ function moveUnits(world) {
     gx[i] = e.tx;
     gy[i] = e.ty;
     const w = UNITS[e.type].weapon;
+    if (e.ziel) {
+      // Gezielter Angriff: dem Ziel nach, in Reichweite stehen bleiben
+      const t = byId(world, e.ziel);
+      if (!t || t.dead) {
+        e.ziel = 0;
+        e.tx = e.befX = gx[i] = e.x;
+        e.ty = e.befY = gy[i] = e.y;
+        e.arrived = true;
+        continue;
+      }
+      e.tx = gx[i] = t.x;
+      e.ty = gy[i] = t.y;
+      const nah = reichweite(e, t) - 10;
+      if (dist2(e.x, e.y, t.x, t.y) <= nah * nah) {
+        gx[i] = e.x;
+        gy[i] = e.y;
+      }
+      continue;
+    }
     if (!w || !(e.arrived || e.aggro) || e.auftrag) continue; // wer baut, jagt nicht
     const leine = e.arrived ? LEASH + w.range : MAP * 2;
     const o = chaseTarget(alle, alleRaster, e, w.range + CHASE, leine);
@@ -1419,7 +1472,16 @@ function combat(world) {
     }
     // Schiessende Gebaeude brauchen Gegenwart -- gedrosselt schwaecher, ohne gar nicht.
     if (e.kind === 'building' && !e.powered) continue;
-    const target = nearestEnemy(alle, alleRaster, e);
+    // Gezielter Angriff geht vor, sobald das Ziel in Reichweite ist
+    let target = null;
+    if (e.kind === 'unit' && e.ziel) {
+      const t = byId(world, e.ziel);
+      if (t && !t.dead) {
+        const r = reichweite(e, t);
+        if (dist2(e.x, e.y, t.x, t.y) <= r * r) target = t;
+      }
+    }
+    if (!target) target = nearestEnemy(alle, alleRaster, e);
     if (!target) continue;
 
     let dmg = target.kind === 'building' && def.weapon.gebaeude ? def.weapon.gebaeude : def.weapon.damage;
@@ -1630,6 +1692,7 @@ export function hash(world) {
       for (const id of e.reihe) mix(id);
       mix(e.seit);
       mix(e.befX);
+      mix(e.ziel);
       mix(e.wege.length);
       for (let k = 0; k < e.wege.length; k++) mix(e.wege[k][0] * 3 + e.wege[k][1] * 7 + e.wege[k][2]);
       mix(e.befY);

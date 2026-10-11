@@ -1924,3 +1924,37 @@ test('Wegpunkte: mit Shift angehaengte Ziele laeuft die Einheit der Reihe nach a
   step(w);
   assert.equal(s.wege.length, 0, 'ohne Shift: neue Wege ersetzen die alten');
 });
+
+// ---------------------------------------------------- Gezielter Angriff, Stopp
+
+test('Gezielter Angriff: verfolgt das gewaehlte Ziel und schiesst zuerst darauf', () => {
+  const w = bare();
+  const j = spawnUnit(w, 0, 'jaeger', 5000, 5000);
+  const nah = spawnUnit(w, 1, 'rabe', 5000 + 600, 5000); // naeher, kaempft nicht, aber nicht gewaehlt
+  const fern = spawnUnit(w, 1, 'waldgeist', 7000, 5000);
+  nah.hp = 100000;
+  j.hp = j.maxHp = 100000; // das Duell selbst ist hier nicht die Frage
+  issue(w, { type: 'angreifen', player: 0, ids: [j.id], id: fern.id });
+  for (let i = 0; i < 800 && !fern.dead; i++) {
+    step(w);
+    nah.tx = nah.x; // der Wolf bleibt stehen
+    nah.ty = nah.y;
+  }
+  assert.ok(fern.dead, 'das gewaehlte Ziel faellt');
+  assert.equal(j.ziel, 0, 'Ziel weg: Auftrag erledigt');
+});
+
+test('Stopp: die Einheit bleibt stehen und vergisst Wege und Ziel', () => {
+  const w = bare();
+  const s = spawnUnit(w, 0, 'soldat', 5000, 5000);
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: 9000, y: 5000 });
+  for (let i = 0; i < 5; i++) step(w);
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: 9000, y: 9000, anhaengen: true });
+  step(w);
+  issue(w, { type: 'stopp', player: 0, ids: [s.id] });
+  step(w);
+  const x = s.x;
+  for (let i = 0; i < 20; i++) step(w);
+  assert.equal(s.x, x, 'steht');
+  assert.equal(s.wege.length, 0);
+});

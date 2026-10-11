@@ -4,6 +4,7 @@
 //
 //   node tools/sweep.mjs                    alle Einstellungen, 12 Seeds
 //   node tools/sweep.mjs 6 45 malus         nur Einstellungen mit "malus" im Namen
+//   node tools/sweep.mjs 32 45 Ausgang stile karte=flusstal   auf einer anderen Karte
 //   node tools/sweep.mjs 40 45 "" stile     jede Partie mit einer der neun
 //                                           Stil-Paarungen (sturm/standard/burg)
 //
@@ -111,6 +112,7 @@ if (isMainThread) {
   const filter = process.argv[4] ?? '';
   const stile = process.argv[5] === 'stile';
   const stufen = process.argv[5] === 'stufen';
+  const karte = (process.argv.find((a) => a.startsWith('karte=')) || 'karte=klassisch').slice(6);
   const names = Object.keys(CONFIGS).filter((n) => n.includes(filter));
   const seeds = SEEDS.slice(0, nSeeds);
   const limit = Math.max(1, availableParallelism() - 1);
@@ -131,7 +133,7 @@ if (isMainThread) {
       const step = () => {
         if (next >= jobs.length) return resolve();
         const job = jobs[next++];
-        const w = new Worker(new URL(import.meta.url), { workerData: { ...job, maxMin, stile, stufen } });
+        const w = new Worker(new URL(import.meta.url), { workerData: { ...job, maxMin, stile, stufen, karte } });
         (teile[job.name] = teile[job.name] || []).push({ ab: job.ab, r: null });
         const platz = teile[job.name][teile[job.name].length - 1];
         w.on('message', (r) => (platz.r = r));
@@ -173,7 +175,7 @@ if (isMainThread) {
     results[name] = r;
   }
 
-  console.log(`${seeds.length} Seeds × 2 Sitzplätze, Abbruch nach ${maxMin} min${stile ? ', Stil-Paarungen reihum' : ''}\n`);
+  console.log(`${seeds.length} Seeds × 2 Sitzplätze, Abbruch nach ${maxMin} min${stile ? ', Stil-Paarungen reihum' : ''}, Karte ${karte}\n`);
   for (const name of names) {
     const r = results[name];
     if (r.error) {
@@ -208,7 +210,7 @@ if (isMainThread) {
     }
   }
 } else {
-  const { name, seeds, ab, maxMin, stile, stufen } = workerData;
+  const { name, seeds, ab, maxMin, stile, stufen, karte } = workerData;
   const { createWorld, step } = await import('../src/sim/sim.js');
   const { createAI, stepAI, STILE } = await import('../src/sim/ai.js');
   const stilNamen = Object.keys(STILE);
@@ -258,7 +260,7 @@ if (isMainThread) {
       ['mensch', 'gott'],
       ['gott', 'mensch'],
     ]) {
-      const w = createWorld({ factions: f, seed });
+      const w = createWorld({ factions: f, seed, karte });
       // Mit "stufen": je Seed eine Paarung -- schwer gegen mittel, mittel gegen leicht --,
       // die staerkere Stufe wechselt die Fraktion mit dem Sitzplatz.
       const paarung = [['schwer', 'mittel'], ['mittel', 'leicht']][(ab + k) % 2];

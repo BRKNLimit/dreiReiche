@@ -119,7 +119,8 @@ export function stepAI(ai, world) {
       id: q.id, kind: 'building', type: q.type, player: q.player, x: q.x, y: q.y,
       done: false, plan: true, powered: 1000, hp: 1, maxHp: 1, queue: [], progress: 0, region: -1,
     }));
-  const bauten = mine.filter((e) => e.kind === 'building').concat(plaene);
+  const gebaeude = mine.filter((e) => e.kind === 'building');
+  const bauten = gebaeude.concat(plaene);
   const einheiten = mine.filter((e) => e.kind === 'unit');
   // Der Kommandant kaempft mit, baut aber vor allem: er geht nicht mit Wellen.
   const kdt = einheiten.find((u) => UNITS[u.type].commander) || null;
@@ -137,6 +138,13 @@ export function stepAI(ai, world) {
   const helfer = {};
   for (const u of einheiten) if (u.auftrag) helfer[u.auftrag] = (helfer[u.auftrag] || 0) + 1;
   const offen = bauten.filter((b) => !b.done);
+
+  // Ein Plan, zu dem niemand unterwegs ist und bei dem Feinde stehen, bindet
+  // nur Fron und Bauplaetze -- anders als eine Baustelle zerstoert ihn auch
+  // niemand. Verwerfen; gebaut wird spaeter, wo es sicher ist.
+  for (const q of plaene) {
+    if (!helfer[q.id] && !sicher(q, 1200)) issue(world, { type: 'planWeg', player: ai.player, id: q.id });
+  }
 
   // 0a. Arbeiter: Wer einen Auftrag hat, bleibt dabei. Freie gehen zur
   //     sicheren Baustelle mit den wenigsten Erbauern, bei Gleichstand zur
@@ -208,14 +216,14 @@ export function stepAI(ai, world) {
   const [aus4, aus5] = ai.stufe.ausbau;
   const fabrikZiel = 1 + (minute >= fab2 ? 1 : 0) + (minute >= fab3 ? 1 : 0);
   const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= aus4 ? 1 : 0) + (minute >= aus5 ? 1 : 0);
-  const ader = freieAder(world, haupt, 'fron');
+  const ader = freieAder(world, haupt, 'fron', plaene);
 
   // Goetterblut liegt in der Mitte. Ein Schacht braucht Gegenwart, also muss
   // die Ader in einer versorgten eigenen Domaene liegen -- hier zaehlt Reichweite.
   // Erst wenn Fron-Foerderung und Fabrik stehen -- sonst frisst der Vorstoss die Wirtschaft.
   const wirtschaftSteht = zahl(plan.fabrik) > 0 && (zahl(plan.fron) >= 3 || !ader);
   const blutZiel = !wirtschaftSteht ? 0 : minute >= 12 ? 2 : 1;
-  const vene = zahl(plan.blut) < blutZiel ? freieAder(world, haupt, 'goetterblut') : null;
+  const vene = zahl(plan.blut) < blutZiel ? freieAder(world, haupt, 'goetterblut', plaene) : null;
   const veneBereit = vene && versorgt(world, ai.player, vene);
 
   // 1. Foerderung, aber nur mit Deckung.
@@ -451,7 +459,8 @@ export function stepAI(ai, world) {
   // 7. Verteidigung: Feinde nahe eigener Gebaeude ziehen alle Truppen an,
   //    die nicht gerade mit einer Welle unterwegs sind. Der Kommandant
   //    kaempft nur auf eigenem Boden mit.
-  const bedrohung = naechsterEindringling(world, ai.player, bauten);
+  // Verteidigt wird, was steht -- ein Plan ist noch nichts.
+  const bedrohung = naechsterEindringling(world, ai.player, gebaeude);
   if (bedrohung) {
     const imHinterland = (pt) => dist2(pt.x, pt.y, haupt.x, haupt.y) <= HINTEN * HINTEN;
     const kdtHilft =
@@ -814,7 +823,7 @@ function naechsteVersorgte(world, bauten, zu) {
  * Richtung zur Kartenmitte -- punktsymmetrisch, nicht die Listenreihenfolge,
  * die beide Sitzplaetze verschieden behandeln wuerde.
  */
-function freieAder(world, von, kind) {
+export function freieAder(world, von, kind, plaene) {
   let best = null;
   let bestD = Infinity;
   let bestSeite = Infinity;
@@ -822,6 +831,9 @@ function freieAder(world, von, kind) {
   const my = (MAP >> 1) - von.y;
   for (const d of world.deposits) {
     if (d.kind !== kind || d.takenBy !== 0) continue;
+    // Eine Ader mit eigenem Plan ist schon vergeben -- sonst setzt die KI den
+    // Plan jeden Zug neu, die Simulation lehnt ab, und es bleibt beim Sparen.
+    if (plaene.some((q) => dist2(q.x, q.y, d.x, d.y) < 100 * 100)) continue;
     const dd = dist2(von.x, von.y, d.x, d.y);
     const seite = mx * (d.y - von.y) - my * (d.x - von.x);
     if (dd < bestD || (dd === bestD && seite < bestSeite)) {

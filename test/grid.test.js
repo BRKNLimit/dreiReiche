@@ -30,7 +30,7 @@ import {
 } from '../src/sim/sim.js';
 import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN, KARTE } from '../src/sim/defs.js';
 import { wegGitter, ZELLE } from '../src/sim/weg.js';
-import { createAI, stepAI, STUFEN } from '../src/sim/ai.js';
+import { createAI, stepAI, STUFEN, freieAder } from '../src/sim/ai.js';
 
 function bare(f0 = 'mensch', f1 = 'gott') {
   return createWorld({ empty: true, factions: [f0, f1] });
@@ -532,6 +532,37 @@ test('KI-Stufen: alle drei spielen, schwer entscheidet am oeftesten', () => {
     }
     assert.ok(w.entities.filter((e) => e.player === 0 && e.kind === 'building').length > 3, stufe + ' baut');
   }
+});
+
+test('KI: eine Ader mit eigenem Plan gilt nicht mehr als frei', () => {
+  // Sonst setzt die KI den Plan jeden Zug neu, die Simulation lehnt ab, und
+  // die KI kommt nie zur Produktion -- Fron haeufte sich auf 3000.
+  const w = bare();
+  w.deposits.push({ x: 10000, y: 10000, kind: 'goetterblut', takenBy: 0 });
+  const haupt = { x: 3000, y: 3000 };
+  assert.equal(freieAder(w, haupt, 'goetterblut', []).x, 10000);
+  issue(w, { type: 'build', player: 0, building: 'schacht', x: 10000, y: 10000 });
+  step(w);
+  assert.equal(w.plaene.length, 1);
+  assert.equal(freieAder(w, haupt, 'goetterblut', w.plaene), null);
+});
+
+test('KI: verwirft einen Plan ohne Erbauer, bei dem Feinde stehen', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  spawnBuilding(w, 1, 'herzbaum', 17000, 17000, true);
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 12000, y: 12000 });
+  step(w);
+  assert.equal(w.plaene.length, 1);
+  const ai = createAI(0, 1);
+  stepAI(ai, w);
+  step(w);
+  assert.equal(w.plaene.length, 1, 'sicher: der Plan bleibt');
+  spawnUnit(w, 1, 'wolf', 12300, 12000);
+  ai.next = 0;
+  stepAI(ai, w);
+  step(w);
+  assert.ok(!w.plaene.some((q) => q.x === 12000 && q.y === 12000), 'Feinde am Plan: verworfen');
 });
 
 test('KI-Partie ist deterministisch', () => {

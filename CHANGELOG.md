@@ -29,7 +29,13 @@ Tabellen in `docs/scope.md`.
   drängelten alle um denselben Punkt. In 3D drehen sich Einheiten nicht mehr
   beim Rempeln.
 - KI rechnet ihre Pläne wie Baustellen mit (Kosten zurückgelegt, kein
-  Doppelplan).
+  Doppelplan). Zwei KI-Fehler behoben: Eine Ader mit eigenem Plan galt als
+  frei — die KI setzte den Plan jeden Zug neu und produzierte nichts mehr
+  (bis 3000 Fron gehortet). Pläne ohne Erbauer an unsicherer Stelle
+  verwirft sie jetzt, statt sie zu verteidigen.
+- Messung (36 Seeds, Stil-Paarungen): Menschen 25 : Gott 38, 0.25 hatte
+  25 : 32 — die Menschen gewinnen gleich oft, der Gott entscheidet mehr
+  vorher offene Partien. Details in `docs/scope.md`, Abschnitt 18.
 
 ## 0.25 — Vorbereitung für Gemini, Ressourcenleiste
 

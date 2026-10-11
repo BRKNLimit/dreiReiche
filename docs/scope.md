@@ -562,6 +562,37 @@ Ressourcen oder Werten. `node tools/sweep.mjs 32 45 Ausgang stufen`:
 | schwer gegen mittel | 90 % | 29 von 32 |
 | mittel gegen leicht | 93 % | 28 von 32 |
 
+### 18. Baupläne statt Sofort-Baustellen (Stand 0.26)
+
+> **Vorgabe des Nutzers:** Gebäude „existieren“ erst, wenn sie aktiv gebaut
+> werden, vorher nur als Blaupause auf der Karte. Setzen gibt keine Sicht.
+
+Ein Plan kostet nichts und ist für den Gegner unsichtbar; bezahlt wird
+beim Baubeginn. Das verschiebt das Timing der KI: Sie hat früh mehr Fron in
+der Hand und baut früher Truppen. Zwei KI-Fehler kamen dabei ans Licht:
+
+- `freieAder()` übersah eigene Pläne. Die KI hielt die Götterblut-Ader mit
+  ihrem eigenen Plan für frei, setzte ihn jeden Zug neu (abgelehnt) und kam
+  nie zur Produktion — beide Seiten horteten bis 3000 Fron.
+- Pläne zählten als zu verteidigende Gebäude, und ein Plan ohne Erbauer an
+  unsicherer Stelle blieb ewig liegen (anders als eine Baustelle zerstört
+  ihn niemand) und band Fron. Jetzt verwirft die KI ihn.
+
+`node tools/sweep.mjs 36 45 Ausgang stile` (36 Seeds × 2 Sitzplätze):
+
+| Stand | Menschen : Gott | offen | Sitz 0 | Ø Dauer |
+| --- | --- | --- | --- | --- |
+| 0.25 | 25 : 32 | 15 | 35 von 57 | 26,3 min |
+| 0.26 mit beiden KI-Fehlern | 24 : 43 | 5 | 31 von 67 | 25,9 min |
+| — dazu ohne Pulk-Ruhe | 19 : 44 | 9 | 30 von 63 | 25,5 min |
+| **0.26, KI korrigiert** | **25 : 38** | 9 | 29 von 63 | 28,5 min |
+
+Die Pulk-Ruhe (dicht stehende Gruppen kommen am Ziel zur Ruhe) ändert die
+Bilanz kaum. Die Menschen gewinnen gleich oft wie in 0.25; der Gott
+gewinnt Partien, die vorher offen blieben. Die Sturm-KI der Menschen wartet
+länger als in 0.25 mit der ersten Welle, weil der Gott früh mehr Truppen
+daheim hat — ein Timing der KI, keine Regel.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

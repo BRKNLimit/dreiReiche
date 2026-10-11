@@ -1808,6 +1808,7 @@ function startbildschirm() {
   document.getElementById('introGott').onclick = () => starte3('gott', false);
   document.getElementById('introSchau').onclick = () => starte3('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
+  kartenVorschauVerdrahten(el);
   const neuKnopf = document.getElementById('neuheitenOk');
   if (neuKnopf) {
     neuKnopf.onclick = () => {

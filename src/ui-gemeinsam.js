@@ -232,13 +232,66 @@ export function kartenWahlHtml(gewaehlt) {
   const knopf = (wert, name) =>
     `<label><input type="radio" name="karte" value="${wert}"${wert === gewaehlt ? ' checked' : ''}> ${name}</label>`;
   const eigene = eigeneKarten().map((k, i) => knopf('eigen:' + i, '✎ ' + k.name)).join('');
-  return `<div class="stil">Karte:
+  return `<div class="kartenwahl"><canvas id="kartenVorschau" width="132" height="132" title="Vorschau der Karte"></canvas>
+    <div class="stil">Karte:
       ${Object.keys(KARTEN).map((k) => knopf(k, KARTEN[k].name)).join('')}
       ${knopf('zufall', '⚄ Zufall — jedes Spiel neu')}
       ${eigene}
-    </div>
+    </div></div>
     <div class="stil">Eigene Karte: <a class="btn" href="karteneditor.html">Karteneditor öffnen</a>
       laden: <input type="file" id="karteDatei" accept=".json,application/json"> <span id="karteMeldung"></span></div>`;
+}
+
+/** Kleine Draufsicht einer Karte: Wald, Wiesen, Wasser, Fels, Furten, Adern, beide Basen. */
+export function karteVorschauMalen(leinwand, daten, zufall = false) {
+  const g = leinwand && leinwand.getContext ? leinwand.getContext('2d') : null;
+  if (!g || !g.fillRect) return;
+  const n = leinwand.width;
+  const s = n / MAP;
+  const kreis = (x, y, r, farbe) => {
+    g.fillStyle = farbe;
+    g.beginPath();
+    g.arc(x * s, y * s, Math.max(1, r * s), 0, Math.PI * 2);
+    g.fill();
+  };
+  g.fillStyle = '#2b3322';
+  g.fillRect(0, 0, n, n);
+  for (const w of daten.wiesen || []) kreis(w.x, w.y, w.r, '#3c4a28');
+  for (const w of daten.wald || []) kreis(w.x, w.y, w.r, '#223019');
+  for (const h of daten.hindernisse) kreis(h.x, h.y, h.r, h.art === 'fels' ? '#6b6a62' : '#2f5a78');
+  for (const f of daten.furten || []) kreis(f.x, f.y, 260, '#8a7f5c');
+  for (const a of daten.adern) kreis(a.x, a.y, 230, a.kind === 'goetterblut' ? '#b04a4a' : '#d8b06a');
+  // Startbasen: oben links Sitzplatz 1, unten rechts Sitzplatz 2 (wie in der Draufsicht)
+  for (const [x, y] of [[3000, 3000], [MAP - 3000, MAP - 3000]]) {
+    g.strokeStyle = '#e8e2cf';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.arc(x * s, y * s, 5, 0, Math.PI * 2);
+    g.stroke();
+  }
+  if (zufall) {
+    g.fillStyle = 'rgba(16, 18, 13, .55)';
+    g.fillRect(0, 0, n, n);
+    g.fillStyle = '#e8e2cf';
+    g.font = '600 13px sans-serif';
+    g.textAlign = 'center';
+    g.fillText('jedes Spiel neu', n / 2, n / 2 + 4);
+  }
+}
+
+/** Vorschau an die Kartenwahl haengen: zeigt die gewaehlte Karte, wechselt mit ihr. */
+export function kartenVorschauVerdrahten(el) {
+  const leinwand = document.getElementById('kartenVorschau');
+  if (!leinwand) return;
+  const malen = () => {
+    const wahl = document.querySelector ? document.querySelector('#intro input[name="karte"]:checked') : null;
+    const schluessel = wahl ? wahl.value : 'klassisch';
+    const k = schluessel === 'zufall' ? { daten: zufallsKarte(7) } : karteFuerSpiel(schluessel, null, 0);
+    karteVorschauMalen(leinwand, k.daten, schluessel === 'zufall');
+  };
+  const knoepfe = el.querySelectorAll ? el.querySelectorAll('input[name="karte"]') : [];
+  for (const k of knoepfe) k.addEventListener('change', malen);
+  malen();
 }
 
 /** Eine Kartendatei laden, pruefen und speichern; ruft fertig(meldung) auf. */

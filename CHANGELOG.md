@@ -22,6 +22,8 @@ Tabellen in `docs/scope.md`.
 - **2D ⇄ 3D mitten in der Partie:** Der Knopf „3D“ bzw. „2D“ nimmt eine
   laufende Partie mit (auch Missionen und Zuschauen) — Spielstand sichern,
   andere Ansicht öffnen, dort sofort weiter, Kamera an derselben Stelle.
+- **Kartenvorschau** im Startbildschirm: Wald, Wiesen, Wasser, Fels, Furten,
+  Adern und beide Basen der gewählten Karte.
 - Endbildschirm: „Zufallskarte“ statt „zufall“.
 - **„✨ Neu in 0.37“** im Startbildschirm — einmal, bis man „Verstanden“
   klickt. Der Startbildschirm schneidet lange Inhalte oben nicht mehr ab.

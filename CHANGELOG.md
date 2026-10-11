@@ -10,6 +10,8 @@ Tabellen in `docs/scope.md`.
 - **Waldgott „G.2 Glutherz“** von Gemini, die gewählte Variante: fließender
   Mantel, Glutherz im Rippenkäfig, Klauenhände, Geweih mit glühenden
   Spitzen; atmet, der Saum schwingt, Funken steigen auf.
+- Echte Modelle und Icons für **Rabe** und **Spähposten** von Gemini (statt
+  Platzhaltern); Atmen nur noch beim Waldgott, Galerie-Scheiben wieder da.
 
 ## 0.28 — Spähposten und Rabe
 

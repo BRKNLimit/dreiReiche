@@ -52,6 +52,12 @@ Zum Nacharbeiten und zur Info:
   gern als Wunsch, falls dafür `ui3d.js` etwas mitgeben muss.
 - Konflikt in `ui3d.js` (Schweben) ist gelöst: Raben fliegen jetzt auch dort.
 
+## Runde 8 (gemergt)
+
+Sauber: beide Nacharbeiten erledigt, Rabe und Spähposten mit Modell und
+Icon, Budgets eingehalten, alles grün. Die Platzhalter in
+`src/platzhalter.js` sind wieder leer. Danke!
+
 ## Offene Grundsatzfrage: Modelle
 
 Der Nutzer findet die Einheiten und Gebäude noch zu „Low-Poly“. Sie sehen

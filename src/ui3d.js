@@ -27,6 +27,7 @@ let meFaction = 'mensch';
 let world, ai, aiMe;
 let gegnerStil = 'standard';
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
+let karteSchluessel = 'klassisch'; // Karte, im Startbildschirm waehlbar
 let paused = true;
 let speed = 1;
 let acc = 0;
@@ -118,7 +119,11 @@ function aufBoden(sx, sy) {
 function neu(f, zuschauen = false) {
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
+  if (KARTE.schluessel !== karteSchluessel) {
+    karteWaehlen(karteSchluessel);
+    if (typeof baueBoden === 'function') bodenModell = baueBoden(); // src/gelaende3d.js liest KARTE
+  }
+  world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
   nebel = neuerNebel(!zuschauen, ME);
@@ -1136,6 +1141,11 @@ function introHtml3() {
         .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
         .join('')}
     </div>
+    <div class="stil">Karte:
+      ${Object.keys(KARTEN)
+        .map((k) => `<label><input type="radio" name="karte" value="${k}"${k === karteSchluessel ? ' checked' : ''}> ${KARTEN[k].name}</label>`)
+        .join('')}
+    </div>
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
       <button id="introGott">Als Gott spielen</button>
@@ -1152,6 +1162,8 @@ function starte3(f, zuschauen) {
   if (gewaehlt) gegnerStil = gewaehlt.value;
   const stufe = document.querySelector?.('#intro input[name="stufe"]:checked');
   if (stufe) gegnerStufe = stufe.value;
+  const karte = document.querySelector?.('#intro input[name="karte"]:checked');
+  if (karte) karteSchluessel = karte.value;
   document.getElementById('intro').style.display = 'none';
   paused = false;
   neu(f, zuschauen);

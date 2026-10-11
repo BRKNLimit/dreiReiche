@@ -15,6 +15,7 @@ let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
 let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
+let karteSchluessel = 'klassisch'; // Karte, im Startbildschirm waehlbar
 const ME = 0;
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
@@ -65,7 +66,8 @@ const COL = {
 function neu(f, zuschauen = false) {
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
+  karteWaehlen(karteSchluessel);
+  world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
@@ -1236,6 +1238,11 @@ function introHtml() {
         .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
         .join('')}
     </div>
+    <div class="stil">Karte:
+      ${Object.keys(KARTEN)
+        .map((k) => `<label><input type="radio" name="karte" value="${k}"${k === karteSchluessel ? ' checked' : ''}> ${KARTEN[k].name}</label>`)
+        .join('')}
+    </div>
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
       <button id="introGott">Als Gott spielen</button>
@@ -1253,6 +1260,8 @@ function starte(f, zuschauen) {
   if (gewaehlt) gegnerStil = gewaehlt.value;
   const stufe = document.querySelector?.('#intro input[name="stufe"]:checked');
   if (stufe) gegnerStufe = stufe.value;
+  const karte = document.querySelector?.('#intro input[name="karte"]:checked');
+  if (karte) karteSchluessel = karte.value;
   document.getElementById('intro').style.display = 'none';
   paused = false;
   neu(f, zuschauen);

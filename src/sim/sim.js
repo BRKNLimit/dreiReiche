@@ -1,7 +1,7 @@
 // Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
 
-import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES, RESOURCES, SKILLS, FAEHIGKEITEN, KARTE } from './defs.js';
+import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES, RESOURCES, SKILLS, FAEHIGKEITEN, KARTEN } from './defs.js';
 import { wegGitter, wegpunkt, ZELLE } from './weg.js';
 
 // ---------------------------------------------------------------- Mathematik
@@ -62,9 +62,11 @@ const PER_MIN = 600 * 1000;
 export function createWorld(opts = {}) {
   const f0 = opts.factions?.[0] ?? 'mensch';
   const f1 = opts.factions?.[1] ?? 'gott';
+  const karte = KARTEN[opts.karte] ? opts.karte : 'klassisch';
   const world = {
     tick: 0,
     seed: opts.seed ?? 12345,
+    karte, // Schluessel in KARTEN
     nextId: 1,
     entities: [],
     players: [
@@ -74,7 +76,7 @@ export function createWorld(opts = {}) {
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
     baubeginnRunde: 0, // Vorrang beim gleichzeitigen Baubeginn, siehe erschaffen()
-    hindernisse: opts.empty ? [] : KARTE.hindernisse, // Felsen und Seen, unveraenderlich
+    hindernisse: opts.empty ? [] : KARTEN[karte].hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
     regions: [],
     pending: [],
@@ -99,7 +101,7 @@ function setupMap(world) {
   }
   if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
 
-  for (const a of KARTE.adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
+  for (const a of KARTEN[world.karte].adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
 }
 
 function clamp(v) {

@@ -786,7 +786,8 @@ function grat(x0, y0, x1, y1, n, r, luecken) {
   return out;
 }
 
-export const KARTE = {
+const KLASSISCH = {
+  name: 'Klassisch',
   hindernisse: [
     // Grat vor jeder Basis: breites Tor in der Mitte, zwei Seitenpfade
     ...paarweise(grat(700, 12300, 12300, 700, 21, 560, [2, 3, 9, 10, 11, 17, 18])),
@@ -813,7 +814,111 @@ export const KARTE = {
     { x: 10000, y: 10000, kind: 'goetterblut' },
     ...paarweise([{ x: 5200, y: 14800, kind: 'goetterblut' }]),
   ],
+  wald: [],
+  wiesen: [],
+  furten: [],
 };
+
+/**
+ * Fluss als Kette von Wasserkreisen entlang eines Linienzugs, mit Luecken an
+ * den Furten (dort kein Kreis im Umkreis frei).
+ */
+function fluss(punkte, r, abstand, furten, frei) {
+  const out = [];
+  for (let i = 0; i + 1 < punkte.length; i++) {
+    const [x0, y0] = punkte[i];
+    const [x1, y1] = punkte[i + 1];
+    const l = Math.hypot(x1 - x0, y1 - y0);
+    const n = Math.max(1, Math.round(l / abstand));
+    // Beim letzten Stueck auch den Endpunkt, sonst bleibt dort eine Luecke
+    const bis = i + 2 === punkte.length ? n : n - 1;
+    for (let k = 0; k <= bis; k++) {
+      const x = (x0 + ((x1 - x0) * k) / n) | 0;
+      const y = (y0 + ((y1 - y0) * k) / n) | 0;
+      if (furten.some((f) => (f.x - x) ** 2 + (f.y - y) ** 2 < frei * frei)) continue;
+      out.push({ x, y, r, art: 'see', fluss: true });
+    }
+  }
+  return out;
+}
+
+// Flusstal -- nach der Skizze des Nutzers (docs/bilder/Maps/Map1.png): die
+// Basis oben links im Wald, ein Felsmassiv darin, ein Fluss vom linken Rand
+// durch die Kartenmitte zum rechten Rand, nur an zwei Furten passierbar, am
+// Suedufer ein Grat, dahinter Wiesen bis in die Ecken -- dort das Goetterblut.
+// Punktsymmetrisch wie jede Karte; Wald und Wiesen sind nur Optik.
+const FURT = { x: 2400, y: 11700 };
+const FLUSS_HALB = [
+  [0, 12600], [1200, 12200], [2400, 11700], [3600, 11200], [4800, 10700],
+  [6000, 10100], [7200, 9600], [8400, 9400], [9300, 9600],
+];
+const FLUSSTAL = {
+  name: 'Flusstal',
+  hindernisse: [
+    ...paarweise(fluss(FLUSS_HALB, 300, 400, [FURT], 520)),
+    // Mitte des Flusses (liegt auf sich selbst gespiegelt -- nur einmal)
+    { x: 9650, y: 9800, r: 300, art: 'see', fluss: true },
+    { x: 10000, y: 10000, r: 300, art: 'see', fluss: true },
+    { x: 10350, y: 10200, r: 300, art: 'see', fluss: true },
+    // Grat am Suedufer, zwei Durchgaenge
+    ...paarweise(grat(3800, 13600, 8600, 11400, 12, 380, [4, 8])),
+    // Felsmassiv im Wald
+    ...paarweise([
+      { x: 10600, y: 3300, r: 700, art: 'fels' },
+      { x: 11500, y: 4300, r: 900, art: 'fels' },
+      { x: 12300, y: 5300, r: 650, art: 'fels' },
+      { x: 10900, y: 5300, r: 550, art: 'fels' },
+      { x: 12100, y: 3200, r: 500, art: 'fels' },
+    ]),
+  ],
+  adern: [
+    ...paarweise([
+      // je Basis fuenf Vorkommen in der Grunddomaene, wie auf der klassischen Karte
+      { x: 4800, y: 2200, kind: 'fron' },
+      { x: 2200, y: 4800, kind: 'fron' },
+      { x: 6200, y: 4500, kind: 'fron' },
+      { x: 6700, y: 2100, kind: 'fron' },
+      { x: 2100, y: 6700, kind: 'fron' },
+      // im Wald: am Felsmassiv, Richtung Furt der Gegenseite, am Flussufer
+      { x: 9200, y: 2000, kind: 'fron' },
+      { x: 14200, y: 6200, kind: 'fron' },
+      { x: 5600, y: 8200, kind: 'fron' },
+      // Wiese jenseits des Flusses
+      { x: 1600, y: 15400, kind: 'fron' },
+      { x: 5200, y: 16200, kind: 'fron' },
+      { x: 2800, y: 17400, kind: 'goetterblut' },
+    ]),
+  ],
+  // Nur Optik: Wald und Wiesen als Kreise { x, y, r }, Furten als Punkte
+  wald: paarweise([
+    { x: 8500, y: 2600, r: 3200 },
+    { x: 13500, y: 2800, r: 3000 },
+    { x: 5000, y: 7600, r: 2600 },
+    { x: 9500, y: 6600, r: 2800 },
+    { x: 15800, y: 5200, r: 2200 },
+    { x: 1800, y: 9600, r: 1800 },
+  ]),
+  wiesen: paarweise([
+    { x: 2600, y: 16400, r: 3400 },
+    { x: 6400, y: 14200, r: 2400 },
+    { x: 9000, y: 12600, r: 1600 },
+  ]),
+  furten: paarweise([FURT]),
+};
+
+/** Alle Karten nach Schluessel; die erste ist die Vorgabe. */
+export const KARTEN = { klassisch: KLASSISCH, flusstal: FLUSSTAL };
+
+/**
+ * Die gerade gespielte Karte, fuer die Darstellung (Boden, Baeume). Die
+ * Simulation nimmt ihre Karte aus createWorld({ karte }); die Oberflaeche
+ * waehlt sie hier mit karteWaehlen() dazu passend.
+ */
+export const KARTE = { schluessel: 'klassisch', ...KLASSISCH };
+export function karteWaehlen(schluessel) {
+  Object.assign(KARTE, { schluessel }, KARTEN[schluessel] || KLASSISCH);
+  return KARTE;
+}
 
 /** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
 export const RESOURCES = ['fron', 'goetterblut'];

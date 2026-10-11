@@ -212,7 +212,8 @@ if (isMainThread) {
   const { createWorld, step } = await import('../src/sim/sim.js');
   const { createAI, stepAI, STILE } = await import('../src/sim/ai.js');
   const stilNamen = Object.keys(STILE);
-  const { FACTIONS, UNITS, BUILDINGS, RULES, KARTE } = await import('../src/sim/defs.js');
+  const { FACTIONS, UNITS, BUILDINGS, RULES, KARTEN } = await import('../src/sim/defs.js');
+  const KARTE = KARTEN.klassisch; // die alten Karten-Versuche aendern die klassische Karte
   const c = CONFIGS[name];
   Object.assign(FACTIONS.gott.growth, c.g || {});
   Object.assign(FACTIONS.mensch.growth, c.m || {});

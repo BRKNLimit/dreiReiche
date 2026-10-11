@@ -28,7 +28,7 @@ import {
   sichtweite,
   planVon,
 } from '../src/sim/sim.js';
-import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN, KARTE } from '../src/sim/defs.js';
+import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN, KARTE, KARTEN } from '../src/sim/defs.js';
 import { wegGitter, ZELLE } from '../src/sim/weg.js';
 import { createAI, stepAI, STUFEN, freieAder } from '../src/sim/ai.js';
 import { neueKunde, aufklaeren, vermutetesHaupt, VERGESSEN } from '../src/sim/kunde.js';
@@ -1811,4 +1811,54 @@ test('Sammelpunkt: neue Einheiten laufen dorthin, nur eigene Fabriken nehmen ihn
   assert.deepEqual([s.tx, s.ty], [8000, 7000], 'unterwegs zum Sammelpunkt');
   for (let i = 0; i < 300; i++) step(w);
   assert.ok(s.arrived && (s.x - 8000) ** 2 + (s.y - 7000) ** 2 < 200 * 200, 'angekommen');
+});
+
+// ---------------------------------------------------- Karten
+
+test('jede Karte ist punktsymmetrisch, Adern liegen frei', () => {
+  for (const [name, k] of Object.entries(KARTEN)) {
+    for (const liste of [k.hindernisse, k.adern, k.furten, k.wald, k.wiesen]) {
+      for (const o of liste) {
+        assert.ok(liste.some((p) => p.x === MAP - o.x && p.y === MAP - o.y), `${name}: Gegenstueck zu ${o.x},${o.y}`);
+      }
+    }
+    const w = createWorld({ karte: name });
+    assert.equal(w.karte, name);
+    for (const d of w.deposits) {
+      assert.ok(!k.hindernisse.some((h) => (d.x - h.x) ** 2 + (d.y - h.y) ** 2 < (h.r + 100) ** 2), `${name}: Ader ${d.x},${d.y} frei`);
+    }
+  }
+});
+
+test('Flusstal: der Fluss trennt die Basen, man kommt nur ueber eine Furt hinueber', () => {
+  const w = createWorld({ karte: 'flusstal', empty: false });
+  w.entities = w.entities.filter((e) => e.kind === 'building'); // ohne Kommandanten, die sonst kaempfen
+  const u = spawnUnit(w, 0, 'soldat', 3000, 3600);
+  issue(w, { type: 'move', player: 0, ids: [u.id], x: 17000, y: 16200 });
+  step(w);
+  let furt = false;
+  let nass = false;
+  for (let i = 0; i < 3000 && !u.arrived; i++) {
+    step(w);
+    if (KARTEN.flusstal.furten.some((f) => (u.x - f.x) ** 2 + (u.y - f.y) ** 2 < 900 * 900)) furt = true;
+    if (w.hindernisse.some((h) => h.fluss && (u.x - h.x) ** 2 + (u.y - h.y) ** 2 < (h.r - 50) ** 2)) nass = true;
+  }
+  assert.ok(u.arrived, 'kommt an');
+  assert.ok(furt, 'ueber eine Furt');
+  assert.ok(!nass, 'nie durchs Wasser');
+});
+
+test('Flusstal: eine KI-Partie laeuft und bleibt deterministisch', () => {
+  const lauf = () => {
+    const w = createWorld({ seed: 5, karte: 'flusstal' });
+    const ais = [createAI(0, 1), createAI(1, 2)];
+    for (let i = 0; i < 4000; i++) {
+      stepAI(ais[0], w);
+      stepAI(ais[1], w);
+      step(w);
+    }
+    assert.ok(w.entities.filter((e) => e.kind === 'building').length > 10, 'beide bauen');
+    return hash(w);
+  };
+  assert.equal(lauf(), lauf());
 });

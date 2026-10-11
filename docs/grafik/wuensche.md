@@ -11,6 +11,9 @@ Format:
 
 ## Offen
 
+- [ ] **Zweite Karte „Flusstal“** (`KARTEN.flusstal` in `src/sim/defs.js`, gewählt über `karteWaehlen()` — `KARTE` ist immer die gespielte Karte): Der Fluss sind Wasserkreise mit `fluss: true` — bitte als zusammenhängender Fluss mit Ufer zeichnen, nicht als Seenkette. `KARTE.furten` (flache Übergänge, Kies), `KARTE.wald` und `KARTE.wiesen` (Kreise `{ x, y, r }`, nur Optik: dichter Wald bzw. helle Wiese). `DEKO` (Bäume) und der Marschpfad müssen der gewählten Karte folgen — `DEKO` also als Funktion der Karte, die `ui3d.js` nach `karteWaehlen()` neu aufrufen kann (wie `baueBoden()`, das tut es schon). Skizze des Nutzers: `docs/bilder/Maps/Map1.png`.
+- [ ] **Geschoss-Modelle** (optional, sonst nimmt `src/effekte.js` Pfeil/Kugel): `bolzen` (Balliste, schwerer Holzbolzen mit Eisenspitze), `dorn` (Wächterbaum, grüngoldener Dorn), `lichtpfeil` (Waldgeist, leuchtender Pfeil), `glutball` (Waldgott, glühender Ball mit Schweif). Achse wie `pfeil` (Spitze nach +z).
+
 
 ## Erledigt
 

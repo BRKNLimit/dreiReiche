@@ -83,8 +83,10 @@ sichtbare Kante darf nicht mehr als etwa 10 % vom Kreis abweichen.
 
 1. **Vor jedem Commit:** `npm test` und `npm run smoke` grün. Nie mit roten
    Tests committen.
-2. **Branch `gemini/grafik`**, kleine Commits mit deutscher Nachricht, was und
-   warum. Kein Force-Push, kein Merge nach `main` — das macht der Nutzer oder
+2. **Eigener Arbeitsordner `drei-reiche/resonit-gemini`** (git worktree auf
+   dem Branch `gemini/grafik`); Claude arbeitet in `drei-reiche/resonit` auf
+   `main`. Wechsle nie den Branch und arbeite nie im Ordner von Claude.
+   Kleine Commits mit deutscher Nachricht, was und warum, dann `git push`. Kein Force-Push, kein Merge nach `main` — das macht der Nutzer oder
    Claude. Hol dir Claudes Stand regelmäßig: `git fetch && git merge origin/main`
    (Konflikte sollte es nicht geben, die Dateien sind getrennt).
 3. **Offline:** keine Bibliotheken, keine CDNs, keine nachgeladenen Dateien,

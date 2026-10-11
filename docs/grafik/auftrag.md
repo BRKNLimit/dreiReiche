@@ -1,7 +1,9 @@
 # Masterprompt für Gemini
 
-Diesen Text als erste Nachricht an Gemini geben (Gemini CLI im Ordner
-`drei-reiche/resonit` starten). Hat Gemini keinen Zugriff aufs Repo, siehe
+Diesen Text als erste Nachricht an Gemini geben. Gemini CLI im Ordner
+`C:Userslars2DocumentsdreiReichedrei-reicheesonit-gemini` starten — das
+ist Geminis eigener Arbeitsordner auf dem Branch `gemini/grafik` (Claude
+arbeitet daneben in `resonit` auf `main`). Hat Gemini keinen Zugriff aufs Repo, siehe
 „Ohne Repo-Zugriff“ ganz unten.
 
 ---
@@ -13,7 +15,8 @@ Lies dann `src/modelle3d.js`, `src/render3d.js`, `src/gelaende3d.js`,
 `src/gelaende2d.js`, `src/icons.js` und `src/galerie.js`. Sieh dir die
 Vorlagen in `docs/bilder/` an.
 
-Arbeite auf dem Branch `gemini/grafik`. Parallel arbeitet Claude auf `main` an
+Du arbeitest im Ordner `resonit-gemini` auf dem Branch `gemini/grafik` — wechsle
+nie den Branch. Parallel arbeitet Claude im Nachbarordner auf `main` an
 Spiellogik und Bedienung — fass seine Dateien nicht an, schreib Wünsche in
 `docs/grafik/wuensche.md`.
 

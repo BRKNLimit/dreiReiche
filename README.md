@@ -1,16 +1,17 @@
-# Die drei Reiche — Prototyp 0.11
+# Die drei Reiche — Prototyp 0.12
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
 oder Kommandant des Gegners zerstören. Die Menschen spielen mit vielen
 günstigen Einheiten, der Gott mit wenigen starken. Zentrale Mechanik ist die
 **Domäne**: Ihr Radius steht bei den Menschen fest und wächst beim Gott mit
-der Zeit; in ihr fließt Gegenwart, und dort wirken die Schreine.
+der Zeit; in ihr fließt Gegenwart, und dort wirken die Schreine. Jede
+Einheit kostet laufend Unterhalt — große Heere fressen die Wirtschaft.
 
 ## Loslegen
 
 ```bash
-npm test          # 59 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
+npm test          # 63 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -75,7 +76,10 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
   wenige starke (Dryade, Wolf, Waldgeist, Ent). Arbeiter bauen wie der
   Kommandant, nur schwächer
 - Heimvorteil aus Schreinen: Zorn (mehr Schaden) und Wehr (weniger Schaden)
-  für eigene Einheiten im selben Domänennetz
+  für eigene Einheiten im Umkreis von 300 m, soweit er in der eigenen Domäne liegt
+- Unterhalt: Jede Einheit kostet Fron pro Minute; das HUD zeigt Förderung,
+  Unterhalt und Saldo
+- Hauptgebäude tragen eine Grunddomäne von 400 m für die ganze Startbasis
 - Abriss mit Teilerstattung
 - Gebäude sind Hindernisse: Einheiten gleiten seitlich herum (kein Pathfinding)
 - Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine),

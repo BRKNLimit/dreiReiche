@@ -3,6 +3,34 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.12 — Mehr RTS: Unterhalt, schnellere Wirtschaft, Schreine im Umkreis
+
+- **Unterhalt:** Jede Einheit kostet laufend Fron pro Minute (Bauer 4,
+  Soldat 9, Jäger 10, Söldner 24, Dryade 12, Wolf 24, Waldgeist 24, Ent 56;
+  Kommandanten nichts). Keine harte Obergrenze: Das Heer wächst, bis der
+  Unterhalt die Förderung auffrisst. Wer nicht zahlen kann, steht bei null
+  und kann nichts mehr kaufen; Einheiten gehen nicht verloren. Das HUD zeigt
+  Förderung, Unterhalt und Saldo pro Minute.
+- **Weniger Ausbreitung:** Hauptgebäude tragen eine Grunddomäne von 400 m
+  (`anchorMin`), die die ganze Startbasis abdeckt. Anker braucht man zum
+  Ausgreifen, nicht für Strom daheim.
+- **Schnellere Wirtschaft:** Förderung 240 → 360 Fron pro Minute, Bauzeiten
+  der Gebäude × 0,7, der Einheiten × 0,8, Startfron 900 → 1100.
+- **Schreine wirken im Umkreis** (300 m um den Schrein, in der eigenen
+  Domäne) statt im ganzen Domänennetz. Die Basis ist stark, Außenposten und
+  Förderbauten sind angreifbar.
+- Einheitenwerte per Duell nachgezogen: Wolf 540 LP / 22 Schaden, Jäger
+  180 LP / 13 Schaden, Waldgeist 480 LP / 26 Schaden für 130 Fron.
+- KI: greift an, wenn das Heer satt ist (Unterhalt ≥ 80 % der Förderung),
+  nimmt ab Minute 9 und 15 ein viertes und fünftes Fron-Vorkommen, sucht
+  freie Plätze statt besetzter und sperrt abgelehnte Bauplätze für zwei
+  Minuten (vorher hing sie an einem besetzten Platz fest und baute keine
+  Einheiten mehr).
+- `tools/sweep.mjs` verteilt jetzt auch eine einzelne Einstellung auf alle
+  Kerne; neue Einstellungen für Unterhalt, Grunddomäne und Schrein-Umkreis.
+- Messung (64 Partien): Menschen 29 : Gott 35, Sitz 0 gewinnt 29, Ø 17 min,
+  keine Partie offen.
+
 ## 0.11 — Bauaufträge
 
 - Erbauer (Bauer, Dryade, Kommandant) bauen nur ihren Auftrag und nur direkt

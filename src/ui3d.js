@@ -1401,6 +1401,7 @@ function zeichneHud() {
     <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}</div>
     <div class="res">
       <b>Fron</b><span>${p.fron}</span>
+      <b title="Förderung minus Unterhalt der Einheiten">Fron/min</b><span>+${foerderungProMin(world, ME)} −${unterhaltProMin(world, ME)}</span>
       <b>Götterblut</b><span>${p.goetterblut}</span>
       <b>Einheiten</b><span>${einheiten}</span>
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
@@ -1447,7 +1448,7 @@ function introHtml3() {
   return `<h1>Die drei Reiche — 3D</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
-    (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine wirken nur darin. Fällt der Kommandant,
+    (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
     ist die Partie verloren.</p>
     <p style="color:var(--dim)">Dieselbe Simulation wie die 2D-Ansicht — Modelle sind bewusst einfach.</p>
     <div class="stil">Gegner:

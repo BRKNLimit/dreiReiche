@@ -62,11 +62,21 @@ fester Reihenfolge:
 
 Kein Heimvorteil steckt in den Einheiten selbst. Er entsteht in der Domäne,
 durch gebaute **Schreine**: Ein versorgter Schrein stärkt alle eigenen
-Einheiten, die im selben Domänennetz stehen — Zorn-Schreine mit mehr
-Schaden, Wehr-Schreine mit weniger genommenem Schaden. Er hängt an den
-letzten Stufen der Drosselleiter; wer das Netz schneidet oder die Gegenwart
-abgräbt, nimmt dem Gegner den Heimvorteil. Beide Fraktionen haben beide
-Schreine; beim Gott wirken sie stärker.
+Einheiten in seinem Umkreis (300 m), soweit sie in der eigenen Domäne
+stehen — Zorn-Schreine mit mehr Schaden, Wehr-Schreine mit weniger
+genommenem Schaden. Er hängt an den letzten Stufen der Drosselleiter; wer
+das Netz schneidet oder die Gegenwart abgräbt, nimmt dem Gegner den
+Heimvorteil. Beide Fraktionen haben beide Schreine; beim Gott wirken sie
+stärker. Der Umkreis macht die Basis stark und lässt Außenposten
+angreifbar — gekämpft wird um die Karte, nicht nur vor der Haustür.
+
+### Unterhalt statt Obergrenze
+
+Jede Einheit kostet laufend Fron. Es gibt keine harte Obergrenze für das
+Heer, aber eine spürbare Bremse: Wer viel unter Waffen hält, hat nichts
+mehr für Neues. Ein Heer, das nicht mehr wächst, muss etwas tun. Wer mehr
+Vorkommen hält, kann sich mehr leisten — Ausbreitung lohnt sich wegen der
+Wirtschaft, nicht als Selbstzweck.
 
 ### Kommandanten
 

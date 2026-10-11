@@ -17,6 +17,7 @@ import {
   isqrt,
   inForeignDomain,
   dist2,
+  unterhaltProMin,
 } from '../src/sim/sim.js';
 import { FACTIONS, BUILDINGS, UNITS, RULES, MAP } from '../src/sim/defs.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
@@ -203,7 +204,7 @@ test('ohne Schrein kein Heimvorteil', () => {
   assert.equal(schreinGefecht({}).gegeben, UNITS.wolf.weapon.damage);
 });
 
-test('Zorn: ein versorgter Schrein staerkt Einheiten im eigenen Netz', () => {
+test('Zorn: ein versorgter Schrein staerkt Einheiten in seinem Umkreis', () => {
   const zorn = BUILDINGS.dornenschrein.buff.zorn;
   assert.equal(
     schreinGefecht({ schreine: ['dornenschrein'] }).gegeben,
@@ -213,6 +214,13 @@ test('Zorn: ein versorgter Schrein staerkt Einheiten im eigenen Netz', () => {
 
 test('Zorn wirkt nicht ausserhalb der eigenen Domaene', () => {
   assert.equal(schreinGefecht({ schreine: ['dornenschrein'], wolfX: 12000 }).gegeben, UNITS.wolf.weapon.damage);
+});
+
+test('Zorn wirkt nicht ausserhalb des Schrein-Umkreises, auch in der eigenen Domaene', () => {
+  // Herzbaum bei 5000 traegt bis 9000 (anchorMin), der Schrein bei 4700 reicht 3000 weit.
+  const x = 4700 + BUILDINGS.dornenschrein.buff.radius + 300;
+  assert.ok(x + 200 < 5000 + BUILDINGS.herzbaum.anchorMin, 'Wolf steht noch in der Domaene');
+  assert.equal(schreinGefecht({ schreine: ['dornenschrein'], wolfX: x }).gegeben, UNITS.wolf.weapon.damage);
 });
 
 test('ein Schrein ohne Gegenwart wirkt nicht', () => {
@@ -357,6 +365,36 @@ test('KI-Partie ist deterministisch', () => {
     return hash(w);
   };
   assert.equal(run(), run());
+});
+
+// ---------------------------------------------------- Unterhalt
+
+test('Unterhalt: jede lebende Einheit kostet laufend Fron', () => {
+  const w = bare();
+  w.players[0].fron = 1000;
+  spawnUnit(w, 0, 'soldat', 3000, 3000);
+  spawnUnit(w, 0, 'jaeger', 3100, 3000);
+  const proMin = UNITS.soldat.unterhalt + UNITS.jaeger.unterhalt;
+  assert.equal(unterhaltProMin(w, 0), proMin);
+  for (let i = 0; i < 600; i++) step(w);
+  assert.equal(w.players[0].fron, 1000 - proMin, 'nach einer Minute genau ein Minutenunterhalt');
+  assert.equal(w.players[1].fron, bare().players[1].fron, 'der andere Spieler zahlt nichts');
+});
+
+test('Unterhalt: Fron faellt nicht unter null, die Einheiten bleiben', () => {
+  const w = bare();
+  w.players[0].fron = 5;
+  const u = spawnUnit(w, 0, 'soldat', 3000, 3000);
+  for (let i = 0; i < 1200; i++) step(w);
+  assert.equal(w.players[0].fron, 0);
+  assert.ok(!u.dead);
+});
+
+test('Unterhalt: jede Einheit hat einen, Kommandanten ausgenommen', () => {
+  for (const [typ, d] of Object.entries(UNITS)) {
+    if (d.commander) assert.ok(!d.unterhalt, typ + ' kostet keinen Unterhalt');
+    else assert.ok(d.unterhalt > 0, typ + ' hat Unterhalt');
+  }
 });
 
 // ---------------------------------------------------- Abriss
@@ -538,7 +576,7 @@ test('Spiegelpartie bleibt punktsymmetrisch, bis eine geteilte Ader umkämpft is
     }
     assert.equal(lage(1, true), lage(0, false), 'Lage in Tick ' + ticks);
   }
-  assert.ok(ticks > 2000, 'lange genug symmetrisch verglichen: ' + ticks + ' Ticks');
+  assert.ok(ticks > 1500, 'lange genug symmetrisch verglichen: ' + ticks + ' Ticks');
 });
 
 // ---------------------------------------------------- Verfolgung

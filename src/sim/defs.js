@@ -67,6 +67,9 @@ export const BUILDINGS = {
   // --------------------------------------------------------------- Menschen
   halle: {
     name: 'Thingstätte',
+    // Grunddomaene: deckt die ganze Startbasis mit ihren drei Steinhaufen --
+    // Anker braucht man zum Ausgreifen, nicht fuer Strom daheim.
+    anchorMin: 4000,
     short: 'HAL',
     faction: 'mensch',
     hp: 5000,
@@ -86,7 +89,7 @@ export const BUILDINGS = {
     radius: 48,
     anchor: true,
     cost: { fron: 120 },
-    buildTime: 210,
+    buildTime: 150,
   },
   schmiede: {
     name: 'Schmiede',
@@ -96,7 +99,7 @@ export const BUILDINGS = {
     radius: 60,
     gegenwartOut: 40,
     cost: { fron: 280 },
-    buildTime: 330,
+    buildTime: 230,
   },
   saege: {
     name: 'Sägewerk',
@@ -106,9 +109,9 @@ export const BUILDINGS = {
     radius: 55,
     gegenwartIn: 14,
     prio: PRIO.segen,
-    fronOut: 240, // Fron pro Minute bei voller Versorgung
+    fronOut: 360, // Fron pro Minute bei voller Versorgung
     cost: { fron: 150 },
-    buildTime: 240,
+    buildTime: 170,
     needs: 'fron',
     clears: 2200, // rodet den Boden ringsum -- nimmt dem Gott Wachstumsgrund
   },
@@ -121,7 +124,7 @@ export const BUILDINGS = {
     gegenwartIn: 55,
     prio: PRIO.werk,
     cost: { fron: 400 },
-    buildTime: 480,
+    buildTime: 340,
     buildList: ['bauer', 'soldat', 'jaeger', 'soeldner'],
   },
   schacht: {
@@ -134,7 +137,7 @@ export const BUILDINGS = {
     prio: PRIO.segen,
     blutOut: 40, // Goetterblut pro Minute bei voller Versorgung
     cost: { fron: 250 },
-    buildTime: 300,
+    buildTime: 210,
     needs: 'goetterblut', // nur auf einer Ader -- und die liegen in der Mitte
   },
   // Schreine: Heimvorteil kommt aus der Domaene, nicht aus den Einheiten.
@@ -151,8 +154,8 @@ export const BUILDINGS = {
     gegenwartIn: 15,
     prio: PRIO.zorn,
     cost: { fron: 160 },
-    buildTime: 240,
-    buff: { zorn: 250 },
+    buildTime: 170,
+    buff: { zorn: 250, radius: 3000 },
   },
   kapelle: {
     name: 'Kapelle',
@@ -163,13 +166,14 @@ export const BUILDINGS = {
     gegenwartIn: 15,
     prio: PRIO.wehr,
     cost: { fron: 160 },
-    buildTime: 240,
-    buff: { wehr: 200 },
+    buildTime: 170,
+    buff: { wehr: 200, radius: 3000 },
   },
 
   // --------------------------------------------------------------- Gott
   herzbaum: {
     name: 'Herzbaum',
+    anchorMin: 4000, // wie die Thingstaette; waechst darueber hinaus bis max
     short: 'HRZ',
     faction: 'gott',
     hp: 5000,
@@ -189,7 +193,7 @@ export const BUILDINGS = {
     radius: 48,
     anchor: true,
     cost: { fron: 110 },
-    buildTime: 270,
+    buildTime: 190,
     needsGrowth: true, // nur auf ungerodetem Boden
   },
   quelle: {
@@ -200,7 +204,7 @@ export const BUILDINGS = {
     radius: 60,
     gegenwartOut: 40,
     cost: { fron: 280 },
-    buildTime: 330,
+    buildTime: 230,
   },
   moos: {
     name: 'Moosgrube',
@@ -210,9 +214,9 @@ export const BUILDINGS = {
     radius: 55,
     gegenwartIn: 14,
     prio: PRIO.segen,
-    fronOut: 240, // Fron pro Minute bei voller Versorgung
+    fronOut: 360, // Fron pro Minute bei voller Versorgung
     cost: { fron: 150 },
-    buildTime: 240,
+    buildTime: 170,
     needs: 'fron',
   },
   dickicht: {
@@ -224,7 +228,7 @@ export const BUILDINGS = {
     gegenwartIn: 55,
     prio: PRIO.werk,
     cost: { fron: 400 },
-    buildTime: 480,
+    buildTime: 340,
     buildList: ['dryade', 'wolf', 'waldgeist', 'ent'],
   },
   blutwurz: {
@@ -237,7 +241,7 @@ export const BUILDINGS = {
     prio: PRIO.segen,
     blutOut: 40,
     cost: { fron: 250 },
-    buildTime: 300,
+    buildTime: 210,
     needs: 'goetterblut',
   },
   // Beim Gott staerker: sein Wald ist sein Heimvorteil.
@@ -250,8 +254,8 @@ export const BUILDINGS = {
     gegenwartIn: 15,
     prio: PRIO.zorn,
     cost: { fron: 160 },
-    buildTime: 240,
-    buff: { zorn: 450 },
+    buildTime: 170,
+    buff: { zorn: 450, radius: 3000 },
   },
   steinkreis: {
     name: 'Steinkreis',
@@ -262,11 +266,13 @@ export const BUILDINGS = {
     gegenwartIn: 15,
     prio: PRIO.wehr,
     cost: { fron: 160 },
-    buildTime: 240,
-    buff: { wehr: 300 },
+    buildTime: 170,
+    buff: { wehr: 300, radius: 3000 },
   },
 };
 
+// unterhalt: laufende Kosten in Fron pro Minute. Grosse Heere fressen die
+// Wirtschaft -- keine harte Obergrenze, aber eine spuerbare Bremse.
 export const UNITS = {
   // ------------------------------------------------------------- Menschen
   // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
@@ -277,7 +283,8 @@ export const UNITS = {
     radius: 24,
     speed: 30,
     cost: { fron: 40 },
-    buildTime: 100,
+    unterhalt: 4, // Fron pro Minute, solange sie lebt
+    buildTime: 80,
     worker: true,
     // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
     build: { power: 400 },
@@ -290,18 +297,20 @@ export const UNITS = {
     radius: 26,
     speed: 30,
     cost: { fron: 45 },
-    buildTime: 100,
+    unterhalt: 9, // Fron pro Minute, solange sie lebt
+    buildTime: 80,
     weapon: { range: 380, damage: 9, cooldown: 6 },
   },
   jaeger: {
     name: 'Jäger',
     faction: 'mensch',
-    hp: 130,
+    hp: 180,
     radius: 24,
     speed: 32,
     cost: { fron: 55 },
-    buildTime: 120,
-    weapon: { range: 540, damage: 10, cooldown: 8 },
+    unterhalt: 10, // Fron pro Minute, solange sie lebt
+    buildTime: 100,
+    weapon: { range: 540, damage: 13, cooldown: 8 },
   },
   soeldner: {
     name: 'Söldner',
@@ -312,7 +321,8 @@ export const UNITS = {
     // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
     // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
     cost: { fron: 130, goetterblut: 10 },
-    buildTime: 240,
+    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    buildTime: 190,
     weapon: { range: 480, damage: 26, cooldown: 8 },
   },
 
@@ -358,7 +368,8 @@ export const UNITS = {
     radius: 28,
     speed: 28,
     cost: { fron: 90 },
-    buildTime: 220,
+    unterhalt: 12, // Fron pro Minute, solange sie lebt
+    buildTime: 180,
     worker: true,
     build: { power: 700 },
     weapon: { range: 380, damage: 8, cooldown: 7 },
@@ -366,22 +377,24 @@ export const UNITS = {
   wolf: {
     name: 'Wolf',
     faction: 'gott',
-    hp: 640,
+    hp: 540,
     radius: 30,
     speed: 34,
     cost: { fron: 130 },
-    buildTime: 260,
-    weapon: { range: 260, damage: 24, cooldown: 6 },
+    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    buildTime: 210,
+    weapon: { range: 260, damage: 22, cooldown: 6 },
   },
   waldgeist: {
     name: 'Waldgeist',
     faction: 'gott',
-    hp: 420,
+    hp: 480,
     radius: 30,
     speed: 26,
-    cost: { fron: 150 },
-    buildTime: 300,
-    weapon: { range: 600, damage: 22, cooldown: 8 },
+    cost: { fron: 130 },
+    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    buildTime: 240,
+    weapon: { range: 600, damage: 26, cooldown: 8 },
   },
   ent: {
     name: 'Ent',
@@ -390,12 +403,13 @@ export const UNITS = {
     radius: 44,
     speed: 16,
     cost: { fron: 300, goetterblut: 20 },
-    buildTime: 600,
+    unterhalt: 56, // Fron pro Minute, solange sie lebt
+    buildTime: 480,
     weapon: { range: 360, damage: 52, cooldown: 10 },
   },
 };
 
-export const START_FRON = 900;
+export const START_FRON = 1100;
 
 /** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
 export const RESOURCES = ['fron', 'goetterblut'];

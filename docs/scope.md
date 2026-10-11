@@ -300,6 +300,77 @@ gleichen das die Schreine des Gottes aus.
 die Menschen weit überlegen, mit ihm deutlich unterlegen. Hebel ohne neue
 Regel: Einheiten- und Schreinwerte, Startradius.
 
+### 10. Mehr RTS: Unterhalt, Grunddomäne, Schreine im Umkreis (Stand 0.12)
+
+> **Vorgaben des Nutzers:** Es fühlt sich zu sehr nach Ausbreitungsspiel an
+> (ständig Türme und Haine, Wirtschaft zu langsam). Kein Heer aus 500
+> Einheiten, aber ein Mittelweg — als Bremse **Unterhalt in Fron**.
+
+**Umgesetzt** (*alle Zahlen sind Designzahlen*): Grunddomäne 400 m für
+Hauptgebäude, Förderung 360 statt 240, Bauzeiten × 0,7 bzw. × 0,8,
+Startfron 1100, Unterhalt je Einheit (etwa ein Fünftel ihres Preises pro
+Minute), Schreine mit 300 m Umkreis.
+
+**Was die Messung dabei aufdeckte** (16 Seeds × 2 Sitzplätze, falls nicht
+anders angegeben):
+
+| Stand | Menschen : Gott | offen | Ø Dauer |
+| --- | --- | --- | --- |
+| Unterhalt, KI greift nur mit Überlegenheit an (2 Seeds) | 0 : 0 | 4 von 4 | — |
+| + Angriff, wenn das Heer satt ist | 0 : 31 | 1 | 23 min |
+| + Einheitenwerte nachgezogen | 1 : 27 | 4 | 32 min |
+| + Schreine im Umkreis statt im ganzen Netz | 7 : 5 | 20 | 38 min |
+| + viertes und fünftes Fron-Vorkommen (KI höchstens 5 Anker) | 25 : 7 | 0 | 24 min |
+| KI höchstens 6 Anker | 21 : 11 | 0 | 21 min |
+| KI höchstens 7 Anker (32 Seeds) | 44 : 20 | 0 | 20 min |
+| **KI höchstens 8 Anker (32 Seeds) — Ausgang** | **29 : 35** | 0 | 17 min |
+
+- **Unterhalt deckelt das Heer, und gleiche Heere greifen nicht an.** Beide
+  Seiten wuchsen bis zum Gleichgewicht aus Förderung und Unterhalt (rund 90
+  Menschen- bzw. 40 Gott-Einheiten) und warteten auf eine Überlegenheit, die
+  nie kam. Die KI greift jetzt an, wenn ihr Heer satt ist (Unterhalt ≥ 80 %
+  der Förderung) — Warten bringt dann nichts mehr.
+- **Ein KI-Fehler:** Fiel eine Quelle, rechnete die KI für die nächste einen
+  besetzten Platz aus, die Simulation lehnte ab, und die KI versuchte es
+  jeden Zug neu, statt Einheiten zu bauen (Gott mit 4500 Fron und leeren
+  Fabriken). Jetzt sucht sie freie Plätze und sperrt abgelehnte für zwei
+  Minuten.
+- **Mit Schreinen im ganzen Netz** war die Basis des Gottes uneinnehmbar
+  (+45 % Schaden, −30 % genommen, also rund doppelte Kampfkraft überall in
+  seiner Domäne); mit Umkreis ausgeglichen, aber zäh: Der Angreifer
+  verliert, beide bauen sechs Minuten auf, dann greift der andere an.
+- **Den Ausschlag gibt die Wirtschaft:** Erst mit mehr Vorkommen kippen die
+  Patts. Die Ankergrenze der KI entscheidet dabei, ob der Gott eine
+  Götterblut-Ader erreicht (bei 5 Ankern nur nach gewonnener Partie, bei 8
+  in 61 von 64 Partien, Median Minute 10,5).
+
+**Schrein-Umkreis** (vor dem Ausbau der Vorkommen gemessen):
+
+| Einstellung | Menschen : Gott | offen |
+| --- | --- | --- |
+| Umkreis 200 m | 9 : 6 | 17 |
+| Umkreis 300 m (Ausgang) | 7 : 5 | 20 |
+| Umkreis 450 m | 6 : 7 | 19 |
+| ganze Domäne | 1 : 28 | 3 |
+| Gott-Schreine so schwach wie die der Menschen | 9 : 5 | 18 |
+| Schreine ohne Wirkung | 13 : 18 | 1 |
+
+**Duelle** (3000 Fron, neutraler Boden, Restwert; + = Menschen): Soldaten
+gegen Wölfe +561, Jäger gegen Wölfe −923, Söldner gegen Ents −1151,
+KI-Mischung gegen KI-Mischung +1040, KI-Mischung gegen reine Wölfe −505.
+
+**Stil-Paarungen** (45 Seeds, Siegquote der Menschen):
+
+| Menschen \ Gott | Sturm | Standard | Burg |
+| --- | --- | --- | --- |
+| Sturm | 100 % | 100 % | 100 % |
+| Standard | 0 % | 40 % | 70 % |
+| Burg | 0 % | 50 % | 50 % |
+
+Früher Angriff dominiert wie in Abschnitt 7, mit schnellerer Wirtschaft
+noch deutlicher. **Offen für dich:** Ist das ein Problem der KI-Stile oder
+des Spiels? Gegen einen Menschen am Steuer zeigt das nur Spielen.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

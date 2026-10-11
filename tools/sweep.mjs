@@ -43,7 +43,31 @@ export const CONFIGS = {
   'lang + max 7000': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 7000 } },
   'malus 800': { rules: { fremdMalus: 800 } },
   'malus 650': { rules: { fremdMalus: 650 } },
+  // Schrein-Umkreis (0.12): klein, gross, ganze Domaene
+  'Schreine 2000': { buildings: schreinRadius(2000) },
+  'Schreine 4500': { buildings: schreinRadius(4500) },
+  'Schreine ueberall': { buildings: schreinRadius(30000) },
+  'Gott-Schreine 350/250': { buildings: { dornenschrein: { buff: { zorn: 350 } }, steinkreis: { buff: { wehr: 250 } } } },
+  // Unterhalt (0.12): ohne, halb, doppelt
+  'Unterhalt 0': { units: unterhalt(0) },
+  'Unterhalt halb': { units: unterhalt(0.5) },
+  'Unterhalt doppelt': { units: unterhalt(2) },
+  // Grunddomaene der Hauptgebaeude (0.12)
+  'ohne anchorMin': { buildings: { halle: { anchorMin: 0 }, herzbaum: { anchorMin: 0 } } },
+  'anchorMin 3000': { buildings: { halle: { anchorMin: 3000 }, herzbaum: { anchorMin: 3000 } } },
+  'anchorMin nur Menschen': { buildings: { herzbaum: { anchorMin: 0 } } },
 };
+
+/** Umkreis aller vier Schreine -- fuer die Configs oben. */
+function schreinRadius(r) {
+  return Object.fromEntries(['banner', 'kapelle', 'dornenschrein', 'steinkreis'].map((b) => [b, { buff: { radius: r } }]));
+}
+
+/** Unterhalt aller Einheiten mit einem Faktor -- fuer die Configs oben. */
+function unterhalt(f) {
+  const u = { bauer: 4, soldat: 9, jaeger: 10, soeldner: 24, dryade: 12, wolf: 24, waldgeist: 24, ent: 56 };
+  return Object.fromEntries(Object.entries(u).map(([k, v]) => [k, { unterhalt: Math.round(v * f) }]));
+}
 
 // Feste Seed-Reihe, damit Laeufe vergleichbar bleiben.
 const SEEDS = Array.from({ length: 200 }, (_, i) => 11 + i * 12);
@@ -57,21 +81,63 @@ if (isMainThread) {
   const seeds = SEEDS.slice(0, nSeeds);
   const limit = Math.max(1, availableParallelism() - 1);
 
-  const results = {};
+  // Jede Einstellung in Seed-Stuecke teilen, damit auch eine einzelne
+  // Einstellung alle Kerne nutzt. Die Stuecke behalten ihre Seed-Position,
+  // damit die Stil-Paarungen reihum dieselben bleiben.
+  const stuecke = Math.max(1, Math.ceil((limit * 2) / names.length));
+  const jobs = [];
+  for (const name of names) {
+    const groesse = Math.ceil(seeds.length / stuecke);
+    for (let a = 0; a < seeds.length; a += groesse) jobs.push({ name, ab: a, seeds: seeds.slice(a, a + groesse) });
+  }
+  const teile = {};
   let next = 0;
   const run = () =>
     new Promise((resolve) => {
       const step = () => {
-        if (next >= names.length) return resolve();
-        const name = names[next++];
-        const w = new Worker(new URL(import.meta.url), { workerData: { name, seeds, maxMin, stile } });
-        w.on('message', (r) => (results[name] = r));
-        w.on('error', (e) => (results[name] = { error: e.message }));
+        if (next >= jobs.length) return resolve();
+        const job = jobs[next++];
+        const w = new Worker(new URL(import.meta.url), { workerData: { ...job, maxMin, stile } });
+        (teile[job.name] = teile[job.name] || []).push({ ab: job.ab, r: null });
+        const platz = teile[job.name][teile[job.name].length - 1];
+        w.on('message', (r) => (platz.r = r));
+        w.on('error', (e) => (platz.r = { error: e.message }));
         w.on('exit', step);
       };
       step();
     });
-  await Promise.all(Array.from({ length: Math.min(limit, names.length) }, run));
+  await Promise.all(Array.from({ length: Math.min(limit, jobs.length) }, run));
+
+  // Stuecke einer Einstellung wieder zusammenfuehren
+  const results = {};
+  for (const name of names) {
+    const liste = teile[name].sort((a, b) => a.ab - b.ab).map((t) => t.r);
+    const fehler = liste.find((r) => r.error);
+    if (fehler) {
+      results[name] = fehler;
+      continue;
+    }
+    const r = { m: 0, g: 0, seat0: 0, n: 0, sum: 0, games: [], blut: { mensch: [], gott: [] }, paar: {} };
+    for (const t of liste) {
+      r.m += t.m;
+      r.g += t.g;
+      r.seat0 += t.seat0;
+      r.n += t.n;
+      r.sum += t.sum;
+      r.games.push(...t.games);
+      r.blut.mensch.push(...t.blut.mensch);
+      r.blut.gott.push(...t.blut.gott);
+      for (const [k, z] of Object.entries(t.paar)) {
+        r.paar[k] = r.paar[k] || { m: 0, n: 0 };
+        r.paar[k].m += z.m;
+        r.paar[k].n += z.n;
+      }
+    }
+    const median = (a) => (a.length ? a.sort((x, y) => x - y)[a.length >> 1].toFixed(1) : '—');
+    r.avg = r.n ? (r.sum / r.n).toFixed(1) : '—';
+    r.blutInfo = `Blut: M ${r.blut.mensch.length}× ab ${median(r.blut.mensch)}, G ${r.blut.gott.length}× ab ${median(r.blut.gott)} min`;
+    results[name] = r;
+  }
 
   console.log(`${seeds.length} Seeds × 2 Sitzplätze, Abbruch nach ${maxMin} min${stile ? ', Stil-Paarungen reihum' : ''}\n`);
   for (const name of names) {
@@ -103,7 +169,7 @@ if (isMainThread) {
     }
   }
 } else {
-  const { name, seeds, maxMin, stile } = workerData;
+  const { name, seeds, ab, maxMin, stile } = workerData;
   const { createWorld, step } = await import('../src/sim/sim.js');
   const { createAI, stepAI, STILE } = await import('../src/sim/ai.js');
   const stilNamen = Object.keys(STILE);
@@ -112,14 +178,17 @@ if (isMainThread) {
   Object.assign(FACTIONS.gott.growth, c.g || {});
   Object.assign(FACTIONS.mensch.growth, c.m || {});
   Object.assign(RULES, c.rules || {});
-  // units: { typ: { feld: wert } } -- Objekte werden zusammengefuehrt, Zahlen ersetzt
-  for (const [u, werte] of Object.entries(c.units || {})) {
-    for (const [k, v] of Object.entries(werte)) {
-      if (typeof v === 'object') Object.assign(UNITS[u][k], v);
-      else UNITS[u][k] = v;
+  // units/buildings: { typ: { feld: wert } } -- Objekte werden zusammengefuehrt, Zahlen ersetzt
+  const mische = (ziel, aenderung) => {
+    for (const [t, werte] of Object.entries(aenderung || {})) {
+      for (const [k, v] of Object.entries(werte)) {
+        if (typeof v === 'object' && ziel[t][k]) Object.assign(ziel[t][k], v);
+        else ziel[t][k] = v;
+      }
     }
-  }
-  for (const [b, werte] of Object.entries(c.buildings || {})) Object.assign(BUILDINGS[b], werte);
+  };
+  mische(UNITS, c.units);
+  mische(BUILDINGS, c.buildings);
 
   const games = [];
   let m = 0;
@@ -135,7 +204,8 @@ if (isMainThread) {
     const seed = seeds[k];
     // Mit "stile": Paarung reihum; der Stil gehoert zur Fraktion, nicht zum
     // Sitzplatz, beide Sitzplaetze spielen dieselbe Paarung.
-    const st = stile ? { mensch: stilNamen[k % 3], gott: stilNamen[((k / 3) | 0) % 3] } : { mensch: 'standard', gott: 'standard' };
+    const i = ab + k;
+    const st = stile ? { mensch: stilNamen[i % 3], gott: stilNamen[((i / 3) | 0) % 3] } : { mensch: 'standard', gott: 'standard' };
     for (const f of [
       ['mensch', 'gott'],
       ['gott', 'mensch'],
@@ -168,7 +238,5 @@ if (isMainThread) {
       sum += w.tick / 600;
     }
   }
-  const median = (a) => (a.length ? a.sort((x, y) => x - y)[a.length >> 1].toFixed(1) : '—');
-  const blutInfo = `Blut: M ${blut.mensch.length}× ab ${median(blut.mensch)}, G ${blut.gott.length}× ab ${median(blut.gott)} min`;
-  parentPort.postMessage({ m, g, seat0, n, avg: n ? (sum / n).toFixed(1) : '—', games, blutInfo, paar });
+  parentPort.postMessage({ m, g, seat0, n, sum, games, blut, paar });
 }

@@ -46,10 +46,12 @@ export function dist(ax, ay, bx, by) {
  *   Gott     -> start klein, waechst     -> frueh winzig, spaet riesig
  */
 export function anchorRadius(world, e) {
-  if (!BUILDINGS[e.type].anchor || !e.done) return 0;
+  const def = BUILDINGS[e.type];
+  if (!def.anchor || !e.done) return 0;
   const g = FACTIONS[world.players[e.player].faction].growth;
   const age = world.tick - e.doneAt;
-  return Math.min(g.max, g.start + age * g.perTick);
+  // anchorMin: Hauptgebaeude tragen mindestens die eigene Startbasis.
+  return Math.max(def.anchorMin || 0, Math.min(g.max, g.start + age * g.perTick));
 }
 
 const PER_MIN = 600 * 1000;
@@ -410,23 +412,25 @@ export function inDomain(world, player, x, y) {
 }
 
 /**
- * Schrein-Wirkung an einem Punkt fuer einen Spieler: die staerkste aus allen
- * eigenen Domaenennetzen, deren Anker den Punkt abdecken. Ausserhalb der
- * eigenen Domaene nichts.
+ * Schrein-Wirkung an einem Punkt fuer einen Spieler: der staerkste eigene
+ * fertige Schrein, in dessen Umkreis (buff.radius) der Punkt liegt, anteilig
+ * zu seiner Versorgung. Schreine stapeln nicht. Ausserhalb der eigenen
+ * Domaene nichts -- Heimvorteil heisst daheim, nahe den Schreinen.
  */
 export function buffAt(world, player, x, y) {
   let zorn = 0;
   let wehr = 0;
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
-    if (e.dead || e.player !== player || e.kind !== 'building') continue;
-    const r = anchorRadius(world, e);
-    if (r === 0 || dist2(x, y, e.x, e.y) > r * r) continue;
-    const reg = world.regions[e.region];
-    if (!reg) continue;
-    if (reg.zorn > zorn) zorn = reg.zorn;
-    if (reg.wehr > wehr) wehr = reg.wehr;
+    if (e.dead || e.player !== player || e.kind !== 'building' || !e.done || !e.powered) continue;
+    const buff = BUILDINGS[e.type].buff;
+    if (!buff || dist2(x, y, e.x, e.y) > buff.radius * buff.radius) continue;
+    const z = (((buff.zorn || 0) * e.powered) / 1000) | 0;
+    const w = (((buff.wehr || 0) * e.powered) / 1000) | 0;
+    if (z > zorn) zorn = z;
+    if (w > wehr) wehr = w;
   }
+  if ((zorn || wehr) && !inDomain(world, player, x, y)) return { zorn: 0, wehr: 0 };
   return { zorn, wehr };
 }
 
@@ -493,8 +497,6 @@ export function computeRegions(world) {
       demand: 0,
       byPrio: [0, 0, 0, 0],
       satPrio: [1000, 1000, 1000, 1000],
-      zorn: 0, // staerkster versorgter Schrein im Netz, Promille
-      wehr: 0,
     });
   }
   world.regions = regions;
@@ -539,19 +541,9 @@ export function distributeGegenwart(world) {
       }
     }
 
-    reg.zorn = 0;
-    reg.wehr = 0;
     for (let i = 0; i < reg.members.length; i++) {
       const e = reg.members[i];
       e.powered = demandOf(e) > 0 ? reg.satPrio[prioOf(e)] : 1000;
-      const buff = BUILDINGS[e.type].buff;
-      if (buff && e.done) {
-        // Schreine wirken anteilig zur Versorgung und stapeln nicht.
-        const z = (((buff.zorn || 0) * e.powered) / 1000) | 0;
-        const w = (((buff.wehr || 0) * e.powered) / 1000) | 0;
-        if (z > reg.zorn) reg.zorn = z;
-        if (w > reg.wehr) reg.wehr = w;
-      }
     }
   }
 }
@@ -631,6 +623,22 @@ export function step(world) {
         const u = spawnUnit(world, e.player, type, clamp(ux), clamp(uy));
         world.events.push({ t: 'spawned', id: u.id });
       }
+    }
+  }
+
+  // Unterhalt: laufend Fron je lebender Einheit. Wer nicht zahlen kann,
+  // steht bei null -- kaufen geht dann nichts mehr.
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'unit') continue;
+    const u = UNITS[e.type].unterhalt;
+    if (u) world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * 1000;
+  }
+  for (let p = 0; p < world.players.length; p++) {
+    const pl = world.players[p];
+    if (pl.unterhaltAcc >= PER_MIN) {
+      pl.fron = Math.max(0, pl.fron - ((pl.unterhaltAcc / PER_MIN) | 0));
+      pl.unterhaltAcc %= PER_MIN;
     }
   }
 
@@ -950,6 +958,28 @@ function cleanup(world) {
 
 // ------------------------------------------------------------- Hilfsabfragen
 
+/** Unterhalt aller lebenden Einheiten eines Spielers, Fron pro Minute. */
+export function unterhaltProMin(world, player) {
+  let s = 0;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (!e.dead && e.kind === 'unit' && e.player === player) s += UNITS[e.type].unterhalt || 0;
+  }
+  return s;
+}
+
+/** Foerderung eines Spielers in Fron pro Minute, so wie sie gerade laeuft. */
+export function foerderungProMin(world, player) {
+  let s = 0;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'building' || !e.done || e.player !== player) continue;
+    const out = BUILDINGS[e.type].fronOut;
+    if (out) s += ((out * e.powered) / 1000) | 0;
+  }
+  return s;
+}
+
 export function gridReport(world, player) {
   const out = [];
   for (let i = 0; i < world.regions.length; i++) {
@@ -964,8 +994,6 @@ export function gridReport(world, player) {
       x: r.members[0].x,
       y: r.members[0].y,
       throttled: r.demand > r.supply,
-      zorn: r.zorn,
-      wehr: r.wehr,
     });
   }
   return out;
@@ -1004,6 +1032,7 @@ export function hash(world) {
     mix(world.players[p].goetterblut);
     mix(world.players[p].fronAcc || 0);
     mix(world.players[p].blutAcc || 0);
+    mix(world.players[p].unterhaltAcc || 0);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   mix(world.cleared.length);

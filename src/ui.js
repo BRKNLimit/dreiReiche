@@ -621,7 +621,7 @@ function drawHud() {
     rows += `<div class="reg ${r.throttled ? 'bad' : 'ok'}">
       <span class="rn">Domäne ${r.index + 1}</span><span class="rb">${r.supply}/${r.demand}</span>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}${schreinText(r)}</span></div>`;
+      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}</span></div>`;
   }
   if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
 
@@ -629,6 +629,7 @@ function drawHud() {
     <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}</div>
     <div class="res">
       <b>Fron</b><span>${p.fron}</span>
+      ${fronBilanz()}
       <b>Götterblut</b><span>${p.goetterblut}</span>
       <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>
       ${kommandantZeile()}
@@ -639,6 +640,15 @@ function drawHud() {
     <div class="regs">${rows}</div>
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
     ${world.over || zeigeAuswertung ? auswertungHtml() : ''}`;
+}
+
+/** Fron pro Minute: Foerderung minus Unterhalt des Heeres. */
+function fronBilanz() {
+  const plus = foerderungProMin(world, ME);
+  const minus = unterhaltProMin(world, ME);
+  const netto = plus - minus;
+  const farbe = netto < 0 ? COL.bad : COL.text;
+  return `<b title="Förderung minus Unterhalt der Einheiten">Fron/min</b><span style="color:${farbe}">+${plus} −${minus} = ${netto >= 0 ? '+' : ''}${netto}</span>`;
 }
 
 function kommandantZeile() {
@@ -799,14 +809,6 @@ function auswahlHtml() {
     <div class="keys">${tasten}${abriss}</div></div>`;
 }
 
-/** Schrein-Wirkung eines Netzes fuer die HUD-Zeile. */
-function schreinText(r) {
-  const teile = [];
-  if (r.zorn) teile.push('Zorn +' + Math.round(r.zorn / 10) + ' %');
-  if (r.wehr) teile.push('Wehr −' + Math.round(r.wehr / 10) + ' %');
-  return teile.length ? ' · ' + teile.join(' · ') : '';
-}
-
 function drossel(r) {
   for (let i = 3; i >= 0; i--) if (r.satPrio[i] < 1000) return PRIO_NAMES[i] + ' gedrosselt';
   return 'stabil';
@@ -875,7 +877,7 @@ function introHtml() {
         Schreine: Dornenschrein +${pz('dornenschrein')} Schaden, Steinkreis −${pw('steinkreis')} Schaden.</p></div>
     </div>
     <p>Für beide gilt: Gegenwart fließt nur in der Domäne — Fabriken, Förderung und Schreine brauchen
-    sie. Schreine wirken auf eigene Einheiten im selben Domänennetz. Götterblut liegt in der
+    sie. Schreine wirken auf eigene Einheiten in ihrem Umkreis (${meter(BUILDINGS.banner.buff.radius)}), solange die in der eigenen Domäne stehen. Götterblut liegt in der
     Kartenmitte; schwere Einheiten brauchen es.</p>
     <p>Jede Seite hat einen <b>Kommandanten</b> — ${UNITS[FACTIONS.mensch.kommandant].name} bzw.
     ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut, was in seiner Nähe steht,

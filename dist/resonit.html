@@ -202,6 +202,9 @@ const BUILDINGS = {
   // --------------------------------------------------------------- Menschen
   halle: {
     name: 'Thingstätte',
+    // Grunddomaene: deckt die ganze Startbasis mit ihren drei Steinhaufen --
+    // Anker braucht man zum Ausgreifen, nicht fuer Strom daheim.
+    anchorMin: 4000,
     short: 'HAL',
     faction: 'mensch',
     hp: 5000,
@@ -221,7 +224,7 @@ const BUILDINGS = {
     radius: 48,
     anchor: true,
     cost: { fron: 120 },
-    buildTime: 210,
+    buildTime: 150,
   },
   schmiede: {
     name: 'Schmiede',
@@ -231,7 +234,7 @@ const BUILDINGS = {
     radius: 60,
     gegenwartOut: 40,
     cost: { fron: 280 },
-    buildTime: 330,
+    buildTime: 230,
   },
   saege: {
     name: 'Sägewerk',
@@ -241,9 +244,9 @@ const BUILDINGS = {
     radius: 55,
     gegenwartIn: 14,
     prio: PRIO.segen,
-    fronOut: 240, // Fron pro Minute bei voller Versorgung
+    fronOut: 360, // Fron pro Minute bei voller Versorgung
     cost: { fron: 150 },
-    buildTime: 240,
+    buildTime: 170,
     needs: 'fron',
     clears: 2200, // rodet den Boden ringsum -- nimmt dem Gott Wachstumsgrund
   },
@@ -256,7 +259,7 @@ const BUILDINGS = {
     gegenwartIn: 55,
     prio: PRIO.werk,
     cost: { fron: 400 },
-    buildTime: 480,
+    buildTime: 340,
     buildList: ['bauer', 'soldat', 'jaeger', 'soeldner'],
   },
   schacht: {
@@ -269,7 +272,7 @@ const BUILDINGS = {
     prio: PRIO.segen,
     blutOut: 40, // Goetterblut pro Minute bei voller Versorgung
     cost: { fron: 250 },
-    buildTime: 300,
+    buildTime: 210,
     needs: 'goetterblut', // nur auf einer Ader -- und die liegen in der Mitte
   },
   // Schreine: Heimvorteil kommt aus der Domaene, nicht aus den Einheiten.
@@ -286,8 +289,8 @@ const BUILDINGS = {
     gegenwartIn: 15,
     prio: PRIO.zorn,
     cost: { fron: 160 },
-    buildTime: 240,
-    buff: { zorn: 250 },
+    buildTime: 170,
+    buff: { zorn: 250, radius: 3000 },
   },
   kapelle: {
     name: 'Kapelle',
@@ -298,13 +301,14 @@ const BUILDINGS = {
     gegenwartIn: 15,
     prio: PRIO.wehr,
     cost: { fron: 160 },
-    buildTime: 240,
-    buff: { wehr: 200 },
+    buildTime: 170,
+    buff: { wehr: 200, radius: 3000 },
   },
 
   // --------------------------------------------------------------- Gott
   herzbaum: {
     name: 'Herzbaum',
+    anchorMin: 4000, // wie die Thingstaette; waechst darueber hinaus bis max
     short: 'HRZ',
     faction: 'gott',
     hp: 5000,
@@ -324,7 +328,7 @@ const BUILDINGS = {
     radius: 48,
     anchor: true,
     cost: { fron: 110 },
-    buildTime: 270,
+    buildTime: 190,
     needsGrowth: true, // nur auf ungerodetem Boden
   },
   quelle: {
@@ -335,7 +339,7 @@ const BUILDINGS = {
     radius: 60,
     gegenwartOut: 40,
     cost: { fron: 280 },
-    buildTime: 330,
+    buildTime: 230,
   },
   moos: {
     name: 'Moosgrube',
@@ -345,9 +349,9 @@ const BUILDINGS = {
     radius: 55,
     gegenwartIn: 14,
     prio: PRIO.segen,
-    fronOut: 240, // Fron pro Minute bei voller Versorgung
+    fronOut: 360, // Fron pro Minute bei voller Versorgung
     cost: { fron: 150 },
-    buildTime: 240,
+    buildTime: 170,
     needs: 'fron',
   },
   dickicht: {
@@ -359,7 +363,7 @@ const BUILDINGS = {
     gegenwartIn: 55,
     prio: PRIO.werk,
     cost: { fron: 400 },
-    buildTime: 480,
+    buildTime: 340,
     buildList: ['dryade', 'wolf', 'waldgeist', 'ent'],
   },
   blutwurz: {
@@ -372,7 +376,7 @@ const BUILDINGS = {
     prio: PRIO.segen,
     blutOut: 40,
     cost: { fron: 250 },
-    buildTime: 300,
+    buildTime: 210,
     needs: 'goetterblut',
   },
   // Beim Gott staerker: sein Wald ist sein Heimvorteil.
@@ -385,8 +389,8 @@ const BUILDINGS = {
     gegenwartIn: 15,
     prio: PRIO.zorn,
     cost: { fron: 160 },
-    buildTime: 240,
-    buff: { zorn: 450 },
+    buildTime: 170,
+    buff: { zorn: 450, radius: 3000 },
   },
   steinkreis: {
     name: 'Steinkreis',
@@ -397,10 +401,13 @@ const BUILDINGS = {
     gegenwartIn: 15,
     prio: PRIO.wehr,
     cost: { fron: 160 },
-    buildTime: 240,
-    buff: { wehr: 300 },
+    buildTime: 170,
+    buff: { wehr: 300, radius: 3000 },
   },
 };
+
+// unterhalt: laufende Kosten in Fron pro Minute. Grosse Heere fressen die
+// Wirtschaft -- keine harte Obergrenze, aber eine spuerbare Bremse.
 const UNITS = {
   // ------------------------------------------------------------- Menschen
   // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
@@ -411,7 +418,8 @@ const UNITS = {
     radius: 24,
     speed: 30,
     cost: { fron: 40 },
-    buildTime: 100,
+    unterhalt: 4, // Fron pro Minute, solange sie lebt
+    buildTime: 80,
     worker: true,
     // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
     build: { power: 400 },
@@ -424,18 +432,20 @@ const UNITS = {
     radius: 26,
     speed: 30,
     cost: { fron: 45 },
-    buildTime: 100,
+    unterhalt: 9, // Fron pro Minute, solange sie lebt
+    buildTime: 80,
     weapon: { range: 380, damage: 9, cooldown: 6 },
   },
   jaeger: {
     name: 'Jäger',
     faction: 'mensch',
-    hp: 130,
+    hp: 180,
     radius: 24,
     speed: 32,
     cost: { fron: 55 },
-    buildTime: 120,
-    weapon: { range: 540, damage: 10, cooldown: 8 },
+    unterhalt: 10, // Fron pro Minute, solange sie lebt
+    buildTime: 100,
+    weapon: { range: 540, damage: 13, cooldown: 8 },
   },
   soeldner: {
     name: 'Söldner',
@@ -446,7 +456,8 @@ const UNITS = {
     // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
     // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
     cost: { fron: 130, goetterblut: 10 },
-    buildTime: 240,
+    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    buildTime: 190,
     weapon: { range: 480, damage: 26, cooldown: 8 },
   },
 
@@ -492,7 +503,8 @@ const UNITS = {
     radius: 28,
     speed: 28,
     cost: { fron: 90 },
-    buildTime: 220,
+    unterhalt: 12, // Fron pro Minute, solange sie lebt
+    buildTime: 180,
     worker: true,
     build: { power: 700 },
     weapon: { range: 380, damage: 8, cooldown: 7 },
@@ -500,22 +512,24 @@ const UNITS = {
   wolf: {
     name: 'Wolf',
     faction: 'gott',
-    hp: 640,
+    hp: 540,
     radius: 30,
     speed: 34,
     cost: { fron: 130 },
-    buildTime: 260,
-    weapon: { range: 260, damage: 24, cooldown: 6 },
+    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    buildTime: 210,
+    weapon: { range: 260, damage: 22, cooldown: 6 },
   },
   waldgeist: {
     name: 'Waldgeist',
     faction: 'gott',
-    hp: 420,
+    hp: 480,
     radius: 30,
     speed: 26,
-    cost: { fron: 150 },
-    buildTime: 300,
-    weapon: { range: 600, damage: 22, cooldown: 8 },
+    cost: { fron: 130 },
+    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    buildTime: 240,
+    weapon: { range: 600, damage: 26, cooldown: 8 },
   },
   ent: {
     name: 'Ent',
@@ -524,11 +538,12 @@ const UNITS = {
     radius: 44,
     speed: 16,
     cost: { fron: 300, goetterblut: 20 },
-    buildTime: 600,
+    unterhalt: 56, // Fron pro Minute, solange sie lebt
+    buildTime: 480,
     weapon: { range: 360, damage: 52, cooldown: 10 },
   },
 };
-const START_FRON = 900;
+const START_FRON = 1100;
 
 /** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
 const RESOURCES = ['fron', 'goetterblut'];
@@ -588,10 +603,12 @@ function dist(ax, ay, bx, by) {
  *   Gott     -> start klein, waechst     -> frueh winzig, spaet riesig
  */
 function anchorRadius(world, e) {
-  if (!BUILDINGS[e.type].anchor || !e.done) return 0;
+  const def = BUILDINGS[e.type];
+  if (!def.anchor || !e.done) return 0;
   const g = FACTIONS[world.players[e.player].faction].growth;
   const age = world.tick - e.doneAt;
-  return Math.min(g.max, g.start + age * g.perTick);
+  // anchorMin: Hauptgebaeude tragen mindestens die eigene Startbasis.
+  return Math.max(def.anchorMin || 0, Math.min(g.max, g.start + age * g.perTick));
 }
 
 const PER_MIN = 600 * 1000;
@@ -945,23 +962,25 @@ function inDomain(world, player, x, y) {
 }
 
 /**
- * Schrein-Wirkung an einem Punkt fuer einen Spieler: die staerkste aus allen
- * eigenen Domaenennetzen, deren Anker den Punkt abdecken. Ausserhalb der
- * eigenen Domaene nichts.
+ * Schrein-Wirkung an einem Punkt fuer einen Spieler: der staerkste eigene
+ * fertige Schrein, in dessen Umkreis (buff.radius) der Punkt liegt, anteilig
+ * zu seiner Versorgung. Schreine stapeln nicht. Ausserhalb der eigenen
+ * Domaene nichts -- Heimvorteil heisst daheim, nahe den Schreinen.
  */
 function buffAt(world, player, x, y) {
   let zorn = 0;
   let wehr = 0;
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
-    if (e.dead || e.player !== player || e.kind !== 'building') continue;
-    const r = anchorRadius(world, e);
-    if (r === 0 || dist2(x, y, e.x, e.y) > r * r) continue;
-    const reg = world.regions[e.region];
-    if (!reg) continue;
-    if (reg.zorn > zorn) zorn = reg.zorn;
-    if (reg.wehr > wehr) wehr = reg.wehr;
+    if (e.dead || e.player !== player || e.kind !== 'building' || !e.done || !e.powered) continue;
+    const buff = BUILDINGS[e.type].buff;
+    if (!buff || dist2(x, y, e.x, e.y) > buff.radius * buff.radius) continue;
+    const z = (((buff.zorn || 0) * e.powered) / 1000) | 0;
+    const w = (((buff.wehr || 0) * e.powered) / 1000) | 0;
+    if (z > zorn) zorn = z;
+    if (w > wehr) wehr = w;
   }
+  if ((zorn || wehr) && !inDomain(world, player, x, y)) return { zorn: 0, wehr: 0 };
   return { zorn, wehr };
 }
 
@@ -1028,8 +1047,6 @@ function computeRegions(world) {
       demand: 0,
       byPrio: [0, 0, 0, 0],
       satPrio: [1000, 1000, 1000, 1000],
-      zorn: 0, // staerkster versorgter Schrein im Netz, Promille
-      wehr: 0,
     });
   }
   world.regions = regions;
@@ -1073,19 +1090,9 @@ function distributeGegenwart(world) {
       }
     }
 
-    reg.zorn = 0;
-    reg.wehr = 0;
     for (let i = 0; i < reg.members.length; i++) {
       const e = reg.members[i];
       e.powered = demandOf(e) > 0 ? reg.satPrio[prioOf(e)] : 1000;
-      const buff = BUILDINGS[e.type].buff;
-      if (buff && e.done) {
-        // Schreine wirken anteilig zur Versorgung und stapeln nicht.
-        const z = (((buff.zorn || 0) * e.powered) / 1000) | 0;
-        const w = (((buff.wehr || 0) * e.powered) / 1000) | 0;
-        if (z > reg.zorn) reg.zorn = z;
-        if (w > reg.wehr) reg.wehr = w;
-      }
     }
   }
 }
@@ -1164,6 +1171,22 @@ function step(world) {
         const u = spawnUnit(world, e.player, type, clamp(ux), clamp(uy));
         world.events.push({ t: 'spawned', id: u.id });
       }
+    }
+  }
+
+  // Unterhalt: laufend Fron je lebender Einheit. Wer nicht zahlen kann,
+  // steht bei null -- kaufen geht dann nichts mehr.
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'unit') continue;
+    const u = UNITS[e.type].unterhalt;
+    if (u) world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * 1000;
+  }
+  for (let p = 0; p < world.players.length; p++) {
+    const pl = world.players[p];
+    if (pl.unterhaltAcc >= PER_MIN) {
+      pl.fron = Math.max(0, pl.fron - ((pl.unterhaltAcc / PER_MIN) | 0));
+      pl.unterhaltAcc %= PER_MIN;
     }
   }
 
@@ -1482,6 +1505,28 @@ function cleanup(world) {
 }
 
 // ------------------------------------------------------------- Hilfsabfragen
+
+/** Unterhalt aller lebenden Einheiten eines Spielers, Fron pro Minute. */
+function unterhaltProMin(world, player) {
+  let s = 0;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (!e.dead && e.kind === 'unit' && e.player === player) s += UNITS[e.type].unterhalt || 0;
+  }
+  return s;
+}
+
+/** Foerderung eines Spielers in Fron pro Minute, so wie sie gerade laeuft. */
+function foerderungProMin(world, player) {
+  let s = 0;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'building' || !e.done || e.player !== player) continue;
+    const out = BUILDINGS[e.type].fronOut;
+    if (out) s += ((out * e.powered) / 1000) | 0;
+  }
+  return s;
+}
 function gridReport(world, player) {
   const out = [];
   for (let i = 0; i < world.regions.length; i++) {
@@ -1496,8 +1541,6 @@ function gridReport(world, player) {
       x: r.members[0].x,
       y: r.members[0].y,
       throttled: r.demand > r.supply,
-      zorn: r.zorn,
-      wehr: r.wehr,
     });
   }
   return out;
@@ -1535,6 +1578,7 @@ function hash(world) {
     mix(world.players[p].goetterblut);
     mix(world.players[p].fronAcc || 0);
     mix(world.players[p].blutAcc || 0);
+    mix(world.players[p].unterhaltAcc || 0);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   mix(world.cleared.length);
@@ -1574,9 +1618,9 @@ const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
  * Spielstile, fraktionsneutral. Messungen mit nur einem Stil messen vor
  * allem diesen Stil (docs/scope.md); tools/sweep.mjs kann alle Paarungen
  * gegeneinander spielen lassen.
- *   welle:     Heereswert (Fron) fuer die erste Welle, plus wellePlus je
- *              weitere -- Wert statt Koepfe, sonst griffe der Gott mit seinen
- *              wenigen starken Einheiten nie an
+ *   welle:     Heereswert (Fron), ab dem eine Welle losgeht -- mindestens;
+ *              gegen ein starkes Heer daheim mehr. Wert statt Koepfe, sonst
+ *              griffe der Gott mit seinen wenigen starken Einheiten nie an
  *   ankerAb:   Fron-Polster, ab dem zusaetzliche Anker gesetzt werden
  *   ankerTakt: Minuten je zusaetzlichem Anker
  *   kdtVorn:   Kommandant geht nach vorn (kaempft, baut Aussenposten an
@@ -1585,9 +1629,9 @@ const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
  *              Kommandanten, mehr bei grossem Heer (drei Zehntel)
  */
 const STILE = {
-  sturm: { welle: 300, wellePlus: 120, ankerAb: 400, ankerTakt: 2, kdtVorn: true, wache: 120 },
-  standard: { welle: 550, wellePlus: 200, ankerAb: 250, ankerTakt: 1, kdtVorn: false, wache: 220 },
-  burg: { welle: 900, wellePlus: 300, ankerAb: 150, ankerTakt: 1, kdtVorn: false, wache: 320 },
+  sturm: { welle: 300, ankerAb: 400, ankerTakt: 2, kdtVorn: true, wache: 120 },
+  standard: { welle: 550, ankerAb: 250, ankerTakt: 1, kdtVorn: false, wache: 220 },
+  burg: { welle: 900, ankerAb: 150, ankerTakt: 1, kdtVorn: false, wache: 320 },
 };
 
 // So viele Anker setzt die KI hoechstens von sich aus (ohne Vorstoss zur Ader).
@@ -1596,7 +1640,10 @@ const ANKER_HOECHSTENS = 8;
 // Wie weit "hinten" fuer die KI reicht: Umkreis um das eigene Hauptgebaeude.
 const HINTEN = 3000;
 function createAI(player = 1, seed = 1, stil = 'standard') {
-  return { player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0, stil: STILE[stil] };
+  return {
+    player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0, stil: STILE[stil],
+    letzterBau: null, gesperrt: [],
+  };
 }
 function stepAI(ai, world) {
   if (world.over || world.tick < ai.next) return;
@@ -1631,13 +1678,31 @@ function stepAI(ai, world) {
   const ziel = gegnerHaupt(world, ai.player);
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
-  const bau = (building, x, y) => issue(world, { type: 'build', player: ai.player, building, x, y });
+  // Abgelehnte Bauten merken: Steht nach einem Bauauftrag nichts an der
+  // Stelle, sperrt die KI den Platz fuer zwei Minuten und plant weiter --
+  // sonst wiederholt sie einen Auftrag, den die Simulation jedes Mal ablehnt,
+  // und kommt nie zur Produktion.
+  if (ai.letzterBau) {
+    const l = ai.letzterBau;
+    const r = BUILDINGS[l.building].radius + 200;
+    if (!bauten.some((b) => b.type === l.building && dist2(b.x, b.y, l.x, l.y) <= r * r)) {
+      ai.gesperrt.push({ building: l.building, x: l.x, y: l.y, bis: world.tick + 1200 });
+    }
+    ai.letzterBau = null;
+  }
+  ai.gesperrt = ai.gesperrt.filter((g) => g.bis > world.tick);
+  const bau = (building, x, y) => {
+    if (ai.gesperrt.some((g) => g.building === building && dist2(g.x, g.y, x, y) < 200 * 200)) return false;
+    issue(world, { type: 'build', player: ai.player, building, x, y });
+    ai.letzterBau = { building, x, y };
+    return true;
+  };
 
   // Wer keine Fabrik hat, baut sie zuerst nach der ersten Foerderung -- ohne
   // Armee ist jede Wirtschaft nur Beute.
   // Fabriken nach Spielzeit, nicht nach Vorrat: wer spart, soll nicht weniger bauen.
   const fabrikZiel = 1 + (minute >= 6 ? 1 : 0) + (minute >= 11 ? 1 : 0);
-  const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3;
+  const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= 9 ? 1 : 0) + (minute >= 15 ? 1 : 0);
   const ader = freieAder(world, haupt, 'fron');
 
   // Goetterblut liegt in der Mitte. Ein Schacht braucht Gegenwart, also muss
@@ -1650,7 +1715,7 @@ function stepAI(ai, world) {
 
   // 1. Foerderung, aber nur mit Deckung.
   if (ader && zahl(plan.fron) < fronZiel && fron >= kosten(plan.fron)) {
-    if (bilanz >= BUILDINGS[plan.fron].gegenwartIn) return bau(plan.fron, ader.x, ader.y);
+    if (bilanz >= BUILDINGS[plan.fron].gegenwartIn && bau(plan.fron, ader.x, ader.y)) return;
   }
 
   // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
@@ -1667,13 +1732,15 @@ function stepAI(ai, world) {
   const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
   if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
     const n = zahl(plan.kraft);
-    return bau(plan.kraft, ...daheim(world, haupt, 700 + n * 250, front + 40 + n * 83));
+    const platz = daheimFrei(world, haupt, plan.kraft, 700 + n * 250, front + 40 + n * 83);
+    if (platz && bau(plan.kraft, ...platz)) return;
   }
 
   // 3. Fabrik
   if (zahl(plan.fabrik) < fabrikZiel && fron >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].gegenwartIn) {
     const n = zahl(plan.fabrik);
-    return bau(plan.fabrik, ...daheim(world, haupt, 900, front + 200 + n * 70));
+    const platz = daheimFrei(world, haupt, plan.fabrik, 900, front + 200 + n * 70);
+    if (platz && bau(plan.fabrik, ...platz)) return;
   }
 
   // 3a. Schreine: ab Minute 5 je einer fuer Zorn und Wehr beim Hauptgebaeude --
@@ -1682,13 +1749,14 @@ function stepAI(ai, world) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
       if (zahl(typ) > 0 || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
-      return bau(typ, ...daheim(world, haupt, 600, front + grad));
+      const platz = daheimFrei(world, haupt, typ, 600, front + grad);
+      if (platz && bau(typ, ...platz)) return;
     }
   }
 
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
   if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
-    return bau(plan.blut, vene.x, vene.y);
+    if (bau(plan.blut, vene.x, vene.y)) return;
   }
   const ankerImBau = bauten.some((b) => !b.done && BUILDINGS[b.type].anchor);
   if (kdt && ai.stil.kdtVorn && vene && !veneBereit) {
@@ -1700,7 +1768,7 @@ function stepAI(ai, world) {
     if (!posten) {
       if (fron >= kosten(plan.anker)) {
         const platz = nahePlatz(world, vene, haupt, Math.min(start >> 1, 600), BUILDINGS[plan.anker].radius, plan.anker);
-        if (platz) return bau(plan.anker, platz.x, platz.y);
+        if (platz && bau(plan.anker, platz.x, platz.y)) return;
       }
     } else {
       const reg = world.regions[posten.region];
@@ -1709,7 +1777,7 @@ function stepAI(ai, world) {
       );
       if (posten.done && (!reg || reg.supply === 0) && !quelleDa && fron >= kosten(plan.kraft)) {
         const platz = nahePlatz(world, posten, haupt, 350, BUILDINGS[plan.kraft].radius, plan.kraft, 90);
-        if (platz) return bau(plan.kraft, platz.x, platz.y);
+        if (platz && bau(plan.kraft, platz.x, platz.y)) return;
       }
     }
   } else if (vene && !veneBereit && !ankerImBau && fron >= kosten(plan.anker) + 100) {
@@ -1719,7 +1787,7 @@ function stepAI(ai, world) {
     const platz = vorstoss(world, ai.player, haupt, vene, plan.anker);
     const start = FACTIONS[p.faction].growth.start;
     if (platz && dist2(platz.x, platz.y, vene.x, vene.y) <= 4 * start * start) {
-      return bau(plan.anker, platz.x, platz.y);
+      if (bau(plan.anker, platz.x, platz.y)) return;
     }
   }
 
@@ -1730,7 +1798,7 @@ function stepAI(ai, world) {
   const ankerZiel = Math.min(ANKER_HOECHSTENS, 2 + ((minute / ai.stil.ankerTakt) | 0));
   if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + ai.stil.ankerAb) {
     const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
-    if (platz) return bau(plan.anker, platz.x, platz.y);
+    if (platz && bau(plan.anker, platz.x, platz.y)) return;
   }
 
   // 5. Ohne Gegenwart: eine Baustelle oder ein fertiger Verbraucher ausserhalb
@@ -1749,7 +1817,8 @@ function stepAI(ai, world) {
     if (quelle) {
       const x = quelle.x + (((steht.x - quelle.x) / 2) | 0);
       const y = quelle.y + (((steht.y - quelle.y) / 2) | 0);
-      if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) return bau(plan.anker, x, y);
+      const frei = !blockiert(world, x, y, BUILDINGS[plan.anker].radius);
+      if (frei && (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) && bau(plan.anker, x, y)) return;
     }
   }
 
@@ -1846,8 +1915,13 @@ function stepAI(ai, world) {
   }
   // Nur angreifen, wenn die Welle das gegnerische Heer daheim samt dessen
   // Heimvorteil uebertrifft -- sonst zerschellt sie an der Verteidigung.
+  // Ausser das Heer ist satt: Der Unterhalt frisst die Foerderung fast ganz,
+  // es waechst nicht mehr. Dann bringt Warten nichts, und es geht los.
   const gegnerDaheim = heimHeer(world, ai.player);
-  const genug = Math.max(ai.stil.welle + ai.welle * ai.stil.wellePlus, ((gegnerDaheim * 12) / 10) | 0);
+  const satt = minute >= 8 && unterhaltProMin(world, ai.player) * 10 >= foerderungProMin(world, ai.player) * 8;
+  const genug = satt
+    ? ai.stil.welle
+    : Math.max(ai.stil.welle, ((gegnerDaheim * 12) / 10) | 0);
   if (!bedrohung && wert(daheimStehend) >= genug && angriff) {
     ai.welle++;
     ai.welleZiel = angriff.id;
@@ -2168,6 +2242,23 @@ const grenze = (v) => Math.max(400, Math.min(MAP - 400, v | 0));
 function daheim(world, haupt, radius, grad) {
   const r = Math.min(radius, Math.max(300, anchorRadius(world, haupt) - 150));
   return [grenze(haupt.x + (((r * cosDeg(grad)) / 1000) | 0)), grenze(haupt.y + (((r * sinDeg(grad)) / 1000) | 0))];
+}
+
+/**
+ * Wie daheim(), aber nur ein freier Platz: Ist er belegt -- etwa weil ein
+ * zerstoerter Bau die Zaehlung verschoben hat --, weiter aussen und seitlich
+ * suchen. Ohne freien Platz null, sonst haengt die KI an einem Bau fest, den
+ * die Simulation jedes Mal ablehnt.
+ */
+function daheimFrei(world, haupt, typ, radius, grad) {
+  const r = BUILDINGS[typ].radius;
+  for (let k = 0; k < 15; k++) {
+    const [x, y] = daheim(world, haupt, radius + ((k / 3) | 0) * 250, grad + [0, 35, -35][k % 3]);
+    if (blockiert(world, x, y, r)) continue;
+    if (world.deposits.some((d) => dist2(d.x, d.y, x, y) < (r + 120) * (r + 120))) continue;
+    return [x, y];
+  }
+  return null;
 }
 
 /** Richtung von a nach b in ganzen Grad, ueber eine Integer-Suche in der Tabelle. */
@@ -2814,7 +2905,7 @@ function drawHud() {
     rows += `<div class="reg ${r.throttled ? 'bad' : 'ok'}">
       <span class="rn">Domäne ${r.index + 1}</span><span class="rb">${r.supply}/${r.demand}</span>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}${schreinText(r)}</span></div>`;
+      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}</span></div>`;
   }
   if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
 
@@ -2822,6 +2913,7 @@ function drawHud() {
     <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}</div>
     <div class="res">
       <b>Fron</b><span>${p.fron}</span>
+      ${fronBilanz()}
       <b>Götterblut</b><span>${p.goetterblut}</span>
       <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>
       ${kommandantZeile()}
@@ -2832,6 +2924,15 @@ function drawHud() {
     <div class="regs">${rows}</div>
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
     ${world.over || zeigeAuswertung ? auswertungHtml() : ''}`;
+}
+
+/** Fron pro Minute: Foerderung minus Unterhalt des Heeres. */
+function fronBilanz() {
+  const plus = foerderungProMin(world, ME);
+  const minus = unterhaltProMin(world, ME);
+  const netto = plus - minus;
+  const farbe = netto < 0 ? COL.bad : COL.text;
+  return `<b title="Förderung minus Unterhalt der Einheiten">Fron/min</b><span style="color:${farbe}">+${plus} −${minus} = ${netto >= 0 ? '+' : ''}${netto}</span>`;
 }
 
 function kommandantZeile() {
@@ -2992,14 +3093,6 @@ function auswahlHtml() {
     <div class="keys">${tasten}${abriss}</div></div>`;
 }
 
-/** Schrein-Wirkung eines Netzes fuer die HUD-Zeile. */
-function schreinText(r) {
-  const teile = [];
-  if (r.zorn) teile.push('Zorn +' + Math.round(r.zorn / 10) + ' %');
-  if (r.wehr) teile.push('Wehr −' + Math.round(r.wehr / 10) + ' %');
-  return teile.length ? ' · ' + teile.join(' · ') : '';
-}
-
 function drossel(r) {
   for (let i = 3; i >= 0; i--) if (r.satPrio[i] < 1000) return PRIO_NAMES[i] + ' gedrosselt';
   return 'stabil';
@@ -3068,7 +3161,7 @@ function introHtml() {
         Schreine: Dornenschrein +${pz('dornenschrein')} Schaden, Steinkreis −${pw('steinkreis')} Schaden.</p></div>
     </div>
     <p>Für beide gilt: Gegenwart fließt nur in der Domäne — Fabriken, Förderung und Schreine brauchen
-    sie. Schreine wirken auf eigene Einheiten im selben Domänennetz. Götterblut liegt in der
+    sie. Schreine wirken auf eigene Einheiten in ihrem Umkreis (${meter(BUILDINGS.banner.buff.radius)}), solange die in der eigenen Domäne stehen. Götterblut liegt in der
     Kartenmitte; schwere Einheiten brauchen es.</p>
     <p>Jede Seite hat einen <b>Kommandanten</b> — ${UNITS[FACTIONS.mensch.kommandant].name} bzw.
     ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut, was in seiner Nähe steht,

@@ -2,7 +2,10 @@
 // Domänenmechanik unter Stress zeigt. Nutzt nur issue(), nie direkten Zugriff.
 // Nur Integer-Arithmetik und rng() -- dieselben Regeln wie die Simulation.
 
-import { issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, buffAt, rng, cosDeg, sinDeg } from './sim.js';
+import {
+  issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, buffAt, rng, cosDeg, sinDeg,
+  unterhaltProMin, foerderungProMin,
+} from './sim.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP } from './defs.js';
 
 const PLAN = {
@@ -28,9 +31,9 @@ const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
  * Spielstile, fraktionsneutral. Messungen mit nur einem Stil messen vor
  * allem diesen Stil (docs/scope.md); tools/sweep.mjs kann alle Paarungen
  * gegeneinander spielen lassen.
- *   welle:     Heereswert (Fron) fuer die erste Welle, plus wellePlus je
- *              weitere -- Wert statt Koepfe, sonst griffe der Gott mit seinen
- *              wenigen starken Einheiten nie an
+ *   welle:     Heereswert (Fron), ab dem eine Welle losgeht -- mindestens;
+ *              gegen ein starkes Heer daheim mehr. Wert statt Koepfe, sonst
+ *              griffe der Gott mit seinen wenigen starken Einheiten nie an
  *   ankerAb:   Fron-Polster, ab dem zusaetzliche Anker gesetzt werden
  *   ankerTakt: Minuten je zusaetzlichem Anker
  *   kdtVorn:   Kommandant geht nach vorn (kaempft, baut Aussenposten an
@@ -39,9 +42,9 @@ const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
  *              Kommandanten, mehr bei grossem Heer (drei Zehntel)
  */
 export const STILE = {
-  sturm: { welle: 300, wellePlus: 120, ankerAb: 400, ankerTakt: 2, kdtVorn: true, wache: 120 },
-  standard: { welle: 550, wellePlus: 200, ankerAb: 250, ankerTakt: 1, kdtVorn: false, wache: 220 },
-  burg: { welle: 900, wellePlus: 300, ankerAb: 150, ankerTakt: 1, kdtVorn: false, wache: 320 },
+  sturm: { welle: 300, ankerAb: 400, ankerTakt: 2, kdtVorn: true, wache: 120 },
+  standard: { welle: 550, ankerAb: 250, ankerTakt: 1, kdtVorn: false, wache: 220 },
+  burg: { welle: 900, ankerAb: 150, ankerTakt: 1, kdtVorn: false, wache: 320 },
 };
 
 // So viele Anker setzt die KI hoechstens von sich aus (ohne Vorstoss zur Ader).
@@ -51,7 +54,10 @@ const ANKER_HOECHSTENS = 8;
 const HINTEN = 3000;
 
 export function createAI(player = 1, seed = 1, stil = 'standard') {
-  return { player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0, stil: STILE[stil] };
+  return {
+    player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0, stil: STILE[stil],
+    letzterBau: null, gesperrt: [],
+  };
 }
 
 export function stepAI(ai, world) {
@@ -87,13 +93,31 @@ export function stepAI(ai, world) {
   const ziel = gegnerHaupt(world, ai.player);
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
-  const bau = (building, x, y) => issue(world, { type: 'build', player: ai.player, building, x, y });
+  // Abgelehnte Bauten merken: Steht nach einem Bauauftrag nichts an der
+  // Stelle, sperrt die KI den Platz fuer zwei Minuten und plant weiter --
+  // sonst wiederholt sie einen Auftrag, den die Simulation jedes Mal ablehnt,
+  // und kommt nie zur Produktion.
+  if (ai.letzterBau) {
+    const l = ai.letzterBau;
+    const r = BUILDINGS[l.building].radius + 200;
+    if (!bauten.some((b) => b.type === l.building && dist2(b.x, b.y, l.x, l.y) <= r * r)) {
+      ai.gesperrt.push({ building: l.building, x: l.x, y: l.y, bis: world.tick + 1200 });
+    }
+    ai.letzterBau = null;
+  }
+  ai.gesperrt = ai.gesperrt.filter((g) => g.bis > world.tick);
+  const bau = (building, x, y) => {
+    if (ai.gesperrt.some((g) => g.building === building && dist2(g.x, g.y, x, y) < 200 * 200)) return false;
+    issue(world, { type: 'build', player: ai.player, building, x, y });
+    ai.letzterBau = { building, x, y };
+    return true;
+  };
 
   // Wer keine Fabrik hat, baut sie zuerst nach der ersten Foerderung -- ohne
   // Armee ist jede Wirtschaft nur Beute.
   // Fabriken nach Spielzeit, nicht nach Vorrat: wer spart, soll nicht weniger bauen.
   const fabrikZiel = 1 + (minute >= 6 ? 1 : 0) + (minute >= 11 ? 1 : 0);
-  const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3;
+  const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= 9 ? 1 : 0) + (minute >= 15 ? 1 : 0);
   const ader = freieAder(world, haupt, 'fron');
 
   // Goetterblut liegt in der Mitte. Ein Schacht braucht Gegenwart, also muss
@@ -106,7 +130,7 @@ export function stepAI(ai, world) {
 
   // 1. Foerderung, aber nur mit Deckung.
   if (ader && zahl(plan.fron) < fronZiel && fron >= kosten(plan.fron)) {
-    if (bilanz >= BUILDINGS[plan.fron].gegenwartIn) return bau(plan.fron, ader.x, ader.y);
+    if (bilanz >= BUILDINGS[plan.fron].gegenwartIn && bau(plan.fron, ader.x, ader.y)) return;
   }
 
   // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
@@ -123,13 +147,15 @@ export function stepAI(ai, world) {
   const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
   if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
     const n = zahl(plan.kraft);
-    return bau(plan.kraft, ...daheim(world, haupt, 700 + n * 250, front + 40 + n * 83));
+    const platz = daheimFrei(world, haupt, plan.kraft, 700 + n * 250, front + 40 + n * 83);
+    if (platz && bau(plan.kraft, ...platz)) return;
   }
 
   // 3. Fabrik
   if (zahl(plan.fabrik) < fabrikZiel && fron >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].gegenwartIn) {
     const n = zahl(plan.fabrik);
-    return bau(plan.fabrik, ...daheim(world, haupt, 900, front + 200 + n * 70));
+    const platz = daheimFrei(world, haupt, plan.fabrik, 900, front + 200 + n * 70);
+    if (platz && bau(plan.fabrik, ...platz)) return;
   }
 
   // 3a. Schreine: ab Minute 5 je einer fuer Zorn und Wehr beim Hauptgebaeude --
@@ -138,13 +164,14 @@ export function stepAI(ai, world) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
       if (zahl(typ) > 0 || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
-      return bau(typ, ...daheim(world, haupt, 600, front + grad));
+      const platz = daheimFrei(world, haupt, typ, 600, front + grad);
+      if (platz && bau(typ, ...platz)) return;
     }
   }
 
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
   if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
-    return bau(plan.blut, vene.x, vene.y);
+    if (bau(plan.blut, vene.x, vene.y)) return;
   }
   const ankerImBau = bauten.some((b) => !b.done && BUILDINGS[b.type].anchor);
   if (kdt && ai.stil.kdtVorn && vene && !veneBereit) {
@@ -156,7 +183,7 @@ export function stepAI(ai, world) {
     if (!posten) {
       if (fron >= kosten(plan.anker)) {
         const platz = nahePlatz(world, vene, haupt, Math.min(start >> 1, 600), BUILDINGS[plan.anker].radius, plan.anker);
-        if (platz) return bau(plan.anker, platz.x, platz.y);
+        if (platz && bau(plan.anker, platz.x, platz.y)) return;
       }
     } else {
       const reg = world.regions[posten.region];
@@ -165,7 +192,7 @@ export function stepAI(ai, world) {
       );
       if (posten.done && (!reg || reg.supply === 0) && !quelleDa && fron >= kosten(plan.kraft)) {
         const platz = nahePlatz(world, posten, haupt, 350, BUILDINGS[plan.kraft].radius, plan.kraft, 90);
-        if (platz) return bau(plan.kraft, platz.x, platz.y);
+        if (platz && bau(plan.kraft, platz.x, platz.y)) return;
       }
     }
   } else if (vene && !veneBereit && !ankerImBau && fron >= kosten(plan.anker) + 100) {
@@ -175,7 +202,7 @@ export function stepAI(ai, world) {
     const platz = vorstoss(world, ai.player, haupt, vene, plan.anker);
     const start = FACTIONS[p.faction].growth.start;
     if (platz && dist2(platz.x, platz.y, vene.x, vene.y) <= 4 * start * start) {
-      return bau(plan.anker, platz.x, platz.y);
+      if (bau(plan.anker, platz.x, platz.y)) return;
     }
   }
 
@@ -186,7 +213,7 @@ export function stepAI(ai, world) {
   const ankerZiel = Math.min(ANKER_HOECHSTENS, 2 + ((minute / ai.stil.ankerTakt) | 0));
   if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + ai.stil.ankerAb) {
     const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
-    if (platz) return bau(plan.anker, platz.x, platz.y);
+    if (platz && bau(plan.anker, platz.x, platz.y)) return;
   }
 
   // 5. Ohne Gegenwart: eine Baustelle oder ein fertiger Verbraucher ausserhalb
@@ -205,7 +232,8 @@ export function stepAI(ai, world) {
     if (quelle) {
       const x = quelle.x + (((steht.x - quelle.x) / 2) | 0);
       const y = quelle.y + (((steht.y - quelle.y) / 2) | 0);
-      if (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) return bau(plan.anker, x, y);
+      const frei = !blockiert(world, x, y, BUILDINGS[plan.anker].radius);
+      if (frei && (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) && bau(plan.anker, x, y)) return;
     }
   }
 
@@ -302,8 +330,13 @@ export function stepAI(ai, world) {
   }
   // Nur angreifen, wenn die Welle das gegnerische Heer daheim samt dessen
   // Heimvorteil uebertrifft -- sonst zerschellt sie an der Verteidigung.
+  // Ausser das Heer ist satt: Der Unterhalt frisst die Foerderung fast ganz,
+  // es waechst nicht mehr. Dann bringt Warten nichts, und es geht los.
   const gegnerDaheim = heimHeer(world, ai.player);
-  const genug = Math.max(ai.stil.welle + ai.welle * ai.stil.wellePlus, ((gegnerDaheim * 12) / 10) | 0);
+  const satt = minute >= 8 && unterhaltProMin(world, ai.player) * 10 >= foerderungProMin(world, ai.player) * 8;
+  const genug = satt
+    ? ai.stil.welle
+    : Math.max(ai.stil.welle, ((gegnerDaheim * 12) / 10) | 0);
   if (!bedrohung && wert(daheimStehend) >= genug && angriff) {
     ai.welle++;
     ai.welleZiel = angriff.id;
@@ -624,6 +657,23 @@ const grenze = (v) => Math.max(400, Math.min(MAP - 400, v | 0));
 function daheim(world, haupt, radius, grad) {
   const r = Math.min(radius, Math.max(300, anchorRadius(world, haupt) - 150));
   return [grenze(haupt.x + (((r * cosDeg(grad)) / 1000) | 0)), grenze(haupt.y + (((r * sinDeg(grad)) / 1000) | 0))];
+}
+
+/**
+ * Wie daheim(), aber nur ein freier Platz: Ist er belegt -- etwa weil ein
+ * zerstoerter Bau die Zaehlung verschoben hat --, weiter aussen und seitlich
+ * suchen. Ohne freien Platz null, sonst haengt die KI an einem Bau fest, den
+ * die Simulation jedes Mal ablehnt.
+ */
+function daheimFrei(world, haupt, typ, radius, grad) {
+  const r = BUILDINGS[typ].radius;
+  for (let k = 0; k < 15; k++) {
+    const [x, y] = daheim(world, haupt, radius + ((k / 3) | 0) * 250, grad + [0, 35, -35][k % 3]);
+    if (blockiert(world, x, y, r)) continue;
+    if (world.deposits.some((d) => dist2(d.x, d.y, x, y) < (r + 120) * (r + 120))) continue;
+    return [x, y];
+  }
+  return null;
 }
 
 /** Richtung von a nach b in ganzen Grad, ueber eine Integer-Suche in der Tabelle. */

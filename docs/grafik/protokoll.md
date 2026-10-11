@@ -63,6 +63,18 @@ geprüft (Tests, Galerie, Spiel).
   - **Dynamischer Schritt:** Bei Bewegung schwingt nicht nur die Basis vor/zurück, sondern der Rumpf wippt vertikal im Schrittrhythmus (`+0.05 * |schritt|`), was Gang und Gewicht spürbar macht.
 - **Wie geprüft:** `npm test` und `npm run smoke` (Headless 3D, 2D und Galerie) fehlerfrei grün; alle Uniform- und Attributverträge bleiben unverändert gewahrt.
 
+### Runde 6: Ausbildungsleiste mit Icons in der unteren Leiste (Supreme Commander-Stil)
+- **Was war schwach:** Beim Auswählen von Produktionsgebäuden (Herzbaum, Dickicht, Thingstätte, Kaserne) blieb die untere Leiste leer, und Einheiten mussten über schwer merkbare Tastaturkürzel (Q–R) aus einem reinen Textblock ausgebildet werden.
+- **Was wurde geändert:**
+  - **`src/ui-gemeinsam.js`:** `ausbildungsleisteHtml` erzeugt Icon-Buttons für alle Einheiten des Gebäudes mit Fron-Kosten und dynamischer Warteschlangenanzahl (`<span class="zahl">`), ohne störende Tastaturbuchstaben (`kbd`).
+  - **`src/ui.js` und `src/ui3d.js`:**
+    - Wenn Fabriken ausgewählt sind, zeigt `#builds` sofort deren Einheiten-Icons.
+    - Klick auf das Icon reiht die Einheit sofort in die Ausbildung ein (`issue(..., { type: 'produce' })`). Bei Mehrfachauswahl wird automatisch die Fabrik mit der kürzesten Warteschlange bedient.
+    - Hover über das Icon blendet sofort die Einheiten-Karte (`einheitKarte`) mit allen Werten ein.
+    - Signatur in `leisten` aktualisiert die Leiste automatisch bei Queue-Änderungen.
+- **Wie geprüft:** `npm test` (117/117 Tests grün), `npm run smoke` (1000 Frames 2D, 3D, Galerie fehlerfrei) und manuelle Auswertungs-Funktionstests.
+
+
 
 
 

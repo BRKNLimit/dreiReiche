@@ -103,6 +103,24 @@ export function bauleisteHtml(world, player, liste) {
     .join('');
 }
 
+/** Ausbildungsleiste fuer Fabriken: Icons zum Anklicken mit Kosten und Warteschlange, ohne Tastenkuerzel (wie Supreme Commander). */
+export function ausbildungsleisteHtml(world, player, fabriken) {
+  const fListe = Array.isArray(fabriken) ? fabriken : [fabriken];
+  if (!fListe.length) return '';
+  const typ = fListe[0].type;
+  const liste = BUILDINGS[typ]?.buildList;
+  if (!liste) return '';
+  return liste
+    .map((u) => {
+      const d = UNITS[u];
+      const zu = gesperrt(world, player, u);
+      const inQueue = fListe.reduce((sum, f) => sum + f.queue.filter((q) => q === u).length, 0);
+      const zahlHtml = inQueue ? `<span class="zahl">${inQueue}</span>` : '';
+      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[u]}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
+    })
+    .join('');
+}
+
 /** Statt einer Liste aller Netze: nur Warnungen, wo Gegenwart fehlt. */
 export function warnungenHtml(world, player) {
   const out = [];

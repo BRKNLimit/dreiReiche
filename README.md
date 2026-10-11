@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.26
+# Die drei Reiche — Prototyp 0.27
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude

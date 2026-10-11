@@ -593,6 +593,39 @@ gewinnt Partien, die vorher offen blieben. Die Sturm-KI der Menschen wartet
 länger als in 0.25 mit der ersten Welle, weil der Gott früh mehr Truppen
 daheim hat — ein Timing der KI, keine Regel.
 
+### 19. Die KI im Nebel (Stand 0.27)
+
+> **Vorgabe des Nutzers:** Die KI soll auch nichts sehen.
+
+Die KI weiß nur, was `src/sim/kunde.js` ihr sagt: was ihre Einheiten und
+Gebäude gerade sehen, gesehene Gebäude (bis man den Platz leer sieht),
+gesehene Einheiten (10 min) und wo der Gegner beginnt. Ein Test prüft, dass
+Ungesehenes keinen ihrer Befehle ändert.
+
+Blind verlor die KI zuerst ihr bestes Werkzeug: Sie kannte die
+ungeschützten Förderbauten des Gegners nicht mehr, jede Welle lief aufs
+Hauptgebäude, und weil sie das Heer daheim nicht sah, schickte sie kleine
+Wellen in die Türme. Jetzt sucht sie Förderbauten an den Adern auf der
+gegnerischen Seite (die Adern kennt jeder von der Karte).
+
+`node tools/sweep.mjs 36 45 Ausgang stile`:
+
+| Stand | Menschen : Gott | offen |
+| --- | --- | --- |
+| 0.26, volle Sicht | 25 : 38 | 9 |
+| blind, erster Wurf | 8 : 36 | 28 |
+| blind, aber Heer daheim mit voller Sicht geschätzt | 16 : 42 | 14 |
+| blind, Adern aufklären + aus Wellen lernen (×1,5 nach Fehlschlag) | 15 : 37 | 20 |
+| — dazu Heer daheim mit voller Sicht | 19 : 46 | 7 |
+| — ohne Lernen | 17 : 35 | 20 |
+| **Adern aufklären, Einheiten 10 statt 3 min gemerkt** | **17 : 31** | 24 |
+
+Das Lernen machte die Gott-KI passiv (sie wartete auf Wellen, die ihr
+Heer nie erreichte) und ist wieder raus. Alle blinden Varianten liegen
+zwischen 15–19 : 31–46: Im Nebel tut sich die Menschen-KI schwerer — auch
+mit der wahren Heeresstärke. Mehr offene Partien heißt: Wer nicht weiß, wo
+der Gegner schwach ist, rennt seltener entscheidend an.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

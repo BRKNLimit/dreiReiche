@@ -11,9 +11,11 @@
 import { sichtweite, dist2 } from './sim.js';
 import { BUILDINGS, MAP } from './defs.js';
 
-// Wie lange eine gesehene Einheit in Erinnerung bleibt (Ticks, 3 min).
+// Wie lange eine gesehene Einheit in Erinnerung bleibt (Ticks, 10 min).
 // Designzahl: Wer laenger nichts gesehen hat, weiss nicht, was dort steht.
-export const VERGESSEN = 1800;
+// Kuerzer (3 min) unterschaetzt die KI das gegnerische Heer und schickt
+// kleine Wellen in den Tod (docs/scope.md, Abschnitt 19).
+export const VERGESSEN = 6000;
 
 export function neueKunde(player) {
   return {
@@ -29,8 +31,6 @@ export function neueKunde(player) {
     gebaeude: [],
     // Zuletzt gesehene gegnerische Einheiten: { id, type, player, x, y, tick }
     gesehen: [],
-    // Wie oft man den Platz eines bekannten Gebaeudes leer gesehen hat (zerstoert)
-    zerstoert: 0,
     // Je Ader (Index in world.deposits) der Tick, an dem man sie zuletzt gesehen hat; -1 nie
     adern: [],
   };
@@ -96,9 +96,7 @@ export function aufklaeren(k, world) {
   }
   k.jetzt = jetzt;
   k.einheiten = einheiten;
-  const vorher = k.gebaeude.length;
   k.gebaeude = k.gebaeude.filter((b) => jetzt.has(b.id) || !inSicht(q, b.x, b.y, BUILDINGS[b.type].radius));
-  k.zerstoert += vorher - k.gebaeude.length;
   for (let i = 0; i < world.deposits.length; i++) {
     if (k.adern.length <= i) k.adern.push(-1);
     if (inSicht(q, world.deposits[i].x, world.deposits[i].y)) k.adern[i] = world.tick;

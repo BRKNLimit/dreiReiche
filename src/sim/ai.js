@@ -103,9 +103,6 @@ export function createAI(player = 1, seed = 1, stil = 'standard', stufe = 'mitte
     stufe: STUFEN[stufe], letzterBau: null, gesperrt: [],
     // Ziel der laufenden Welle: Gebaeude-Id (0 = vermutetes Hauptgebaeude), Ort, und ob es das Hauptgebaeude ist
     welleX: 0, welleY: 0, welleAufHaupt: false,
-    // Aus Wellen lernen: Zerschellt eine, ohne etwas zu zerstoeren, muss die
-    // naechste groesser sein. welleWert: Wert der laufenden Wellen beim Aufbruch.
-    welleWert: 0, welleZerstoert: 0, mindestWelle: 0,
     kunde: neueKunde(player),
   };
 }
@@ -490,11 +487,6 @@ export function stepAI(ai, world) {
   //    Foerderbau fuer Goetterblut -- die Mitte entscheidet --, sonst das
   //    Hauptgebaeude. Faellt das Ziel, zieht die Welle zum naechsten weiter.
   ai.unterwegs = ai.unterwegs.filter((id) => einheiten.some((u) => u.id === id));
-  // Alle Wellen gefallen: Hat sie nichts zerstoert, braucht die naechste mehr.
-  if (!ai.unterwegs.length && ai.welleWert) {
-    ai.mindestWelle = kunde.zerstoert > ai.welleZerstoert ? 0 : Math.max(ai.mindestWelle, (ai.welleWert * 3) >> 1);
-    ai.welleWert = 0;
-  }
   // Leibwache: Wer seinen Kommandanten verliert, verliert die Partie. Die ihm
   // naechsten Einheiten bleiben bei ihm, nur der Rest geht mit Wellen.
   const daheimAlle = kaempfer.filter((u) => !ai.unterwegs.includes(u.id));
@@ -544,13 +536,11 @@ export function stepAI(ai, world) {
   const satt = minute >= 8 && unterhaltProMin(world, ai.player) * 1000 >= foerderungProMin(world, ai.player) * ai.stufe.satt;
   const genug = satt
     ? wellenWert
-    : Math.max(wellenWert, ai.mindestWelle, ((gegnerDaheim * 12) / 10) | 0);
+    : Math.max(wellenWert, ((gegnerDaheim * 12) / 10) | 0);
   if (!bedrohung && wert(daheimStehend) >= genug && angriff) {
     ai.welle++;
     welleAuf(angriff);
     const ids = daheimStehend.map((u) => u.id);
-    if (!ai.welleWert) ai.welleZerstoert = kunde.zerstoert;
-    ai.welleWert += wert(daheimStehend);
     ai.unterwegs.push(...ids);
     issue(world, { type: 'attack', player: ai.player, ids, x: angriff.x, y: angriff.y });
     return;

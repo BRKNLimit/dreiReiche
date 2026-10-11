@@ -3,6 +3,26 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.27 — Nebel des Krieges für alle, Geminis Grafik
+
+- **Weicher Nebel:** feines Sichtfeld (256 × 256) mit weichen, runden
+  Rändern, das beim Auf- und Zudecken überblendet — 2D, 3D, Minikarte.
+- **Die KI sieht nichts, was sie nicht sieht.** `src/sim/kunde.js` hält
+  fest, was ein Spieler weiß: Sicht, gesehene Gebäude und Einheiten, wo der
+  Gegner beginnt. Die KI nutzt nur das (Test: Ungesehenes ändert keinen
+  Befehl). Sie sucht gegnerische Förderbauten an den Adern auf der
+  gegnerischen Seite und merkt sich gesehene Einheiten 10 Minuten.
+- **Nichts verrät Ungesehenes:** Baupläne werden nur gegen Eigenes und die
+  Karte geprüft (ein ungesehenes gegnerisches Gebäude findet der Erbauer vor
+  Ort), Adern im Nebel zeigen nicht, ob sie besetzt sind.
+- Messung: Menschen 17 : Gott 31, 24 von 72 offen (volle Sicht: 25 : 38).
+  Im Nebel tut sich die Menschen-KI schwerer — `docs/scope.md`, Abschnitt 19.
+- **Grafik von Gemini** (Branch `gemini/grafik`, gemergt): vollständiger
+  Icon-Satz, organische 2D-Karte (Ufer, Felsfacetten, Marschpfad),
+  3D-Landschaft mit Waldstücken und Ufern, Hemi- und Randlicht, sechs
+  Waldgott-Varianten in der Galerie, Ausbildungsleiste mit Einheiten-Icons
+  für Fabriken.
+
 ## 0.26 — Baupläne, Baureihen, Auswahlleiste
 
 - **Baupläne:** Ein gesetztes Gebäude ist erst ein Plan — kein Gebäude,

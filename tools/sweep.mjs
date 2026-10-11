@@ -5,6 +5,7 @@
 //   node tools/sweep.mjs                    alle Einstellungen, 12 Seeds
 //   node tools/sweep.mjs 6 45 malus         nur Einstellungen mit "malus" im Namen
 //   node tools/sweep.mjs 32 45 Ausgang stile karte=flusstal   auf einer anderen Karte
+//   node tools/sweep.mjs 32 45 Ausgang stile karte=zufall     jede Partie eine Zufallskarte
 //   node tools/sweep.mjs 40 45 "" stile     jede Partie mit einer der neun
 //                                           Stil-Paarungen (sturm/standard/burg)
 //
@@ -221,6 +222,7 @@ if (isMainThread) {
 } else {
   const { name, seeds, ab, maxMin, stile, stufen, karte } = workerData;
   const { createWorld, step } = await import('../src/sim/sim.js');
+  const { zufallsKarte } = await import('../src/sim/kartenbau.js');
   const { createAI, stepAI, STILE } = await import('../src/sim/ai.js');
   const stilNamen = Object.keys(STILE);
   const { FACTIONS, UNITS, BUILDINGS, RULES, KARTEN } = await import('../src/sim/defs.js');
@@ -269,7 +271,8 @@ if (isMainThread) {
       ['mensch', 'gott'],
       ['gott', 'mensch'],
     ]) {
-      const w = createWorld({ factions: f, seed, karte });
+      // karte=zufall: jede Partie auf einer eigenen Zufallskarte (zur Seed-Zahl)
+      const w = karte === 'zufall' ? createWorld({ factions: f, seed, karte, karteDaten: zufallsKarte(seed) }) : createWorld({ factions: f, seed, karte });
       // Mit "stufen": je Seed eine Paarung -- schwer gegen mittel, mittel gegen leicht --,
       // die staerkere Stufe wechselt die Fraktion mit dem Sitzplatz.
       const paarung = [['schwer', 'mittel'], ['mittel', 'leicht']][(ab + k) % 2];

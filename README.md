@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.31
+# Die drei Reiche — Prototyp 0.32
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -34,6 +34,15 @@ Pfeiltasten oder mittlere Maustaste schieben, Mausrad zoomt. Einheiten
 hinter Gebäuden bleiben als Umriss sichtbar. Sonst dieselbe Steuerung wie in
 der Draufsicht. Oben links die Ressourcenleiste: freie Skillpunkte,
 Gegenwart-Überschuss, Götterblut, Fron.
+
+## Karten
+
+Im Startbildschirm: **Klassisch**, **Flusstal** (nach der Skizze des
+Nutzers), **⚄ Zufall** (jedes Spiel eine neue, faire Karte) und eigene
+Karten (✎). Eigene Karten malt man im **Karteneditor**
+(`dist/karteneditor.html`): alles wird um die Mitte gespiegelt, und die
+Prüfung sagt sofort, ob die Karte spielbar ist. „Spielen“ öffnet sie im
+Spiel; als JSON lässt sie sich weitergeben.
 
 ## Steuerung
 

@@ -698,6 +698,14 @@ günstige Einheiten, die der Unterhalt am härtesten trifft — und gleicht
 beide Karten aus, ohne den Kampf selbst anzufassen. Stärkere Einheiten
 (Soldat, Jäger) führen vor allem zu mehr offenen Partien.
 
+### 23. Zufallskarten (Stand 0.32)
+
+Jede Partie auf einer anderen Zufallskarte (`karte=zufall`, 36 Seeds ×
+2 Sitzplätze, Stil-Paarungen): **Menschen 27 : Gott 28**, 17 offen,
+Ø 31,8 min. Kein Absturz, keine hängende KI — sie liest Hindernisse und
+Adern aus der Welt und braucht keine Karte zu kennen. Partien dauern etwas
+länger als auf den festen Karten, Flüsse und Grate verlängern die Wege.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

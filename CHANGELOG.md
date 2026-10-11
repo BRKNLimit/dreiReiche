@@ -3,6 +3,25 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.32 — Zufallskarten und Karteneditor
+
+- **Zufallskarten:** Im Startbildschirm „⚄ Zufall“ — jedes Spiel eine neue
+  Karte: Fluss mit Furten, Felsgrate, Felsgruppen, Seen, Adern, Wald und
+  Wiesen, immer punktsymmetrisch und damit fair. `src/sim/kartenbau.js`
+  baut sie deterministisch; Wiederholungen bringen ihre Karte mit.
+- **Karteneditor** (`dist/karteneditor.html`, Link im Startbildschirm):
+  Felsen, Seen, Fluss (Punkte klicken, Enter), Furten, Fron- und
+  Götterblut-Adern, Wald, Wiesen, Radierer — alles wird automatisch
+  gespiegelt. Ziehen malt, Mausrad ändert die Größe, Strg+Z nimmt zurück.
+  Die Prüfung läuft mit: Weg zwischen den Basen, freie Startbasis, freie
+  Adern. Speichern im Browser, Export/Import als JSON, eine Zufallskarte als
+  Vorlage. „Spielen“ öffnet die Karte direkt im Spiel (2D oder 3D).
+- Eigene Karten erscheinen im Startbildschirm (✎); Kartendateien lassen sich
+  dort auch laden.
+- Messung auf 72 verschiedenen Zufallskarten: Menschen 27 : Gott 28, 17
+  offen — die KI kommt mit beliebigen Karten zurecht
+  (`tools/sweep.mjs … karte=zufall`).
+
 ## 0.31 — Balance, Bedienung, doppelt so schnell
 
 - **Balance:** Unterhalt der Menschen um ein Viertel gesenkt (Bauer 4→3,

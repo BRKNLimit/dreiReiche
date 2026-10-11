@@ -233,20 +233,31 @@ out vec2 vWelt;
 void main() {
   vTeam = iC.rgb;
   float c = cos(iA.w), s = sin(iA.w);
-  // Schritt: der untere Teil des Modells schwingt vor und zurueck -- Beine,
-  // Rocksaum, Laeufe. Ohne Skelett, nur nach Hoehe im Modell.
+  // Schritt: Schwung nach vorne und subtiles Wippen bei Gehbewegung
   vec3 a = aPos;
   a.z += iC.w * 0.45 * max(0.0, 0.65 - a.y);
+  a.y += abs(iC.w) * 0.05 * max(0.0, 1.0 - a.y);
   vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
   vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
   vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
+
   // Selbstleuchtende Teile behalten ihre eigene Farbe, ohne Fraktionsfarbe.
   float team = aCol.a > 1.5 ? 0.0 : aCol.a;
   vec3 col = mix(aCol.rgb, iC.rgb, team) * iB.z;
-  float d = max(dot(n, uLicht), 0.0);
-  // Teile mit Teamanteil > 1.5 leuchten selbst: Augen, Glut, Lichtkugeln.
-  float licht = aCol.a > 1.5 ? 1.25 : 0.42 + 0.7 * d;
-  vCol = vec4(col * licht, iB.w);
+
+  if (aCol.a > 1.5) {
+    // Magisch gluehende Elemente (Augen, Kristalle, Glut) strahlen intensiv
+    vCol = vec4(col * 1.55, iB.w);
+  } else {
+    // Hemi-Umgebungslicht (kühler Himmel oben, warmer Erdboden unten)
+    vec3 ambient = mix(vec3(0.32, 0.30, 0.25), vec3(0.48, 0.52, 0.56), n.y * 0.5 + 0.5);
+    float d = max(dot(n, uLicht), 0.0);
+    vec3 sonne = vec3(0.85, 0.82, 0.75) * d;
+    // Randlicht (Rim Light) hebt Silhouetten aus Spielhöhe plastisch hervor
+    float rim = pow(1.0 - max(dot(n, vec3(0.0, 0.8, 0.6)), 0.0), 2.2) * 0.24;
+    vCol = vec4(col * (ambient + sonne) + col * rim, iB.w);
+  }
+
   gl_Position = uVP * vec4(r, 1.0);
   vTiefe = gl_Position.w;
   vWelt = r.xz;

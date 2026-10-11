@@ -54,5 +54,15 @@ geprüft (Tests, Galerie, Spiel).
   - **Gerodete Flächen (`drawCleared`):** Natürlich ausgefranste Rodungsinseln mit organischem Rand.
 - **Wie geprüft:** `npm test` und `npm run smoke` (1000 Frames im Headless Canvas) fehlerfrei; alle sichtbaren Kanten entsprechen den mathematischen Kollisionskreisen bis auf < 8 %.
 
+### Runde 5: Plastisches 3D-Licht, Randlicht und Gehanimation (Aufgabe 5 / Verfeinerung)
+- **Was war schwach:** Die Beleuchtung im Vertex-Shader nutzte ein flaches, statisches Umgebungslicht ohne Himmels-/Bodenkontrast; Silhouetten dunkler Einheiten verschmolzen schräg von oben mit dem Boden; selbstleuchtende Elemente strahlten kaum heller als normales Tageslicht; Einheiten glitten beim Gehen rein horizontal über den Boden.
+- **Was wurde geändert:** In `src/render3d.js` (`VS`):
+  - **Hemi-Umgebungslicht:** Oberseiten erhalten kühles Himmelslicht (`[0.48, 0.52, 0.56]`), Unterseiten warm reflektiertes Bodenlicht (`[0.32, 0.30, 0.25]`).
+  - **Randlicht (Rim Light / Silhouette):** Streiflicht hebt die Konturen von Einheiten und Gebäuden schräg von oben deutlich von der Umgebung ab.
+  - **Leuchtende Elemente:** Teile mit `team = 2` (`GLUEHT`) leuchten mit Faktor 1.55 intensiv hervor (Augen des Waldgotts, Kristallspitzen, Glut).
+  - **Dynamischer Schritt:** Bei Bewegung schwingt nicht nur die Basis vor/zurück, sondern der Rumpf wippt vertikal im Schrittrhythmus (`+0.05 * |schritt|`), was Gang und Gewicht spürbar macht.
+- **Wie geprüft:** `npm test` und `npm run smoke` (Headless 3D, 2D und Galerie) fehlerfrei grün; alle Uniform- und Attributverträge bleiben unverändert gewahrt.
+
+
 
 

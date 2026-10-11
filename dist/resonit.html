@@ -123,6 +123,11 @@
   #zeitleiste .gruppe { display: inline-flex; gap: 2px; }
   #zeitleiste button { padding: 3px 7px; font-size: 12px; }
   #zeitleiste button.an { border-color: var(--accent); color: var(--accent); }
+  .beobachter { margin: 6px 0; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .beobachter th { font-weight: 600; padding: 0 0 3px 10px; text-align: right; }
+  .beobachter td { padding: 1px 0 1px 10px; text-align: right; color: var(--dim); }
+  .beobachter td:first-child { text-align: left; padding-left: 0; }
+  .beobachter td.vorn { color: var(--text); font-weight: 600; }
   #intro .neuheiten { margin-top: 10px; padding: 10px 14px; border: 1px solid var(--accent); border-radius: 4px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
   #intro .neuheiten b { color: var(--accent); }
   #intro .neuheiten ul { margin: 6px 0 8px; padding-left: 18px; }
@@ -5642,6 +5647,44 @@ function gruppenHtml(world, auswahl) {
 }
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+// ------------------------------------------------------------ Beobachter (Zuschauen, Wiederholung)
+/** Beide Seiten auf einen Blick: Vorrat, Foerderung, Heer, Einheiten, Gebaeude, Skills. */
+function beobachterHtml(world) {
+  const z = [0, 1].map((p) => {
+    const pl = world.players[p];
+    let heer = 0;
+    let einheiten = 0;
+    let gebaeude = 0;
+    for (const e of world.entities) {
+      if (e.dead || e.player !== p) continue;
+      if (e.kind === 'building') gebaeude++;
+      else {
+        einheiten++;
+        const u = UNITS[e.type];
+        if (u.weapon && !u.worker && !u.commander) heer += u.cost.fron;
+      }
+    }
+    return {
+      name: pl.faction === 'mensch' ? 'Menschen' : 'Gott',
+      farbe: FACTIONS[pl.faction].color,
+      fron: pl.fron | 0,
+      foerderung: Math.round(foerderungProMin(world, p)),
+      blut: pl.goetterblut | 0,
+      heer,
+      einheiten,
+      gebaeude,
+      skills: pl.gelernt.length,
+    };
+  });
+  const zeile = (titel, k) => {
+    const a = z[0][k];
+    const b = z[1][k];
+    return `<tr><td>${titel}</td><td${a > b ? ' class="vorn"' : ''}>${a}</td><td${b > a ? ' class="vorn"' : ''}>${b}</td></tr>`;
+  };
+  return `<table class="beobachter"><tr><th></th><th style="color:${z[0].farbe}">${z[0].name}</th><th style="color:${z[1].farbe}">${z[1].name}</th></tr>
+    ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${zeile('Skills', 'skills')}</table>`;
+}
+
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
 const NEUHEITEN = {
   version: '0.37',
@@ -10421,7 +10464,7 @@ function drawHud() {
       ${kommandantZeile()}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : netz ? ' · Online' : tagesAktiv ? ' · Tagesherausforderung' : ''}</span>
     </div>
-    ${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
+    ${(wiederholung && wdhSicht === 'alle') || aiMe ? beobachterHtml(world) : ''}${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahlHtml()}
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
     ${world.over || zeigeAuswertung ? flaecheHtml() + auswertungHtml() : ''}`;

@@ -14,6 +14,11 @@ Tabellen in `docs/scope.md`.
   auf dem Endbildschirm; die Übersicht und die Bilanz (Siege : Niederlagen
   je Volk) im Startbildschirm. Alles im Browser gespeichert
   (`src/bilanz.js`), Zuschauen und Wiederholungen zählen nicht.
+- **Beobachter-Tafel** beim Zuschauen und in Wiederholungen (Sicht „Alles“):
+  Fron, Förderung, Götterblut, Heer, Einheiten, Gebäude und Skills beider
+  Seiten, wer vorn liegt, steht hell.
+- Lernmission „Fuß fassen“: die Schmiede ist jetzt ein eigener Schritt —
+  ohne ihre Gegenwart stand die Kaserne fast still.
 - Endbildschirm: „Zufallskarte“ statt „zufall“.
 - **„✨ Neu in 0.37“** im Startbildschirm — einmal, bis man „Verstanden“
   klickt. Der Startbildschirm schneidet lange Inhalte oben nicht mehr ab.

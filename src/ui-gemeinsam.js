@@ -383,6 +383,44 @@ export function gruppenHtml(world, auswahl) {
 }
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+// ------------------------------------------------------------ Beobachter (Zuschauen, Wiederholung)
+/** Beide Seiten auf einen Blick: Vorrat, Foerderung, Heer, Einheiten, Gebaeude, Skills. */
+export function beobachterHtml(world) {
+  const z = [0, 1].map((p) => {
+    const pl = world.players[p];
+    let heer = 0;
+    let einheiten = 0;
+    let gebaeude = 0;
+    for (const e of world.entities) {
+      if (e.dead || e.player !== p) continue;
+      if (e.kind === 'building') gebaeude++;
+      else {
+        einheiten++;
+        const u = UNITS[e.type];
+        if (u.weapon && !u.worker && !u.commander) heer += u.cost.fron;
+      }
+    }
+    return {
+      name: pl.faction === 'mensch' ? 'Menschen' : 'Gott',
+      farbe: FACTIONS[pl.faction].color,
+      fron: pl.fron | 0,
+      foerderung: Math.round(foerderungProMin(world, p)),
+      blut: pl.goetterblut | 0,
+      heer,
+      einheiten,
+      gebaeude,
+      skills: pl.gelernt.length,
+    };
+  });
+  const zeile = (titel, k) => {
+    const a = z[0][k];
+    const b = z[1][k];
+    return `<tr><td>${titel}</td><td${a > b ? ' class="vorn"' : ''}>${a}</td><td${b > a ? ' class="vorn"' : ''}>${b}</td></tr>`;
+  };
+  return `<table class="beobachter"><tr><th></th><th style="color:${z[0].farbe}">${z[0].name}</th><th style="color:${z[1].farbe}">${z[1].name}</th></tr>
+    ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${zeile('Skills', 'skills')}</table>`;
+}
+
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
 export const NEUHEITEN = {
   version: '0.37',

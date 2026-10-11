@@ -24,13 +24,13 @@ function strip(src) {
 
 const SIM = ['src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/kunde.js', 'src/sim/ai.js'];
 const SEITEN = [
-  ['src/shell.html', [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/gelaende2d.js', 'src/ui.js'], 'dist/resonit.html'],
+  ['src/shell.html', [...SIM, 'src/icons.js', 'src/platzhalter.js', 'src/ui-gemeinsam.js', 'src/gelaende2d.js', 'src/ui.js'], 'dist/resonit.html'],
   [
     'src/shell3d.html',
-    [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/render3d.js', 'src/modelle3d.js', 'src/gelaende3d.js', 'src/ui3d.js'],
+    [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/gelaende3d.js', 'src/ui3d.js'],
     'dist/drei-reiche-3d.html',
   ],
-  ['src/galerie.html', ['src/sim/defs.js', 'src/icons.js', 'src/render3d.js', 'src/modelle3d.js', 'src/galerie.js'], 'dist/galerie.html'],
+  ['src/galerie.html', ['src/sim/defs.js', 'src/icons.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/galerie.js'], 'dist/galerie.html'],
 ];
 
 await mkdir(join(root, 'dist'), { recursive: true });

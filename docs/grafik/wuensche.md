@@ -11,6 +11,14 @@ Format:
 
 ## Offen
 
+- [ ] Modell und Icon für den **Raben** (`rabe`, Gott-Späher, fliegt) — `src/modelle3d.js`, `src/icons.js`.
+      Kleiner schwarzer Rabe mit gespreizten Schwingen; die Oberfläche hebt ihn
+      5 m über den Boden und lässt ihn wippen. Bis dahin steht ein Platzhalter
+      in `src/platzhalter.js` (wird von deinen Einträgen automatisch ersetzt).
+- [ ] Modell und Icon für den **Spähposten** (`spaehposten`, Menschen) — Hochsitz
+      aus Holz auf vier Beinen mit kleinem Dach, Radius 3 m. Platzhalter ebenfalls
+      in `src/platzhalter.js`.
+
 ## Erledigt
 
 - [x] Ausbildungsleiste für Fabriken unten in der Leiste (Supreme Commander 2-Stil) — `src/ui-gemeinsam.js` (`ausbildungsleisteHtml`), `src/ui.js` und `src/ui3d.js` (`renderBar` / `leisten`):

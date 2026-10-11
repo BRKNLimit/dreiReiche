@@ -140,6 +140,20 @@ export const BUILDINGS = {
     // doppelte (Messung in docs/scope.md). Schiesst nur mit Gegenwart.
     weapon: { range: 900, damage: 60, cooldown: 4 },
   },
+  // Vorgabe des Nutzers: Die Menschen klaeren mit einem Hochsitz auf, der
+  // weit sieht -- rund ein Zehntel der Karte. Kaempft nicht, braucht keine
+  // Gegenwart, steht auch ausserhalb der Domaene. Werte sind Designzahlen.
+  spaehposten: {
+    name: 'Spähposten',
+    sicht: 2000, // Sichtweite (Nebel des Krieges): 200 m
+    desc: 'Hochsitz mit weiter Sicht: deckt rund 200 m im Umkreis auf. Kämpft nicht, braucht keine Gegenwart.',
+    short: 'SPP',
+    faction: 'mensch',
+    hp: 500,
+    radius: 30,
+    cost: { fron: 90 },
+    buildTime: 120,
+  },
   schmiede: {
     name: 'Schmiede',
     desc: 'Liefert Gegenwart in ihr Domänennetz — Kraft für Fabriken, Förderung und Schreine.',
@@ -252,7 +266,7 @@ export const BUILDINGS = {
     gegenwartOut: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    buildList: ['dryade', 'wolf'],
+    buildList: ['dryade', 'wolf', 'rabe'],
     vital: true,
   },
   hain: {
@@ -516,6 +530,23 @@ export const UNITS = {
     buildTime: 210,
     kampf: 'nah',
     weapon: { range: 20, damage: 22, cooldown: 6 },
+  },
+  // Vorgabe des Nutzers: Der Gott spaeht mit Raben -- schnell, billig, haelt
+  // kaum einen Treffer aus; faellt einer, kommt der naechste. Fliegt: ueber
+  // Fels, Wasser und Gebaeude, Nahkaempfer erreichen ihn nicht, Fernkaempfer
+  // und Tuerme holen ihn mit einem Schuss herunter. Werte sind Designzahlen.
+  rabe: {
+    name: 'Rabe',
+    sicht: 1500, // Sichtweite (Nebel des Krieges)
+    desc: 'Späher: fliegt schnell über Fels, Wasser und Mauern und sieht weit. Ein Schuss holt ihn herunter. Kämpft nicht.',
+    faction: 'gott',
+    hp: 8,
+    radius: 12,
+    speed: 52,
+    cost: { fron: 35 },
+    unterhalt: 2, // Fron pro Minute, solange er lebt
+    buildTime: 60,
+    fliegt: true,
   },
   waldgeist: {
     name: 'Waldgeist',

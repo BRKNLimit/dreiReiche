@@ -3,6 +3,27 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.28 — Spähposten und Rabe
+
+- **Spähposten** (Menschen, Taste `0`): Hochsitz, sieht 200 m (ein Zehntel
+  der Karte), 90 Fron, kämpft nicht, braucht keine Gegenwart, steht auch
+  außerhalb der Domäne.
+- **Rabe** (Gott, aus dem Herzbaum): Späher ohne Waffe, 35 Fron, 8 LP,
+  schnellste Einheit, sieht 150 m. **Fliegt** über Fels, Wasser und Mauern;
+  Nahkämpfer erreichen ihn nicht, ein Schuss eines Fernkämpfers oder Turms
+  holt ihn herunter.
+- KI: Raben spähen die Adern der Gegenseite aus und meiden bekannte Türme;
+  die Menschen setzen einen Posten an den Domänenrand.
+- **Türme ohne Gegenwart** schießen nicht — jetzt als Warnung im HUD. Die
+  Reichweite war nicht das Problem: Wachturm und Wächterbaum treffen auf
+  90 m, Jäger 48 m, Waldgeister 52 m. Ein versorgter Wächterbaum erledigt
+  fünf anrückende Jäger allein.
+- Messung: Menschen 12 : Gott 46 (vorher 17 : 31) — die Raben verschaffen
+  dem Gott das Wissen, wo die Förderung der Menschen steht.
+  `docs/scope.md`, Abschnitt 20.
+- Modelle und Icons für Rabe und Spähposten sind Platzhalter
+  (`src/platzhalter.js`), bis Gemini echte liefert.
+
 ## 0.27 — Nebel des Krieges für alle, Geminis Grafik
 
 - **Weicher Nebel:** feines Sichtfeld (256 × 256) mit weichen, runden

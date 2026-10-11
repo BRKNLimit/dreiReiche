@@ -7,6 +7,7 @@ import { UNITS, BUILDINGS, FAEHIGKEITEN } from '../src/sim/defs.js';
 import { MODELLE_DEF, WALDGOTT_VARIANTEN } from '../src/modelle3d.js';
 import { baueModell } from '../src/render3d.js';
 import { ICONS } from '../src/icons.js';
+import '../src/platzhalter.js'; // Platzhalter fuer Neues, bis Gemini echte Modelle und Icons liefert
 
 // Modelle, die die Oberflaeche ausser Einheiten und Gebaeuden braucht
 const KARTE_UND_EFFEKTE = ['scheibe', 'fronAder', 'blutAder', 'baum', 'pfeil', 'kugel', 'stein', 'fels', 'staubwolke'];

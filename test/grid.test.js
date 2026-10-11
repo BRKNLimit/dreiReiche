@@ -1093,12 +1093,67 @@ test('Nahkampf trifft erst bei Beruehrung, Fernkampf aus der Ferne', () => {
   assert.equal(UNITS.jaeger.kampf, 'fern');
 });
 
-test('jede Einheit ist Nah- oder Fernkaempfer, jede Fraktion hat beides', () => {
+test('jede Einheit ist Nah- oder Fernkaempfer oder ein Spaeher ohne Waffe, jede Fraktion hat beides', () => {
   for (const f of ['mensch', 'gott']) {
-    const arten = new Set(Object.values(UNITS).filter((u) => u.faction === f).map((u) => u.kampf));
+    const arten = new Set(Object.values(UNITS).filter((u) => u.faction === f && u.weapon).map((u) => u.kampf));
     assert.deepEqual([...arten].sort(), ['fern', 'nah'], f);
   }
-  for (const [typ, u] of Object.entries(UNITS)) assert.ok(u.kampf === 'nah' || u.kampf === 'fern', typ);
+  for (const [typ, u] of Object.entries(UNITS)) {
+    if (u.weapon) assert.ok(u.kampf === 'nah' || u.kampf === 'fern', typ);
+    else assert.ok(!u.kampf && u.sicht > 900, typ + ': ohne Waffe nur als Spaeher');
+  }
+});
+
+// ---------------------------------------------------- Aufklaerung: Spaehposten und Rabe
+
+test('Spaehposten: sieht rund ein Zehntel der Karte weit, ohne Gegenwart und ausserhalb der Domaene', () => {
+  assert.equal(BUILDINGS.spaehposten.sicht, MAP / 10);
+  assert.ok(!BUILDINGS.spaehposten.weapon && !BUILDINGS.spaehposten.gegenwartIn);
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  w.players[0].fron = 1000;
+  const k = spawnUnit(w, 0, 'held', 12000, 12300);
+  issue(w, { type: 'build', player: 0, building: 'spaehposten', x: 12000, y: 12000, ids: [k.id] });
+  for (let i = 0; i < 300; i++) step(w);
+  const p = w.entities.find((e) => e.type === 'spaehposten');
+  assert.ok(p && p.done, 'fertig, weit draussen');
+  k.dead = true;
+  w.entities = w.entities.filter((e) => !e.dead);
+  const wolf = spawnUnit(w, 1, 'wolf', 12000 + 1900, 12000);
+  step(w);
+  const kd = aufklaeren(neueKunde(0), w);
+  assert.ok(kd.jetzt.has(wolf.id), 'sieht den Wolf 190 m entfernt');
+});
+
+test('Rabe: fliegt ueber Fels und Wasser geradeaus und ist schnell', () => {
+  const w = createWorld({ seed: 7 });
+  const see = w.hindernisse.find((h) => h.r >= 600);
+  assert.ok(see, 'die Karte hat ein grosses Hindernis');
+  const r = spawnUnit(w, 1, 'rabe', see.x - see.r - 300, see.y);
+  issue(w, { type: 'move', player: 1, ids: [r.id], x: see.x + see.r + 300, y: see.y });
+  step(w);
+  let ueber = false;
+  for (let i = 0; i < 200 && !r.arrived; i++) {
+    step(w);
+    if (dist2(r.x, r.y, see.x, see.y) < (see.r - 50) ** 2) ueber = true;
+  }
+  assert.ok(ueber, 'mitten ueber das Hindernis');
+  assert.ok(r.arrived);
+  assert.ok(UNITS.rabe.speed > Math.max(...Object.values(UNITS).filter((u) => !u.fliegt).map((u) => u.speed)), 'schneller als alles am Boden');
+});
+
+test('Rabe: Nahkaempfer erreichen ihn nicht, ein Fernkampf-Treffer holt ihn herunter', () => {
+  const w = bare();
+  const r = spawnUnit(w, 1, 'rabe', 9000, 9000);
+  const s = spawnUnit(w, 0, 'soldat', 9000 + UNITS.soldat.radius + UNITS.rabe.radius + 5, 9000);
+  issue(w, { type: 'attack', player: 0, ids: [s.id], x: 9000, y: 9000 });
+  for (let i = 0; i < 100; i++) step(w);
+  assert.ok(!r.dead, 'der Soldat kommt nicht an ihn heran');
+  const min = Math.min(...Object.values(UNITS).filter((u) => u.kampf === 'fern' && u.weapon.vorrang !== 'gebaeude').map((u) => u.weapon.damage));
+  assert.ok(UNITS.rabe.hp <= min, 'jeder Fernkampf-Treffer reicht');
+  spawnUnit(w, 0, 'jaeger', 9300, 9000);
+  for (let i = 0; i < 30 && !r.dead; i++) step(w);
+  assert.ok(r.dead, 'der Jaeger holt ihn herunter');
 });
 
 // ---------------------------------------------------- Verteidigung
@@ -1215,7 +1270,7 @@ test('Belagerung: ein Wurzelbrecher bricht allein einen versorgten Turm', () => 
 
 test('jede Fraktion hat eine Belagerungseinheit, freizuschalten im Skillbaum', () => {
   for (const f of ['mensch', 'gott']) {
-    const bel = Object.entries(UNITS).filter(([, u]) => u.faction === f && u.weapon.vorrang === 'gebaeude');
+    const bel = Object.entries(UNITS).filter(([, u]) => u.faction === f && u.weapon?.vorrang === 'gebaeude');
     assert.equal(bel.length, 1, f);
     assert.ok(Object.values(SKILLS).some((s) => s.faction === f && s.frei && s.frei.includes(bel[0][0])));
   }

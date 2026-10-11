@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.27
+# Die drei Reiche — Prototyp 0.28
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -46,7 +46,7 @@ Gegenwart-Überschuss, Götterblut, Fron.
 | Rechtsklick | Bewegen (Einheiten stellen Feinde erst am Ziel) |
 | `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |
 | Mittlere Maustaste | Karte schieben · Mausrad zoomen |
-| Erbauer gewählt, `1`–`9` | Gebäude wählen, dann Linksklick setzen (`3` Anker, `5` Förderbau auf Götterblut, `6` `7` Schreine, `8` Verteidigung, `9` Forschung) |
+| Erbauer gewählt, `1`–`0` | Gebäude wählen, dann Linksklick setzen (`3` Anker, `5` Förderbau auf Götterblut, `6` `7` Schreine, `8` Verteidigung, `9` Forschung, `0` Spähposten der Menschen) |
 | Gebäude setzen | Erst ein **Bauplan**: kostet nichts, sieht nichts, nur für einen selbst sichtbar. Bezahlt und begonnen wird, sobald ein Erbauer daneben ankommt — fehlt Fron, wartet er. **Ohne Erbauer wächst keine Baustelle**; wer weggeht, baut nicht weiter |
 | `Shift` + Gebäude setzen | Baureihe: der Plan kommt hinten in die Reihe der Erbauer, danach geht es direkt zum nächsten |
 | Bauplan anklicken, `Entf` | Plan verwerfen |
@@ -75,11 +75,13 @@ Gegenwart-Überschuss, Götterblut, Fron.
 | Schrein des Zorns | Kriegsbanner | Dornenschrein |
 | Schrein der Wehr | Kapelle | Steinkreis |
 | Forschung (Skillpunkte) | Skriptorium | Raunende Eiche |
+| Aufklärung | Spähposten (Gebäude, sieht 200 m) | Rabe (Einheit aus dem Herzbaum) |
 
 | Kampf | Menschen | Gott |
 | --- | --- | --- |
 | Nahkampf | Bauer, Soldat, Söldner, Held | Dryade, Wolf, Ent, Wurzelbrecher |
 | Fernkampf | Jäger, Katapult | Waldgeist, Waldgott |
+| Späher, ohne Waffe | — | Rabe: fliegt über Fels, Wasser und Mauern, nur Fernkampf trifft ihn, ein Schuss holt ihn herunter |
 | Belagerung (Gebäude zuerst) | Katapult | Wurzelbrecher |
 
 Reichweite zählt von Rand zu Rand: Nahkämpfer müssen ran, Fernkämpfer

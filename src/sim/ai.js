@@ -14,13 +14,13 @@ import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
 const PLAN = {
   mensch: {
     anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
-    zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium',
+    zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten',
     bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult',
   },
   gott: {
     anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht',
     zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche',
-    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher',
+    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe',
   },
 };
 
@@ -103,6 +103,8 @@ export function createAI(player = 1, seed = 1, stil = 'standard', stufe = 'mitte
     stufe: STUFEN[stufe], letzterBau: null, gesperrt: [],
     // Ziel der laufenden Welle: Gebaeude-Id (0 = vermutetes Hauptgebaeude), Ort, und ob es das Hauptgebaeude ist
     welleX: 0, welleY: 0, welleAufHaupt: false,
+    // Raben: wie viele es beim letzten Zug gab, und ab wann nach einem Verlust ein neuer kommt
+    rabenVorher: 0, rabeAb: 0,
     kunde: neueKunde(player),
   };
 }
@@ -133,7 +135,8 @@ export function stepAI(ai, world) {
   const kdt = einheiten.find((u) => UNITS[u.type].commander) || null;
   // Arbeiter bauen, Kaempfer kaempfen -- Wellen, Wache und Abwehr ohne Arbeiter.
   const arbeiter = einheiten.filter((u) => UNITS[u.type].worker);
-  const kaempfer = einheiten.filter((u) => !UNITS[u.type].worker && u !== kdt);
+  const kaempfer = einheiten.filter((u) => !UNITS[u.type].worker && u !== kdt && UNITS[u.type].weapon);
+  const raben = einheiten.filter((u) => UNITS[u.type].fliegt);
   const zahl = (t) => bauten.filter((b) => b.type === t).length;
   const kosten = (t) => BUILDINGS[t].cost.fron;
   const fron = p.fron;
@@ -190,6 +193,19 @@ export function stepAI(ai, world) {
   }
   // Das gegnerische Hauptgebaeude -- gesehen oder dort vermutet, wo der Gegner beginnt.
   const ziel = vermutetesHaupt(kunde, haupt);
+
+  // Raben spaehen: jeder fliegt zur Ader auf der gegnerischen Seite, die am
+  // laengsten keiner gesehen hat, sonst zum gegnerischen Hauptgebaeude.
+  const vergeben = [];
+  for (const r of raben) {
+    if (!r.arrived) {
+      vergeben.push(r.tx * MAP + r.ty);
+      continue;
+    }
+    const z = spaehziel(world, kunde, r, haupt, ziel, vergeben);
+    vergeben.push(z.x * MAP + z.y);
+    if (r.tx !== z.x || r.ty !== z.y) issue(world, { type: 'move', player: ai.player, ids: [r.id], x: z.x, y: z.y });
+  }
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
   // Abgelehnte Bauten merken: Steht nach einem Bauauftrag nichts an der
@@ -297,6 +313,18 @@ export function stepAI(ai, world) {
     if (platz && bau(plan.forschung, ...platz)) return;
   }
 
+  // 3e. Spaehposten: einer ab Minute 4 am Rand der Domaene, Richtung Gegner --
+  //     er sieht kommen, was angreift. Vorgeschobene Posten an den Adern
+  //     kosteten die KI mehr Erbauer, als ihr das Wissen brachte (docs/scope.md,
+  //     Abschnitt 20).
+  if (plan.posten && frei(plan.posten)) {
+    const postenZiel = minute >= 4 ? 1 : 0;
+    if (zahl(plan.posten) < postenZiel && fron >= kosten(plan.posten)) {
+      const platz = postenPlatz(world, kunde, haupt, ziel, gebaeude, plan.posten);
+      if (platz && bau(plan.posten, platz.x, platz.y)) return;
+    }
+  }
+
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
   if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
     if (bau(plan.blut, vene.x, vene.y)) return;
@@ -387,6 +415,22 @@ export function stepAI(ai, world) {
   let blutRest = p.goetterblut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
+  // Raben: einer ab Minute 2, ein zweiter ab Minute 10 -- billig, und wer
+  // faellt, wird ersetzt.
+  if (plan.rabe && haupt.done && BUILDINGS[haupt.type].buildList?.includes(plan.rabe)) {
+    // Faellt einer, kommt der naechste erst nach 90 s -- sonst fliegt die KI
+    // Rabe um Rabe in dieselben Schuetzen.
+    if (raben.length < ai.rabenVorher) ai.rabeAb = world.tick + 900;
+    ai.rabenVorher = raben.length;
+    const rabenZiel = world.tick < ai.rabeAb ? 0 : minute >= 10 ? 2 : minute >= 2 ? 1 : 0;
+    let bestellt = raben.length;
+    for (const b of gebaeude) bestellt += b.queue ? b.queue.filter((u) => u === plan.rabe).length : 0;
+    const k = UNITS[plan.rabe].cost.fron;
+    if (bestellt < rabenZiel && rest >= k && haupt.queue.length < tiefe) {
+      rest -= k;
+      issue(world, { type: 'produce', player: ai.player, id: haupt.id, unit: plan.rabe });
+    }
+  }
   // Arbeiter nach Baukraft: Bauern bauen schwaecher als Dryaden, also mehr davon.
   const zielKraft = (((1600 + (minute >= 6 ? 1200 : 0) + (minute >= 12 ? 1200 : 0)) * ai.stufe.arbeiter) / 1000) | 0;
   const arbeiterZiel = Math.ceil(zielKraft / UNITS[plan.bauer].build.power);
@@ -754,6 +798,71 @@ function wenigsteHelfer(baustellen, helfer, u) {
     }
   }
   return best;
+}
+
+/**
+ * Wohin ein Rabe fliegt: zur Ader auf der gegnerischen Seite, die die KI am
+ * laengsten nicht gesehen hat (nie gesehen zuerst), bei Gleichstand zur
+ * naechsten; keine, die schon ein anderer Rabe anfliegt. Sonst zum
+ * gegnerischen Hauptgebaeude.
+ */
+function spaehziel(world, kunde, rabe, haupt, gegner, vergeben) {
+  let best = null;
+  let bestT = Infinity;
+  let bestD = Infinity;
+  let bestSeite = Infinity;
+  const mx = (MAP >> 1) - rabe.x;
+  const my = (MAP >> 1) - rabe.y;
+  for (let i = 0; i < world.deposits.length; i++) {
+    const d = world.deposits[i];
+    if (dist2(d.x, d.y, gegner.x, gegner.y) >= dist2(d.x, d.y, haupt.x, haupt.y)) continue;
+    if (vergeben.includes(d.x * MAP + d.y)) continue;
+    if (unterTurm(kunde, d.x, d.y, 300)) continue; // ein Turm holt ihn herunter
+    const t = kunde.adern[i] ?? -1;
+    if (t >= 0 && kunde.tick - t < 600) continue; // gerade erst gesehen
+    const dd = dist2(d.x, d.y, rabe.x, rabe.y);
+    const seite = mx * (d.y - rabe.y) - my * (d.x - rabe.x);
+    if (t < bestT || (t === bestT && (dd < bestD || (dd === bestD && seite < bestSeite)))) {
+      bestT = t;
+      bestD = dd;
+      bestSeite = seite;
+      best = d;
+    }
+  }
+  return best ? { x: best.x, y: best.y } : { x: gegner.x, y: gegner.y };
+}
+
+/**
+ * Platz fuer einen Spaehposten: vom vordersten eigenen Anker aus Richtung
+ * Gegner, gut innerhalb der Domaene, frei und nicht auf einer Ader.
+ */
+function postenPlatz(world, kunde, haupt, richtung, gebaeude, typ) {
+  const vorn = vordersterAnker(world, gebaeude, richtung) || haupt;
+  const dx = richtung.x - vorn.x;
+  const dy = richtung.y - vorn.y;
+  const d = isqrt(dx * dx + dy * dy);
+  if (d === 0) return null;
+  const r = BUILDINGS[typ].radius;
+  for (const s of [1600, 1200, 2000, 800]) {
+    for (const quer of [0, 400, -400]) {
+      const x = grenze(vorn.x + (((dx * s - dy * quer) / d) | 0));
+      const y = grenze(vorn.y + (((dy * s + dx * quer) / d) | 0));
+      if (blockiert(world, kunde, x, y, r)) continue;
+      if (world.deposits.some((q) => dist2(q.x, q.y, x, y) < (r + 120) * (r + 120))) continue;
+      return { x, y };
+    }
+  }
+  return null;
+}
+
+/** Liegt der Punkt (mit Abstand rand) in Reichweite eines bekannten gegnerischen Turms? */
+function unterTurm(kunde, x, y, rand) {
+  return kunde.gebaeude.some((t) => {
+    const w = BUILDINGS[t.type].weapon;
+    if (!w) return false;
+    const r = w.range + BUILDINGS[t.type].radius + rand;
+    return dist2(x, y, t.x, t.y) <= r * r;
+  });
 }
 
 /** Fertiger Anker, der dem Ziel am naechsten steht. */

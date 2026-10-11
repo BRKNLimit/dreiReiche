@@ -154,7 +154,7 @@ function befehl3(x, y, anhaengen = false) {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium']
+    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium', 'spaehposten']
     : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
 }
 
@@ -405,7 +405,7 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (!world) return;
-  const i = '123456789'.indexOf(e.key);
+  const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && bauListe()[i] && erbauer3().length && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
   if (e.key === 'Escape') {
@@ -672,8 +672,9 @@ function zeichne(now, dt) {
       blick.set(e.id, alt + d * Math.min(1, dt / 120));
     }
     const s = def.radius * DM * ZEIGE_EINHEIT;
-    const schwebt = e.type === 'waldgeist' ? 0.5 + Math.sin(t * 2 + e.id) * 0.25 : 0;
-    const gleitet = e.type === 'waldgeist' || e.type === 'waldgott';
+    const fliegt = UNITS[e.type].fliegt;
+    const schwebt = fliegt ? 5 + Math.sin(t * 3 + e.id) * 0.4 : e.type === 'waldgeist' ? 0.5 + Math.sin(t * 2 + e.id) * 0.25 : 0;
+    const gleitet = fliegt || e.type === 'waldgeist' || e.type === 'waldgott';
     const huepf = bewegt && !gleitet ? Math.abs(Math.sin(t * 9 + e.id)) * 0.12 * s : 0;
     const schritt = bewegt && !gleitet ? Math.sin(t * 9 + e.id) : 0;
     // Ausfall: kurz nach vorn beim Schuss oder Hieb

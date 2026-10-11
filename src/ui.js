@@ -193,7 +193,7 @@ cv.addEventListener(
 
 addEventListener('keydown', (e) => {
   const liste = bauListe();
-  const i = '123456789'.indexOf(e.key);
+  const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && liste[i] && erbauer().length && !gesperrt(world, ME, liste[i])) placing = liste[i];
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
   if (e.key === 'Escape') {
@@ -361,7 +361,7 @@ function befehl(x, y, anhaengen = false) {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium']
+    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium', 'spaehposten']
     : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
 }
 

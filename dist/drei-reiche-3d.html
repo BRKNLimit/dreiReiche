@@ -191,7 +191,7 @@
   <dt>Icon unten</dt><dd>nur diesen Typ aus der Auswahl behalten</dd>
   <dt>Rechtsklick</dt><dd>bewegen · mit Erbauern auf Plan/Baustelle: bauen, reparieren</dd>
   <dt>A, Klick</dt><dd>Angriffsbewegung</dd>
-  <dt>1–9</dt><dd>bauen (nur mit Erbauern) · mit Shift: weitere in die Reihe</dd>
+  <dt>1–0</dt><dd>bauen (nur mit Erbauern) · mit Shift: weitere in die Reihe</dd>
   <dt>Q–R</dt><dd>Gebäude gewählt: ausbilden · Kommandant gewählt: Fähigkeiten</dd>
   <dt>Entf</dt><dd>Gebäude abreißen, Bauplan verwerfen</dd>
   <dt>K</dt><dd>Kommandant</dd>
@@ -346,6 +346,20 @@ const BUILDINGS = {
     // doppelte (Messung in docs/scope.md). Schiesst nur mit Gegenwart.
     weapon: { range: 900, damage: 60, cooldown: 4 },
   },
+  // Vorgabe des Nutzers: Die Menschen klaeren mit einem Hochsitz auf, der
+  // weit sieht -- rund ein Zehntel der Karte. Kaempft nicht, braucht keine
+  // Gegenwart, steht auch ausserhalb der Domaene. Werte sind Designzahlen.
+  spaehposten: {
+    name: 'Spähposten',
+    sicht: 2000, // Sichtweite (Nebel des Krieges): 200 m
+    desc: 'Hochsitz mit weiter Sicht: deckt rund 200 m im Umkreis auf. Kämpft nicht, braucht keine Gegenwart.',
+    short: 'SPP',
+    faction: 'mensch',
+    hp: 500,
+    radius: 30,
+    cost: { fron: 90 },
+    buildTime: 120,
+  },
   schmiede: {
     name: 'Schmiede',
     desc: 'Liefert Gegenwart in ihr Domänennetz — Kraft für Fabriken, Förderung und Schreine.',
@@ -458,7 +472,7 @@ const BUILDINGS = {
     gegenwartOut: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    buildList: ['dryade', 'wolf'],
+    buildList: ['dryade', 'wolf', 'rabe'],
     vital: true,
   },
   hain: {
@@ -722,6 +736,23 @@ const UNITS = {
     buildTime: 210,
     kampf: 'nah',
     weapon: { range: 20, damage: 22, cooldown: 6 },
+  },
+  // Vorgabe des Nutzers: Der Gott spaeht mit Raben -- schnell, billig, haelt
+  // kaum einen Treffer aus; faellt einer, kommt der naechste. Fliegt: ueber
+  // Fels, Wasser und Gebaeude, Nahkaempfer erreichen ihn nicht, Fernkaempfer
+  // und Tuerme holen ihn mit einem Schuss herunter. Werte sind Designzahlen.
+  rabe: {
+    name: 'Rabe',
+    sicht: 1500, // Sichtweite (Nebel des Krieges)
+    desc: 'Späher: fliegt schnell über Fels, Wasser und Mauern und sieht weit. Ein Schuss holt ihn herunter. Kämpft nicht.',
+    faction: 'gott',
+    hp: 8,
+    radius: 12,
+    speed: 52,
+    cost: { fron: 35 },
+    unterhalt: 2, // Fron pro Minute, solange er lebt
+    buildTime: 60,
+    fliegt: true,
   },
   waldgeist: {
     name: 'Waldgeist',
@@ -2389,7 +2420,8 @@ function moveUnits(world) {
     let speed = UNITS[e.type].speed;
     if (e.tempoBis > world.tick) speed = ((speed * (1000 + e.tempoWert)) / 1000) | 0; // Ansturm
     // Wegfindung: direkt, wenn nichts im Weg ist, sonst den naechsten Wegpunkt.
-    if (gx[i] !== e.x || gy[i] !== e.y) {
+    // Wer fliegt, fliegt geradeaus.
+    if ((gx[i] !== e.x || gy[i] !== e.y) && !UNITS[e.type].fliegt) {
       const [wx, wy] = wegpunkt(world.weg, e.x, e.y, gx[i], gy[i]);
       gx[i] = wx;
       gy[i] = wy;
@@ -2421,7 +2453,7 @@ function chaseTarget(world, e, r, leash) {
   const gebaeudeZuerst = UNITS[e.type].weapon.vorrang === 'gebaeude';
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
-    if (o.dead || o.player === e.player) continue;
+    if (o.dead || o.player === e.player || !erreicht(e, o)) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const rr = r + re + radiusVon(o);
     if (dd > rr * rr) continue;
@@ -2449,6 +2481,7 @@ function separate(world) {
     for (let j = i + 1; j < us.length; j++) {
       const a = us[i];
       const b = us[j];
+      if (UNITS[a.type].fliegt || UNITS[b.type].fliegt) continue; // in der Luft drängelt niemand
       const min = UNITS[a.type].radius + UNITS[b.type].radius;
       const dd = dist2(a.x, a.y, b.x, b.y);
       if (dd >= min * min) continue;
@@ -2487,6 +2520,7 @@ function separate(world) {
  * (Angriff aufs Hauptgebaeude), bleibt die Einheit am Rand stehen.
  */
 function umgehen(world, u) {
+  if (UNITS[u.type].fliegt) return; // ueber Fels, Wasser und Mauern hinweg
   const ur = UNITS[u.type].radius;
   const slide = UNITS[u.type].speed >> 1;
   // Felsen und Seen schieben genauso hinaus wie Gebaeude, nur ohne Seitwaertsgleiten.
@@ -2616,6 +2650,12 @@ function combat(world) {
   }
 }
 
+/** Kann e o ueberhaupt treffen? Fliegende Einheiten erreichen nur Fernkaempfer und Tuerme. */
+function erreicht(e, o) {
+  if (o.kind !== 'unit' || !UNITS[o.type].fliegt) return true;
+  return (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).kampf === 'fern';
+}
+
 /** Groesse einer Einheit oder eines Gebaeudes, Dezimeter. */
 function radiusVon(e) {
   return e.kind === 'unit' ? UNITS[e.type].radius : BUILDINGS[e.type].radius;
@@ -2639,7 +2679,7 @@ function nearestEnemy(world, e) {
   let bestRang = 1;
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
-    if (o.dead || o.player === e.player) continue;
+    if (o.dead || o.player === e.player || !erreicht(e, o)) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const r = reichweite(e, o);
     if (dd > r * r) continue;
@@ -2933,13 +2973,13 @@ function bekanntBei(k, x, y, r) {
 const PLAN = {
   mensch: {
     anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
-    zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium',
+    zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten',
     bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult',
   },
   gott: {
     anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht',
     zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche',
-    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher',
+    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe',
   },
 };
 
@@ -3021,6 +3061,8 @@ function createAI(player = 1, seed = 1, stil = 'standard', stufe = 'mittel') {
     stufe: STUFEN[stufe], letzterBau: null, gesperrt: [],
     // Ziel der laufenden Welle: Gebaeude-Id (0 = vermutetes Hauptgebaeude), Ort, und ob es das Hauptgebaeude ist
     welleX: 0, welleY: 0, welleAufHaupt: false,
+    // Raben: wie viele es beim letzten Zug gab, und ab wann nach einem Verlust ein neuer kommt
+    rabenVorher: 0, rabeAb: 0,
     kunde: neueKunde(player),
   };
 }
@@ -3050,7 +3092,8 @@ function stepAI(ai, world) {
   const kdt = einheiten.find((u) => UNITS[u.type].commander) || null;
   // Arbeiter bauen, Kaempfer kaempfen -- Wellen, Wache und Abwehr ohne Arbeiter.
   const arbeiter = einheiten.filter((u) => UNITS[u.type].worker);
-  const kaempfer = einheiten.filter((u) => !UNITS[u.type].worker && u !== kdt);
+  const kaempfer = einheiten.filter((u) => !UNITS[u.type].worker && u !== kdt && UNITS[u.type].weapon);
+  const raben = einheiten.filter((u) => UNITS[u.type].fliegt);
   const zahl = (t) => bauten.filter((b) => b.type === t).length;
   const kosten = (t) => BUILDINGS[t].cost.fron;
   const fron = p.fron;
@@ -3107,6 +3150,19 @@ function stepAI(ai, world) {
   }
   // Das gegnerische Hauptgebaeude -- gesehen oder dort vermutet, wo der Gegner beginnt.
   const ziel = vermutetesHaupt(kunde, haupt);
+
+  // Raben spaehen: jeder fliegt zur Ader auf der gegnerischen Seite, die am
+  // laengsten keiner gesehen hat, sonst zum gegnerischen Hauptgebaeude.
+  const vergeben = [];
+  for (const r of raben) {
+    if (!r.arrived) {
+      vergeben.push(r.tx * MAP + r.ty);
+      continue;
+    }
+    const z = spaehziel(world, kunde, r, haupt, ziel, vergeben);
+    vergeben.push(z.x * MAP + z.y);
+    if (r.tx !== z.x || r.ty !== z.y) issue(world, { type: 'move', player: ai.player, ids: [r.id], x: z.x, y: z.y });
+  }
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
   // Abgelehnte Bauten merken: Steht nach einem Bauauftrag nichts an der
@@ -3214,6 +3270,18 @@ function stepAI(ai, world) {
     if (platz && bau(plan.forschung, ...platz)) return;
   }
 
+  // 3e. Spaehposten: einer ab Minute 4 am Rand der Domaene, Richtung Gegner --
+  //     er sieht kommen, was angreift. Vorgeschobene Posten an den Adern
+  //     kosteten die KI mehr Erbauer, als ihr das Wissen brachte (docs/scope.md,
+  //     Abschnitt 20).
+  if (plan.posten && frei(plan.posten)) {
+    const postenZiel = minute >= 4 ? 1 : 0;
+    if (zahl(plan.posten) < postenZiel && fron >= kosten(plan.posten)) {
+      const platz = postenPlatz(world, kunde, haupt, ziel, gebaeude, plan.posten);
+      if (platz && bau(plan.posten, platz.x, platz.y)) return;
+    }
+  }
+
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
   if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
     if (bau(plan.blut, vene.x, vene.y)) return;
@@ -3304,6 +3372,22 @@ function stepAI(ai, world) {
   let blutRest = p.goetterblut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
+  // Raben: einer ab Minute 2, ein zweiter ab Minute 10 -- billig, und wer
+  // faellt, wird ersetzt.
+  if (plan.rabe && haupt.done && BUILDINGS[haupt.type].buildList?.includes(plan.rabe)) {
+    // Faellt einer, kommt der naechste erst nach 90 s -- sonst fliegt die KI
+    // Rabe um Rabe in dieselben Schuetzen.
+    if (raben.length < ai.rabenVorher) ai.rabeAb = world.tick + 900;
+    ai.rabenVorher = raben.length;
+    const rabenZiel = world.tick < ai.rabeAb ? 0 : minute >= 10 ? 2 : minute >= 2 ? 1 : 0;
+    let bestellt = raben.length;
+    for (const b of gebaeude) bestellt += b.queue ? b.queue.filter((u) => u === plan.rabe).length : 0;
+    const k = UNITS[plan.rabe].cost.fron;
+    if (bestellt < rabenZiel && rest >= k && haupt.queue.length < tiefe) {
+      rest -= k;
+      issue(world, { type: 'produce', player: ai.player, id: haupt.id, unit: plan.rabe });
+    }
+  }
   // Arbeiter nach Baukraft: Bauern bauen schwaecher als Dryaden, also mehr davon.
   const zielKraft = (((1600 + (minute >= 6 ? 1200 : 0) + (minute >= 12 ? 1200 : 0)) * ai.stufe.arbeiter) / 1000) | 0;
   const arbeiterZiel = Math.ceil(zielKraft / UNITS[plan.bauer].build.power);
@@ -3671,6 +3755,71 @@ function wenigsteHelfer(baustellen, helfer, u) {
     }
   }
   return best;
+}
+
+/**
+ * Wohin ein Rabe fliegt: zur Ader auf der gegnerischen Seite, die die KI am
+ * laengsten nicht gesehen hat (nie gesehen zuerst), bei Gleichstand zur
+ * naechsten; keine, die schon ein anderer Rabe anfliegt. Sonst zum
+ * gegnerischen Hauptgebaeude.
+ */
+function spaehziel(world, kunde, rabe, haupt, gegner, vergeben) {
+  let best = null;
+  let bestT = Infinity;
+  let bestD = Infinity;
+  let bestSeite = Infinity;
+  const mx = (MAP >> 1) - rabe.x;
+  const my = (MAP >> 1) - rabe.y;
+  for (let i = 0; i < world.deposits.length; i++) {
+    const d = world.deposits[i];
+    if (dist2(d.x, d.y, gegner.x, gegner.y) >= dist2(d.x, d.y, haupt.x, haupt.y)) continue;
+    if (vergeben.includes(d.x * MAP + d.y)) continue;
+    if (unterTurm(kunde, d.x, d.y, 300)) continue; // ein Turm holt ihn herunter
+    const t = kunde.adern[i] ?? -1;
+    if (t >= 0 && kunde.tick - t < 600) continue; // gerade erst gesehen
+    const dd = dist2(d.x, d.y, rabe.x, rabe.y);
+    const seite = mx * (d.y - rabe.y) - my * (d.x - rabe.x);
+    if (t < bestT || (t === bestT && (dd < bestD || (dd === bestD && seite < bestSeite)))) {
+      bestT = t;
+      bestD = dd;
+      bestSeite = seite;
+      best = d;
+    }
+  }
+  return best ? { x: best.x, y: best.y } : { x: gegner.x, y: gegner.y };
+}
+
+/**
+ * Platz fuer einen Spaehposten: vom vordersten eigenen Anker aus Richtung
+ * Gegner, gut innerhalb der Domaene, frei und nicht auf einer Ader.
+ */
+function postenPlatz(world, kunde, haupt, richtung, gebaeude, typ) {
+  const vorn = vordersterAnker(world, gebaeude, richtung) || haupt;
+  const dx = richtung.x - vorn.x;
+  const dy = richtung.y - vorn.y;
+  const d = isqrt(dx * dx + dy * dy);
+  if (d === 0) return null;
+  const r = BUILDINGS[typ].radius;
+  for (const s of [1600, 1200, 2000, 800]) {
+    for (const quer of [0, 400, -400]) {
+      const x = grenze(vorn.x + (((dx * s - dy * quer) / d) | 0));
+      const y = grenze(vorn.y + (((dy * s + dx * quer) / d) | 0));
+      if (blockiert(world, kunde, x, y, r)) continue;
+      if (world.deposits.some((q) => dist2(q.x, q.y, x, y) < (r + 120) * (r + 120))) continue;
+      return { x, y };
+    }
+  }
+  return null;
+}
+
+/** Liegt der Punkt (mit Abstand rand) in Reichweite eines bekannten gegnerischen Turms? */
+function unterTurm(kunde, x, y, rand) {
+  return kunde.gebaeude.some((t) => {
+    const w = BUILDINGS[t.type].weapon;
+    if (!w) return false;
+    const r = w.range + BUILDINGS[t.type].radius + rand;
+    return dist2(x, y, t.x, t.y) <= r * r;
+  });
 }
 
 /** Fertiger Anker, der dem Ziel am naechsten steht. */
@@ -4488,7 +4637,7 @@ function bauleisteHtml(world, player, liste) {
   return liste
     .map((t, i) => {
       const zu = gesperrt(world, player, t);
-      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span><kbd>${i + 1}</kbd></button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span><kbd>${(i + 1) % 10}</kbd></button>`;
     })
     .join('');
 }
@@ -4519,6 +4668,15 @@ function warnungenHtml(world, player) {
     let stufe = '';
     for (let i = 3; i >= 0 && !stufe; i--) if (r.satPrio[i] < 1000) stufe = PRIO_NAMES[i];
     out.push(`<div class="warn">${ICONS.gegenwart}<span>Gegenwart knapp ${r.supply}/${r.demand} — ${stufe} gedrosselt</span></div>`);
+  }
+  // Tuerme ohne Gegenwart schlafen -- das sieht man ihnen sonst nicht an.
+  const schlafen = {};
+  for (const e of world.entities) {
+    if (e.dead || e.player !== player || e.kind !== 'building' || !e.done || !BUILDINGS[e.type].weapon || e.powered) continue;
+    schlafen[e.type] = (schlafen[e.type] || 0) + 1;
+  }
+  for (const [t, n] of Object.entries(schlafen)) {
+    out.push(`<div class="warn">${ICONS[t]}<span>${n}× ${BUILDINGS[t].name} ohne Gegenwart — schießt nicht</span></div>`);
   }
   return out.join('');
 }
@@ -4608,7 +4766,8 @@ function gebaeudeKarte(world, player, typ) {
   }
   if (d.weapon) z.push(...waffeZeilen(d));
   if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
-  if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : 'nah'})`).join(', ')]);
+  if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
+  if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : UNITS[u].kampf ? 'nah' : 'Späher'})`).join(', ')]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
@@ -4621,6 +4780,8 @@ function einheitKarte(world, player, typ) {
   z.push(['Leben', d.hp + ' LP']);
   if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
+  if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
+  if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; nur Fernkampf trifft']);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
@@ -5991,6 +6152,50 @@ const WALDGOTT_VARIANTEN = {
 
 /* ---------------------------------- */
 
+// Platzhalter fuer Modelle und Icons neuer Einheiten und Gebaeude, bis Gemini
+// echte liefert (Wunsch in docs/grafik/wuensche.md). Fuellt nur Luecken: Was
+// in src/modelle3d.js oder src/icons.js steht, gewinnt. Wird von
+// tools/bundle.mjs nach diesen Dateien eingefuegt; in der Draufsicht gibt es
+// keine Modelle, daher die typeof-Pruefung.
+
+
+const PLATZHALTER_ICONS = {
+  rabe: '<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10c3-2 6-2 8 0l2 3 2-3c2-2 5-2 8 0-3 0-5 1-7 4l-3 4-3-4C7 11 5 10 2 10z" fill="#24232b" stroke="#8fb86a" stroke-width="1"/><circle cx="12" cy="12" r="1" fill="#e8d04a"/></svg>',
+  spaehposten: '<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22l3-12M18 22l-3-12M8 16h8" stroke="#a07a4a" stroke-width="1.6"/><path d="M5 10h14l-2-3H7z" fill="#7a5a3a" stroke="#d8b06a" stroke-width="1"/><path d="M8 7l4-4 4 4" stroke="#d8b06a" stroke-width="1.2"/><circle cx="12" cy="8.6" r="1.2" fill="#f0e6c8"/></svg>',
+};
+for (const [k, v] of Object.entries(PLATZHALTER_ICONS)) ICONS[k] ??= v;
+
+if (typeof MODELLE_DEF !== 'undefined') {
+  const SCHWARZ = '#24232b';
+  const HOLZ_P = '#7a5a3a';
+  const PLATZHALTER_MODELLE = {
+    // Rabe: Rumpf, zwei Schwingen, Schnabel -- die Flughoehe setzt die Oberflaeche
+    rabe: [
+      ['k', [0.35, 6], [0, 0.4, 0], SCHWARZ, 0.25],
+      ['k', [0.22, 6], [0, 0.5, 0.38], SCHWARZ],
+      ['z', [0, 0.08, 0.3, 4], [0, 0.48, 0.66], '#c8a040', 0, [Math.PI / 2, 0, 0]],
+      ['q', [1.3, 0.05, 0.45], [0.75, 0.45, 0], SCHWARZ, 0.25, [0, 0, 0.25]],
+      ['q', [1.3, 0.05, 0.45], [-0.75, 0.45, 0], SCHWARZ, 0.25, [0, 0, -0.25]],
+      ['q', [0.35, 0.04, 0.4], [0, 0.4, -0.45], SCHWARZ],
+    ],
+    // Spaehposten: Hochsitz auf vier Beinen mit Dach
+    spaehposten: [
+      ['q', [0.1, 2.2, 0.1], [0.45, 1.1, 0.45], HOLZ_P],
+      ['q', [0.1, 2.2, 0.1], [-0.45, 1.1, 0.45], HOLZ_P],
+      ['q', [0.1, 2.2, 0.1], [0.45, 1.1, -0.45], HOLZ_P],
+      ['q', [0.1, 2.2, 0.1], [-0.45, 1.1, -0.45], HOLZ_P],
+      ['q', [1.2, 0.12, 1.2], [0, 2.2, 0], HOLZ_P, 0.4],
+      ['q', [1.2, 0.45, 0.06], [0, 2.5, 0.58], HOLZ_P],
+      ['q', [1.2, 0.45, 0.06], [0, 2.5, -0.58], HOLZ_P],
+      ['z', [0, 0.95, 0.6, 4], [0, 3.1, 0], '#8c3a2a', 0.5, [0, Math.PI / 4, 0]],
+    ],
+  };
+  for (const [k, v] of Object.entries(PLATZHALTER_MODELLE)) MODELLE_DEF[k] ??= v;
+}
+
+
+/* ---------------------------------- */
+
 // Gelaende der 3D-Ansicht: Boden, gerodete Flaechen, Seen, Felsen, Adern, Baeume.
 // Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
 // anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
@@ -6346,7 +6551,7 @@ function befehl3(x, y, anhaengen = false) {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium']
+    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium', 'spaehposten']
     : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
 }
 
@@ -6597,7 +6802,7 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (!world) return;
-  const i = '123456789'.indexOf(e.key);
+  const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && bauListe()[i] && erbauer3().length && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
   if (e.key === 'Escape') {
@@ -6864,8 +7069,9 @@ function zeichne(now, dt) {
       blick.set(e.id, alt + d * Math.min(1, dt / 120));
     }
     const s = def.radius * DM * ZEIGE_EINHEIT;
-    const schwebt = e.type === 'waldgeist' ? 0.5 + Math.sin(t * 2 + e.id) * 0.25 : 0;
-    const gleitet = e.type === 'waldgeist' || e.type === 'waldgott';
+    const fliegt = UNITS[e.type].fliegt;
+    const schwebt = fliegt ? 5 + Math.sin(t * 3 + e.id) * 0.4 : e.type === 'waldgeist' ? 0.5 + Math.sin(t * 2 + e.id) * 0.25 : 0;
+    const gleitet = fliegt || e.type === 'waldgeist' || e.type === 'waldgott';
     const huepf = bewegt && !gleitet ? Math.abs(Math.sin(t * 9 + e.id)) * 0.12 * s : 0;
     const schritt = bewegt && !gleitet ? Math.sin(t * 9 + e.id) : 0;
     // Ausfall: kurz nach vorn beim Schuss oder Hieb

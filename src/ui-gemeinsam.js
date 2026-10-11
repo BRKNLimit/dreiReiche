@@ -191,7 +191,7 @@ export function bauleisteHtml(world, player, liste) {
   return liste
     .map((t, i) => {
       const zu = gesperrt(world, player, t);
-      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span><kbd>${i + 1}</kbd></button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span><kbd>${(i + 1) % 10}</kbd></button>`;
     })
     .join('');
 }
@@ -222,6 +222,15 @@ export function warnungenHtml(world, player) {
     let stufe = '';
     for (let i = 3; i >= 0 && !stufe; i--) if (r.satPrio[i] < 1000) stufe = PRIO_NAMES[i];
     out.push(`<div class="warn">${ICONS.gegenwart}<span>Gegenwart knapp ${r.supply}/${r.demand} — ${stufe} gedrosselt</span></div>`);
+  }
+  // Tuerme ohne Gegenwart schlafen -- das sieht man ihnen sonst nicht an.
+  const schlafen = {};
+  for (const e of world.entities) {
+    if (e.dead || e.player !== player || e.kind !== 'building' || !e.done || !BUILDINGS[e.type].weapon || e.powered) continue;
+    schlafen[e.type] = (schlafen[e.type] || 0) + 1;
+  }
+  for (const [t, n] of Object.entries(schlafen)) {
+    out.push(`<div class="warn">${ICONS[t]}<span>${n}× ${BUILDINGS[t].name} ohne Gegenwart — schießt nicht</span></div>`);
   }
   return out.join('');
 }
@@ -311,7 +320,8 @@ export function gebaeudeKarte(world, player, typ) {
   }
   if (d.weapon) z.push(...waffeZeilen(d));
   if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
-  if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : 'nah'})`).join(', ')]);
+  if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
+  if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : UNITS[u].kampf ? 'nah' : 'Späher'})`).join(', ')]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
@@ -324,6 +334,8 @@ export function einheitKarte(world, player, typ) {
   z.push(['Leben', d.hp + ' LP']);
   if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
+  if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
+  if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; nur Fernkampf trifft']);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }

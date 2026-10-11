@@ -1160,7 +1160,8 @@ function moveUnits(world) {
     let speed = UNITS[e.type].speed;
     if (e.tempoBis > world.tick) speed = ((speed * (1000 + e.tempoWert)) / 1000) | 0; // Ansturm
     // Wegfindung: direkt, wenn nichts im Weg ist, sonst den naechsten Wegpunkt.
-    if (gx[i] !== e.x || gy[i] !== e.y) {
+    // Wer fliegt, fliegt geradeaus.
+    if ((gx[i] !== e.x || gy[i] !== e.y) && !UNITS[e.type].fliegt) {
       const [wx, wy] = wegpunkt(world.weg, e.x, e.y, gx[i], gy[i]);
       gx[i] = wx;
       gy[i] = wy;
@@ -1192,7 +1193,7 @@ function chaseTarget(world, e, r, leash) {
   const gebaeudeZuerst = UNITS[e.type].weapon.vorrang === 'gebaeude';
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
-    if (o.dead || o.player === e.player) continue;
+    if (o.dead || o.player === e.player || !erreicht(e, o)) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const rr = r + re + radiusVon(o);
     if (dd > rr * rr) continue;
@@ -1220,6 +1221,7 @@ function separate(world) {
     for (let j = i + 1; j < us.length; j++) {
       const a = us[i];
       const b = us[j];
+      if (UNITS[a.type].fliegt || UNITS[b.type].fliegt) continue; // in der Luft drängelt niemand
       const min = UNITS[a.type].radius + UNITS[b.type].radius;
       const dd = dist2(a.x, a.y, b.x, b.y);
       if (dd >= min * min) continue;
@@ -1258,6 +1260,7 @@ function separate(world) {
  * (Angriff aufs Hauptgebaeude), bleibt die Einheit am Rand stehen.
  */
 function umgehen(world, u) {
+  if (UNITS[u.type].fliegt) return; // ueber Fels, Wasser und Mauern hinweg
   const ur = UNITS[u.type].radius;
   const slide = UNITS[u.type].speed >> 1;
   // Felsen und Seen schieben genauso hinaus wie Gebaeude, nur ohne Seitwaertsgleiten.
@@ -1387,6 +1390,12 @@ function combat(world) {
   }
 }
 
+/** Kann e o ueberhaupt treffen? Fliegende Einheiten erreichen nur Fernkaempfer und Tuerme. */
+function erreicht(e, o) {
+  if (o.kind !== 'unit' || !UNITS[o.type].fliegt) return true;
+  return (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).kampf === 'fern';
+}
+
 /** Groesse einer Einheit oder eines Gebaeudes, Dezimeter. */
 function radiusVon(e) {
   return e.kind === 'unit' ? UNITS[e.type].radius : BUILDINGS[e.type].radius;
@@ -1410,7 +1419,7 @@ function nearestEnemy(world, e) {
   let bestRang = 1;
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
-    if (o.dead || o.player === e.player) continue;
+    if (o.dead || o.player === e.player || !erreicht(e, o)) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const r = reichweite(e, o);
     if (dd > r * r) continue;

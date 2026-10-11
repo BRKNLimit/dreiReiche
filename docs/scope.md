@@ -626,6 +626,38 @@ zwischen 15–19 : 31–46: Im Nebel tut sich die Menschen-KI schwerer — auch
 mit der wahren Heeresstärke. Mehr offene Partien heißt: Wer nicht weiß, wo
 der Gegner schwach ist, rennt seltener entscheidend an.
 
+### 20. Aufklärung: Spähposten und Rabe (Stand 0.28)
+
+> **Vorgaben des Nutzers:** Die Menschen bekommen einen Spähposten, einen
+> Hochsitz, der rund ein Zehntel der Karte weit sieht. Der Gott bekommt den
+> Raben: schnell, sehr billig, hält nur einen Treffer aus — fällt einer, baut
+> man den nächsten.
+
+*Werte sind Designzahlen:* Spähposten 90 Fron, 500 LP, Sicht 200 m, ohne
+Gegenwart, auch außerhalb der Domäne. Rabe 35 Fron, 8 LP, Sicht 150 m,
+Tempo 52 (Wolf 34), Unterhalt 2. Fliegen ist ein Datenfeld (`fliegt`):
+geradeaus über alles hinweg, kein Gedränge, nur Fernkämpfer und Türme
+treffen.
+
+KI: Der Gott hält ab Minute 2 einen Raben, ab Minute 10 zwei, schickt sie
+zu den am längsten ungesehenen Adern der gegnerischen Seite, meidet bekannte
+Türme und baut nach einem Verlust erst nach 90 s nach. Die Menschen setzen
+ab Minute 4 einen Posten an den Rand ihrer Domäne, Richtung Gegner.
+
+| Stand (36 Seeds, Stil-Paarungen) | Menschen : Gott | offen |
+| --- | --- | --- |
+| 0.27, ohne beides | 17 : 31 | 24 |
+| Raben + Posten an den gegnerischen Adern | 9 : 53 | 10 |
+| — ohne Raben | 17 : 37 | 18 |
+| — ohne Posten | 17 : 48 | 7 |
+| **Raben + ein Posten am Domänenrand** | **12 : 46** | 14 |
+
+Die Raben geben der Gott-KI das Wissen, wo die Förderung der Menschen steht
+— dorthin gehen ihre Wellen. Vorgeschobene Posten kosteten die
+Menschen-KI Erbauer, die in der Mitte fielen, und brachten ihr wenig.
+Stellschrauben, falls die Menschen aufholen sollen: Sicht oder Preis des
+Raben, Sicht des Postens.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

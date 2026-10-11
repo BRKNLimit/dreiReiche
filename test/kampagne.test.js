@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createWorld, step, hash, issue } from '../src/sim/sim.js';
 import { BUILDINGS, UNITS, KARTEN } from '../src/sim/defs.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
-import { MISSIONEN, missionVon, missionPruefen, missionGeschafft, kampagneStand, zieleHtml } from '../src/kampagne.js';
+import { MISSIONEN, missionVon, missionPruefen, missionGeschafft, kampagneStand, zieleHtml, naechsteMeldung } from '../src/kampagne.js';
 
 function missionsWelt(m, seed = 7) {
   const world = createWorld({ seed, factions: [m.volk, m.volk === 'mensch' ? 'gott' : 'mensch'], karte: m.karte });
@@ -105,4 +105,28 @@ test('Kampagne: Wiederholung einer Mission -- gleiche Befehle, gleicher Ausgang'
     return hash(world);
   };
   assert.equal(lauf(), lauf());
+});
+
+test('Kampagne: Funksprueche kommen einzeln, der Reihe nach, jeder nur einmal', () => {
+  for (const m of MISSIONEN) {
+    assert.ok((m.meldungen || []).length >= 3, m.id + ': zu wenig Funksprueche');
+    const { world } = missionsWelt(m);
+    for (const mld of m.meldungen) {
+      assert.ok(mld.wer && mld.text, m.id);
+      mld.wann(world, 0, m.ziele.map(() => false)); // darf auf einer frischen Welt nicht werfen
+    }
+  }
+  const m = missionVon('wut-des-waldes');
+  const { world, ai } = missionsWelt(m);
+  const gezeigt = [];
+  const reihe = [];
+  for (let t = 0; t < 700; t++) {
+    const mld = naechsteMeldung(m, gezeigt, world, 0, [false]);
+    if (mld) reihe.push(mld.wer + '@' + world.tick);
+    stepAI(ai, world);
+    m.takt(world);
+    step(world);
+  }
+  assert.deepEqual(reihe, ['Vögtin Hedwig@30', 'Hauptmann Gerold@600']);
+  assert.equal(naechsteMeldung(m, gezeigt, world, 0, [false]), null, 'nichts doppelt');
 });

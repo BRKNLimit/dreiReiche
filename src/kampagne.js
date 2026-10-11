@@ -27,6 +27,20 @@ function uhr(t) {
   return ((s / 60) | 0) + ':' + String(s % 60).padStart(2, '0');
 }
 
+// Figuren der Funksprueche
+const HEDWIG = 'Vögtin Hedwig';
+const GEROLD = 'Hauptmann Gerold';
+const MIRA = 'Kundschafterin Mira';
+const EICHE = 'Die Alte Eiche';
+const KRA = 'Kra, der Rabe';
+
+/** Steht eine eigene Einheit naeher als r an einer der lebenden Entities mit diesen Ids? */
+function kmNahe(w, ich, ids, r) {
+  const ziele = w.entities.filter((e) => !e.dead && ids.includes(e.id));
+  return w.entities.some((u) => !u.dead && u.player === ich && u.kind === 'unit' && ziele.some((z) => (u.x - z.x) ** 2 + (u.y - z.y) ** 2 <= r * r));
+}
+const kmLebt = (w, id) => w.entities.some((e) => e.id === id && !e.dead);
+
 const kmZahl = (world, p, typ, fertig = true) => world.entities.filter((e) => !e.dead && e.player === p && e.type === typ && (!fertig || e.kind !== 'building' || e.done)).length;
 
 const RODUNG = [
@@ -59,6 +73,12 @@ const RODUNG = [
       { text: 'Bilde sechs Soldaten aus', erfuellt: (w, ich) => kmZahl(w, ich, 'soldat') >= 6 },
       { text: 'Fasse dein Heer zur Steuergruppe 1 zusammen (wählen, <kbd>Strg</kbd>+<kbd>1</kbd>)', erfuellt: (w, ich, c) => (c.gruppen['1'] || []).length >= 4 },
       { text: 'Zerstöre den Vorposten des Waldes (Rechtsklick auf einen Feind greift ihn gezielt an)', erfuellt: (w) => (w.vorposten || []).every((id) => !w.entities.some((e) => e.id === id && !e.dead)) },
+    ],
+    meldungen: [
+      { wer: HEDWIG, text: 'Willkommen am Grat, Herr. Die Leute warten auf Eure Befehle — zuerst ein Sägewerk, ohne Holz keine Siedlung.', wann: (w) => w.tick >= 20 },
+      { wer: HEDWIG, text: 'Das Sägewerk läuft. Jetzt Hände: Die Thingstätte bildet Bauern aus.', wann: (w, ich, s) => s[1] },
+      { wer: GEROLD, text: 'Die Kaserne steht. Gebt mir ein halbes Dutzend Leute, und wir sehen nach, was hinter dem Grat heult.', wann: (w, ich, s) => s[3] },
+      { wer: GEROLD, text: 'Wölfe! Und dahinter ein Hain, der letzte Woche noch nicht da war. Das ist kein gewöhnlicher Wald.', wann: (w, ich) => kmNahe(w, ich, w.vorposten || [], 1400) },
     ],
     sieg: 'ziele',
   },
@@ -114,6 +134,13 @@ const RODUNG = [
       return n < WUT.wellen ? `Nächste Welle in ${uhr(WUT.ersteWelle + n * WUT.wellenTakt - world.tick)}` : '';
     },
     ziele: [{ text: 'Halte zehn Minuten stand', erfuellt: (w) => w.tick >= 6000, zeit: 6000 }],
+    meldungen: [
+      { wer: HEDWIG, text: 'Die Wölfe heulen wieder, näher als je. Stellt die Leute an den Turm — dort sind wir am stärksten.', wann: (w) => w.tick >= 30 },
+      { wer: GEROLD, text: 'Da kommen sie! Haltet die Linie, Jäger nach hinten!', wann: (w) => w.tick >= WUT.ersteWelle },
+      { wer: HEDWIG, text: 'Halbzeit! Ein Bote: Die Verstärkung hat den Pass erreicht.', wann: (w) => w.tick >= 3000 },
+      { wer: GEROLD, text: 'Ents! Bäume, die laufen … zielt auf die Wurzeln!', wann: (w) => w.entities.some((e) => !e.dead && e.type === 'ent' && e.player !== 0) && w.tick >= WUT.ersteWelle },
+      { wer: GEROLD, text: 'Die letzte Welle — dann haben wir es geschafft!', wann: (w) => w.tick >= WUT.ersteWelle + (WUT.wellen - 1) * WUT.wellenTakt },
+    ],
     sieg: 'ziele',
   },
   {
@@ -135,6 +162,11 @@ const RODUNG = [
     ziele: [
       { text: 'Errichte zwei Blutschächte auf Götterblut-Adern', erfuellt: (w, ich) => kmZahl(w, ich, 'schacht') >= 2 },
       { text: 'Sammle 300 Götterblut', erfuellt: (w, ich) => w.players[ich].goetterblut >= 300 },
+    ],
+    meldungen: [
+      { wer: MIRA, text: 'Rotes Glimmen jenseits des Flusses. Hinüber kommt man nur an den Furten, wo es flach ist.', wann: (w) => w.tick >= 30 },
+      { wer: MIRA, text: 'Der erste Schacht läuft. Der Wald wird das nicht mögen.', wann: (w, ich) => kmZahl(w, ich, 'schacht') >= 1 },
+      { wer: HEDWIG, text: 'Die Truhen sind halb voll. Haltet die Schächte!', wann: (w, ich) => w.players[ich].goetterblut >= 150 },
     ],
     sieg: 'ziele',
   },
@@ -160,6 +192,11 @@ const RODUNG = [
       kmBaue(world, 1, 'steinkreis', 16400, 16400);
     },
     ziele: [{ text: 'Besiege den Waldgott oder zerstöre den Herzbaum', erfuellt: (w, ich) => w.over && w.winner === ich }],
+    meldungen: [
+      { wer: GEROLD, text: 'Seine Wächterbäume schießen weit. Ballisten schießen weiter — Bogenbau, dann Belagerungsbau im Skillbaum (T).', wann: (w) => w.tick >= 30 },
+      { wer: GEROLD, text: 'Ein Wächterbaum ist gefallen! Weiter, solange sie wanken!', wann: (w, ich) => kmZahl(w, 1 - ich, 'waechterbaum') < 4 },
+      { wer: MIRA, text: 'Ich habe ihn gesehen. Größer als die Thingstätte, und seine Augen … Herr, er sieht uns.', wann: (w, ich) => w.entities.some((e) => e.type === 'waldgott' && !e.dead && kmNahe(w, ich, [e.id], 1500)) },
+    ],
     sieg: 'standard',
   },
 ];
@@ -201,6 +238,11 @@ const ZORN = [
       { text: 'Fasse deine Geschöpfe zur Steuergruppe 1 zusammen (wählen, <kbd>Strg</kbd>+<kbd>1</kbd>)', erfuellt: (w, ich, c) => (c.gruppen['1'] || []).length >= 4 },
       { text: 'Vertreibe die Holzfäller vom Grat (Rechtsklick auf einen Feind greift ihn gezielt an)', erfuellt: (w) => (w.vorposten || []).every((id) => !w.entities.some((e) => e.id === id && !e.dead)) },
     ],
+    meldungen: [
+      { wer: EICHE, text: 'Du bist wach. Gut. Hörst du die Äxte? Erst Kraft, dann Zorn: eine Moosgrube auf dem Stein.', wann: (w) => w.tick >= 20 },
+      { wer: EICHE, text: 'Der Hain wurzelt. Je älter er wird, desto weiter reicht dein Wald — Geduld ist deine Stärke.', wann: (w, ich, s) => s[2] },
+      { wer: KRA, text: 'Kra! Menschen am Grat! Zwei mit Eisen, und ein Stein mit Zeichen drauf. Kra!', wann: (w, ich) => kmNahe(w, ich, w.vorposten || [], 1400) },
+    ],
     sieg: 'ziele',
   },
   {
@@ -227,6 +269,11 @@ const ZORN = [
         erfuellt: (w) => (w.saegen || []).every((id) => !w.entities.some((e) => e.id === id && !e.dead)),
         zaehler: (w) => `${(w.saegen || []).filter((id) => !w.entities.some((e) => e.id === id && !e.dead)).length}/3`,
       },
+    ],
+    meldungen: [
+      { wer: KRA, text: 'Kra! Drei Sägewerke, ganz hinten bei ihren Häusern. Ruf mich am Herzbaum, ich zeig sie dir!', wann: (w) => w.tick >= 30 },
+      { wer: KRA, text: 'Eins brennt! Kra! Kra!', wann: (w) => (w.saegen || []).some((id) => !kmLebt(w, id)) },
+      { wer: EICHE, text: 'Noch eines. Hör, wie still es wird.', wann: (w) => (w.saegen || []).filter((id) => !kmLebt(w, id)).length >= 2 },
     ],
     sieg: 'ziele',
   },
@@ -255,6 +302,11 @@ const ZORN = [
       kmBaue(world, 1, 'kaserne', 15900, 17600);
     },
     ziele: [{ text: 'Besiege den Helden oder zerstöre die Thingstätte', erfuellt: (w, ich) => w.over && w.winner === ich }],
+    meldungen: [
+      { wer: EICHE, text: 'Ihre Türme sind aus Stein. Ents brechen Stein — erwecke sie im Skillbaum (T).', wann: (w) => w.tick >= 30 },
+      { wer: KRA, text: 'Ein Turm ist umgefallen! Steine überall! Kra!', wann: (w, ich) => kmZahl(w, 1 - ich, 'wachturm') < 4 },
+      { wer: EICHE, text: 'Da ist er, ihr Held. Er hat Angst, und Angst macht Menschen gefährlich.', wann: (w, ich) => w.entities.some((e) => e.type === 'held' && !e.dead && kmNahe(w, ich, [e.id], 1500)) },
+    ],
     sieg: 'standard',
   },
 ];
@@ -298,6 +350,23 @@ export function missionPruefen(m, stand, world, ich, kontext) {
     if (m.ziele[i].erfuellt(world, ich, kontext)) stand[i] = true;
   }
   return stand.every(Boolean);
+}
+
+/** Naechster faelliger Funkspruch (jeder nur einmal); gezeigt: Indizes der schon gezeigten. */
+export function naechsteMeldung(m, gezeigt, world, ich, stand) {
+  const liste = m.meldungen || [];
+  for (let i = 0; i < liste.length; i++) {
+    if (gezeigt.includes(i)) continue;
+    if (liste[i].wann(world, ich, stand)) {
+      gezeigt.push(i);
+      return liste[i];
+    }
+  }
+  return null;
+}
+
+export function funkHtml(mld) {
+  return `<div class="funkspruch"><b>${mld.wer}</b><span>${mld.text}</span></div>`;
 }
 
 /** Abschnitt fuer den Startbildschirm: je Kampagne eine Zeile. */

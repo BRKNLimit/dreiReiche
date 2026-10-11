@@ -102,6 +102,10 @@
   #intro .kampagne b { color: var(--accent); margin-right: 6px; }
   #intro .kampagne button:disabled { opacity: .45; cursor: default; }
   #intro .kampagne + .kampagne { margin-top: 6px; }
+  #funk { position: absolute; left: 50%; top: 58px; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); pointer-events: none; z-index: 13; }
+  #funk .funkspruch { display: flex; flex-direction: column; gap: 3px; background: rgba(16, 18, 13, .9); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 4px; padding: 9px 13px; font-size: 13px; line-height: 1.45; animation: funkEin .35s ease-out; box-shadow: 0 6px 24px rgba(0, 0, 0, .45); }
+  #funk .funkspruch b { color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+  @keyframes funkEin { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
   #intro .go.menue { flex-direction: column; align-items: stretch; max-width: 280px; }
   #intro .fortsetzen { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--dim); }
   #intro .fortsetzen button { font-weight: 600; color: var(--accent); }
@@ -270,6 +274,7 @@
       <button id="menueKnopf" title="Menü (F10)">☰</button>
     </span>
   </div>
+  <div id="funk"></div>
   <div id="hilfe" hidden><dl>
   <dt>Linksklick, Ziehen</dt><dd>wählen</dd>
   <dt>Icon unten</dt><dd>nur diesen Typ aus der Auswahl behalten</dd>
@@ -6301,6 +6306,11 @@ function raum(fx, art, x, y, hoerer, laut) {
   klang(fx, art, laut * f, pan);
 }
 
+/** Kurzer Hinweiston, z. B. fuer einen Funkspruch in einer Mission. */
+function meldungsKlang(fx) {
+  klang(fx, 'funk', 0.6, 0);
+}
+
 function klang(fx, art, laut, pan) {
   const ton = fx.ton;
   if (!ton || fx.stumm || laut <= 0.02) return;
@@ -6403,6 +6413,10 @@ const REZEPTE = {
     ton1(t, z, t0, 0.35, 'sine', 990, 990, 0.2, 0.12);
   },
   einheit: (t, z, t0) => ton1(t, z, t0, 0.08, 'sine', 520, 700, 0.18),
+  funk: (t, z, t0) => {
+    ton1(t, z, t0, 0.16, 'triangle', 440, 440, 0.22);
+    ton1(t, z, t0, 0.3, 'triangle', 587, 587, 0.18, 0.1);
+  },
   warnung: (t, z, t0) => {
     ton1(t, z, t0, 0.45, 'sawtooth', 220, 210, 0.18);
     ton1(t, z, t0, 0.45, 'sawtooth', 330, 320, 0.12, 0.05);
@@ -6603,6 +6617,20 @@ function uhr(t) {
   return ((s / 60) | 0) + ':' + String(s % 60).padStart(2, '0');
 }
 
+// Figuren der Funksprueche
+const HEDWIG = 'Vögtin Hedwig';
+const GEROLD = 'Hauptmann Gerold';
+const MIRA = 'Kundschafterin Mira';
+const EICHE = 'Die Alte Eiche';
+const KRA = 'Kra, der Rabe';
+
+/** Steht eine eigene Einheit naeher als r an einer der lebenden Entities mit diesen Ids? */
+function kmNahe(w, ich, ids, r) {
+  const ziele = w.entities.filter((e) => !e.dead && ids.includes(e.id));
+  return w.entities.some((u) => !u.dead && u.player === ich && u.kind === 'unit' && ziele.some((z) => (u.x - z.x) ** 2 + (u.y - z.y) ** 2 <= r * r));
+}
+const kmLebt = (w, id) => w.entities.some((e) => e.id === id && !e.dead);
+
 const kmZahl = (world, p, typ, fertig = true) => world.entities.filter((e) => !e.dead && e.player === p && e.type === typ && (!fertig || e.kind !== 'building' || e.done)).length;
 
 const RODUNG = [
@@ -6635,6 +6663,12 @@ const RODUNG = [
       { text: 'Bilde sechs Soldaten aus', erfuellt: (w, ich) => kmZahl(w, ich, 'soldat') >= 6 },
       { text: 'Fasse dein Heer zur Steuergruppe 1 zusammen (wählen, <kbd>Strg</kbd>+<kbd>1</kbd>)', erfuellt: (w, ich, c) => (c.gruppen['1'] || []).length >= 4 },
       { text: 'Zerstöre den Vorposten des Waldes (Rechtsklick auf einen Feind greift ihn gezielt an)', erfuellt: (w) => (w.vorposten || []).every((id) => !w.entities.some((e) => e.id === id && !e.dead)) },
+    ],
+    meldungen: [
+      { wer: HEDWIG, text: 'Willkommen am Grat, Herr. Die Leute warten auf Eure Befehle — zuerst ein Sägewerk, ohne Holz keine Siedlung.', wann: (w) => w.tick >= 20 },
+      { wer: HEDWIG, text: 'Das Sägewerk läuft. Jetzt Hände: Die Thingstätte bildet Bauern aus.', wann: (w, ich, s) => s[1] },
+      { wer: GEROLD, text: 'Die Kaserne steht. Gebt mir ein halbes Dutzend Leute, und wir sehen nach, was hinter dem Grat heult.', wann: (w, ich, s) => s[3] },
+      { wer: GEROLD, text: 'Wölfe! Und dahinter ein Hain, der letzte Woche noch nicht da war. Das ist kein gewöhnlicher Wald.', wann: (w, ich) => kmNahe(w, ich, w.vorposten || [], 1400) },
     ],
     sieg: 'ziele',
   },
@@ -6690,6 +6724,13 @@ const RODUNG = [
       return n < WUT.wellen ? `Nächste Welle in ${uhr(WUT.ersteWelle + n * WUT.wellenTakt - world.tick)}` : '';
     },
     ziele: [{ text: 'Halte zehn Minuten stand', erfuellt: (w) => w.tick >= 6000, zeit: 6000 }],
+    meldungen: [
+      { wer: HEDWIG, text: 'Die Wölfe heulen wieder, näher als je. Stellt die Leute an den Turm — dort sind wir am stärksten.', wann: (w) => w.tick >= 30 },
+      { wer: GEROLD, text: 'Da kommen sie! Haltet die Linie, Jäger nach hinten!', wann: (w) => w.tick >= WUT.ersteWelle },
+      { wer: HEDWIG, text: 'Halbzeit! Ein Bote: Die Verstärkung hat den Pass erreicht.', wann: (w) => w.tick >= 3000 },
+      { wer: GEROLD, text: 'Ents! Bäume, die laufen … zielt auf die Wurzeln!', wann: (w) => w.entities.some((e) => !e.dead && e.type === 'ent' && e.player !== 0) && w.tick >= WUT.ersteWelle },
+      { wer: GEROLD, text: 'Die letzte Welle — dann haben wir es geschafft!', wann: (w) => w.tick >= WUT.ersteWelle + (WUT.wellen - 1) * WUT.wellenTakt },
+    ],
     sieg: 'ziele',
   },
   {
@@ -6711,6 +6752,11 @@ const RODUNG = [
     ziele: [
       { text: 'Errichte zwei Blutschächte auf Götterblut-Adern', erfuellt: (w, ich) => kmZahl(w, ich, 'schacht') >= 2 },
       { text: 'Sammle 300 Götterblut', erfuellt: (w, ich) => w.players[ich].goetterblut >= 300 },
+    ],
+    meldungen: [
+      { wer: MIRA, text: 'Rotes Glimmen jenseits des Flusses. Hinüber kommt man nur an den Furten, wo es flach ist.', wann: (w) => w.tick >= 30 },
+      { wer: MIRA, text: 'Der erste Schacht läuft. Der Wald wird das nicht mögen.', wann: (w, ich) => kmZahl(w, ich, 'schacht') >= 1 },
+      { wer: HEDWIG, text: 'Die Truhen sind halb voll. Haltet die Schächte!', wann: (w, ich) => w.players[ich].goetterblut >= 150 },
     ],
     sieg: 'ziele',
   },
@@ -6736,6 +6782,11 @@ const RODUNG = [
       kmBaue(world, 1, 'steinkreis', 16400, 16400);
     },
     ziele: [{ text: 'Besiege den Waldgott oder zerstöre den Herzbaum', erfuellt: (w, ich) => w.over && w.winner === ich }],
+    meldungen: [
+      { wer: GEROLD, text: 'Seine Wächterbäume schießen weit. Ballisten schießen weiter — Bogenbau, dann Belagerungsbau im Skillbaum (T).', wann: (w) => w.tick >= 30 },
+      { wer: GEROLD, text: 'Ein Wächterbaum ist gefallen! Weiter, solange sie wanken!', wann: (w, ich) => kmZahl(w, 1 - ich, 'waechterbaum') < 4 },
+      { wer: MIRA, text: 'Ich habe ihn gesehen. Größer als die Thingstätte, und seine Augen … Herr, er sieht uns.', wann: (w, ich) => w.entities.some((e) => e.type === 'waldgott' && !e.dead && kmNahe(w, ich, [e.id], 1500)) },
+    ],
     sieg: 'standard',
   },
 ];
@@ -6777,6 +6828,11 @@ const ZORN = [
       { text: 'Fasse deine Geschöpfe zur Steuergruppe 1 zusammen (wählen, <kbd>Strg</kbd>+<kbd>1</kbd>)', erfuellt: (w, ich, c) => (c.gruppen['1'] || []).length >= 4 },
       { text: 'Vertreibe die Holzfäller vom Grat (Rechtsklick auf einen Feind greift ihn gezielt an)', erfuellt: (w) => (w.vorposten || []).every((id) => !w.entities.some((e) => e.id === id && !e.dead)) },
     ],
+    meldungen: [
+      { wer: EICHE, text: 'Du bist wach. Gut. Hörst du die Äxte? Erst Kraft, dann Zorn: eine Moosgrube auf dem Stein.', wann: (w) => w.tick >= 20 },
+      { wer: EICHE, text: 'Der Hain wurzelt. Je älter er wird, desto weiter reicht dein Wald — Geduld ist deine Stärke.', wann: (w, ich, s) => s[2] },
+      { wer: KRA, text: 'Kra! Menschen am Grat! Zwei mit Eisen, und ein Stein mit Zeichen drauf. Kra!', wann: (w, ich) => kmNahe(w, ich, w.vorposten || [], 1400) },
+    ],
     sieg: 'ziele',
   },
   {
@@ -6803,6 +6859,11 @@ const ZORN = [
         erfuellt: (w) => (w.saegen || []).every((id) => !w.entities.some((e) => e.id === id && !e.dead)),
         zaehler: (w) => `${(w.saegen || []).filter((id) => !w.entities.some((e) => e.id === id && !e.dead)).length}/3`,
       },
+    ],
+    meldungen: [
+      { wer: KRA, text: 'Kra! Drei Sägewerke, ganz hinten bei ihren Häusern. Ruf mich am Herzbaum, ich zeig sie dir!', wann: (w) => w.tick >= 30 },
+      { wer: KRA, text: 'Eins brennt! Kra! Kra!', wann: (w) => (w.saegen || []).some((id) => !kmLebt(w, id)) },
+      { wer: EICHE, text: 'Noch eines. Hör, wie still es wird.', wann: (w) => (w.saegen || []).filter((id) => !kmLebt(w, id)).length >= 2 },
     ],
     sieg: 'ziele',
   },
@@ -6831,6 +6892,11 @@ const ZORN = [
       kmBaue(world, 1, 'kaserne', 15900, 17600);
     },
     ziele: [{ text: 'Besiege den Helden oder zerstöre die Thingstätte', erfuellt: (w, ich) => w.over && w.winner === ich }],
+    meldungen: [
+      { wer: EICHE, text: 'Ihre Türme sind aus Stein. Ents brechen Stein — erwecke sie im Skillbaum (T).', wann: (w) => w.tick >= 30 },
+      { wer: KRA, text: 'Ein Turm ist umgefallen! Steine überall! Kra!', wann: (w, ich) => kmZahl(w, 1 - ich, 'wachturm') < 4 },
+      { wer: EICHE, text: 'Da ist er, ihr Held. Er hat Angst, und Angst macht Menschen gefährlich.', wann: (w, ich) => w.entities.some((e) => e.type === 'held' && !e.dead && kmNahe(w, ich, [e.id], 1500)) },
+    ],
     sieg: 'standard',
   },
 ];
@@ -6872,6 +6938,22 @@ function missionPruefen(m, stand, world, ich, kontext) {
     if (m.ziele[i].erfuellt(world, ich, kontext)) stand[i] = true;
   }
   return stand.every(Boolean);
+}
+
+/** Naechster faelliger Funkspruch (jeder nur einmal); gezeigt: Indizes der schon gezeigten. */
+function naechsteMeldung(m, gezeigt, world, ich, stand) {
+  const liste = m.meldungen || [];
+  for (let i = 0; i < liste.length; i++) {
+    if (gezeigt.includes(i)) continue;
+    if (liste[i].wann(world, ich, stand)) {
+      gezeigt.push(i);
+      return liste[i];
+    }
+  }
+  return null;
+}
+function funkHtml(mld) {
+  return `<div class="funkspruch"><b>${mld.wer}</b><span>${mld.text}</span></div>`;
 }
 
 /** Abschnitt fuer den Startbildschirm: je Kampagne eine Zeile. */
@@ -8419,6 +8501,10 @@ let gruppen = {}; // Steuergruppen: Ziffer -> Ids
 let mission = null; // laufende Mission der Kampagne (src/kampagne.js), sonst null
 let missionStand = []; // erledigte Ziele der Mission
 let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
+let missionMeldungen = []; // Indizes der schon gezeigten Funksprueche
+let funkText = ''; // aktueller Funkspruch (HTML) und bis wann er steht
+let funkBis = 0;
+let funkGezeigt = null;
 let aufnahme = null; // laufende Aufnahme (src/aufnahme.js)
 let wiederholung = null; // abgespielte Wiederholung, sonst null
 let wdhZeiger = 0;
@@ -8478,6 +8564,8 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
   if (wdh && wdh.mission) m = missionVon(wdh.mission);
   mission = m;
   missionStand = stand && stand.extra.missionStand ? stand.extra.missionStand : m ? m.ziele.map(() => false) : [];
+  missionMeldungen = stand && stand.extra.missionMeldungen ? stand.extra.missionMeldungen : [];
+  funkBis = 0;
   missionGewonnen = false;
   if (m) {
     karteSchluessel = m.karte;
@@ -8980,6 +9068,7 @@ function frame(now) {
   }
   effekteFortschreiben(fx, paused ? 0 : (dt * speed) / 1000, world, hoerer2d());
   missionFortschritt();
+  missionFunk();
   if ((world.over || missionGewonnen) && !endeGezeigt) zeigeEnde();
   draw();
   requestAnimationFrame(frame);
@@ -9849,6 +9938,23 @@ function missionWaehlen(m) {
   }, startbildschirm);
 }
 
+/** Funksprueche: faellige Meldung der Mission zeigen, neun Sekunden lang. */
+function missionFunk() {
+  if (mission && !world.over && !missionGewonnen) {
+    const mld = naechsteMeldung(mission, missionMeldungen, world, ME, missionStand);
+    if (mld) {
+      funkText = funkHtml(mld);
+      funkBis = performance.now() + 9000;
+      meldungsKlang(fx);
+    }
+  }
+  const zeigen = performance.now() < funkBis ? funkText : '';
+  if (zeigen !== funkGezeigt) {
+    document.getElementById('funk').innerHTML = zeigen;
+    funkGezeigt = zeigen;
+  }
+}
+
 /** Ziele pruefen (je Bild); sind alle erfuellt, ist die Mission gewonnen. */
 function missionFortschritt() {
   if (!mission || wiederholung || world.over || missionGewonnen) return;
@@ -9872,6 +9978,7 @@ function standText() {
     mission: mission ? mission.id : null,
     missionTitel: mission ? mission.titel : '',
     missionStand,
+    missionMeldungen,
     aufnahme,
     verlauf,
     gruppen,

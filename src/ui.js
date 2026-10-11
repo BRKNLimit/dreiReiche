@@ -31,6 +31,10 @@ let gruppen = {}; // Steuergruppen: Ziffer -> Ids
 let mission = null; // laufende Mission der Kampagne (src/kampagne.js), sonst null
 let missionStand = []; // erledigte Ziele der Mission
 let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
+let missionMeldungen = []; // Indizes der schon gezeigten Funksprueche
+let funkText = ''; // aktueller Funkspruch (HTML) und bis wann er steht
+let funkBis = 0;
+let funkGezeigt = null;
 let aufnahme = null; // laufende Aufnahme (src/aufnahme.js)
 let wiederholung = null; // abgespielte Wiederholung, sonst null
 let wdhZeiger = 0;
@@ -90,6 +94,8 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
   if (wdh && wdh.mission) m = missionVon(wdh.mission);
   mission = m;
   missionStand = stand && stand.extra.missionStand ? stand.extra.missionStand : m ? m.ziele.map(() => false) : [];
+  missionMeldungen = stand && stand.extra.missionMeldungen ? stand.extra.missionMeldungen : [];
+  funkBis = 0;
   missionGewonnen = false;
   if (m) {
     karteSchluessel = m.karte;
@@ -592,6 +598,7 @@ function frame(now) {
   }
   effekteFortschreiben(fx, paused ? 0 : (dt * speed) / 1000, world, hoerer2d());
   missionFortschritt();
+  missionFunk();
   if ((world.over || missionGewonnen) && !endeGezeigt) zeigeEnde();
   draw();
   requestAnimationFrame(frame);
@@ -1461,6 +1468,23 @@ function missionWaehlen(m) {
   }, startbildschirm);
 }
 
+/** Funksprueche: faellige Meldung der Mission zeigen, neun Sekunden lang. */
+function missionFunk() {
+  if (mission && !world.over && !missionGewonnen) {
+    const mld = naechsteMeldung(mission, missionMeldungen, world, ME, missionStand);
+    if (mld) {
+      funkText = funkHtml(mld);
+      funkBis = performance.now() + 9000;
+      meldungsKlang(fx);
+    }
+  }
+  const zeigen = performance.now() < funkBis ? funkText : '';
+  if (zeigen !== funkGezeigt) {
+    document.getElementById('funk').innerHTML = zeigen;
+    funkGezeigt = zeigen;
+  }
+}
+
 /** Ziele pruefen (je Bild); sind alle erfuellt, ist die Mission gewonnen. */
 function missionFortschritt() {
   if (!mission || wiederholung || world.over || missionGewonnen) return;
@@ -1484,6 +1508,7 @@ function standText() {
     mission: mission ? mission.id : null,
     missionTitel: mission ? mission.titel : '',
     missionStand,
+    missionMeldungen,
     aufnahme,
     verlauf,
     gruppen,

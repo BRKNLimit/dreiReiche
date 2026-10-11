@@ -372,6 +372,11 @@ function raum(fx, art, x, y, hoerer, laut) {
   klang(fx, art, laut * f, pan);
 }
 
+/** Kurzer Hinweiston, z. B. fuer einen Funkspruch in einer Mission. */
+export function meldungsKlang(fx) {
+  klang(fx, 'funk', 0.6, 0);
+}
+
 function klang(fx, art, laut, pan) {
   const ton = fx.ton;
   if (!ton || fx.stumm || laut <= 0.02) return;
@@ -474,6 +479,10 @@ const REZEPTE = {
     ton1(t, z, t0, 0.35, 'sine', 990, 990, 0.2, 0.12);
   },
   einheit: (t, z, t0) => ton1(t, z, t0, 0.08, 'sine', 520, 700, 0.18),
+  funk: (t, z, t0) => {
+    ton1(t, z, t0, 0.16, 'triangle', 440, 440, 0.22);
+    ton1(t, z, t0, 0.3, 'triangle', 587, 587, 0.18, 0.1);
+  },
   warnung: (t, z, t0) => {
     ton1(t, z, t0, 0.45, 'sawtooth', 220, 210, 0.18);
     ton1(t, z, t0, 0.45, 'sawtooth', 330, 320, 0.12, 0.05);

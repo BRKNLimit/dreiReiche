@@ -75,6 +75,10 @@
   #intro .kampagne b { color: var(--accent); margin-right: 6px; }
   #intro .kampagne button:disabled { opacity: .45; cursor: default; }
   #intro .kampagne + .kampagne { margin-top: 6px; }
+  #funk { position: absolute; left: 50%; top: 58px; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); pointer-events: none; z-index: 13; }
+  #funk .funkspruch { display: flex; flex-direction: column; gap: 3px; background: rgba(16, 18, 13, .9); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 4px; padding: 9px 13px; font-size: 13px; line-height: 1.45; animation: funkEin .35s ease-out; box-shadow: 0 6px 24px rgba(0, 0, 0, .45); }
+  #funk .funkspruch b { color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+  @keyframes funkEin { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
   #intro .go.menue { flex-direction: column; align-items: stretch; max-width: 280px; }
   #intro .fortsetzen { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--dim); }
   #intro .fortsetzen button { font-weight: 600; color: var(--accent); }
@@ -226,6 +230,7 @@
       <button id="menueKnopf" title="Menü (F10)">☰</button>
   </span>
 </div>
+<div id="funk"></div>
 <div id="hilfe" hidden><dl>
   <dt>Linksklick, Ziehen</dt><dd>wählen</dd>
   <dt>Icon unten</dt><dd>nur diesen Typ aus der Auswahl behalten</dd>

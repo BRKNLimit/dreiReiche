@@ -16,6 +16,11 @@ Tabellen in `docs/scope.md`.
   gesicherte (Tests: früh, mitten im Kampf, spät, Flusstal, Zufallskarte,
   offene Befehle). Die Aufnahme läuft mit — eine Wiederholung bleibt
   vollständig.
+- **Funksprüche in den Missionen:** Vögtin Hedwig, Hauptmann Gerold und
+  Kundschafterin Mira (Menschen), die Alte Eiche und Kra der Rabe (Gott)
+  melden sich, wenn etwas passiert — erste Welle, Ents in Sicht, ein
+  Wächterbaum fällt, der Held taucht auf. Oben in der Mitte, mit Hinweiston,
+  jeder nur einmal (auch über Speichern und Laden hinweg).
 - **Pausenmenü** (F10 oder ☰ unten rechts): Weiter, Speichern, letzten
   Stand laden, Steuerung, Aufgeben, Hauptmenü. Wer ins Hauptmenü geht,
   kann dort fortsetzen. Aufgeben ist ein Befehl der Simulation

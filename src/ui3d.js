@@ -672,10 +672,14 @@ function zeichne(now, dt) {
       blick.set(e.id, alt + d * Math.min(1, dt / 120));
     }
     const s = def.radius * DM * ZEIGE_EINHEIT;
-    const schwebt = e.type === 'waldgeist' ? 0.5 + Math.sin(t * 2 + e.id) * 0.25 : 0;
+    const schwebt = e.type === 'waldgeist'
+      ? 0.5 + Math.sin(t * 2 + e.id) * 0.25
+      : (e.type === 'waldgott' ? 0.08 + Math.sin(t * 1.8 + e.id) * 0.03 : 0);
     const gleitet = e.type === 'waldgeist' || e.type === 'waldgott';
     const huepf = bewegt && !gleitet ? Math.abs(Math.sin(t * 9 + e.id)) * 0.12 * s : 0;
-    const schritt = bewegt && !gleitet ? Math.sin(t * 9 + e.id) : 0;
+    const schritt = e.type === 'waldgott'
+      ? (bewegt ? Math.sin(t * 4 + e.id) : Math.sin(t * 2 + e.id) * 0.5)
+      : (bewegt && !gleitet ? Math.sin(t * 9 + e.id) : 0);
     // Ausfall: kurz nach vorn beim Schuss oder Hieb
     const seit = now - (ausfall.get(e.id) || -1e9);
     const ruck = seit < 220 ? Math.sin((seit / 220) * Math.PI) * 0.4 * s : 0;

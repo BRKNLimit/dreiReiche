@@ -74,6 +74,28 @@ geprüft (Tests, Galerie, Spiel).
     - Signatur in `leisten` aktualisiert die Leiste automatisch bei Queue-Änderungen.
 - **Wie geprüft:** `npm test` (117/117 Tests grün), `npm run smoke` (1000 Frames 2D, 3D, Galerie fehlerfrei) und manuelle Auswertungs-Funktionstests.
 
+### Runde 7: Variante G.2 — Glutherz (High-Res) & Organische Animationen
+- **Entscheidung des Nutzers:** Variante G — Glutherz wurde als Grafikstil gewählt. Auftrag: Entwicklung einer weiterentwickelten High-Res-Variante G.2 ohne polygonale Klötzchenstapel als vollwertiges, fertiges 3D-Game-Asset mit fließenden Animationen.
+- **Was wurde geändert:**
+  - **`src/modelle3d.js` (`waldgottGlutherz2`):**
+    - **Fließender Mantel:** Basiert auf 3 glatten 12-Segment-Kegelsegmenten, umhüllt von 6 drapierten Kaskadenfalten und 2 geschwungenen Reverskanten links und rechts der Brustöffnung — keine kantigen Quaderstapel mehr.
+    - **Saum & Wurzelwerk:** 5 knorrige, mehrgliedrige Wurzeln greifen weit in den Waldboden aus; dazwischen glimmende Saumfetzen.
+    - **Das Glutherz:** Aufsteigende Lavasäule im Rumpf, dreifach geschichteter Fusionskern (weißglühendes Zentrum `#fff8e7`, Auragold `#ff9800`, tiefes Magma `#e64a19`) in einem schützenden Käfig aus 3 gebogenen Obsidian-Rippenbögen (`#070505`), umgeben von 9 aufsteigenden Funkenpartikeln.
+    - **Arme & Klauenhände:** Weite Glockenärmel, goldene Unterarme mit Prunkringen und voll ausmodellierte Hände mit 4 artikulierten Klauenfingern (je 2 gebogene Glieder) und Daumen in leuchtendem Gold (`#ffd54f`, `#fff3c4`, `GLUEHT`).
+    - **Geflügelter Kragen & Antlitz:** Hoch aufragende Kragenflügel (bis y=4.88), tiefer Kapuzenschleier über einem faceless Void-Schädel (`#040303`), doppelstufige Sonnengold-Augen mit Magmatränen.
+    - **Kathedralen-Geweih:** 4-stufiges Hirschgeweih mit Augsprosse, Eissprosse, geschwungener Hauptstange und dreizackiger Krone; alle 10 Spitzen enden in glühenden Bernsteintropfen (`#ffa726`, `GLUEHT`).
+    - **Budget:** 5.844 Ecken (unter dem Limit von 6.000 Ecken). Als Standard in `MODELLE_DEF.waldgott` gesetzt und in `WALDGOTT_VARIANTEN` als `G.2 — Glutherz (High-Res)` registriert.
+  - **`src/render3d.js` (Shader & Animation):**
+    - **Atembewegung im Brustkorb:** Weites, organisches Heben und Senken des Thoraxbereichs (`aNor * atmen * brust`).
+    - **Wellenförmiger Mantelsaum:** Untere Stoffbahnen schwingen weich in Sinuswellen bei Bewegung und Atmung.
+    - **Schwebende Funkenaura:** Magmapartikel steigen im Aufwind sanft tanzend auf (`sin`/`cos` im Vertex-Shader).
+    - **Pulsierendes Glutherz:** Glühende Elemente mit `GLUEHT` pulsieren im Rhythmus des Herzschlags (`1.0 + 0.22 * sin(...)`).
+  - **`src/ui3d.js`:**
+    - Waldgott schwebt majestätisch knapp über dem Boden (`schwebt`), atmet in Ruhephasen langsam und tief (`schritt = Math.sin(t * 2) * 0.5`) und gleitet bei Marschbefehlen ruhig ohne Rumpfhüpfen.
+  - **`src/galerie.js`:**
+    - Modelle in der Galerie erhalten eine lebendige Schritt- und Atemphase (`schritt = Math.sin(now * 0.003)`).
+- **Wie geprüft:** `npm test` (117/117 Tests grün), `npm run smoke` (2D, 3D und Galerie mit 1000 Frames fehlerfrei) und Verifikation aller Vertexbudgets via Node.
+
 
 
 

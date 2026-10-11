@@ -1,7 +1,7 @@
 // Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
 
-import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES, RESOURCES } from './defs.js';
+import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES, RESOURCES, SKILLS, FAEHIGKEITEN } from './defs.js';
 
 // ---------------------------------------------------------------- Mathematik
 
@@ -67,8 +67,8 @@ export function createWorld(opts = {}) {
     nextId: 1,
     entities: [],
     players: [
-      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true },
-      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true },
+      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0 },
+      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0 },
     ],
     deposits: [],
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -163,6 +163,9 @@ export function spawnUnit(world, player, type, x, y) {
     auftrag: 0, // Baustelle, die dieser Erbauer bauen soll (0 = keine)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
     seit: world.tick, // fuer die Erfahrung
+    rufBis: 0, // Schlachtruf wirkt bis zu diesem Tick
+    rufWert: 0,
+    gebundenBis: 0, // Wurzelgriff haelt fest bis zu diesem Tick
     cooldown: 0,
     dead: false,
   };
@@ -285,11 +288,15 @@ function applyCommand(world, c) {
       if (b && b.kind === 'building' && b.player === c.player && !b.done && !b.dead) beauftrage(world, c.player, c.ids, b);
     } else if (c.type === 'demolish') {
       demolish(world, c.player, c.id);
+    } else if (c.type === 'lernen') {
+      if (kannLernen(world, c.player, c.skill)) world.players[c.player].gelernt.push(c.skill);
+    } else if (c.type === 'faehigkeit') {
+      wirke(world, c.player, c.x | 0, c.y | 0);
     } else if (c.type === 'produce') {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
         const def = BUILDINGS[e.type];
-        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8) {
+        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit)) {
           const p = world.players[c.player];
           if (canAfford(p, UNITS[c.unit].cost)) {
             pay(p, UNITS[c.unit].cost, 1000);
@@ -309,6 +316,7 @@ export function tryPlace(world, player, type, x, y) {
   const def = BUILDINGS[type];
   if (!def || def.vital) return null;
   if (def.faction !== world.players[player].faction) return null;
+  if (gesperrt(world, player, type)) return null;
   const p = world.players[player];
   if (!canAfford(p, def.cost)) return null;
   if (x < 200 || y < 200 || x > MAP - 200 || y > MAP - 200) return null;
@@ -410,6 +418,96 @@ export function erfahrung(world, e) {
   const seit = e.kind === 'unit' ? e.seit : e.done ? e.doneAt : -1;
   if (seit < 0) return 0;
   return Math.min(RULES.erfahrungMax, (((world.tick - seit) / 600) | 0) * RULES.erfahrungProMin);
+}
+
+// ------------------------------------------------------------- Skillbaum
+
+/** Bisher verdiente Skillpunkte: skillStart, dann einer je skillTakt Ticks. */
+export function skillPunkte(world, player) {
+  if (!RULES.skills) return 0;
+  return RULES.skillStart + ((world.tick / RULES.skillTakt) | 0);
+}
+
+/** Noch nicht ausgegebene Skillpunkte. */
+export function skillFrei(world, player) {
+  const g = world.players[player].gelernt;
+  let aus = 0;
+  for (let i = 0; i < g.length; i++) aus += SKILLS[g[i]].kosten;
+  return skillPunkte(world, player) - aus;
+}
+
+/**
+ * Ist ein Einheiten- oder Gebaeudetyp fuer diesen Spieler noch gesperrt?
+ * Gesperrt ist, was ein Skill der eigenen Fraktion freischaltet, solange
+ * keiner dieser Skills gelernt ist.
+ */
+export function gesperrt(world, player, typ) {
+  if (!RULES.skills) return false;
+  const pl = world.players[player];
+  let sperrt = false;
+  for (const id in SKILLS) {
+    const s = SKILLS[id];
+    if (s.faction !== pl.faction || !s.frei || !s.frei.includes(typ)) continue;
+    if (pl.gelernt.includes(id)) return false;
+    sperrt = true;
+  }
+  return sperrt;
+}
+
+/** Summe einer Wirkung in Promille ueber alle gelernten Skills. */
+export function bonus(world, player, art) {
+  if (!RULES.skills) return 0;
+  const g = world.players[player].gelernt;
+  let s = 0;
+  for (let i = 0; i < g.length; i++) {
+    const w = SKILLS[g[i]].wirkung;
+    if (w && w[art]) s += w[art];
+  }
+  return s;
+}
+
+/** Kann der Spieler diesen Skill jetzt lernen? */
+export function kannLernen(world, player, id) {
+  const s = SKILLS[id];
+  const pl = world.players[player];
+  if (!RULES.skills || !s || s.faction !== pl.faction || pl.gelernt.includes(id)) return false;
+  if (s.braucht) for (let i = 0; i < s.braucht.length; i++) if (!pl.gelernt.includes(s.braucht[i])) return false;
+  return skillFrei(world, player) >= s.kosten;
+}
+
+/** Die aktive Faehigkeit des Kommandanten, sobald gelernt, sonst null. */
+export function faehigkeitVon(world, player) {
+  const g = world.players[player].gelernt;
+  for (let i = 0; i < g.length; i++) if (SKILLS[g[i]].faehigkeit) return SKILLS[g[i]].faehigkeit;
+  return null;
+}
+
+/**
+ * Der Kommandant setzt seine Faehigkeit ein. Ein Ruf wirkt um ihn selbst,
+ * ein Griff um einen Zielpunkt in Reichweite. Danach klingt sie ab.
+ */
+function wirke(world, player, x, y) {
+  const id = faehigkeitVon(world, player);
+  const k = kommandantVon(world, player);
+  const pl = world.players[player];
+  if (!id || !k || world.tick < pl.faehigkeitBereit) return;
+  const f = FAEHIGKEITEN[id];
+  if (f.art === 'ruf') {
+    x = k.x;
+    y = k.y;
+  } else if (dist2(k.x, k.y, x, y) > f.reichweite * f.reichweite) return;
+  pl.faehigkeitBereit = world.tick + f.abklingen;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'unit' || dist2(e.x, e.y, x, y) > f.radius * f.radius) continue;
+    if (f.art === 'ruf' && e.player === player) {
+      e.rufBis = world.tick + f.dauer;
+      e.rufWert = f.wert;
+    } else if (f.art === 'griff' && e.player !== player) {
+      e.gebundenBis = world.tick + f.dauer;
+    }
+  }
+  world.events.push({ t: 'faehigkeit', art: f.art, player, x, y, r: f.radius });
 }
 
 /** Liegt der Punkt in der Domäne dieses Spielers? */
@@ -607,11 +705,14 @@ export function step(world) {
     }
 
     const pl = world.players[e.player];
-    if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + def.fronOut * e.powered;
-    if (def.blutOut) pl.blutAcc = (pl.blutAcc || 0) + def.blutOut * e.powered;
+    if (def.fronOut || def.blutOut) {
+      const mehr = 1000 + bonus(world, e.player, 'foerderung');
+      if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
+      if (def.blutOut) pl.blutAcc = (pl.blutAcc || 0) + (((def.blutOut * e.powered * mehr) / 1000) | 0);
+    }
 
     if (e.queue.length > 0) {
-      e.queueProgress += e.powered;
+      e.queueProgress += ((e.powered * (1000 + bonus(world, e.player, 'ausbildung'))) / 1000) | 0;
       const need = UNITS[e.queue[0]].buildTime * 1000;
       if (e.queueProgress >= need) {
         const type = e.queue.shift();
@@ -640,11 +741,13 @@ export function step(world) {
 
   // Unterhalt: laufend Fron je lebender Einheit. Wer nicht zahlen kann,
   // steht bei null -- kaufen geht dann nichts mehr.
+  const weniger = [];
+  for (let p = 0; p < world.players.length; p++) weniger.push(1000 - bonus(world, p, 'unterhalt'));
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.kind !== 'unit') continue;
     const u = UNITS[e.type].unterhalt;
-    if (u) world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * 1000;
+    if (u) world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * weniger[e.player];
   }
   for (let p = 0; p < world.players.length; p++) {
     const pl = world.players[p];
@@ -762,6 +865,7 @@ function moveUnits(world) {
   }
   for (let i = 0; i < us.length; i++) {
     const e = us[i];
+    if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
     const speed = UNITS[e.type].speed;
     const dx = gx[i] - e.x;
     const dy = gy[i] - e.y;
@@ -894,6 +998,10 @@ function combat(world) {
     // Erfahrung: wer lange lebt, trifft ein wenig haerter.
     const erf = erfahrung(world, e);
     if (erf) dmg = ((dmg * (1000 + erf)) / 1000) | 0;
+    // Skills: Verbesserung des ganzen Volkes, Schlachtruf.
+    const sb = bonus(world, e.player, 'schaden');
+    if (sb) dmg = ((dmg * (1000 + sb)) / 1000) | 0;
+    if (e.kind === 'unit' && e.rufBis > world.tick) dmg = ((dmg * (1000 + e.rufWert)) / 1000) | 0;
     // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
     // schwaecher zu. Gilt fuer alle Fraktionen gleich.
     if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
@@ -912,6 +1020,12 @@ function combat(world) {
     // ... und steckt ein wenig mehr weg.
     const erf = erfahrung(world, t);
     if (erf) dmg = ((dmg * (1000 - erf)) / 1000) | 0;
+    // Skills: Schutz des ganzen Volkes, dazu der des Kommandanten.
+    if (t.kind === 'unit') {
+      let sch = bonus(world, t.player, 'schutz');
+      if (UNITS[t.type].commander) sch += bonus(world, t.player, 'kdtSchutz');
+      if (sch) dmg = ((dmg * (1000 - sch)) / 1000) | 0;
+    }
     t.hp -= dmg;
   }
   for (let i = 0; i < shots.length; i += 2) {
@@ -984,7 +1098,7 @@ export function unterhaltProMin(world, player) {
     const e = world.entities[i];
     if (!e.dead && e.kind === 'unit' && e.player === player) s += UNITS[e.type].unterhalt || 0;
   }
-  return s;
+  return ((s * (1000 - bonus(world, player, 'unterhalt'))) / 1000) | 0;
 }
 
 /** Foerderung eines Spielers in Fron pro Minute, so wie sie gerade laeuft. */
@@ -996,7 +1110,7 @@ export function foerderungProMin(world, player) {
     const out = BUILDINGS[e.type].fronOut;
     if (out) s += ((out * e.powered) / 1000) | 0;
   }
-  return s;
+  return ((s * (1000 + bonus(world, player, 'foerderung'))) / 1000) | 0;
 }
 
 export function gridReport(world, player) {
@@ -1017,6 +1131,10 @@ export function gridReport(world, player) {
   }
   return out;
 }
+
+// Feste Nummer je Skill fuer den Hash.
+const SKILL_NR = {};
+Object.keys(SKILLS).forEach((id, i) => (SKILL_NR[id] = i + 1));
 
 export function hash(world) {
   let h = 2166136261;
@@ -1040,6 +1158,8 @@ export function hash(world) {
       mix(e.aggro ? 1 : 0);
       mix(e.auftrag || 0);
       mix(e.seit);
+      mix(e.rufBis);
+      mix(e.gebundenBis);
     } else {
       mix(e.doneAt);
       mix(e.progress);
@@ -1054,6 +1174,8 @@ export function hash(world) {
     mix(world.players[p].fronAcc || 0);
     mix(world.players[p].blutAcc || 0);
     mix(world.players[p].unterhaltAcc || 0);
+    mix(world.players[p].faehigkeitBereit);
+    for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   mix(world.cleared.length);

@@ -80,6 +80,7 @@ const nodes = {
   introMensch: makeEl('introMensch'),
   introGott: makeEl('introGott'),
   introSchau: makeEl('introSchau'),
+  skills: makeEl('skills'),
 };
 
 globalThis.document = {
@@ -146,6 +147,10 @@ fire('wheel', { ...base, deltaY: -100 });
 fire('keydown', { ...base, key: ' ' });
 fire('keydown', { ...base, key: ' ' });
 fire('keydown', { ...base, key: 'Escape' });
+// Skillbaum: oeffnen, einen Skill per Klick lernen, Faehigkeit, schliessen
+fire('keydown', { ...base, key: 't' });
+if (nodes.skills.onclick) nodes.skills.onclick(({ target: { closest: () => ({ dataset: { skill: 'bogenbau' } }) } }));
+fire('keydown', { ...base, key: 'f' });
 
 for (let i = 0; i < 400 && frameFn; i++) {
   const f = frameFn;

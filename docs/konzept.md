@@ -100,10 +100,16 @@ die Baustellen, solange es welche gibt. Ohne diese Reserve kann eine
 und die Baustelle der neuen Quelle steht für immer still. Werk fällt weiter
 zuerst — nur nicht ganz auf null.
 
-### Kein Tech-Tree, keine Zeitalter
+### Skillbaum statt Zeitalter
 
-Was gebaut werden kann, kann ab Minute eins gebaut werden. Eskalation kommt
-aus dem Götterblut — und das liegt auf der Karte, nicht in einem Menü.
+Ursprünglich ohne Tech-Tree geplant; auf Wunsch des Nutzers gibt es jetzt
+einen **Skillbaum** je Fraktion. Punkte kommen mit der Zeit, nicht aus
+Ressourcen — wer früh angreift, hat wenige, wer lange lebt, viele. Er hat vier
+Äste: Einheiten (Fernkämpfer und schwere Einheiten), Gebäude (die Schreine),
+Verbesserungen des ganzen Volkes und den Kommandanten mit einer aktiven
+Fähigkeit. Grundeinheiten, Förderung, Fabriken und Anker sind ab Minute eins
+da. Keine Zeitalter. Eskalation kommt weiter aus dem Götterblut — die
+schweren Einheiten brauchen beides, den Skill und die Ader.
 
 ## Eine Regel, ein Parameter
 

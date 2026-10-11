@@ -48,6 +48,13 @@ export const RULES = {
   // bzw. Bauende (Gebaeude), gedeckelt. Bewusst klein. 0 = aus.
   erfahrungProMin: 10,
   erfahrungMax: 100,
+
+  // Skillbaum (SKILLS): Punkte kommen mit der Zeit -- skillStart zu Beginn,
+  // dann einer je skillTakt Ticks. Aus = alles frei, keine Verbesserungen;
+  // nur fuer Vergleichsmessungen.
+  skills: true,
+  skillStart: 1,
+  skillTakt: 1200,
 };
 
 export const FACTIONS = {
@@ -413,6 +420,129 @@ export const UNITS = {
     buildTime: 480,
     weapon: { range: 360, damage: 52, cooldown: 10 },
   },
+};
+
+// ------------------------------------------------------------- Skillbaum
+// Je Fraktion ein Baum mit vier Aesten. Ein Skill kostet Punkte, braucht
+// womoeglich andere Skills und
+//   frei:        schaltet Einheiten oder Gebaeude frei -- was ein Skill
+//                freischaltet, ist ohne ihn gesperrt; alles andere ist ab
+//                Minute eins da
+//   wirkung:     verbessert das ganze Volk, in Promille
+//                schaden    mehr ausgeteilter Schaden aller Einheiten
+//                schutz     weniger genommener Schaden aller Einheiten
+//                kdtSchutz  weniger genommener Schaden des Kommandanten
+//                foerderung mehr Fron und Goetterblut aus Foerderbauten
+//                ausbildung schnellere Ausbildung in Fabriken
+//                unterhalt  weniger Unterhalt
+//   faehigkeit:  gibt dem Kommandanten eine aktive Faehigkeit (FAEHIGKEITEN)
+// Die Reihenfolge der Eintraege ist die Anzeigereihenfolge.
+export const AESTE = { einheiten: 'Einheiten', gebaeude: 'Gebäude', verbesserung: 'Verbesserungen', kommandant: 'Kommandant' };
+
+export const SKILLS = {
+  // --------------------------------------------------------------- Menschen
+  bogenbau: {
+    faction: 'mensch', ast: 'einheiten', name: 'Bogenbau', kosten: 1, frei: ['jaeger'],
+    desc: 'Die Kaserne bildet Jäger aus — Fernkämpfer hinter der Linie.',
+  },
+  soeldnervertraege: {
+    faction: 'mensch', ast: 'einheiten', name: 'Söldnerverträge', kosten: 2, braucht: ['bogenbau'], frei: ['soeldner'],
+    desc: 'Die Kaserne wirbt Söldner an — schwer gerüstet, bezahlt mit Götterblut.',
+  },
+  kriegsbanner: {
+    faction: 'mensch', ast: 'gebaeude', name: 'Kriegsbanner', kosten: 1, frei: ['banner'],
+    desc: 'Schrein des Zorns: Wer unter dem Banner kämpft, schlägt härter zu.',
+  },
+  kapellenbau: {
+    faction: 'mensch', ast: 'gebaeude', name: 'Kapellenbau', kosten: 1, frei: ['kapelle'],
+    desc: 'Schrein der Wehr: Gebete schützen, wer in der Nähe kämpft.',
+  },
+  klingen: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Geschliffene Klingen', kosten: 1, wirkung: { schaden: 100 },
+    desc: 'Bessere Waffen für alle.',
+  },
+  kettenhemden: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Kettenhemden', kosten: 1, braucht: ['klingen'], wirkung: { schutz: 100 },
+    desc: 'Bessere Rüstung für alle.',
+  },
+  fronvoegte: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Fronvögte', kosten: 1, wirkung: { foerderung: 200 },
+    desc: 'Strenge Aufsicht in Sägewerk und Schacht.',
+  },
+  drillmeister: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Drillmeister', kosten: 1, braucht: ['fronvoegte'], wirkung: { ausbildung: 250 },
+    desc: 'Rekruten lernen schneller.',
+  },
+  sold: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Sold und Ordnung', kosten: 2, braucht: ['drillmeister'], wirkung: { unterhalt: 250 },
+    desc: 'Ein geordnetes Heer kostet weniger.',
+  },
+  heldenmut: {
+    faction: 'mensch', ast: 'kommandant', name: 'Heldenmut', kosten: 1, wirkung: { kdtSchutz: 200 },
+    desc: 'Der Held hält mehr aus.',
+  },
+  schlachtruf: {
+    faction: 'mensch', ast: 'kommandant', name: 'Schlachtruf', kosten: 2, braucht: ['heldenmut'], faehigkeit: 'schlachtruf',
+    desc: 'Der Held reißt alle um sich mit.',
+  },
+
+  // --------------------------------------------------------------- Gott
+  waldgeister: {
+    faction: 'gott', ast: 'einheiten', name: 'Waldgeister rufen', kosten: 1, frei: ['waldgeist'],
+    desc: 'Das Dickicht ruft Waldgeister — sie werfen Licht aus der Ferne.',
+  },
+  ents: {
+    faction: 'gott', ast: 'einheiten', name: 'Ents erwecken', kosten: 2, braucht: ['waldgeister'], frei: ['ent'],
+    desc: 'Das Dickicht erweckt Ents — uralt, gewaltig, genährt von Götterblut.',
+  },
+  dornen: {
+    faction: 'gott', ast: 'gebaeude', name: 'Dornenschrein', kosten: 1, frei: ['dornenschrein'],
+    desc: 'Schrein des Zorns: Dornen schärfen, wer in ihrer Nähe kämpft.',
+  },
+  steine: {
+    faction: 'gott', ast: 'gebaeude', name: 'Steinkreis', kosten: 1, frei: ['steinkreis'],
+    desc: 'Schrein der Wehr: Alte Steine halten Schaden fern.',
+  },
+  faenge: {
+    faction: 'gott', ast: 'verbesserung', name: 'Scharfe Fänge', kosten: 1, wirkung: { schaden: 100 },
+    desc: 'Krallen und Zähne für alle.',
+  },
+  borke: {
+    faction: 'gott', ast: 'verbesserung', name: 'Borkenhaut', kosten: 1, braucht: ['faenge'], wirkung: { schutz: 100 },
+    desc: 'Rinde statt Haut für alle.',
+  },
+  saftfluss: {
+    faction: 'gott', ast: 'verbesserung', name: 'Saftfluss', kosten: 1, wirkung: { foerderung: 200 },
+    desc: 'Moos und Blutwurz treiben kräftiger.',
+  },
+  keimkraft: {
+    faction: 'gott', ast: 'verbesserung', name: 'Keimkraft', kosten: 1, braucht: ['saftfluss'], wirkung: { ausbildung: 250 },
+    desc: 'Was im Dickicht wächst, wächst schneller.',
+  },
+  genuegsamkeit: {
+    faction: 'gott', ast: 'verbesserung', name: 'Genügsamkeit', kosten: 2, braucht: ['keimkraft'], wirkung: { unterhalt: 250 },
+    desc: 'Die Geschöpfe des Waldes brauchen weniger.',
+  },
+  rinde: {
+    faction: 'gott', ast: 'kommandant', name: 'Uralte Rinde', kosten: 1, wirkung: { kdtSchutz: 200 },
+    desc: 'Der Waldgott hält mehr aus.',
+  },
+  wurzelgriff: {
+    faction: 'gott', ast: 'kommandant', name: 'Wurzelgriff', kosten: 2, braucht: ['rinde'], faehigkeit: 'wurzelgriff',
+    desc: 'Wurzeln brechen aus dem Boden und halten Feinde fest.',
+  },
+};
+
+// Aktive Faehigkeiten der Kommandanten, freigeschaltet im Skillbaum.
+//   art 'ruf':   eigene Einheiten im Umkreis um den Kommandanten teilen
+//                dauer Ticks lang wert Promille mehr Schaden aus
+//   art 'griff': feindliche Einheiten im Umkreis um einen Zielpunkt
+//                (hoechstens reichweite vom Kommandanten) koennen sich dauer
+//                Ticks lang nicht bewegen -- kaempfen aber weiter
+// abklingen: Ticks bis zum naechsten Einsatz.
+export const FAEHIGKEITEN = {
+  schlachtruf: { name: 'Schlachtruf', art: 'ruf', radius: 900, dauer: 150, wert: 300, abklingen: 900 },
+  wurzelgriff: { name: 'Wurzelgriff', art: 'griff', reichweite: 1600, radius: 600, dauer: 80, abklingen: 700 },
 };
 
 export const START_FRON = 1100;

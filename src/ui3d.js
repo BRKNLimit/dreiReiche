@@ -31,6 +31,10 @@ let sel = [];
 let drag = null;
 let placing = null;
 let angriff = false;
+let skillsOffen = false; // T: Skillbaum
+let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
+let zielen = false; // F bei einem Griff: naechster Klick ist das Ziel
+let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
 let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
 const tastenGehalten = new Set();
@@ -782,6 +786,10 @@ function neu(f, zuschauen = false) {
   sel = [];
   placing = null;
   angriff = false;
+  skillsOffen = false;
+  skillSig = '';
+  zielen = false;
+  wirkungen = [];
   vorher.clear();
   blick.clear();
   schuesse = [];
@@ -820,9 +828,46 @@ function bauListe() {
 function renderBar() {
   const bar = document.getElementById('builds');
   bar.innerHTML = bauListe()
-    .map((t, i) => `<button data-b="${t}">${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`)
+    .map((t, i) => {
+      const zu = gesperrt(world, ME, t);
+      return `<button data-b="${t}"${zu ? ' class="zu" title="gesperrt — im Skillbaum (T) freischalten"' : ''}>${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`;
+    })
     .join('');
-  for (const b of bar.querySelectorAll('[data-b]')) b.onclick = () => (placing = b.dataset.b);
+  for (const b of bar.querySelectorAll('[data-b]')) {
+    b.onclick = () => {
+      if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
+    };
+  }
+}
+
+/** F: Faehigkeit des Kommandanten. Ein Ruf wirkt sofort, ein Griff braucht ein Ziel. */
+function faehigkeit3() {
+  const id = faehigkeitVon(world, ME);
+  if (!id) return;
+  if (FAEHIGKEITEN[id].art === 'ruf') {
+    issue(world, { type: 'faehigkeit', player: ME, x: 0, y: 0 });
+  } else {
+    zielen = true;
+    placing = null;
+    angriff = false;
+  }
+}
+
+// Skillbaum: ein Klick auf einen lernbaren Skill lernt ihn.
+document.getElementById('skills').onclick = (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-skill]') : null;
+  if (b && world) issue(world, { type: 'lernen', player: ME, skill: b.dataset.skill });
+};
+
+/** Skillbaum und Sperren neu zeichnen, sobald sich daran etwas aendert. */
+function skillPanel3() {
+  const el = document.getElementById('skills');
+  el.hidden = !skillsOffen;
+  const sig = skillSignatur(world, ME) + (skillsOffen ? '|offen' : '');
+  if (sig === skillSig) return;
+  skillSig = sig;
+  renderBar();
+  if (skillsOffen) el.innerHTML = skillBaumHtml(world, ME);
 }
 
 // ------------------------------------------------------------ Eingabe
@@ -833,6 +878,7 @@ cv3.addEventListener('mousedown', (e) => {
   const p = aufBoden(mx, my);
   if (e.button === 2) {
     placing = null;
+    zielen = false;
     if (sel.length) {
       if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y });
       else befehl3(p.x, p.y);
@@ -843,6 +889,11 @@ cv3.addEventListener('mousedown', (e) => {
   if (e.button === 1) {
     drag = { pan: true, sx: mx, sy: my, x0: kam.x, z0: kam.z, dreh: e.shiftKey, yaw0: kam.yaw };
     e.preventDefault();
+    return;
+  }
+  if (zielen) {
+    issue(world, { type: 'faehigkeit', player: ME, x: p.x, y: p.y });
+    zielen = false;
     return;
   }
   if (placing) {
@@ -938,12 +989,16 @@ addEventListener('keydown', (e) => {
   }
   if (!world) return;
   const i = '1234567'.indexOf(e.key);
-  if (i >= 0 && bauListe()[i]) placing = bauListe()[i];
+  if (i >= 0 && bauListe()[i] && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'Escape') {
     placing = null;
     angriff = false;
+    zielen = false;
+    skillsOffen = false;
     sel = [];
   }
+  if (e.key === 't') skillsOffen = !skillsOffen;
+  if (e.key === 'f') faehigkeit3();
   if (e.key === ' ') {
     paused = !paused;
     e.preventDefault();
@@ -1044,6 +1099,8 @@ function tick() {
     } else if (ev.t === 'died') {
       staub.push({ x: ev.x, y: ev.y, r: ev.kind === 'unit' ? 2.5 : 8, t: 0 });
       vorher.delete(ev.id);
+    } else if (ev.t === 'faehigkeit') {
+      wirkungen.push({ ...ev, bis: world.tick + 12 });
     }
   }
   sel = sel.filter((id) => byId(world, id));
@@ -1067,6 +1124,7 @@ function frame(now) {
     zeichne(now, dt);
     zeichneUeberlagerung(now);
     zeichneHud();
+    skillPanel3();
     zeichneMini();
   }
   requestAnimationFrame(frame);
@@ -1291,10 +1349,79 @@ function zeichneSchuesse(dt) {
 }
 
 // ------------------------------------------------------------ Ueberlagerung (2D)
+/** Kreis auf dem Boden (Mitte und Radius in Dezimetern), als Linienzug ins Overlay. */
+function bodenKreis(x, y, r) {
+  octx.beginPath();
+  let offen = false;
+  for (let i = 0; i <= 48; i++) {
+    const w = (i / 48) * Math.PI * 2;
+    const s = aufSchirm((x + Math.cos(w) * r) * DM, 0.3, (y + Math.sin(w) * r) * DM);
+    if (!s) {
+      offen = false;
+      continue;
+    }
+    if (offen) octx.lineTo(s[0], s[1]);
+    else octx.moveTo(s[0], s[1]);
+    offen = true;
+  }
+  octx.stroke();
+}
+
+/** Schrein-Umkreise, Faehigkeits-Einsaetze, gerufene und festgehaltene Einheiten, Zielkreis. */
+function zeichneWirkungen() {
+  octx.lineWidth = 1;
+  octx.setLineDash([6, 6]);
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'building' || !e.done || !BUILDINGS[e.type].buff) continue;
+    octx.strokeStyle = FACTIONS[world.players[e.player].faction].color;
+    octx.globalAlpha = e.powered ? 0.5 : 0.18;
+    bodenKreis(e.x, e.y, BUILDINGS[e.type].buff.radius);
+  }
+  octx.setLineDash([]);
+  wirkungen = wirkungen.filter((w) => w.bis >= world.tick);
+  octx.lineWidth = 2.5;
+  for (const w of wirkungen) {
+    const t = 1 - (w.bis - world.tick) / 12;
+    octx.strokeStyle = w.art === 'ruf' ? '#f5b23c' : '#9a7a4a';
+    octx.globalAlpha = 1 - t;
+    bodenKreis(w.x, w.y, w.r * (0.4 + 0.6 * t));
+  }
+  octx.globalAlpha = 1;
+  octx.lineWidth = 1.5;
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'unit') continue;
+    const ruf = e.rufBis > world.tick;
+    const fest = e.gebundenBis > world.tick;
+    if (!ruf && !fest) continue;
+    const [x, y] = lage(e);
+    const m = aufSchirm(x * DM, 0.2, y * DM);
+    if (!m) continue;
+    octx.strokeStyle = fest ? '#9a7a4a' : '#f5b23c';
+    octx.beginPath();
+    octx.ellipse(m[0], m[1], 9, 5, 0, 0, Math.PI * 2);
+    octx.stroke();
+  }
+  if (zielen) {
+    const f = FAEHIGKEITEN[faehigkeitVon(world, ME)];
+    const k = kommandantVon(world, ME);
+    const drin = k && (hover.x - k.x) ** 2 + (hover.y - k.y) ** 2 <= f.reichweite ** 2;
+    octx.strokeStyle = drin ? '#9a7a4a' : '#c4603f';
+    octx.lineWidth = 2;
+    bodenKreis(hover.x, hover.y, f.radius);
+    if (k) {
+      octx.lineWidth = 1;
+      octx.setLineDash([4, 4]);
+      bodenKreis(k.x, k.y, f.reichweite);
+      octx.setLineDash([]);
+    }
+  }
+}
+
 function zeichneUeberlagerung(now) {
   const d = devicePixelRatio || 1;
   octx.setTransform(d, 0, 0, d, 0, 0);
   octx.clearRect(0, 0, ov.width, ov.height);
+  zeichneWirkungen();
   // Auswahlringe
   octx.lineWidth = 1.5;
   octx.strokeStyle = '#f0f4e8';
@@ -1380,7 +1507,9 @@ function zeichneHud() {
           ? `gedrosselt ${Math.round(e.powered / 10)} %`
           : 'versorgt';
       const tasten = def.buildList
-        ? def.buildList.map((u, i) => `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}`).join(' · ')
+        ? def.buildList
+            .map((u, i) => (gesperrt(world, ME, u) ? `<kbd>${'QWER'[i]}</kbd> <s>${UNITS[u].name}</s> (Skillbaum)` : `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}`))
+            .join(' · ')
         : '';
       auswahl = `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
         <div class="keys">${tasten}${def.vital ? '' : ' · <kbd>Entf</kbd> abreißen'}</div></div>`;
@@ -1402,6 +1531,8 @@ function zeichneHud() {
       <b>Fron</b><span>${p.fron}</span>
       <b title="Förderung minus Unterhalt der Einheiten">Fron/min</b><span>+${foerderungProMin(world, ME)} −${unterhaltProMin(world, ME)}</span>
       <b>Götterblut</b><span>${p.goetterblut}</span>
+      ${skillZeile(world, ME)}
+      ${faehigkeitZeile(world, ME)}
       <b>Einheiten</b><span>${einheiten}</span>
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''} ×${speed}</span>

@@ -77,6 +77,29 @@
   #intro .go { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   #intro .go button { padding: 8px 14px; font-size: 13px; }
   #nogl { position: absolute; inset: 0; display: none; place-content: center; text-align: center; padding: 24px; }
+  /* Skillbaum */
+  #skills {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20;
+    width: min(1100px, calc(100% - 32px)); max-height: calc(100% - 120px); overflow: auto;
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+    border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px;
+  }
+  #skills[hidden] { display: none; }
+  #skills .skopf { color: var(--accent); margin-bottom: 10px; font-size: 13px; }
+  #skills .aeste { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 800px) { #skills .aeste { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  #skills h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+  #skills .skill { display: grid; gap: 3px; width: 100%; text-align: left; margin: 0 0 6px; padding: 7px 8px; cursor: pointer; }
+  #skills .skill b { font-weight: 600; }
+  #skills .skill .sw { font-size: 11px; color: var(--text); }
+  #skills .skill i { font-size: 11px; color: var(--dim); }
+  #skills .skill .sk { font-size: 10px; color: var(--dim); font-family: ui-monospace, monospace; }
+  #skills .skill.gelernt { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--panel)); cursor: default; }
+  #skills .skill.kann { border-color: var(--accent); }
+  #skills .skill.zu { opacity: .55; cursor: default; }
+  #skills kbd { font: 10px ui-monospace, monospace; color: var(--accent); }
+  .hell { color: var(--accent); }
+  #builds button.zu { opacity: .45; }
 </style>
 </head>
 <body>
@@ -91,10 +114,11 @@
   <span class="hint">
     Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Pfeiltasten / mittlere Taste schieben ·
     Mausrad zoomt · <b>,</b> <b>.</b> drehen · <b>1</b>–<b>7</b> bauen · <b>Q</b>–<b>R</b> Einheiten ·
-    <b>K</b> Kommandant · Leertaste Pause · +/− Tempo
+    <b>K</b> Kommandant · <b>T</b> Skillbaum · <b>F</b> Fähigkeit · Leertaste Pause · +/− Tempo
   </span>
 </div>
 <div id="intro"></div>
+<div id="skills" hidden></div>
 <div id="nogl"><p>Dieser Browser kann kein WebGL 2 — die 2D-Ansicht läuft trotzdem:
   <a class="btn" href="resonit.html">2D-Ansicht öffnen</a></p></div>
 <script>
@@ -146,6 +170,13 @@ const RULES = {
   // bzw. Bauende (Gebaeude), gedeckelt. Bewusst klein. 0 = aus.
   erfahrungProMin: 10,
   erfahrungMax: 100,
+
+  // Skillbaum (SKILLS): Punkte kommen mit der Zeit -- skillStart zu Beginn,
+  // dann einer je skillTakt Ticks. Aus = alles frei, keine Verbesserungen;
+  // nur fuer Vergleichsmessungen.
+  skills: true,
+  skillStart: 1,
+  skillTakt: 1200,
 };
 const FACTIONS = {
   mensch: {
@@ -510,6 +541,128 @@ const UNITS = {
     weapon: { range: 360, damage: 52, cooldown: 10 },
   },
 };
+
+// ------------------------------------------------------------- Skillbaum
+// Je Fraktion ein Baum mit vier Aesten. Ein Skill kostet Punkte, braucht
+// womoeglich andere Skills und
+//   frei:        schaltet Einheiten oder Gebaeude frei -- was ein Skill
+//                freischaltet, ist ohne ihn gesperrt; alles andere ist ab
+//                Minute eins da
+//   wirkung:     verbessert das ganze Volk, in Promille
+//                schaden    mehr ausgeteilter Schaden aller Einheiten
+//                schutz     weniger genommener Schaden aller Einheiten
+//                kdtSchutz  weniger genommener Schaden des Kommandanten
+//                foerderung mehr Fron und Goetterblut aus Foerderbauten
+//                ausbildung schnellere Ausbildung in Fabriken
+//                unterhalt  weniger Unterhalt
+//   faehigkeit:  gibt dem Kommandanten eine aktive Faehigkeit (FAEHIGKEITEN)
+// Die Reihenfolge der Eintraege ist die Anzeigereihenfolge.
+const AESTE = { einheiten: 'Einheiten', gebaeude: 'Gebäude', verbesserung: 'Verbesserungen', kommandant: 'Kommandant' };
+const SKILLS = {
+  // --------------------------------------------------------------- Menschen
+  bogenbau: {
+    faction: 'mensch', ast: 'einheiten', name: 'Bogenbau', kosten: 1, frei: ['jaeger'],
+    desc: 'Die Kaserne bildet Jäger aus — Fernkämpfer hinter der Linie.',
+  },
+  soeldnervertraege: {
+    faction: 'mensch', ast: 'einheiten', name: 'Söldnerverträge', kosten: 2, braucht: ['bogenbau'], frei: ['soeldner'],
+    desc: 'Die Kaserne wirbt Söldner an — schwer gerüstet, bezahlt mit Götterblut.',
+  },
+  kriegsbanner: {
+    faction: 'mensch', ast: 'gebaeude', name: 'Kriegsbanner', kosten: 1, frei: ['banner'],
+    desc: 'Schrein des Zorns: Wer unter dem Banner kämpft, schlägt härter zu.',
+  },
+  kapellenbau: {
+    faction: 'mensch', ast: 'gebaeude', name: 'Kapellenbau', kosten: 1, frei: ['kapelle'],
+    desc: 'Schrein der Wehr: Gebete schützen, wer in der Nähe kämpft.',
+  },
+  klingen: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Geschliffene Klingen', kosten: 1, wirkung: { schaden: 100 },
+    desc: 'Bessere Waffen für alle.',
+  },
+  kettenhemden: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Kettenhemden', kosten: 1, braucht: ['klingen'], wirkung: { schutz: 100 },
+    desc: 'Bessere Rüstung für alle.',
+  },
+  fronvoegte: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Fronvögte', kosten: 1, wirkung: { foerderung: 200 },
+    desc: 'Strenge Aufsicht in Sägewerk und Schacht.',
+  },
+  drillmeister: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Drillmeister', kosten: 1, braucht: ['fronvoegte'], wirkung: { ausbildung: 250 },
+    desc: 'Rekruten lernen schneller.',
+  },
+  sold: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Sold und Ordnung', kosten: 2, braucht: ['drillmeister'], wirkung: { unterhalt: 250 },
+    desc: 'Ein geordnetes Heer kostet weniger.',
+  },
+  heldenmut: {
+    faction: 'mensch', ast: 'kommandant', name: 'Heldenmut', kosten: 1, wirkung: { kdtSchutz: 200 },
+    desc: 'Der Held hält mehr aus.',
+  },
+  schlachtruf: {
+    faction: 'mensch', ast: 'kommandant', name: 'Schlachtruf', kosten: 2, braucht: ['heldenmut'], faehigkeit: 'schlachtruf',
+    desc: 'Der Held reißt alle um sich mit.',
+  },
+
+  // --------------------------------------------------------------- Gott
+  waldgeister: {
+    faction: 'gott', ast: 'einheiten', name: 'Waldgeister rufen', kosten: 1, frei: ['waldgeist'],
+    desc: 'Das Dickicht ruft Waldgeister — sie werfen Licht aus der Ferne.',
+  },
+  ents: {
+    faction: 'gott', ast: 'einheiten', name: 'Ents erwecken', kosten: 2, braucht: ['waldgeister'], frei: ['ent'],
+    desc: 'Das Dickicht erweckt Ents — uralt, gewaltig, genährt von Götterblut.',
+  },
+  dornen: {
+    faction: 'gott', ast: 'gebaeude', name: 'Dornenschrein', kosten: 1, frei: ['dornenschrein'],
+    desc: 'Schrein des Zorns: Dornen schärfen, wer in ihrer Nähe kämpft.',
+  },
+  steine: {
+    faction: 'gott', ast: 'gebaeude', name: 'Steinkreis', kosten: 1, frei: ['steinkreis'],
+    desc: 'Schrein der Wehr: Alte Steine halten Schaden fern.',
+  },
+  faenge: {
+    faction: 'gott', ast: 'verbesserung', name: 'Scharfe Fänge', kosten: 1, wirkung: { schaden: 100 },
+    desc: 'Krallen und Zähne für alle.',
+  },
+  borke: {
+    faction: 'gott', ast: 'verbesserung', name: 'Borkenhaut', kosten: 1, braucht: ['faenge'], wirkung: { schutz: 100 },
+    desc: 'Rinde statt Haut für alle.',
+  },
+  saftfluss: {
+    faction: 'gott', ast: 'verbesserung', name: 'Saftfluss', kosten: 1, wirkung: { foerderung: 200 },
+    desc: 'Moos und Blutwurz treiben kräftiger.',
+  },
+  keimkraft: {
+    faction: 'gott', ast: 'verbesserung', name: 'Keimkraft', kosten: 1, braucht: ['saftfluss'], wirkung: { ausbildung: 250 },
+    desc: 'Was im Dickicht wächst, wächst schneller.',
+  },
+  genuegsamkeit: {
+    faction: 'gott', ast: 'verbesserung', name: 'Genügsamkeit', kosten: 2, braucht: ['keimkraft'], wirkung: { unterhalt: 250 },
+    desc: 'Die Geschöpfe des Waldes brauchen weniger.',
+  },
+  rinde: {
+    faction: 'gott', ast: 'kommandant', name: 'Uralte Rinde', kosten: 1, wirkung: { kdtSchutz: 200 },
+    desc: 'Der Waldgott hält mehr aus.',
+  },
+  wurzelgriff: {
+    faction: 'gott', ast: 'kommandant', name: 'Wurzelgriff', kosten: 2, braucht: ['rinde'], faehigkeit: 'wurzelgriff',
+    desc: 'Wurzeln brechen aus dem Boden und halten Feinde fest.',
+  },
+};
+
+// Aktive Faehigkeiten der Kommandanten, freigeschaltet im Skillbaum.
+//   art 'ruf':   eigene Einheiten im Umkreis um den Kommandanten teilen
+//                dauer Ticks lang wert Promille mehr Schaden aus
+//   art 'griff': feindliche Einheiten im Umkreis um einen Zielpunkt
+//                (hoechstens reichweite vom Kommandanten) koennen sich dauer
+//                Ticks lang nicht bewegen -- kaempfen aber weiter
+// abklingen: Ticks bis zum naechsten Einsatz.
+const FAEHIGKEITEN = {
+  schlachtruf: { name: 'Schlachtruf', art: 'ruf', radius: 900, dauer: 150, wert: 300, abklingen: 900 },
+  wurzelgriff: { name: 'Wurzelgriff', art: 'griff', reichweite: 1600, radius: 600, dauer: 80, abklingen: 700 },
+};
 const START_FRON = 1100;
 
 /** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
@@ -590,8 +743,8 @@ function createWorld(opts = {}) {
     nextId: 1,
     entities: [],
     players: [
-      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true },
-      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true },
+      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0 },
+      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0 },
     ],
     deposits: [],
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -684,6 +837,9 @@ function spawnUnit(world, player, type, x, y) {
     auftrag: 0, // Baustelle, die dieser Erbauer bauen soll (0 = keine)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
     seit: world.tick, // fuer die Erfahrung
+    rufBis: 0, // Schlachtruf wirkt bis zu diesem Tick
+    rufWert: 0,
+    gebundenBis: 0, // Wurzelgriff haelt fest bis zu diesem Tick
     cooldown: 0,
     dead: false,
   };
@@ -804,11 +960,15 @@ function applyCommand(world, c) {
       if (b && b.kind === 'building' && b.player === c.player && !b.done && !b.dead) beauftrage(world, c.player, c.ids, b);
     } else if (c.type === 'demolish') {
       demolish(world, c.player, c.id);
+    } else if (c.type === 'lernen') {
+      if (kannLernen(world, c.player, c.skill)) world.players[c.player].gelernt.push(c.skill);
+    } else if (c.type === 'faehigkeit') {
+      wirke(world, c.player, c.x | 0, c.y | 0);
     } else if (c.type === 'produce') {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
         const def = BUILDINGS[e.type];
-        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8) {
+        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit)) {
           const p = world.players[c.player];
           if (canAfford(p, UNITS[c.unit].cost)) {
             pay(p, UNITS[c.unit].cost, 1000);
@@ -828,6 +988,7 @@ function tryPlace(world, player, type, x, y) {
   const def = BUILDINGS[type];
   if (!def || def.vital) return null;
   if (def.faction !== world.players[player].faction) return null;
+  if (gesperrt(world, player, type)) return null;
   const p = world.players[player];
   if (!canAfford(p, def.cost)) return null;
   if (x < 200 || y < 200 || x > MAP - 200 || y > MAP - 200) return null;
@@ -927,6 +1088,96 @@ function erfahrung(world, e) {
   const seit = e.kind === 'unit' ? e.seit : e.done ? e.doneAt : -1;
   if (seit < 0) return 0;
   return Math.min(RULES.erfahrungMax, (((world.tick - seit) / 600) | 0) * RULES.erfahrungProMin);
+}
+
+// ------------------------------------------------------------- Skillbaum
+
+/** Bisher verdiente Skillpunkte: skillStart, dann einer je skillTakt Ticks. */
+function skillPunkte(world, player) {
+  if (!RULES.skills) return 0;
+  return RULES.skillStart + ((world.tick / RULES.skillTakt) | 0);
+}
+
+/** Noch nicht ausgegebene Skillpunkte. */
+function skillFrei(world, player) {
+  const g = world.players[player].gelernt;
+  let aus = 0;
+  for (let i = 0; i < g.length; i++) aus += SKILLS[g[i]].kosten;
+  return skillPunkte(world, player) - aus;
+}
+
+/**
+ * Ist ein Einheiten- oder Gebaeudetyp fuer diesen Spieler noch gesperrt?
+ * Gesperrt ist, was ein Skill der eigenen Fraktion freischaltet, solange
+ * keiner dieser Skills gelernt ist.
+ */
+function gesperrt(world, player, typ) {
+  if (!RULES.skills) return false;
+  const pl = world.players[player];
+  let sperrt = false;
+  for (const id in SKILLS) {
+    const s = SKILLS[id];
+    if (s.faction !== pl.faction || !s.frei || !s.frei.includes(typ)) continue;
+    if (pl.gelernt.includes(id)) return false;
+    sperrt = true;
+  }
+  return sperrt;
+}
+
+/** Summe einer Wirkung in Promille ueber alle gelernten Skills. */
+function bonus(world, player, art) {
+  if (!RULES.skills) return 0;
+  const g = world.players[player].gelernt;
+  let s = 0;
+  for (let i = 0; i < g.length; i++) {
+    const w = SKILLS[g[i]].wirkung;
+    if (w && w[art]) s += w[art];
+  }
+  return s;
+}
+
+/** Kann der Spieler diesen Skill jetzt lernen? */
+function kannLernen(world, player, id) {
+  const s = SKILLS[id];
+  const pl = world.players[player];
+  if (!RULES.skills || !s || s.faction !== pl.faction || pl.gelernt.includes(id)) return false;
+  if (s.braucht) for (let i = 0; i < s.braucht.length; i++) if (!pl.gelernt.includes(s.braucht[i])) return false;
+  return skillFrei(world, player) >= s.kosten;
+}
+
+/** Die aktive Faehigkeit des Kommandanten, sobald gelernt, sonst null. */
+function faehigkeitVon(world, player) {
+  const g = world.players[player].gelernt;
+  for (let i = 0; i < g.length; i++) if (SKILLS[g[i]].faehigkeit) return SKILLS[g[i]].faehigkeit;
+  return null;
+}
+
+/**
+ * Der Kommandant setzt seine Faehigkeit ein. Ein Ruf wirkt um ihn selbst,
+ * ein Griff um einen Zielpunkt in Reichweite. Danach klingt sie ab.
+ */
+function wirke(world, player, x, y) {
+  const id = faehigkeitVon(world, player);
+  const k = kommandantVon(world, player);
+  const pl = world.players[player];
+  if (!id || !k || world.tick < pl.faehigkeitBereit) return;
+  const f = FAEHIGKEITEN[id];
+  if (f.art === 'ruf') {
+    x = k.x;
+    y = k.y;
+  } else if (dist2(k.x, k.y, x, y) > f.reichweite * f.reichweite) return;
+  pl.faehigkeitBereit = world.tick + f.abklingen;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'unit' || dist2(e.x, e.y, x, y) > f.radius * f.radius) continue;
+    if (f.art === 'ruf' && e.player === player) {
+      e.rufBis = world.tick + f.dauer;
+      e.rufWert = f.wert;
+    } else if (f.art === 'griff' && e.player !== player) {
+      e.gebundenBis = world.tick + f.dauer;
+    }
+  }
+  world.events.push({ t: 'faehigkeit', art: f.art, player, x, y, r: f.radius });
 }
 
 /** Liegt der Punkt in der Domäne dieses Spielers? */
@@ -1122,11 +1373,14 @@ function step(world) {
     }
 
     const pl = world.players[e.player];
-    if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + def.fronOut * e.powered;
-    if (def.blutOut) pl.blutAcc = (pl.blutAcc || 0) + def.blutOut * e.powered;
+    if (def.fronOut || def.blutOut) {
+      const mehr = 1000 + bonus(world, e.player, 'foerderung');
+      if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
+      if (def.blutOut) pl.blutAcc = (pl.blutAcc || 0) + (((def.blutOut * e.powered * mehr) / 1000) | 0);
+    }
 
     if (e.queue.length > 0) {
-      e.queueProgress += e.powered;
+      e.queueProgress += ((e.powered * (1000 + bonus(world, e.player, 'ausbildung'))) / 1000) | 0;
       const need = UNITS[e.queue[0]].buildTime * 1000;
       if (e.queueProgress >= need) {
         const type = e.queue.shift();
@@ -1155,11 +1409,13 @@ function step(world) {
 
   // Unterhalt: laufend Fron je lebender Einheit. Wer nicht zahlen kann,
   // steht bei null -- kaufen geht dann nichts mehr.
+  const weniger = [];
+  for (let p = 0; p < world.players.length; p++) weniger.push(1000 - bonus(world, p, 'unterhalt'));
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.kind !== 'unit') continue;
     const u = UNITS[e.type].unterhalt;
-    if (u) world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * 1000;
+    if (u) world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * weniger[e.player];
   }
   for (let p = 0; p < world.players.length; p++) {
     const pl = world.players[p];
@@ -1277,6 +1533,7 @@ function moveUnits(world) {
   }
   for (let i = 0; i < us.length; i++) {
     const e = us[i];
+    if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
     const speed = UNITS[e.type].speed;
     const dx = gx[i] - e.x;
     const dy = gy[i] - e.y;
@@ -1409,6 +1666,10 @@ function combat(world) {
     // Erfahrung: wer lange lebt, trifft ein wenig haerter.
     const erf = erfahrung(world, e);
     if (erf) dmg = ((dmg * (1000 + erf)) / 1000) | 0;
+    // Skills: Verbesserung des ganzen Volkes, Schlachtruf.
+    const sb = bonus(world, e.player, 'schaden');
+    if (sb) dmg = ((dmg * (1000 + sb)) / 1000) | 0;
+    if (e.kind === 'unit' && e.rufBis > world.tick) dmg = ((dmg * (1000 + e.rufWert)) / 1000) | 0;
     // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
     // schwaecher zu. Gilt fuer alle Fraktionen gleich.
     if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
@@ -1427,6 +1688,12 @@ function combat(world) {
     // ... und steckt ein wenig mehr weg.
     const erf = erfahrung(world, t);
     if (erf) dmg = ((dmg * (1000 - erf)) / 1000) | 0;
+    // Skills: Schutz des ganzen Volkes, dazu der des Kommandanten.
+    if (t.kind === 'unit') {
+      let sch = bonus(world, t.player, 'schutz');
+      if (UNITS[t.type].commander) sch += bonus(world, t.player, 'kdtSchutz');
+      if (sch) dmg = ((dmg * (1000 - sch)) / 1000) | 0;
+    }
     t.hp -= dmg;
   }
   for (let i = 0; i < shots.length; i += 2) {
@@ -1499,7 +1766,7 @@ function unterhaltProMin(world, player) {
     const e = world.entities[i];
     if (!e.dead && e.kind === 'unit' && e.player === player) s += UNITS[e.type].unterhalt || 0;
   }
-  return s;
+  return ((s * (1000 - bonus(world, player, 'unterhalt'))) / 1000) | 0;
 }
 
 /** Foerderung eines Spielers in Fron pro Minute, so wie sie gerade laeuft. */
@@ -1511,7 +1778,7 @@ function foerderungProMin(world, player) {
     const out = BUILDINGS[e.type].fronOut;
     if (out) s += ((out * e.powered) / 1000) | 0;
   }
-  return s;
+  return ((s * (1000 + bonus(world, player, 'foerderung'))) / 1000) | 0;
 }
 function gridReport(world, player) {
   const out = [];
@@ -1531,6 +1798,10 @@ function gridReport(world, player) {
   }
   return out;
 }
+
+// Feste Nummer je Skill fuer den Hash.
+const SKILL_NR = {};
+Object.keys(SKILLS).forEach((id, i) => (SKILL_NR[id] = i + 1));
 function hash(world) {
   let h = 2166136261;
   const mix = (v) => {
@@ -1553,6 +1824,8 @@ function hash(world) {
       mix(e.aggro ? 1 : 0);
       mix(e.auftrag || 0);
       mix(e.seit);
+      mix(e.rufBis);
+      mix(e.gebundenBis);
     } else {
       mix(e.doneAt);
       mix(e.progress);
@@ -1567,6 +1840,8 @@ function hash(world) {
     mix(world.players[p].fronAcc || 0);
     mix(world.players[p].blutAcc || 0);
     mix(world.players[p].unterhaltAcc || 0);
+    mix(world.players[p].faehigkeitBereit);
+    for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   mix(world.cleared.length);
@@ -1594,6 +1869,20 @@ const PLAN = {
     zorn: 'dornenschrein', wehr: 'steinkreis',
     bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent',
   },
+};
+
+// Reihenfolge im Skillbaum: erst die Fernkaempfer, dann Zorn und Schaden,
+// der Kommandant mit seiner Faehigkeit, Wirtschaft, Wehr, die schweren
+// Einheiten, der Rest. Fraktionsgleich.
+const LERNEN = {
+  mensch: [
+    'bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte',
+    'kapellenbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold',
+  ],
+  gott: [
+    'waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss',
+    'steine', 'ents', 'borke', 'keimkraft', 'genuegsamkeit',
+  ],
 };
 
 // Reihenfolge der Ausbildung; "schwer" nur mit Goetterblut.
@@ -1654,6 +1943,14 @@ function stepAI(ai, world) {
   const kosten = (t) => BUILDINGS[t].cost.fron;
   const fron = p.fron;
   const minute = (world.tick / 600) | 0;
+  const frei = (t) => !gesperrt(world, ai.player, t);
+
+  // 0. Skillbaum: der naechste Skill der festen Reihenfolge, sobald die
+  //    Punkte reichen -- wird gespart, nicht uebersprungen.
+  const naechsterSkill = LERNEN[p.faction].find((id) => !p.gelernt.includes(id));
+  if (naechsterSkill && kannLernen(world, ai.player, naechsterSkill)) {
+    issue(world, { type: 'lernen', player: ai.player, skill: naechsterSkill });
+  }
 
   // Geplante Gegenwart-Bilanz: alles, was steht oder entsteht, als waere es
   // fertig. Wer Verbraucher setzt, ohne Quellen nachzuziehen, ueberbucht.
@@ -1736,7 +2033,7 @@ function stepAI(ai, world) {
   if (minute >= 5 && zahl(plan.fabrik) > 0) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
-      if (zahl(typ) > 0 || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
+      if (zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
       const platz = daheimFrei(world, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
@@ -1834,13 +2131,13 @@ function stepAI(ai, world) {
     } else {
       // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
       // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
-      const schwerMoeglich = blutRest >= blutSchwer;
-      const reichlich = blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+      const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
+      const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
       if (reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
       for (let k = 0; !unit && k < MISCHUNG.length; k++) {
         const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
         if (rolle === 'schwer' && !schwerMoeglich) continue;
-        if (liste.includes(plan[rolle])) {
+        if (liste.includes(plan[rolle]) && frei(plan[rolle])) {
           unit = plan[rolle];
           ai.zug += k + 1;
         }
@@ -1860,6 +2157,33 @@ function stepAI(ai, world) {
   const rueckzug =
     kdt &&
     (kdt.hp * 2 < kdt.maxHp || (feindeBei(world, ai.player, kdt, 1200) >= 2 && !inDomain(world, ai.player, kdt.x, kdt.y)));
+
+  // 6a. Faehigkeit des Kommandanten: ein Ruf, wenn genug eigene Kaempfer
+  //     bei ihm stehen und Feinde nahe sind; ein Griff auf den dichtesten
+  //     Haufen Feinde in Reichweite.
+  const faeh = kdt && world.tick >= p.faehigkeitBereit ? faehigkeitVon(world, ai.player) : null;
+  if (faeh) {
+    const f = FAEHIGKEITEN[faeh];
+    if (f.art === 'ruf') {
+      const eigene = kaempfer.filter((u) => dist2(u.x, u.y, kdt.x, kdt.y) <= f.radius * f.radius).length;
+      if (eigene >= 5 && feindeBei(world, ai.player, kdt, f.radius) >= 3) {
+        issue(world, { type: 'faehigkeit', player: ai.player, x: kdt.x, y: kdt.y });
+      }
+    } else {
+      let best = null;
+      let bestN = 3;
+      for (const o of world.entities) {
+        if (o.dead || o.player === ai.player || o.kind !== 'unit') continue;
+        if (dist2(o.x, o.y, kdt.x, kdt.y) > f.reichweite * f.reichweite) continue;
+        const n = feindeBei(world, ai.player, o, f.radius);
+        if (n > bestN) {
+          bestN = n;
+          best = o;
+        }
+      }
+      if (best) issue(world, { type: 'faehigkeit', player: ai.player, x: best.x, y: best.y });
+    }
+  }
 
   // 7. Verteidigung: Feinde nahe eigener Gebaeude ziehen alle Truppen an,
   //    die nicht gerade mit einer Welle unterwegs sind. Der Kommandant
@@ -2274,10 +2598,14 @@ function winkel(a, b) {
 // aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
 
 
+const prozent = (promille) => Math.round(promille / 10) + ' %';
+const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
+const meterText = (dm) => Math.round(dm / 10) + ' m';
+
 /** Erfahrung als kurzer Text, leer ohne Erfahrung. */
 function erfahrungText(world, e) {
   const erf = erfahrung(world, e);
-  return erf ? `Erfahrung +${Math.round(erf / 10)} %` : '';
+  return erf ? `Erfahrung +${prozent(erf)}` : '';
 }
 
 /** Kopfzeile einer einzelnen Auswahl: Name, Leben, Erfahrung. */
@@ -2286,7 +2614,83 @@ function auswahlKopf(world, e) {
   const teile = [`${e.hp}/${e.maxHp} LP`];
   const erf = erfahrungText(world, e);
   if (erf) teile.push(erf);
+  if (e.kind === 'unit' && e.rufBis > world.tick) teile.push('Schlachtruf');
+  if (e.kind === 'unit' && e.gebundenBis > world.tick) teile.push('festgehalten');
   return `<b>${def.name}</b> — ${teile.join(' · ')}`;
+}
+
+// ------------------------------------------------------------ Skillbaum
+
+/** Was eine Faehigkeit tut, Zahlen aus den Daten. */
+function faehigkeitText(id) {
+  const f = FAEHIGKEITEN[id];
+  if (f.art === 'ruf') {
+    return `${f.name}: Eigene Einheiten im Umkreis von ${meterText(f.radius)} teilen ${sekunden(f.dauer)} lang ${prozent(f.wert)} mehr Schaden aus. Alle ${sekunden(f.abklingen)}.`;
+  }
+  return `${f.name}: Feinde im Umkreis von ${meterText(f.radius)} um einen Punkt (bis ${meterText(f.reichweite)} vom Kommandanten) stehen ${sekunden(f.dauer)} lang fest. Alle ${sekunden(f.abklingen)}.`;
+}
+
+/** Was ein Skill bewirkt, Zahlen aus den Daten. */
+function skillWirkung(sk) {
+  const teile = [];
+  if (sk.frei) teile.push('Schaltet frei: ' + sk.frei.map((t) => (UNITS[t] || BUILDINGS[t]).name).join(', '));
+  const w = sk.wirkung || {};
+  if (w.schaden) teile.push(`+${prozent(w.schaden)} Schaden aller Einheiten`);
+  if (w.schutz) teile.push(`−${prozent(w.schutz)} genommener Schaden aller Einheiten`);
+  if (w.kdtSchutz) teile.push(`−${prozent(w.kdtSchutz)} genommener Schaden des Kommandanten`);
+  if (w.foerderung) teile.push(`+${prozent(w.foerderung)} Förderung`);
+  if (w.ausbildung) teile.push(`${prozent(w.ausbildung)} schnellere Ausbildung`);
+  if (w.unterhalt) teile.push(`−${prozent(w.unterhalt)} Unterhalt`);
+  if (sk.faehigkeit) teile.push(faehigkeitText(sk.faehigkeit));
+  return teile.join(' · ');
+}
+
+/** Aendert sich, sobald sich am Skillbaum etwas aendert -- dann neu zeichnen. */
+function skillSignatur(world, player) {
+  return world.players[player].gelernt.join() + '|' + skillFrei(world, player);
+}
+
+/** Der Skillbaum eines Spielers: vier Aeste, jeder Skill ein Knopf. */
+function skillBaumHtml(world, player) {
+  const pl = world.players[player];
+  const frei = skillFrei(world, player);
+  const spalten = Object.entries(AESTE)
+    .map(([ast, titel]) => {
+      const karten = Object.entries(SKILLS)
+        .filter(([, sk]) => sk.faction === pl.faction && sk.ast === ast)
+        .map(([id, sk]) => {
+          const gelernt = pl.gelernt.includes(id);
+          const kann = kannLernen(world, player, id);
+          const fehlt = (sk.braucht || []).filter((b) => !pl.gelernt.includes(b)).map((b) => SKILLS[b].name);
+          const fuss = gelernt
+            ? 'gelernt'
+            : (fehlt.length ? 'braucht ' + fehlt.join(', ') + ' · ' : '') + `${sk.kosten} Punkt${sk.kosten > 1 ? 'e' : ''}`;
+          return `<button class="skill ${gelernt ? 'gelernt' : kann ? 'kann' : 'zu'}" data-skill="${id}"${kann ? '' : ' disabled'}>
+            <b>${sk.name}</b><span class="sw">${skillWirkung(sk)}</span><i>${sk.desc}</i><span class="sk">${fuss}</span></button>`;
+        })
+        .join('');
+      return `<div class="ast"><h3>${titel}</h3>${karten}</div>`;
+    })
+    .join('');
+  const takt = Math.round(RULES.skillTakt / 600);
+  return `<div class="skopf"><b>Skillbaum</b> — ${frei} Punkt${frei === 1 ? '' : 'e'} frei, alle ${takt} min ein neuer · Klick lernt · <kbd>T</kbd> schließt</div>
+    <div class="aeste">${spalten}</div>`;
+}
+
+/** HUD-Zeile: freie Skillpunkte und Zeit bis zum naechsten. */
+function skillZeile(world, player) {
+  if (!RULES.skills) return '';
+  const frei = skillFrei(world, player);
+  const bis = sekunden(RULES.skillTakt - (world.tick % RULES.skillTakt));
+  return `<b>Skillpunkte <kbd>T</kbd></b><span${frei > 0 ? ' class="hell"' : ''}>${frei} frei · nächster in ${bis}</span>`;
+}
+
+/** HUD-Zeile: Faehigkeit des Kommandanten, sobald gelernt. */
+function faehigkeitZeile(world, player) {
+  const id = faehigkeitVon(world, player);
+  if (!id) return '';
+  const rest = world.players[player].faehigkeitBereit - world.tick;
+  return `<b>${FAEHIGKEITEN[id].name} <kbd>F</kbd></b><span${rest <= 0 ? ' class="hell"' : ''}>${rest <= 0 ? 'bereit' : 'in ' + sekunden(rest)}</span>`;
 }
 
 
@@ -2325,6 +2729,10 @@ let sel = [];
 let drag = null;
 let placing = null;
 let angriff = false;
+let skillsOffen = false; // T: Skillbaum
+let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
+let zielen = false; // F bei einem Griff: naechster Klick ist das Ziel
+let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
 let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
 const tastenGehalten = new Set();
@@ -3076,6 +3484,10 @@ function neu(f, zuschauen = false) {
   sel = [];
   placing = null;
   angriff = false;
+  skillsOffen = false;
+  skillSig = '';
+  zielen = false;
+  wirkungen = [];
   vorher.clear();
   blick.clear();
   schuesse = [];
@@ -3114,9 +3526,46 @@ function bauListe() {
 function renderBar() {
   const bar = document.getElementById('builds');
   bar.innerHTML = bauListe()
-    .map((t, i) => `<button data-b="${t}">${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`)
+    .map((t, i) => {
+      const zu = gesperrt(world, ME, t);
+      return `<button data-b="${t}"${zu ? ' class="zu" title="gesperrt — im Skillbaum (T) freischalten"' : ''}>${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`;
+    })
     .join('');
-  for (const b of bar.querySelectorAll('[data-b]')) b.onclick = () => (placing = b.dataset.b);
+  for (const b of bar.querySelectorAll('[data-b]')) {
+    b.onclick = () => {
+      if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
+    };
+  }
+}
+
+/** F: Faehigkeit des Kommandanten. Ein Ruf wirkt sofort, ein Griff braucht ein Ziel. */
+function faehigkeit3() {
+  const id = faehigkeitVon(world, ME);
+  if (!id) return;
+  if (FAEHIGKEITEN[id].art === 'ruf') {
+    issue(world, { type: 'faehigkeit', player: ME, x: 0, y: 0 });
+  } else {
+    zielen = true;
+    placing = null;
+    angriff = false;
+  }
+}
+
+// Skillbaum: ein Klick auf einen lernbaren Skill lernt ihn.
+document.getElementById('skills').onclick = (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-skill]') : null;
+  if (b && world) issue(world, { type: 'lernen', player: ME, skill: b.dataset.skill });
+};
+
+/** Skillbaum und Sperren neu zeichnen, sobald sich daran etwas aendert. */
+function skillPanel3() {
+  const el = document.getElementById('skills');
+  el.hidden = !skillsOffen;
+  const sig = skillSignatur(world, ME) + (skillsOffen ? '|offen' : '');
+  if (sig === skillSig) return;
+  skillSig = sig;
+  renderBar();
+  if (skillsOffen) el.innerHTML = skillBaumHtml(world, ME);
 }
 
 // ------------------------------------------------------------ Eingabe
@@ -3127,6 +3576,7 @@ cv3.addEventListener('mousedown', (e) => {
   const p = aufBoden(mx, my);
   if (e.button === 2) {
     placing = null;
+    zielen = false;
     if (sel.length) {
       if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y });
       else befehl3(p.x, p.y);
@@ -3137,6 +3587,11 @@ cv3.addEventListener('mousedown', (e) => {
   if (e.button === 1) {
     drag = { pan: true, sx: mx, sy: my, x0: kam.x, z0: kam.z, dreh: e.shiftKey, yaw0: kam.yaw };
     e.preventDefault();
+    return;
+  }
+  if (zielen) {
+    issue(world, { type: 'faehigkeit', player: ME, x: p.x, y: p.y });
+    zielen = false;
     return;
   }
   if (placing) {
@@ -3232,12 +3687,16 @@ addEventListener('keydown', (e) => {
   }
   if (!world) return;
   const i = '1234567'.indexOf(e.key);
-  if (i >= 0 && bauListe()[i]) placing = bauListe()[i];
+  if (i >= 0 && bauListe()[i] && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'Escape') {
     placing = null;
     angriff = false;
+    zielen = false;
+    skillsOffen = false;
     sel = [];
   }
+  if (e.key === 't') skillsOffen = !skillsOffen;
+  if (e.key === 'f') faehigkeit3();
   if (e.key === ' ') {
     paused = !paused;
     e.preventDefault();
@@ -3338,6 +3797,8 @@ function tick() {
     } else if (ev.t === 'died') {
       staub.push({ x: ev.x, y: ev.y, r: ev.kind === 'unit' ? 2.5 : 8, t: 0 });
       vorher.delete(ev.id);
+    } else if (ev.t === 'faehigkeit') {
+      wirkungen.push({ ...ev, bis: world.tick + 12 });
     }
   }
   sel = sel.filter((id) => byId(world, id));
@@ -3361,6 +3822,7 @@ function frame(now) {
     zeichne(now, dt);
     zeichneUeberlagerung(now);
     zeichneHud();
+    skillPanel3();
     zeichneMini();
   }
   requestAnimationFrame(frame);
@@ -3585,10 +4047,79 @@ function zeichneSchuesse(dt) {
 }
 
 // ------------------------------------------------------------ Ueberlagerung (2D)
+/** Kreis auf dem Boden (Mitte und Radius in Dezimetern), als Linienzug ins Overlay. */
+function bodenKreis(x, y, r) {
+  octx.beginPath();
+  let offen = false;
+  for (let i = 0; i <= 48; i++) {
+    const w = (i / 48) * Math.PI * 2;
+    const s = aufSchirm((x + Math.cos(w) * r) * DM, 0.3, (y + Math.sin(w) * r) * DM);
+    if (!s) {
+      offen = false;
+      continue;
+    }
+    if (offen) octx.lineTo(s[0], s[1]);
+    else octx.moveTo(s[0], s[1]);
+    offen = true;
+  }
+  octx.stroke();
+}
+
+/** Schrein-Umkreise, Faehigkeits-Einsaetze, gerufene und festgehaltene Einheiten, Zielkreis. */
+function zeichneWirkungen() {
+  octx.lineWidth = 1;
+  octx.setLineDash([6, 6]);
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'building' || !e.done || !BUILDINGS[e.type].buff) continue;
+    octx.strokeStyle = FACTIONS[world.players[e.player].faction].color;
+    octx.globalAlpha = e.powered ? 0.5 : 0.18;
+    bodenKreis(e.x, e.y, BUILDINGS[e.type].buff.radius);
+  }
+  octx.setLineDash([]);
+  wirkungen = wirkungen.filter((w) => w.bis >= world.tick);
+  octx.lineWidth = 2.5;
+  for (const w of wirkungen) {
+    const t = 1 - (w.bis - world.tick) / 12;
+    octx.strokeStyle = w.art === 'ruf' ? '#f5b23c' : '#9a7a4a';
+    octx.globalAlpha = 1 - t;
+    bodenKreis(w.x, w.y, w.r * (0.4 + 0.6 * t));
+  }
+  octx.globalAlpha = 1;
+  octx.lineWidth = 1.5;
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'unit') continue;
+    const ruf = e.rufBis > world.tick;
+    const fest = e.gebundenBis > world.tick;
+    if (!ruf && !fest) continue;
+    const [x, y] = lage(e);
+    const m = aufSchirm(x * DM, 0.2, y * DM);
+    if (!m) continue;
+    octx.strokeStyle = fest ? '#9a7a4a' : '#f5b23c';
+    octx.beginPath();
+    octx.ellipse(m[0], m[1], 9, 5, 0, 0, Math.PI * 2);
+    octx.stroke();
+  }
+  if (zielen) {
+    const f = FAEHIGKEITEN[faehigkeitVon(world, ME)];
+    const k = kommandantVon(world, ME);
+    const drin = k && (hover.x - k.x) ** 2 + (hover.y - k.y) ** 2 <= f.reichweite ** 2;
+    octx.strokeStyle = drin ? '#9a7a4a' : '#c4603f';
+    octx.lineWidth = 2;
+    bodenKreis(hover.x, hover.y, f.radius);
+    if (k) {
+      octx.lineWidth = 1;
+      octx.setLineDash([4, 4]);
+      bodenKreis(k.x, k.y, f.reichweite);
+      octx.setLineDash([]);
+    }
+  }
+}
+
 function zeichneUeberlagerung(now) {
   const d = devicePixelRatio || 1;
   octx.setTransform(d, 0, 0, d, 0, 0);
   octx.clearRect(0, 0, ov.width, ov.height);
+  zeichneWirkungen();
   // Auswahlringe
   octx.lineWidth = 1.5;
   octx.strokeStyle = '#f0f4e8';
@@ -3674,7 +4205,9 @@ function zeichneHud() {
           ? `gedrosselt ${Math.round(e.powered / 10)} %`
           : 'versorgt';
       const tasten = def.buildList
-        ? def.buildList.map((u, i) => `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}`).join(' · ')
+        ? def.buildList
+            .map((u, i) => (gesperrt(world, ME, u) ? `<kbd>${'QWER'[i]}</kbd> <s>${UNITS[u].name}</s> (Skillbaum)` : `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}`))
+            .join(' · ')
         : '';
       auswahl = `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
         <div class="keys">${tasten}${def.vital ? '' : ' · <kbd>Entf</kbd> abreißen'}</div></div>`;
@@ -3696,6 +4229,8 @@ function zeichneHud() {
       <b>Fron</b><span>${p.fron}</span>
       <b title="Förderung minus Unterhalt der Einheiten">Fron/min</b><span>+${foerderungProMin(world, ME)} −${unterhaltProMin(world, ME)}</span>
       <b>Götterblut</b><span>${p.goetterblut}</span>
+      ${skillZeile(world, ME)}
+      ${faehigkeitZeile(world, ME)}
       <b>Einheiten</b><span>${einheiten}</span>
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''} ×${speed}</span>

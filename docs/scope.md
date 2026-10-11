@@ -390,6 +390,27 @@ Die Erfahrung entscheidet keine KI-Partie. Die Heere der KI leben selten
 lange; ob sie Spielern, die ihr Heer schonen, etwas bringt, zeigt nur
 Spielen.
 
+### 12. Skillpunkte und Skillbaum (Stand 0.14)
+
+> **Vorgaben des Nutzers:** Skillpunkte, mit denen man Neues freischaltet,
+> und ein Skillbaum. Punkte kommen mit der Zeit. Der Baum schaltet neue
+> Einheiten, neue Gebäude, Verbesserungen und Kommandanten-Fähigkeiten frei.
+
+*Alle Zahlen im Baum sind Designzahlen.* Die KI lernt in fester Reihenfolge
+(Fernkämpfer, Zorn-Schrein, Schaden, Kommandant mit Fähigkeit, Förderung,
+Wehr-Schrein, schwere Einheiten, Rest). KI gegen KI, 32 Seeds × 2
+Sitzplätze:
+
+| Einstellung | Menschen : Gott | Sitz 0 | Ø Dauer |
+| --- | --- | --- | --- |
+| ohne Skillbaum (alles frei, keine Verbesserungen) | 29 : 35 | 27 | 17,3 min |
+| mit Skillbaum | 33 : 31 | 31 | 14,9 min |
+
+Die Partien werden kürzer: Die Verbesserungen kommen früh, und wer
+angreift, hat sie genauso wie der Verteidiger. Die Fähigkeiten setzt die KI
+selten ein, denn ihr Kommandant bleibt im Stil „Standard“ daheim; sie kommen
+erst um Minute 8 bis 10.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

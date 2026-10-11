@@ -14,6 +14,10 @@ let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
 let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 const ME = 0;
+let skillsOffen = false; // T: Skillbaum
+let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
+let zielen = false; // F bei einem Griff: naechster Klick ist das Ziel
+const wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
 let sel = [];
@@ -48,6 +52,10 @@ function neu(f, zuschauen = false) {
   stats = neueStats();
   sel = [];
   placing = null;
+  skillsOffen = false;
+  skillSig = '';
+  zielen = false;
+  wirkungen.length = 0;
   flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
   cam.x = 3000;
   cam.y = 3000;
@@ -75,11 +83,17 @@ cv.addEventListener('mousedown', (e) => {
   if (e.button === 2) {
     placing = null;
     angriff = false;
+    zielen = false;
     if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0);
     return;
   }
   if (e.button === 1) {
     drag = { pan: true, sx: mx, sy: my, cx: cam.x, cy: cam.y };
+    return;
+  }
+  if (zielen) {
+    issue(world, { type: 'faehigkeit', player: ME, x: s2wx(mx) | 0, y: s2wy(my) | 0 });
+    zielen = false;
     return;
   }
   if (placing) {
@@ -158,12 +172,16 @@ cv.addEventListener(
 addEventListener('keydown', (e) => {
   const liste = bauListe();
   const i = '1234567'.indexOf(e.key);
-  if (i >= 0 && liste[i]) placing = liste[i];
+  if (i >= 0 && liste[i] && !gesperrt(world, ME, liste[i])) placing = liste[i];
   if (e.key === 'Escape') {
     placing = null;
     angriff = false;
+    zielen = false;
+    skillsOffen = false;
     sel = [];
   }
+  if (e.key === 't') skillsOffen = !skillsOffen;
+  if (e.key === 'f') faehigkeit();
   if (e.key === 'a' && sel.some((id) => byId(world, id)?.kind === 'unit')) {
     angriff = true;
     placing = null;
@@ -196,6 +214,36 @@ addEventListener('keydown', (e) => {
     }
   }
 });
+
+/** F: Faehigkeit des Kommandanten. Ein Ruf wirkt sofort, ein Griff braucht ein Ziel. */
+function faehigkeit() {
+  const id = faehigkeitVon(world, ME);
+  if (!id) return;
+  if (FAEHIGKEITEN[id].art === 'ruf') {
+    issue(world, { type: 'faehigkeit', player: ME, x: 0, y: 0 });
+  } else {
+    zielen = true;
+    placing = null;
+    angriff = false;
+  }
+}
+
+// Skillbaum: ein Klick auf einen lernbaren Skill lernt ihn.
+document.getElementById('skills').onclick = (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-skill]') : null;
+  if (b && world) issue(world, { type: 'lernen', player: ME, skill: b.dataset.skill });
+};
+
+/** Skillbaum und Sperren neu zeichnen, sobald sich daran etwas aendert. */
+function skillPanel() {
+  const el = document.getElementById('skills');
+  el.hidden = !skillsOffen;
+  const sig = skillSignatur(world, ME) + (skillsOffen ? '|offen' : '');
+  if (sig === skillSig) return;
+  skillSig = sig;
+  renderBar();
+  if (skillsOffen) el.innerHTML = skillBaumHtml(world, ME);
+}
 
 mini.addEventListener('mousedown', (e) => {
   cam.x = (e.offsetX / mini.clientWidth) * MAP;
@@ -233,9 +281,16 @@ function bauListe() {
 function renderBar() {
   const bar = document.getElementById('builds');
   bar.innerHTML = bauListe()
-    .map((t, i) => `<button data-b="${t}">${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`)
+    .map((t, i) => {
+      const zu = gesperrt(world, ME, t);
+      return `<button data-b="${t}"${zu ? ' class="zu" title="gesperrt — im Skillbaum (T) freischalten"' : ''}>${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`;
+    })
     .join('');
-  for (const b of bar.querySelectorAll('[data-b]')) b.onclick = () => (placing = b.dataset.b);
+  for (const b of bar.querySelectorAll('[data-b]')) {
+    b.onclick = () => {
+      if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
+    };
+  }
 }
 
 // ------------------------------------------------------------ Schleife
@@ -249,6 +304,7 @@ function frame(now) {
       if (aiMe) stepAI(aiMe, world);
       stepAI(ai, world);
       step(world);
+      for (const ev of world.events) if (ev.t === 'faehigkeit') wirkungen.push({ ...ev, bis: world.tick + 12 });
       zaehle();
       acc -= TICK_MS;
       sel = sel.filter((id) => byId(world, id));
@@ -269,11 +325,58 @@ function draw() {
   drawCleared();
   drawDomains();
   drawDeposits();
+  drawSchreine();
   drawEntities();
+  drawWirkungen();
   drawSelection();
   if (placing) drawGhost();
   drawHud();
+  skillPanel();
   drawMini();
+}
+
+/** Wirkungskreise fertiger Schreine, gestrichelt in der Farbe ihres Volkes. */
+function drawSchreine() {
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 6]);
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'building' || !e.done) continue;
+    const buff = BUILDINGS[e.type].buff;
+    if (!buff) continue;
+    ctx.strokeStyle = FACTIONS[world.players[e.player].faction].color;
+    ctx.globalAlpha = e.powered ? 0.45 : 0.15;
+    ctx.beginPath();
+    ctx.arc(w2sx(e.x), w2sy(e.y), buff.radius * cam.z, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+}
+
+/** Faehigkeiten: Einsatzringe, gerufene und festgehaltene Einheiten. */
+function drawWirkungen() {
+  while (wirkungen.length && wirkungen[0].bis < world.tick) wirkungen.shift();
+  ctx.lineWidth = 2;
+  for (const w of wirkungen) {
+    const t = 1 - (w.bis - world.tick) / 12;
+    ctx.strokeStyle = w.art === 'ruf' ? COL.gold : '#9a7a4a';
+    ctx.globalAlpha = 1 - t;
+    ctx.beginPath();
+    ctx.arc(w2sx(w.x), w2sy(w.y), w.r * cam.z * (0.4 + 0.6 * t), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 1.5;
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'unit') continue;
+    const ruf = e.rufBis > world.tick;
+    const fest = e.gebundenBis > world.tick;
+    if (!ruf && !fest) continue;
+    ctx.strokeStyle = fest ? '#9a7a4a' : COL.gold;
+    ctx.beginPath();
+    ctx.arc(w2sx(e.x), w2sy(e.y), Math.max(4, UNITS[e.type].radius * cam.z) + 3, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 }
 
 function drawGrid(W, H) {
@@ -524,6 +627,25 @@ function drawEntities() {
 }
 
 function drawSelection() {
+  if (zielen) {
+    // Griff scharf: Wirkungskreis am Mauszeiger, rot ausser Reichweite.
+    const f = FAEHIGKEITEN[faehigkeitVon(world, ME)];
+    const k = kommandantVon(world, ME);
+    const drin = k && (hover.x - k.x) ** 2 + (hover.y - k.y) ** 2 <= f.reichweite ** 2;
+    ctx.strokeStyle = drin ? '#9a7a4a' : COL.bad;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(w2sx(hover.x), w2sy(hover.y), f.radius * cam.z, 0, Math.PI * 2);
+    ctx.stroke();
+    if (k) {
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(w2sx(k.x), w2sy(k.y), f.reichweite * cam.z, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
   if (angriff) {
     // Angriffsbewegung scharf: Fadenkreuz am Mauszeiger.
     const x = w2sx(hover.x);
@@ -631,6 +753,8 @@ function drawHud() {
       <b>Fron</b><span>${p.fron}</span>
       ${fronBilanz()}
       <b>Götterblut</b><span>${p.goetterblut}</span>
+      ${skillZeile(world, ME)}
+      ${faehigkeitZeile(world, ME)}
       <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>
       ${kommandantZeile()}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''} ×${speed}</span>
@@ -802,7 +926,11 @@ function auswahlHtml() {
       : 'versorgt';
   const tasten = def.buildList
     ? def.buildList
-        .map((u, i) => `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}${UNITS[u].cost.goetterblut ? ` (${UNITS[u].cost.goetterblut} Götterblut)` : ''}`)
+        .map((u, i) =>
+          gesperrt(world, ME, u)
+            ? `<kbd>${'QWER'[i]}</kbd> <s>${UNITS[u].name}</s> (Skillbaum)`
+            : `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}${UNITS[u].cost.goetterblut ? ` (${UNITS[u].cost.goetterblut} Götterblut)` : ''}`
+        )
         .join(' · ')
     : '';
   const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';

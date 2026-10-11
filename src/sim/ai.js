@@ -4,9 +4,9 @@
 
 import {
   issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, buffAt, rng, cosDeg, sinDeg,
-  unterhaltProMin, foerderungProMin,
+  unterhaltProMin, foerderungProMin, gesperrt, kannLernen, faehigkeitVon,
 } from './sim.js';
-import { BUILDINGS, UNITS, FACTIONS, MAP } from './defs.js';
+import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
 
 const PLAN = {
   mensch: {
@@ -19,6 +19,20 @@ const PLAN = {
     zorn: 'dornenschrein', wehr: 'steinkreis',
     bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent',
   },
+};
+
+// Reihenfolge im Skillbaum: erst die Fernkaempfer, dann Zorn und Schaden,
+// der Kommandant mit seiner Faehigkeit, Wirtschaft, Wehr, die schweren
+// Einheiten, der Rest. Fraktionsgleich.
+const LERNEN = {
+  mensch: [
+    'bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte',
+    'kapellenbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold',
+  ],
+  gott: [
+    'waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss',
+    'steine', 'ents', 'borke', 'keimkraft', 'genuegsamkeit',
+  ],
 };
 
 // Reihenfolge der Ausbildung; "schwer" nur mit Goetterblut.
@@ -81,6 +95,14 @@ export function stepAI(ai, world) {
   const kosten = (t) => BUILDINGS[t].cost.fron;
   const fron = p.fron;
   const minute = (world.tick / 600) | 0;
+  const frei = (t) => !gesperrt(world, ai.player, t);
+
+  // 0. Skillbaum: der naechste Skill der festen Reihenfolge, sobald die
+  //    Punkte reichen -- wird gespart, nicht uebersprungen.
+  const naechsterSkill = LERNEN[p.faction].find((id) => !p.gelernt.includes(id));
+  if (naechsterSkill && kannLernen(world, ai.player, naechsterSkill)) {
+    issue(world, { type: 'lernen', player: ai.player, skill: naechsterSkill });
+  }
 
   // Geplante Gegenwart-Bilanz: alles, was steht oder entsteht, als waere es
   // fertig. Wer Verbraucher setzt, ohne Quellen nachzuziehen, ueberbucht.
@@ -163,7 +185,7 @@ export function stepAI(ai, world) {
   if (minute >= 5 && zahl(plan.fabrik) > 0) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
-      if (zahl(typ) > 0 || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
+      if (zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
       const platz = daheimFrei(world, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
@@ -261,13 +283,13 @@ export function stepAI(ai, world) {
     } else {
       // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
       // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
-      const schwerMoeglich = blutRest >= blutSchwer;
-      const reichlich = blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+      const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
+      const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
       if (reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
       for (let k = 0; !unit && k < MISCHUNG.length; k++) {
         const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
         if (rolle === 'schwer' && !schwerMoeglich) continue;
-        if (liste.includes(plan[rolle])) {
+        if (liste.includes(plan[rolle]) && frei(plan[rolle])) {
           unit = plan[rolle];
           ai.zug += k + 1;
         }
@@ -287,6 +309,33 @@ export function stepAI(ai, world) {
   const rueckzug =
     kdt &&
     (kdt.hp * 2 < kdt.maxHp || (feindeBei(world, ai.player, kdt, 1200) >= 2 && !inDomain(world, ai.player, kdt.x, kdt.y)));
+
+  // 6a. Faehigkeit des Kommandanten: ein Ruf, wenn genug eigene Kaempfer
+  //     bei ihm stehen und Feinde nahe sind; ein Griff auf den dichtesten
+  //     Haufen Feinde in Reichweite.
+  const faeh = kdt && world.tick >= p.faehigkeitBereit ? faehigkeitVon(world, ai.player) : null;
+  if (faeh) {
+    const f = FAEHIGKEITEN[faeh];
+    if (f.art === 'ruf') {
+      const eigene = kaempfer.filter((u) => dist2(u.x, u.y, kdt.x, kdt.y) <= f.radius * f.radius).length;
+      if (eigene >= 5 && feindeBei(world, ai.player, kdt, f.radius) >= 3) {
+        issue(world, { type: 'faehigkeit', player: ai.player, x: kdt.x, y: kdt.y });
+      }
+    } else {
+      let best = null;
+      let bestN = 3;
+      for (const o of world.entities) {
+        if (o.dead || o.player === ai.player || o.kind !== 'unit') continue;
+        if (dist2(o.x, o.y, kdt.x, kdt.y) > f.reichweite * f.reichweite) continue;
+        const n = feindeBei(world, ai.player, o, f.radius);
+        if (n > bestN) {
+          bestN = n;
+          best = o;
+        }
+      }
+      if (best) issue(world, { type: 'faehigkeit', player: ai.player, x: best.x, y: best.y });
+    }
+  }
 
   // 7. Verteidigung: Feinde nahe eigener Gebaeude ziehen alle Truppen an,
   //    die nicht gerade mit einer Welle unterwegs sind. Der Kommandant

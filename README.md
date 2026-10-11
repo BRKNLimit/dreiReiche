@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.13
+# Die drei Reiche — Prototyp 0.14
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -7,11 +7,13 @@ günstigen Einheiten, der Gott mit wenigen starken. Zentrale Mechanik ist die
 **Domäne**: Ihr Radius steht bei den Menschen fest und wächst beim Gott mit
 der Zeit; in ihr fließt Gegenwart, und dort wirken die Schreine. Jede
 Einheit kostet laufend Unterhalt — große Heere fressen die Wirtschaft.
+Mit der Zeit kommen Skillpunkte; der Skillbaum schaltet Einheiten, Schreine,
+Verbesserungen und eine Fähigkeit des Kommandanten frei.
 
 ## Loslegen
 
 ```bash
-npm test          # 66 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, KI, Fairness
+npm test          # 74 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -45,6 +47,8 @@ der Draufsicht.
 | Gebäude anklicken, `Q` / `W` | Einheiten bauen (schwere kosten Götterblut) |
 | Gebäude anklicken, `Entf` | Abreißen: Baustelle ¾, fertig ½ der Kosten zurück |
 | `K` | Kommandant wählen und hinspringen |
+| `T` | Skillbaum: freie Punkte, ein Klick lernt; Gesperrtes ist ausgegraut |
+| `F` | Fähigkeit des Kommandanten: Schlachtruf sofort, Wurzelgriff mit Linksklick aufs Ziel |
 | `I` | Auswertung: Reibung, Kampfort, Anker, Götterblut (am Ende automatisch) |
 | Leertaste | Pause · `+` / `−` Tempo |
 | Knöpfe unten rechts | Seite wechseln und neu starten · „Zuschauen“: KI gegen KI |
@@ -81,6 +85,8 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
   Unterhalt und Saldo
 - Hauptgebäude tragen eine Grunddomäne von 400 m für die ganze Startbasis
 - Erfahrung: Wer lange lebt, wird ein wenig stärker (1 % je Minute, höchstens 10 %)
+- Skillbaum je Fraktion mit vier Ästen (Einheiten, Gebäude, Verbesserungen,
+  Kommandant); Punkte kommen mit der Zeit; Schlachtruf und Wurzelgriff
 - Abriss mit Teilerstattung
 - Gebäude sind Hindernisse: Einheiten gleiten seitlich herum (kein Pathfinding)
 - Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine),

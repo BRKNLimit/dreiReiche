@@ -19,8 +19,13 @@ import {
   dist2,
   unterhaltProMin,
   erfahrung,
+  skillPunkte,
+  skillFrei,
+  gesperrt,
+  kannLernen,
+  spawnKommandant,
 } from '../src/sim/sim.js';
-import { FACTIONS, BUILDINGS, UNITS, RULES, MAP } from '../src/sim/defs.js';
+import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN } from '../src/sim/defs.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
 
 function bare(f0 = 'mensch', f1 = 'gott') {
@@ -445,6 +450,145 @@ test('Erfahrung: ein alter Wolf trifft haerter, ein alter Soldat steckt mehr weg
   assert.equal(erfahrenesGefecht(false, true), ((d * (1000 - m)) / 1000) | 0);
 });
 
+// ---------------------------------------------------- Skillbaum
+
+test('Skillpunkte: einer zu Beginn, dann einer je Takt', () => {
+  const w = bare();
+  assert.equal(skillPunkte(w, 0), RULES.skillStart);
+  w.tick = RULES.skillTakt * 3 - 1;
+  assert.equal(skillPunkte(w, 0), RULES.skillStart + 2);
+  w.tick++;
+  assert.equal(skillPunkte(w, 0), RULES.skillStart + 3);
+});
+
+test('Skillbaum: jede Fraktion hat alle vier Aeste, Voraussetzungen gibt es', () => {
+  for (const f of ['mensch', 'gott']) {
+    const eigene = Object.entries(SKILLS).filter(([, sk]) => sk.faction === f);
+    for (const ast of ['einheiten', 'gebaeude', 'verbesserung', 'kommandant']) {
+      assert.ok(eigene.some(([, sk]) => sk.ast === ast), f + ' hat den Ast ' + ast);
+    }
+    for (const [id, sk] of eigene) {
+      for (const b of sk.braucht || []) assert.equal(SKILLS[b]?.faction, f, id + ' braucht einen eigenen Skill');
+      if (sk.faehigkeit) assert.ok(FAEHIGKEITEN[sk.faehigkeit], id + ': Faehigkeit fehlt');
+    }
+  }
+});
+
+test('Skillbaum: Gesperrtes laesst sich weder ausbilden noch bauen, gelernt schon', () => {
+  const w = bare();
+  w.players[0].fron = 5000;
+  const kas = spawnBuilding(w, 0, 'kaserne', 5000, 5000, true);
+  assert.ok(gesperrt(w, 0, 'jaeger'));
+  assert.ok(!gesperrt(w, 0, 'soldat'), 'Soldaten sind von Anfang an da');
+  issue(w, { type: 'produce', player: 0, id: kas.id, unit: 'jaeger' });
+  step(w);
+  assert.equal(kas.queue.length, 0);
+  assert.equal(tryPlace(w, 0, 'banner', 7000, 5000), null, 'Banner gesperrt');
+
+  issue(w, { type: 'lernen', player: 0, skill: 'bogenbau' });
+  step(w);
+  assert.ok(!gesperrt(w, 0, 'jaeger'));
+  issue(w, { type: 'produce', player: 0, id: kas.id, unit: 'jaeger' });
+  step(w);
+  assert.equal(kas.queue.length, 1);
+});
+
+test('Skillbaum: Lernen kostet Punkte, braucht Voraussetzungen, nur einmal', () => {
+  const w = bare();
+  assert.ok(!kannLernen(w, 0, 'soeldnervertraege'), 'braucht Bogenbau');
+  assert.ok(!kannLernen(w, 0, 'waldgeister'), 'fremde Fraktion');
+  issue(w, { type: 'lernen', player: 0, skill: 'bogenbau' });
+  step(w);
+  assert.equal(skillFrei(w, 0), RULES.skillStart - SKILLS.bogenbau.kosten);
+  assert.ok(!kannLernen(w, 0, 'bogenbau'), 'nicht doppelt');
+  issue(w, { type: 'lernen', player: 0, skill: 'klingen' });
+  step(w);
+  assert.deepEqual(w.players[0].gelernt, ['bogenbau'], 'ohne Punkte nichts');
+});
+
+test('Skillbaum: Verbesserungen wirken auf Schaden, Foerderung und Unterhalt', () => {
+  // Schaden: Wolf mit Scharfen Faengen
+  const ohne = erfahrenesGefecht(false, false);
+  const w = bare('gott', 'mensch');
+  w.players[0].gelernt.push('faenge');
+  const wolf = spawnUnit(w, 0, 'wolf', 5000, 5000);
+  const soldat = spawnUnit(w, 1, 'soldat', 5200, 5000);
+  soldat.cooldown = 1e9;
+  const hp = soldat.hp;
+  step(w);
+  assert.equal(hp - soldat.hp, ((ohne * (1000 + SKILLS.faenge.wirkung.schaden)) / 1000) | 0);
+  assert.ok(wolf);
+
+  // Unterhalt: Sold und Ordnung
+  const u = bare();
+  u.players[0].gelernt.push('sold');
+  u.players[0].fron = 1000;
+  for (let i = 0; i < 4; i++) spawnUnit(u, 0, 'soldat', 3000 + i * 100, 3000);
+  for (let i = 0; i < 600; i++) step(u);
+  const voll = 4 * UNITS.soldat.unterhalt;
+  assert.equal(1000 - u.players[0].fron, ((voll * (1000 - SKILLS.sold.wirkung.unterhalt)) / 1000) | 0);
+});
+
+test('Schlachtruf: eigene Einheiten nahe dem Helden schlagen haerter, dann klingt er ab', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  spawnKommandant(w, 0);
+  const held = w.entities.find((e) => e.type === 'held');
+  w.players[0].gelernt.push('heldenmut', 'schlachtruf');
+  const nah = spawnUnit(w, 0, 'soldat', held.x + 200, held.y);
+  const fern = spawnUnit(w, 0, 'soldat', held.x + 5000, held.y);
+  issue(w, { type: 'faehigkeit', player: 0, x: 0, y: 0 });
+  step(w);
+  const f = FAEHIGKEITEN.schlachtruf;
+  assert.ok(nah.rufBis > w.tick && nah.rufWert === f.wert);
+  assert.equal(fern.rufBis, 0);
+  const bereit = w.players[0].faehigkeitBereit;
+  issue(w, { type: 'faehigkeit', player: 0, x: 0, y: 0 });
+  step(w);
+  assert.equal(w.players[0].faehigkeitBereit, bereit, 'waehrend des Abklingens wirkungslos');
+});
+
+test('Wurzelgriff: Feinde im Umkreis bleiben stehen, aber nur in Reichweite', () => {
+  const w = bare('gott', 'mensch');
+  spawnBuilding(w, 0, 'herzbaum', 3000, 3000, true);
+  spawnKommandant(w, 0);
+  const gott = w.entities.find((e) => e.type === 'waldgott');
+  w.players[0].gelernt.push('rinde', 'wurzelgriff');
+  gott.cooldown = 1e9; // schlaegt nicht zu -- hier geht es um die Bewegung
+  const ziel = { x: gott.x + 1300, y: gott.y };
+  const feind = spawnUnit(w, 1, 'soldat', ziel.x, ziel.y);
+  feind.cooldown = 1e9;
+  issue(w, { type: 'move', player: 1, ids: [feind.id], x: ziel.x + 3000, y: ziel.y });
+  issue(w, { type: 'faehigkeit', player: 0, x: ziel.x, y: ziel.y });
+  step(w);
+  const x = feind.x;
+  for (let i = 0; i < 20; i++) step(w);
+  assert.equal(feind.x, x, 'festgehalten');
+  for (let i = 0; i < FAEHIGKEITEN.wurzelgriff.dauer; i++) step(w);
+  assert.ok(feind.x > x, 'danach geht es weiter');
+
+  const w2 = bare('gott', 'mensch');
+  spawnBuilding(w2, 0, 'herzbaum', 3000, 3000, true);
+  spawnKommandant(w2, 0);
+  w2.players[0].gelernt.push('rinde', 'wurzelgriff');
+  issue(w2, { type: 'faehigkeit', player: 0, x: 15000, y: 15000 });
+  step(w2);
+  assert.equal(w2.players[0].faehigkeitBereit, 0, 'ausser Reichweite wirkungslos');
+});
+
+test('ohne Skillbaum (RULES.skills aus) ist alles frei', () => {
+  const vorher = RULES.skills;
+  RULES.skills = false;
+  try {
+    const w = bare();
+    assert.ok(!gesperrt(w, 0, 'soeldner'));
+    assert.ok(!gesperrt(w, 0, 'banner'));
+    assert.equal(skillPunkte(w, 0), 0);
+  } finally {
+    RULES.skills = vorher;
+  }
+});
+
 // ---------------------------------------------------- Abriss
 
 test('Abriss erstattet Kosten und gibt die Ader frei', () => {
@@ -537,6 +681,7 @@ test('der Schacht steht nur auf einer Götterblut-Ader', () => {
 
 test('schwere Einheiten brauchen Götterblut', () => {
   const w = bare();
+  w.players[0].gelernt.push('bogenbau', 'soeldnervertraege');
   const kas = spawnBuilding(w, 0, 'kaserne', 5000, 5000, true);
   w.players[0].fron = 5000;
   issue(w, { type: 'produce', player: 0, id: kas.id, unit: 'soeldner' });

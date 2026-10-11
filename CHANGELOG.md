@@ -3,6 +3,33 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.14 — Skillpunkte und Skillbaum
+
+- **Skillpunkte mit der Zeit:** einer zu Beginn, dann einer alle 2 Minuten
+  (`RULES.skillStart`, `skillTakt`).
+- **Skillbaum je Fraktion** (`SKILLS` in `defs.js`), vier Äste:
+  - *Einheiten:* Jäger, Söldner bzw. Waldgeist, Ent sind gesperrt, bis sie
+    gelernt sind (Söldner und Ent brauchen den ersten Skill).
+  - *Gebäude:* die beiden Schreine je Fraktion.
+  - *Verbesserungen:* +10 % Schaden, −10 % genommener Schaden, +20 %
+    Förderung, 25 % schnellere Ausbildung, −25 % Unterhalt — als Kette mit
+    Voraussetzungen.
+  - *Kommandant:* −20 % genommener Schaden, dann die aktive Fähigkeit:
+    **Schlachtruf** (Held: eigene Einheiten im Umkreis von 90 m teilen 15 s
+    lang 30 % mehr Schaden aus) bzw. **Wurzelgriff** (Waldgott: Feinde im
+    Umkreis von 60 m um einen Punkt stehen 8 s lang fest).
+- Neue Befehle `lernen` und `faehigkeit`; gesperrte Typen lassen sich
+  weder bauen noch ausbilden.
+- Oberfläche (2D und 3D): `T` öffnet den Skillbaum, ein Klick lernt; `F`
+  setzt die Fähigkeit ein (Wurzelgriff mit Zielkreis). HUD zeigt freie
+  Punkte, Zeit bis zum nächsten und die Bereitschaft der Fähigkeit.
+  Gesperrte Gebäude und Einheiten sind ausgegraut. Schreine zeigen ihren
+  Wirkungskreis, Fähigkeiten einen Ring.
+- KI lernt in fester Reihenfolge, achtet auf Sperren und setzt die Fähigkeit
+  ein, wenn ihr Kommandant im Kampf steht.
+- Messung (64 Partien): Menschen 33 : Gott 31, Sitz 0 gewinnt 31, Ø 15 min;
+  ohne Skillbaum 29 : 35.
+
 ## 0.13 — Erfahrung
 
 - Einheiten und fertige Gebäude sammeln Erfahrung: je volle Minute am

@@ -43,6 +43,8 @@ export const CONFIGS = {
   'lang + max 7000': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 7000 } },
   'malus 800': { rules: { fremdMalus: 800 } },
   'malus 650': { rules: { fremdMalus: 650 } },
+  // Skillbaum (0.14): aus = alles frei, keine Verbesserungen
+  'ohne Skills': { rules: { skills: false } },
   // Erfahrung (0.13): aus, doppelt
   'ohne Erfahrung': { rules: { erfahrungProMin: 0 } },
   'Erfahrung doppelt': { rules: { erfahrungProMin: 20, erfahrungMax: 200 } },

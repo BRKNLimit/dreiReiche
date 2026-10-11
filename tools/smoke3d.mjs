@@ -72,6 +72,7 @@ const nodes = {
   introMensch: makeEl('introMensch'),
   introGott: makeEl('introGott'),
   introSchau: makeEl('introSchau'),
+  skills: makeEl('skills'),
 };
 globalThis.document = {
   getElementById: (id) => nodes[id] ?? makeEl(id),
@@ -138,6 +139,10 @@ feuer('mousedown', { ...basis, button: 1, shiftKey: true });
 feuer('mousemove', { ...basis, clientX: 700, clientY: 360 });
 feuer('mouseup', { ...basis, button: 1 });
 feuer('keyup', { ...basis, key: 'ArrowUp' });
+// Skillbaum: oeffnen, einen Skill per Klick lernen, Faehigkeit
+feuer('keydown', { ...basis, key: 't' });
+if (nodes.skills.onclick) nodes.skills.onclick(({ target: { closest: () => ({ dataset: { skill: 'bogenbau' } }) } }));
+feuer('keydown', { ...basis, key: 'f' });
 laufe(600);
 
 if (fehler.length) {

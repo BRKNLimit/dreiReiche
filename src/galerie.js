@@ -151,7 +151,20 @@ function bild(now) {
 
 /** Icons in drei Groessen, ohne WebGL. */
 function iconsZeigen() {
-  const namen = { ...Object.fromEntries(Object.entries(UNITS).map(([k, u]) => [k, u.name])), ...Object.fromEntries(Object.entries(BUILDINGS).map(([k, b]) => [k, b.name])) };
+  const namen = {
+    ...Object.fromEntries(Object.entries(UNITS).map(([k, u]) => [k, u.name])),
+    ...Object.fromEntries(Object.entries(BUILDINGS).map(([k, b]) => [k, b.name])),
+    skillpunkte: 'Skillpunkte',
+    gegenwart: 'Gegenwart',
+    goetterblut: 'Götterblut',
+    fron: 'Fron',
+    ton: 'Ton (an)',
+    stumm: 'Stumm',
+    hilfe: 'Hilfe',
+    wiederholung: 'Wiederholung',
+    sammelpunkt: 'Sammelpunkt',
+    steuergruppe: 'Steuergruppe',
+  };
   document.getElementById('icons').innerHTML = Object.entries(ICONS)
     .map(
       ([k, svg]) => `<div class="ic"><div class="reihe">

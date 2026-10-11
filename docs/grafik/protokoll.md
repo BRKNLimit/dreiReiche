@@ -238,6 +238,19 @@ geprüft (Tests, Galerie, Spiel).
     - Alle Details laufen in reiner GPU-Arithmetik (wenige Sinus-/Kosinus-Instruktionen, keine Texturbindings), wodurch 60 FPS auch bei hunderten Einheiten gewährleistet sind.
 - **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; butterweiche Schattendarstellung).
 
+### Runde 17: Auftrag 3, Aufgabe 8 — Icons für die Bedienung (src/icons.js, src/galerie.js)
+- **Was war schwach:** Für wesentliche Spielfunktionen der Benutzeroberfläche (Audio, Stummschaltung, Hilfe, Wiederholung, Sammelpunkt, Steuergruppen) fehlten eigenständige SVG-Icons.
+- **Was wurde geändert:** In `src/icons.js` wurden sechs neue, semantisch prägnante SVG-Icons im bestehenden Grafikstil hinzugefügt:
+  - `ton`: Lautsprechermegafon in dunklem Schieferblau mit zwei goldenen, dynamisch austretenden Schallwellen (`#d8b06a`, `#f5dfa8`).
+  - `stumm`: Abgedunkelter Lautsprecher mit markanter roter Diagonalsperre (`#ef4444`) und Durchstreichung.
+  - `hilfe`: Runde Schutzmünze mit goldener Kordelleiste und leuchtendem Fragezeichen-Relief.
+  - `wiederholung`: Kreisbogenpfeil mit Pfeilspitze im Uhrzeigersinn um einen zentralen Wiedergabekern mit Abspieldreieck.
+  - `sammelpunkt`: Bannerstandarte mit silbernem Speerschaft, wehender goldener Schwalbenschwanzfahne und gestrichelter Zielkreis-Projektion am Boden.
+  - `steuergruppe`: Taktische Formation aus drei Schilden/Bannern mit Anführerstandarte im Zentrum und Formationsbasislinie.
+  - In `src/galerie.js` wurden aussagekräftige Namen für alle Bedien- und Ressourcen-Icons hinterlegt; die Galerie zeigt nun 50 vollwertige Icons in allen 3 Auflösungen (20 px, 36 px, 64 px).
+- **Wie geprüft:** `npm test` (132/132 Tests grün, SVG-Validierungsregeln eingehalten), `npm run smoke` (Galerie-Smoke-Test rendert 50 Icons fehlerfrei).
+
+
 
 
 

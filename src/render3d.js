@@ -233,26 +233,52 @@ out vec2 vWelt;
 void main() {
   vTeam = iC.rgb;
   float c = cos(iA.w), s = sin(iA.w);
-  // Schritt & Atembewegung:
-  // 1. Saum und Wurzeln schwingen dynamisch mit der Bewegung/Atmung
   vec3 a = aPos;
-  float saum = max(0.0, 0.85 - a.y);
-  a.z += iC.w * 0.45 * saum;
-  a.x += sin(iC.w * 3.14159 + a.y * 3.5) * 0.04 * saum;
-  a.y += abs(iC.w) * 0.05 * saum;
-
-  // 2. Organisches Atmen des Brustbereichs (nur Waldgott: Gewand mit team 0.04..0.08)
+  // Schritt & Gangart:
+  // 1. Waldgott: schwebender Mantel mit Wurzeln, organisches Brustkorb-Atmen
   float istWaldgott = (aCol.a > 0.03 && aCol.a < 0.08) ? 1.0 : 0.0;
-  float atmen = sin(iC.w * 3.14159265);
-  float brust = smoothstep(1.5, 2.7, a.y) * smoothstep(4.2, 2.7, a.y) * istWaldgott;
-  a.x += aNor.x * atmen * 0.025 * brust;
-  a.z += aNor.z * atmen * 0.035 * brust;
+  if (istWaldgott > 0.5) {
+    float saum = max(0.0, 0.85 - a.y);
+    a.z += iC.w * 0.22 * saum;
+    a.x += sin(iC.w * 3.14159 + a.y * 3.5) * 0.03 * saum;
+    float atmen = sin(iC.w * 3.14159265);
+    float brust = smoothstep(1.5, 2.7, a.y) * smoothstep(4.2, 2.7, a.y);
+    a.x += aNor.x * atmen * 0.025 * brust;
+    a.z += aNor.z * atmen * 0.035 * brust;
+  } else if (abs(iC.w) > 0.001) {
+    // 2. Echter Gang fuer Zweibeiner und Vierbeiner (Beine vor/zurueck, Arme gegengleich)
+    float maxHip = aPos.y > 1.0 ? 1.85 : 0.90;
+    if (aPos.y < maxHip) {
+      float beinX = smoothstep(0.03, 0.12, abs(aPos.x));
+      float beinFade = clamp((maxHip - aPos.y) / maxHip, 0.0, 1.0) * beinX;
+      float phase = 0.0;
+      if (abs(aPos.z) > 0.22 && aPos.y < 0.90) {
+        // Vierbeiner: diagonaler Kreuzgang (VL + HR gegen VR + HL)
+        float xSign = aPos.x > 0.0 ? 1.0 : -1.0;
+        float zSign = aPos.z > 0.0 ? 1.0 : -1.0;
+        phase = xSign * zSign;
+      } else {
+        // Zweibeiner: linkes und rechtes Bein gegenphasig
+        phase = aPos.x < 0.0 ? 1.0 : -1.0;
+      }
+      float stride = phase * iC.w * 0.36 * beinFade;
+      float lift = max(0.0, stride * 0.6) * beinFade * 0.16;
+      a.y += lift;
+      a.z += stride;
+    }
+    // Arme schwingen gegenphasig zu den Beinen
+    if (aPos.y >= 0.70 && aPos.y <= 1.55 && abs(aPos.x) > 0.22 && abs(aPos.z) < 0.40) {
+      float armFade = smoothstep(0.22, 0.38, abs(aPos.x)) * smoothstep(1.55, 1.25, aPos.y) * smoothstep(0.70, 0.95, aPos.y);
+      float armSign = aPos.x < 0.0 ? -1.0 : 1.0;
+      a.z += armSign * iC.w * 0.16 * armFade;
+    }
+  }
 
   // 3. Aufsteigende Glut- und Funkenpartikel schweben lebendig im magischen Auftrieb
-  if (aCol.a > 1.5 && a.y > 1.4) {
-    a.y += sin(iC.w * 3.14159 + aPos.x * 6.0 + aPos.z * 5.0) * 0.06;
-    a.x += cos(iC.w * 2.5 + aPos.y * 4.0) * 0.03;
-    a.z += sin(iC.w * 2.0 + aPos.y * 4.0) * 0.03;
+  if (aCol.a > 1.5 && a.y > 1.4 && abs(iC.w) > 0.001) {
+    a.y += sin(iC.w * 3.14159 + aPos.x * 6.0 + aPos.z * 5.0) * 0.05;
+    a.x += cos(iC.w * 2.5 + aPos.y * 4.0) * 0.025;
+    a.z += sin(iC.w * 2.0 + aPos.y * 4.0) * 0.025;
   }
 
   vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);

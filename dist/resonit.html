@@ -90,9 +90,9 @@
   .hint { color: var(--dim); font-size: 11px; margin-left: auto; }
 
   #intro {
-    position: absolute; inset: 0; display: grid; place-content: center;
+    position: absolute; inset: 0; display: grid; place-content: safe center; /* safe: lange Inhalte oben nicht abschneiden */
     background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(3px);
-    padding: 24px; overflow: auto;
+    padding: 58px 24px 24px; overflow: auto;
   }
   #intro > * { max-width: 640px; }
   #intro h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: .02em; }
@@ -123,6 +123,10 @@
   #zeitleiste .gruppe { display: inline-flex; gap: 2px; }
   #zeitleiste button { padding: 3px 7px; font-size: 12px; }
   #zeitleiste button.an { border-color: var(--accent); color: var(--accent); }
+  #intro .neuheiten { margin-top: 10px; padding: 10px 14px; border: 1px solid var(--accent); border-radius: 4px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+  #intro .neuheiten b { color: var(--accent); }
+  #intro .neuheiten ul { margin: 6px 0 8px; padding-left: 18px; }
+  #intro .neuheiten li { margin: 2px 0; }
   #intro .bilanz { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
   #intro .bilanz b { color: var(--accent); margin-right: 4px; }
   #intro .bilanz span { color: var(--dim); font-size: 12px; margin-left: 6px; }
@@ -5638,6 +5642,41 @@ function gruppenHtml(world, auswahl) {
 }
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+// ------------------------------------------------------------ Was ist neu? (einmal je Stand)
+const NEUHEITEN = {
+  version: '0.37',
+  punkte: [
+    '<b>Zwei Kampagnen</b> mit Geschichte, Zielen und Funksprüchen — „Die Rodung“ (Menschen) und „Der Zorn des Waldes“ (Gott)',
+    '<b>Online gegen einen Menschen</b> — ohne Server: zwei Codes per Chat austauschen, im Spiel Enter für Nachrichten',
+    '<b>Spielstände</b>: F5 speichert, F9 lädt, beim Schließen automatisch — oben „Fortsetzen“',
+    '<b>Pausenmenü</b> (F10 oder ☰) mit Aufgeben und Hauptmenü',
+    '<b>Musik</b>, die das Spiel selbst erzeugt, mit Trommeln im Kampf (N schaltet)',
+    '<b>Wiederholungen</b> mit Zeitleiste: springen, bis ×16, durch die Augen eines Spielers',
+    '<b>Tagesherausforderung</b> und <b>12 Erfolge</b>',
+    '<b>Zufallskarten</b> und der <b>Karteneditor</b>; Geminis High-Res-Modelle und Wasser',
+    'Bedienung: gezielter Angriff (Rechtsklick auf Feind), S = Stopp, Shift = Wegpunkte, F2 = ganzes Heer, . = untätiger Arbeiter',
+  ],
+};
+function neuheitenHtml() {
+  let gesehen = NEUHEITEN.version;
+  try {
+    gesehen = localStorage.getItem('dreiReiche.neuheiten');
+  } catch {
+    /* ohne Speicher keine Hinweise */
+  }
+  if (gesehen === NEUHEITEN.version) return '';
+  return `<div class="neuheiten"><b>✨ Neu in ${NEUHEITEN.version}</b>
+    <ul>${NEUHEITEN.punkte.map((p) => `<li>${p}</li>`).join('')}</ul>
+    <button id="neuheitenOk">Verstanden</button></div>`;
+}
+function neuheitenGesehen() {
+  try {
+    localStorage.setItem('dreiReiche.neuheiten', NEUHEITEN.version);
+  } catch {
+    /* nur fuer diese Sitzung */
+  }
+}
+
 /** Pausenmenue (F10, Knopf unten rechts); laufend: Partie kann gespeichert und aufgegeben werden. */
 function menueHtml(laufend, hatStand, speicherbar = true) {
   return `<div class="vorwort"><div class="kapitel">Pause</div><h1>Menü</h1>
@@ -10606,6 +10645,7 @@ function introHtml() {
   const pw = (b) => Math.round(BUILDINGS[b].buff.wehr / 10) + ' %';
   return `<h1>Die drei Reiche</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
+    ${neuheitenHtml()}
     ${fortsetzenHtml()}
     ${kampagneHtml()}
     ${onlineHtml()}
@@ -11039,6 +11079,13 @@ function startbildschirm() {
   document.getElementById('introGott').onclick = () => starte('gott', false);
   document.getElementById('introSchau').onclick = () => starte('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
+  const neuKnopf = document.getElementById('neuheitenOk');
+  if (neuKnopf) {
+    neuKnopf.onclick = () => {
+      neuheitenGesehen();
+      startbildschirm();
+    };
+  }
   const tagesKnopf = document.getElementById('tagesStart');
   if (tagesKnopf) tagesKnopf.onclick = tagesAnnehmen;
   const erfolgeKnopf = document.getElementById('erfolgeZeigen');

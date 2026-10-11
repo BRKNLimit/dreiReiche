@@ -1438,6 +1438,7 @@ function introHtml() {
   const pw = (b) => Math.round(BUILDINGS[b].buff.wehr / 10) + ' %';
   return `<h1>Die drei Reiche</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
+    ${neuheitenHtml()}
     ${fortsetzenHtml()}
     ${kampagneHtml()}
     ${onlineHtml()}
@@ -1871,6 +1872,13 @@ function startbildschirm() {
   document.getElementById('introGott').onclick = () => starte('gott', false);
   document.getElementById('introSchau').onclick = () => starte('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
+  const neuKnopf = document.getElementById('neuheitenOk');
+  if (neuKnopf) {
+    neuKnopf.onclick = () => {
+      neuheitenGesehen();
+      startbildschirm();
+    };
+  }
   const tagesKnopf = document.getElementById('tagesStart');
   if (tagesKnopf) tagesKnopf.onclick = tagesAnnehmen;
   const erfolgeKnopf = document.getElementById('erfolgeZeigen');

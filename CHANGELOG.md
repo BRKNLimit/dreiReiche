@@ -15,6 +15,8 @@ Tabellen in `docs/scope.md`.
   je Volk) im Startbildschirm. Alles im Browser gespeichert
   (`src/bilanz.js`), Zuschauen und Wiederholungen zählen nicht.
 - Endbildschirm: „Zufallskarte“ statt „zufall“.
+- **„✨ Neu in 0.37“** im Startbildschirm — einmal, bis man „Verstanden“
+  klickt. Der Startbildschirm schneidet lange Inhalte oben nicht mehr ab.
 
 ## 0.36 — Musik und Zeitleiste für Wiederholungen
 

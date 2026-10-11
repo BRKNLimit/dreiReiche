@@ -1367,6 +1367,7 @@ const STIL_NAMEN3 = { sturm: 'Sturm — greift früh an', standard: 'Standard', 
 function introHtml3() {
   return `<h1>Die drei Reiche — 3D</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
+    ${neuheitenHtml()}
     ${fortsetzenHtml()}
     ${kampagneHtml()}
     ${onlineHtml()}
@@ -1787,6 +1788,13 @@ function startbildschirm() {
   document.getElementById('introGott').onclick = () => starte3('gott', false);
   document.getElementById('introSchau').onclick = () => starte3('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
+  const neuKnopf = document.getElementById('neuheitenOk');
+  if (neuKnopf) {
+    neuKnopf.onclick = () => {
+      neuheitenGesehen();
+      startbildschirm();
+    };
+  }
   const tagesKnopf = document.getElementById('tagesStart');
   if (tagesKnopf) tagesKnopf.onclick = tagesAnnehmen;
   const erfolgeKnopf = document.getElementById('erfolgeZeigen');

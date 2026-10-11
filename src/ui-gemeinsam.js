@@ -383,6 +383,41 @@ export function gruppenHtml(world, auswahl) {
 }
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+// ------------------------------------------------------------ Was ist neu? (einmal je Stand)
+export const NEUHEITEN = {
+  version: '0.37',
+  punkte: [
+    '<b>Zwei Kampagnen</b> mit Geschichte, Zielen und Funksprüchen — „Die Rodung“ (Menschen) und „Der Zorn des Waldes“ (Gott)',
+    '<b>Online gegen einen Menschen</b> — ohne Server: zwei Codes per Chat austauschen, im Spiel Enter für Nachrichten',
+    '<b>Spielstände</b>: F5 speichert, F9 lädt, beim Schließen automatisch — oben „Fortsetzen“',
+    '<b>Pausenmenü</b> (F10 oder ☰) mit Aufgeben und Hauptmenü',
+    '<b>Musik</b>, die das Spiel selbst erzeugt, mit Trommeln im Kampf (N schaltet)',
+    '<b>Wiederholungen</b> mit Zeitleiste: springen, bis ×16, durch die Augen eines Spielers',
+    '<b>Tagesherausforderung</b> und <b>12 Erfolge</b>',
+    '<b>Zufallskarten</b> und der <b>Karteneditor</b>; Geminis High-Res-Modelle und Wasser',
+    'Bedienung: gezielter Angriff (Rechtsklick auf Feind), S = Stopp, Shift = Wegpunkte, F2 = ganzes Heer, . = untätiger Arbeiter',
+  ],
+};
+export function neuheitenHtml() {
+  let gesehen = NEUHEITEN.version;
+  try {
+    gesehen = localStorage.getItem('dreiReiche.neuheiten');
+  } catch {
+    /* ohne Speicher keine Hinweise */
+  }
+  if (gesehen === NEUHEITEN.version) return '';
+  return `<div class="neuheiten"><b>✨ Neu in ${NEUHEITEN.version}</b>
+    <ul>${NEUHEITEN.punkte.map((p) => `<li>${p}</li>`).join('')}</ul>
+    <button id="neuheitenOk">Verstanden</button></div>`;
+}
+export function neuheitenGesehen() {
+  try {
+    localStorage.setItem('dreiReiche.neuheiten', NEUHEITEN.version);
+  } catch {
+    /* nur fuer diese Sitzung */
+  }
+}
+
 /** Pausenmenue (F10, Knopf unten rechts); laufend: Partie kann gespeichert und aufgegeben werden. */
 export function menueHtml(laufend, hatStand, speicherbar = true) {
   return `<div class="vorwort"><div class="kapitel">Pause</div><h1>Menü</h1>

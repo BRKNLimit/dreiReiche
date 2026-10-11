@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.28
+# Die drei Reiche — Prototyp 0.29
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -75,7 +75,7 @@ Gegenwart-Überschuss, Götterblut, Fron.
 | Schrein des Zorns | Kriegsbanner | Dornenschrein |
 | Schrein der Wehr | Kapelle | Steinkreis |
 | Forschung (Skillpunkte) | Skriptorium | Raunende Eiche |
-| Aufklärung | Spähposten (Gebäude, sieht 200 m) | Rabe (Einheit aus dem Herzbaum) |
+| Aufklärung | Spähposten (Gebäude, sieht 200 m) | Rabe (Einheit aus dem Herzbaum, sieht 100 m) |
 
 | Kampf | Menschen | Gott |
 | --- | --- | --- |

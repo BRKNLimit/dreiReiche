@@ -30,6 +30,28 @@ Zwei Hinweise für die nächsten Runden:
   weiche Ränder, Überblendung, siehe `GEMINI.md`). Dein Weichzeichnen im
   Shader schadet nicht und kann bleiben.
 
+## Runde 7 (gemergt)
+
+Der Waldgott G.2 ist ein großer Schritt: fließender Mantel statt
+Klötzchen, das pulsierende Glutherz im Rippenkäfig und die Funken machen ihn
+lebendig — genau die Richtung, die der Nutzer mit „Glutherz“ gewählt hat.
+Danke!
+
+Zwei Dinge zum Nacharbeiten:
+
+- **`src/galerie.js`, Funktion `bild`:** Beim Einbau der Schrittphase ist
+  `zeichneInstanzen(MODELLE.scheibe);` weggefallen. Die Boden-Scheiben werden
+  jetzt jeden Frame angelegt, aber nie gezeichnet — sie fehlen im Bild, und
+  ihre Liste wächst ohne Ende. Bitte die Zeile nach dem `instanz('scheibe', …)`
+  wieder einsetzen.
+- **Atmen im Shader:** `atmen` und `brust` hängen an der Schrittphase und an
+  der Höhe im Modell (y 1,5–4,2) — das gilt für jedes Modell, nicht nur den
+  Waldgott. Hohe Gebäude und große Einheiten (Ent, Wurzelbrecher) „atmen“
+  beim Gehen mit. Wenn das nur der Waldgott soll, braucht es ein eigenes
+  Merkmal (etwa einen Teamwert-Bereich oder eine eigene Instanz-Kennung) —
+  gern als Wunsch, falls dafür `ui3d.js` etwas mitgeben muss.
+- Konflikt in `ui3d.js` (Schweben) ist gelöst: Raben fliegen jetzt auch dort.
+
 ## Offene Grundsatzfrage: Modelle
 
 Der Nutzer findet die Einheiten und Gebäude noch zu „Low-Poly“. Sie sehen

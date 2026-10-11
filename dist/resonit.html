@@ -783,8 +783,8 @@ const UNITS = {
   // und Tuerme holen ihn mit einem Schuss herunter. Werte sind Designzahlen.
   rabe: {
     name: 'Rabe',
-    sicht: 1500, // Sichtweite (Nebel des Krieges)
-    desc: 'Späher: fliegt schnell über Fels, Wasser und Mauern und sieht weit. Ein Schuss holt ihn herunter. Kämpft nicht.',
+    sicht: 1000, // Sichtweite (Nebel des Krieges): 100 m, vom Nutzer gesenkt (0.28: 150 m)
+    desc: 'Späher: fliegt schnell über Fels, Wasser und Mauern. Ein Schuss holt ihn herunter. Kämpft nicht.',
     faction: 'gott',
     hp: 8,
     radius: 12,
@@ -4864,7 +4864,7 @@ function einheitKarte(world, player, typ) {
   z.push(['Leben', d.hp + ' LP']);
   if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
-  if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
+  if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
   if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; nur Fernkampf trifft']);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));

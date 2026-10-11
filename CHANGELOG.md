@@ -3,6 +3,14 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.29 — Rabe sieht weniger, Waldgott G.2
+
+- Rabe sieht 100 statt 150 m (Vorgabe des Nutzers). Messung: Menschen 22 :
+  Gott 38, 12 von 72 offen — fast wie mit voller Sicht (25 : 38).
+- **Waldgott „G.2 Glutherz“** von Gemini, die gewählte Variante: fließender
+  Mantel, Glutherz im Rippenkäfig, Klauenhände, Geweih mit glühenden
+  Spitzen; atmet, der Saum schwingt, Funken steigen auf.
+
 ## 0.28 — Spähposten und Rabe
 
 - **Spähposten** (Menschen, Taste `0`): Hochsitz, sieht 200 m (ein Zehntel

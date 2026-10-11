@@ -537,8 +537,8 @@ export const UNITS = {
   // und Tuerme holen ihn mit einem Schuss herunter. Werte sind Designzahlen.
   rabe: {
     name: 'Rabe',
-    sicht: 1500, // Sichtweite (Nebel des Krieges)
-    desc: 'Späher: fliegt schnell über Fels, Wasser und Mauern und sieht weit. Ein Schuss holt ihn herunter. Kämpft nicht.',
+    sicht: 1000, // Sichtweite (Nebel des Krieges): 100 m, vom Nutzer gesenkt (0.28: 150 m)
+    desc: 'Späher: fliegt schnell über Fels, Wasser und Mauern. Ein Schuss holt ihn herunter. Kämpft nicht.',
     faction: 'gott',
     hp: 8,
     radius: 12,

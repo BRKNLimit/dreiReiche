@@ -233,10 +233,27 @@ out vec2 vWelt;
 void main() {
   vTeam = iC.rgb;
   float c = cos(iA.w), s = sin(iA.w);
-  // Schritt: Schwung nach vorne und subtiles Wippen bei Gehbewegung
+  // Schritt & Atembewegung:
+  // 1. Saum und Wurzeln schwingen dynamisch mit der Bewegung/Atmung
   vec3 a = aPos;
-  a.z += iC.w * 0.45 * max(0.0, 0.65 - a.y);
-  a.y += abs(iC.w) * 0.05 * max(0.0, 1.0 - a.y);
+  float saum = max(0.0, 0.85 - a.y);
+  a.z += iC.w * 0.45 * saum;
+  a.x += sin(iC.w * 3.14159 + a.y * 3.5) * 0.04 * saum;
+  a.y += abs(iC.w) * 0.05 * saum;
+
+  // 2. Organisches Atmen des Brustbereichs (Heben und Weiten von Gewand & Brustkorb)
+  float atmen = sin(iC.w * 3.14159265);
+  float brust = smoothstep(1.5, 2.7, a.y) * smoothstep(4.2, 2.7, a.y);
+  a.x += aNor.x * atmen * 0.025 * brust;
+  a.z += aNor.z * atmen * 0.035 * brust;
+
+  // 3. Aufsteigende Glut- und Funkenpartikel schweben lebendig im magischen Auftrieb
+  if (aCol.a > 1.5 && a.y > 1.4) {
+    a.y += sin(iC.w * 3.14159 + aPos.x * 6.0 + aPos.z * 5.0) * 0.06;
+    a.x += cos(iC.w * 2.5 + aPos.y * 4.0) * 0.03;
+    a.z += sin(iC.w * 2.0 + aPos.y * 4.0) * 0.03;
+  }
+
   vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
   vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
   vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
@@ -246,8 +263,9 @@ void main() {
   vec3 col = mix(aCol.rgb, iC.rgb, team) * iB.z;
 
   if (aCol.a > 1.5) {
-    // Magisch gluehende Elemente (Augen, Kristalle, Glut) strahlen intensiv
-    vCol = vec4(col * 1.55, iB.w);
+    // Magisch gluehende Elemente (Augen, Kristalle, Glutherz) pulsieren im Atemrhythmus
+    float puls = 1.0 + 0.22 * sin(iC.w * 3.14159265);
+    vCol = vec4(col * 1.55 * puls, iB.w);
   } else {
     // Hemi-Umgebungslicht (kühler Himmel oben, warmer Erdboden unten)
     vec3 ambient = mix(vec3(0.32, 0.30, 0.25), vec3(0.48, 0.52, 0.56), n.y * 0.5 + 0.5);

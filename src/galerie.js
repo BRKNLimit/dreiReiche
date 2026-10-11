@@ -122,8 +122,8 @@ function bild(now) {
     gl.uniformMatrix4fv(gl.getUniformLocation(PROG, 'uVP'), false, vp);
     // Boden-Scheibe als Standflaeche
     instanz('scheibe', 0, 0, 0, 0, m.breite * 1.3, [0.2, 0.25, 0.16], 1, 1, 1);
-    zeichneInstanzen(MODELLE.scheibe);
-    instanz(e.key, 0, 0, 0, drehung, 1, e.team);
+    const schritt = Math.sin(now * 0.003);
+    instanz(e.key, 0, 0, 0, drehung, 1, e.team, 1, 1, 1, schritt);
     zeichneInstanzen(MODELLE[e.key]);
   });
   gl.disable(gl.SCISSOR_TEST);

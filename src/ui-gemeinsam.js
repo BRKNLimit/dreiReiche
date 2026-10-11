@@ -334,7 +334,7 @@ export function einheitKarte(world, player, typ) {
   z.push(['Leben', d.hp + ' LP']);
   if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
-  if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
+  if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
   if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; nur Fernkampf trifft']);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));

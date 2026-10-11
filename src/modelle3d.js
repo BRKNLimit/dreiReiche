@@ -797,6 +797,221 @@ function waldgottGlutherz() {
 }
 
 /**
+ * G.2 -- Glutherz (High-Res): Vollwertiges 3D-Asset fuer das Spiel.
+ * Organischer Faltenwurf ohne polygonale Kloetzchen, fliessende Drapierung
+ * mit Reverskanten, tiefgreifende Wurzeln im Boden, ein hochdetaillierter
+ * pulsierender Magmakern in einem schuetzenden Obsidian-Brustkorb,
+ * artikulierte goldene Klauenhaende und ein 4-fach verzweigtes Hirschgeweih
+ * mit glimmenden Spitzen. Vollstaendig mit weichen Zylindern/Kegeln modelliert
+ * (unter 6000 Ecken).
+ */
+function waldgottGlutherz2() {
+  const M_AUSSEN = '#100c0a';
+  const M_MITTEL = '#16110d';
+  const M_FALTE = '#1e1610';
+  const OBSIDIAN = '#070505';
+  const GLUT_KERN = '#fff8e7';
+  const GLUT_HELL = '#ff9800';
+  const GLUT_FEUER = '#e64a19';
+  const GLUT_DUNKEL = '#bf360c';
+  const GOLD_ARM = '#d98b2b';
+  const GOLD_KLAUE = '#ffd54f';
+  const GOLD_SPITZE = '#fff3c4';
+  const GEWEIH_HOLZ = '#211812';
+  const GEWEIH_GLUT = '#ffa726';
+  const AUGE_AUSSEN = '#ffb300';
+  const AUGE_KERN = '#ffffff';
+
+  const t = [];
+
+  // 1. Mantel-Volumen: 3 glatte Kegelsegmente (12 Segmente fuer weiche Rundungen)
+  t.push(
+    ['z', [0.46, 0.64, 1.1, 12], [0, 3.25, -0.05], M_AUSSEN, 0.05],
+    ['z', [0.64, 0.88, 1.3, 12], [0, 2.1, -0.06], M_MITTEL, 0.05],
+    ['z', [0.88, 1.14, 1.1, 12], [0, 0.95, -0.07], M_AUSSEN, 0.05]
+  );
+
+  // Drapierte Kaskadenfalten entlang des Mantels
+  const anzahlFalten = 6;
+  for (let i = 0; i < anzahlFalten; i++) {
+    const phi = 0.68 + (i / (anzahlFalten - 1)) * (Math.PI * 2 - 1.36);
+    const cosP = Math.cos(phi);
+    const sinP = Math.sin(phi);
+    const pO = [cosP * 0.52, 3.4, sinP * 0.52 - 0.05];
+    const pM = [cosP * 0.74, 2.1, sinP * 0.74 - 0.06];
+    const pU = [cosP * 1.02, 0.7, sinP * 1.02 - 0.07];
+    t.push(stab(pO, pM, 0.07, M_FALTE, 0.06, 3, 0.9));
+    t.push(stab(pM, pU, 0.065, M_FALTE, 0.06, 3, 1.15));
+  }
+  // Gewoelbte Reverskanten links und rechts der Brustöffnung
+  for (const seite of [1, -1]) {
+    const kO = [seite * 0.38, 3.65, 0.22];
+    const kM = [seite * 0.44, 2.5, 0.48];
+    const kU = [seite * 0.56, 1.35, 0.72];
+    const kEnd = [seite * 0.75, 0.4, 0.88];
+    t.push(stab(kO, kM, 0.08, M_FALTE, 0.06, 3, 1.1));
+    t.push(stab(kM, kU, 0.09, M_FALTE, 0.06, 3, 1.1));
+    t.push(stab(kU, kEnd, 0.085, M_FALTE, 0.06, 3, 0.9));
+  }
+
+  // Kraeftige Wurzeln am Saum, die organisch in den Boden greifen
+  const anzahlWurzeln = 5;
+  for (let i = 0; i < anzahlWurzeln; i++) {
+    const phi = (i / anzahlWurzeln) * Math.PI * 2 + zufall(i, 11) * 0.35;
+    const cosP = Math.cos(phi);
+    const sinP = Math.sin(phi);
+    const rStart = 1.08;
+    const p0 = [cosP * rStart, 0.45, sinP * rStart - 0.05];
+    const p1 = [cosP * (rStart + 0.28) + sinP * 0.08, 0.18, sinP * (rStart + 0.28) - 0.05];
+    const p2 = [cosP * (rStart + 0.58), 0.02, sinP * (rStart + 0.58) - 0.05];
+    t.push(stab(p0, p1, 0.075, '#18120e', 0.04, 3, 0.75));
+    t.push(stab(p1, p2, 0.056, '#18120e', 0.04, 3, 0.2));
+  }
+  // Glimmende Saumfetzen
+  for (let i = 0; i < 6; i++) {
+    const phi = (i / 6) * Math.PI * 2 + 0.3;
+    const cosP = Math.cos(phi);
+    const sinP = Math.sin(phi);
+    const p0 = [cosP * 1.08, 0.55, sinP * 1.08 - 0.06];
+    const l = 0.42 + zufall(i, 20) * 0.25;
+    const p1 = [cosP * (1.12 + l * 0.15), 0.55 - l, sinP * (1.12 + l * 0.15) - 0.06];
+    t.push(stab(p0, p1, 0.05, i % 2 ? M_AUSSEN : M_MITTEL, 0.05, 3, 0.1));
+    if (i % 2 === 0) {
+      t.push(['q', [0.05, 0.05, 0.05], p1, GLUT_HELL, GLUEHT]);
+    }
+  }
+
+  // 2. Das Glutherz: Aufsteigende Lavasäule, Kern und Obsidian-Brustkorb
+  t.push(
+    ['z', [0.18, 0.34, 1.7, 6], [0, 1.45, 0.1], GLUT_DUNKEL, GLUEHT],
+    ['z', [0.12, 0.22, 1.4, 5], [0, 1.6, 0.16], GLUT_FEUER, GLUEHT],
+    ['k', [0.24, 6], [0, 2.65, 0.18], GLUT_KERN, GLUEHT],
+    ['k', [0.34, 6], [0, 2.65, 0.18], GLUT_HELL, GLUEHT],
+    ['k', [0.42, 6], [0, 2.65, 0.18], GLUT_FEUER, GLUEHT]
+  );
+  // Gebogene Rippenbögen um den glühenden Kern
+  const rippenHoehen = [2.95, 2.6, 2.25];
+  for (let r = 0; r < rippenHoehen.length; r++) {
+    const yR = rippenHoehen[r];
+    const weite = 0.38 + (r === 1 ? 0.05 : 0);
+    for (const s of [1, -1]) {
+      const pBack = [s * 0.24, yR, -0.05];
+      const pMid = [s * weite, yR - 0.04, 0.28];
+      const pFront = [s * 0.12, yR - 0.08, 0.48];
+      t.push(stab(pBack, pMid, 0.048, OBSIDIAN, 0.02, 3, 0.9));
+      t.push(stab(pMid, pFront, 0.042, OBSIDIAN, 0.02, 3, 0.6));
+    }
+  }
+  // Aufsteigende Glut- und Funkenpartikel
+  for (let i = 0; i < 9; i++) {
+    const w = zufall(i, 40) * Math.PI * 2;
+    const dist = 0.2 + zufall(i, 41) * 0.65;
+    const yH = 1.6 + zufall(i, 42) * 3.2;
+    const col = i % 3 === 0 ? GLUT_KERN : (i % 2 === 0 ? GLUT_HELL : GLUT_FEUER);
+    t.push(['q', [0.048, 0.048, 0.048], [Math.cos(w) * dist, yH, Math.sin(w) * dist + 0.25], col, GLUEHT, [0.4, w, 0.4]]);
+  }
+
+  // 3. Weite Glockenärmel und artikulierte goldene Klauen
+  for (const s of [1, -1]) {
+    t.push(['k', [0.28, 5], [s * 0.68, 3.55, 0.02], M_AUSSEN, 0.05]);
+    t.push(stab([s * 0.68, 3.55, 0.02], [s * 0.92, 2.3, 0.12], 0.21, M_MITTEL, 0.05, 4, 1.45));
+    t.push(stab([s * 0.92, 2.3, 0.12], [s * 0.96, 1.4, 0.16], 0.26, M_AUSSEN, 0.05, 4, 0.7));
+  }
+  const armRechts = {
+    ell: [0.85, 2.45, 0.32],
+    wrist: [0.22, 2.22, 0.78],
+    dirF: [-0.62, -0.65, 0.44],
+    dirS: [0.55, -0.7, 0],
+    dirB: [0.2, 0.3, 0.9]
+  };
+  const armLinks = {
+    ell: [-0.85, 2.15, 0.32],
+    wrist: [-0.18, 1.88, 0.82],
+    dirF: [0.62, -0.65, 0.44],
+    dirS: [-0.55, -0.7, 0],
+    dirB: [0.2, 0.3, 0.9]
+  };
+  for (const arm of [armRechts, armLinks]) {
+    t.push(stab(arm.ell, arm.wrist, 0.072, GOLD_ARM, GLUEHT, 4, 0.85));
+    t.push(['z', [0.082, 0.082, 0.06, 4], arm.wrist, GOLD_KLAUE, GLUEHT]);
+    const handMitte = vPlus(arm.wrist, vEinheit(arm.dirF), 0.14);
+    t.push(stab(arm.wrist, handMitte, [0.18, 0.06], GOLD_ARM, GLUEHT));
+    const uF = vEinheit(arm.dirF);
+    const uS = vEinheit(arm.dirS);
+    const uB = vEinheit(arm.dirB);
+    for (let f = 0; f < 4; f++) {
+      const q = f - 1.5;
+      const basis = vPlus(handMitte, uS, q * 0.05);
+      const l = 0.58 * (1 - Math.abs(q) * 0.1);
+      const gelenk = vPlus(vPlus(basis, uF, l * 0.52), uS, q * 0.025);
+      const spitze = vPlus(vPlus(gelenk, uF, l * 0.48), uB, 0.22);
+      t.push(stab(basis, gelenk, 0.038, GOLD_KLAUE, GLUEHT, 3, 0.8));
+      t.push(stab(gelenk, spitze, 0.030, GOLD_SPITZE, GLUEHT, 3, 0.12));
+    }
+    const dBasis = vPlus(handMitte, uS, -0.11);
+    const dGelenk = vPlus(vPlus(dBasis, uF, 0.12), uS, -0.09);
+    const dSpitze = vPlus(vPlus(dGelenk, uF, 0.18), uB, 0.12);
+    t.push(stab(dBasis, dGelenk, 0.036, GOLD_KLAUE, GLUEHT, 3, 0.8));
+    t.push(stab(dGelenk, dSpitze, 0.028, GOLD_SPITZE, GLUEHT, 3, 0.15));
+  }
+
+  // 4. Gefluegelter Kragen, Kapuzenschleier und gluehende Augen
+  for (const s of [1, -1]) {
+    const c0 = [s * 0.34, 3.8, 0.0];
+    const c1 = [s * 0.42, 4.4, -0.12];
+    const c2 = [s * 0.38, 4.88, -0.22];
+    t.push(stab(c0, c1, [0.38, 0.06], M_AUSSEN, 0.05));
+    t.push(stab(c1, c2, [0.26, 0.05], M_FALTE, 0.05));
+  }
+  t.push(
+    ['q', [0.55, 0.85, 0.08], [0, 4.3, -0.32], M_AUSSEN, 0.05, [-0.18, 0, 0]],
+    ['q', [0.42, 0.55, 0.07], [0, 4.85, -0.42], M_FALTE, 0.05, [-0.25, 0, 0]],
+    ['k', [0.32, 6], [0, 4.34, 0.04], OBSIDIAN, 0.02],
+    ['z', [0.30, 0.18, 0.35, 5], [0, 4.45, 0.12], OBSIDIAN, 0.02, [0.45, 0, 0]],
+    ['k', [0.22, 6], [0, 4.22, 0.1], '#040303'],
+    ['z', [0.15, 0.05, 0.28, 5], [0, 4.02, 0.14], '#040303']
+  );
+  for (const s of [1, -1]) {
+    const eyePos = [s * 0.09, 4.24, 0.29];
+    t.push(['k', [0.052, 4], eyePos, AUGE_AUSSEN, GLUEHT]);
+    t.push(['k', [0.028, 4], [eyePos[0], eyePos[1], eyePos[2] + 0.02], AUGE_KERN, GLUEHT]);
+    t.push(stab(eyePos, [eyePos[0] * 0.9, eyePos[1] - 0.16, eyePos[2] - 0.01], 0.018, GLUT_HELL, GLUEHT, 3, 0.1));
+  }
+
+  // 5. Majestaetisches Hirschgeweih mit glimmenden Spitzen
+  function baueAst(basis, seite) {
+    const bT = [];
+    const p0 = basis;
+    const p1 = [basis[0] + seite * 0.18, basis[1] + 0.35, basis[2] - 0.08];
+    bT.push(stab(p0, p1, 0.062, GEWEIH_HOLZ, 0, 3, 0.85));
+    const pAug = [p1[0] + seite * 0.08, p1[1] + 0.16, p1[2] + 0.26];
+    bT.push(stab(p1, pAug, 0.042, GEWEIH_HOLZ, 0, 3, 0.2));
+    bT.push(['q', [0.048, 0.048, 0.048], pAug, GEWEIH_GLUT, GLUEHT, [0.5, 0.5, 0]]);
+    const p2 = [p1[0] + seite * 0.26, p1[1] + 0.38, p1[2] - 0.1];
+    bT.push(stab(p1, p2, 0.052, GEWEIH_HOLZ, 0, 3, 0.85));
+    const pEis = [p2[0] + seite * 0.32, p2[1] + 0.24, p2[2] + 0.05];
+    bT.push(stab(p2, pEis, 0.038, GEWEIH_HOLZ, 0, 3, 0.2));
+    bT.push(['q', [0.045, 0.045, 0.045], pEis, GEWEIH_GLUT, GLUEHT, [0.5, 0.5, 0]]);
+    const pKroneBasis = [p2[0] + seite * 0.16, p2[1] + 0.42, p2[2] - 0.05];
+    bT.push(stab(p2, pKroneBasis, 0.044, GEWEIH_HOLZ, 0, 3, 0.85));
+    const spitzen = [
+      [pKroneBasis[0] + seite * 0.05, pKroneBasis[1] + 0.32, pKroneBasis[2] + 0.1],
+      [pKroneBasis[0] + seite * 0.22, pKroneBasis[1] + 0.38, pKroneBasis[2] - 0.05],
+      [pKroneBasis[0] - seite * 0.12, pKroneBasis[1] + 0.28, pKroneBasis[2] - 0.15]
+    ];
+    for (const sp of spitzen) {
+      bT.push(stab(pKroneBasis, sp, 0.034, GEWEIH_HOLZ, 0, 3, 0.15));
+      bT.push(['q', [0.042, 0.042, 0.042], sp, GEWEIH_GLUT, GLUEHT, [0.5, 0.5, 0]]);
+    }
+    return bT;
+  }
+  t.push(...baueAst([0.13, 4.45, 0.02], 1));
+  t.push(...baueAst([-0.13, 4.45, 0.02], -1));
+
+  return t;
+}
+
+/**
  * Varianten des Waldgotts fuer die Stil-Auswahl in dist/galerie.html. Der
  * Nutzer sucht die beste aus; sie wird dann MODELLE_DEF.waldgott. Vorlage:
  * docs/bilder/vorlagen/waldgott-vorlage.png (nur lokal).
@@ -809,4 +1024,9 @@ export const WALDGOTT_VARIANTEN = {
   'E — Rinde und Moos': waldgottRinde(),
   'F — Verspielt, große Formen': waldgottVerspielt(),
   'G — Glutherz': waldgottGlutherz(),
+  'G.2 — Glutherz (High-Res)': waldgottGlutherz2(),
 };
+
+// Das vom Nutzer gewaehlte finale Spiel-Asset: G.2 Glutherz (High-Res)
+MODELLE_DEF.waldgott = WALDGOTT_VARIANTEN['G.2 — Glutherz (High-Res)'];
+

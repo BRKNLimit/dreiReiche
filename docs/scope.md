@@ -634,7 +634,7 @@ der Gegner schwach ist, rennt seltener entscheidend an.
 > man den nächsten.
 
 *Werte sind Designzahlen:* Spähposten 90 Fron, 500 LP, Sicht 200 m, ohne
-Gegenwart, auch außerhalb der Domäne. Rabe 35 Fron, 8 LP, Sicht 150 m,
+Gegenwart, auch außerhalb der Domäne. Rabe 35 Fron, 8 LP, Sicht 100 m (zuerst 150 m),
 Tempo 52 (Wolf 34), Unterhalt 2. Fliegen ist ein Datenfeld (`fliegt`):
 geradeaus über alles hinweg, kein Gedränge, nur Fernkämpfer und Türme
 treffen.
@@ -650,7 +650,8 @@ ab Minute 4 einen Posten an den Rand ihrer Domäne, Richtung Gegner.
 | Raben + Posten an den gegnerischen Adern | 9 : 53 | 10 |
 | — ohne Raben | 17 : 37 | 18 |
 | — ohne Posten | 17 : 48 | 7 |
-| **Raben + ein Posten am Domänenrand** | **12 : 46** | 14 |
+| Raben + ein Posten am Domänenrand | 12 : 46 | 14 |
+| **dazu Rabe sieht 100 statt 150 m (Vorgabe des Nutzers)** | **22 : 38** | 12 |
 
 Die Raben geben der Gott-KI das Wissen, wo die Förderung der Menschen steht
 — dorthin gehen ihre Wellen. Vorgeschobene Posten kosteten die

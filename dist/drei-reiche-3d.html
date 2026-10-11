@@ -27,7 +27,7 @@
   #cv3d { cursor: crosshair; }
 
   #hud {
-    position: absolute; top: 12px; left: 12px; width: 250px;
+    position: absolute; top: 56px; left: 12px; width: 250px;
     background: color-mix(in srgb, var(--panel) 90%, transparent);
     border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px;
   }
@@ -77,6 +77,17 @@
   #intro .go { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   #intro .go button { padding: 8px 14px; font-size: 13px; }
   #nogl { position: absolute; inset: 0; display: none; place-content: center; text-align: center; padding: 24px; }
+  /* Ressourcenleiste nach dem Entwurf des Nutzers */
+  #ressourcen {
+    position: absolute; top: 0; left: 0; z-index: 12; height: 46px;
+    display: flex; align-items: center; gap: 26px; padding: 0 34px 0 16px;
+    background: #021722; color: #fff; border-radius: 0 0 46px 0;
+    font: 500 22px/1 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  #ressourcen .ri { display: flex; align-items: center; gap: 9px; min-width: 64px; }
+  #ressourcen svg { width: 24px; height: 24px; flex: none; }
+  #ressourcen .knapp { color: #ff8a6a; }
   /* Info-Karten */
   #karte {
     position: absolute; left: 12px; bottom: 58px; z-index: 15; width: min(340px, calc(100% - 24px));
@@ -123,6 +134,7 @@
 <body>
 <canvas id="cv3d"></canvas>
 <canvas id="overlay"></canvas>
+<div id="ressourcen"></div>
 <div id="hud"></div>
 <canvas id="mini" width="340" height="340"></canvas>
 <div id="bar">
@@ -131,7 +143,7 @@
   <a class="btn" href="resonit.html" title="Dieselbe Simulation als Draufsicht">2D-Ansicht</a>
   <span class="hint">
     Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Pfeiltasten / mittlere Taste schieben ·
-    Mausrad zoomt · <b>,</b> <b>.</b> drehen · <b>1</b>–<b>9</b> bauen · <b>Q</b>–<b>R</b> Einheiten ·
+    Mausrad zoomt · <b>1</b>–<b>9</b> bauen · <b>Q</b>–<b>R</b> Einheiten ·
     <b>K</b> Kommandant · <b>T</b> Skillbaum · <b>F</b> Fähigkeit · Leertaste Pause · +/− Tempo
   </span>
 </div>
@@ -659,7 +671,7 @@ const UNITS = {
     desc: 'Uralt, gewaltig und langsam, genährt von Götterblut.',
     faction: 'gott',
     hp: 2100,
-    radius: 44,
+    radius: 66, // maechtig gross
     speed: 16,
     cost: { fron: 300, goetterblut: 20 },
     unterhalt: 56, // Fron pro Minute, solange sie lebt
@@ -2852,6 +2864,35 @@ const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
 
+// ------------------------------------------------------------ Ressourcenleiste
+// Nach dem Entwurf des Nutzers: dunkle Leiste oben links, rechts rund
+// auslaufend; Gluehbirne = Gegenwart (Energie), Tropfen = Goetterblut,
+// gruene Kristalle = Fron (Masse).
+const ICON_GEGENWART = `<svg viewBox="0 0 24 24" fill="none" stroke="#f7b55a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.8v2M4.6 4.8l1.3 1.3M19.4 4.8l-1.3 1.3M2.2 11h2M19.8 11h2"/><path d="M8.3 16.2a6.2 6.2 0 1 1 7.4 0c-.8.6-1.1 1.3-1.1 2.1v.7H9.4v-.7c0-.8-.3-1.5-1.1-2.1z"/><path d="M9.4 19.6h5.2"/><path d="M9.9 21.6h4.2"/></svg>`;
+const ICON_BLUT = `<svg viewBox="0 0 24 24"><path d="M12 2.2 6 12.6a6.9 6.9 0 1 0 12 0z" fill="#ff3434"/></svg>`;
+const ICON_FRON = `<svg viewBox="0 0 24 24"><path d="M2.5 6.4 6.6 4.3l3.2 2.1-.9 5.2-4.7 1.9z" fill="#c9ffe0"/><path d="M9.8 5.1 14.6 2.2l5 1.9 1.1 5.9-4.6 3.8-5.4-2.1z" fill="#e6fff0"/><path d="M14.6 2.2l5 1.9-3.4 3.3z" fill="#7dffae"/><path d="M3.4 13.8 9.6 11.4l5.3 2.1-2.2 6.3H6z" fill="#1fd35a"/><path d="M9.6 11.4l5.3 2.1-4.1 1.6z" fill="#9dffc2"/><path d="M14.9 13.6l6-3.2 1.1 6.4-4.2 3.3h-4.1z" fill="#0fae3e"/><path d="M3.4 13.8 6 19.8H3z" fill="#078a2c"/></svg>`;
+
+/** Ressourcenleiste: Gegenwart-Ueberschuss aller Netze, Goetterblut, Fron. */
+function ressourcenHtml(world, player) {
+  const p = world.players[player];
+  let angebot = 0;
+  let bedarf = 0;
+  for (const r of gridReport(world, player)) {
+    angebot += r.supply;
+    bedarf += r.demand;
+  }
+  const frei = angebot - bedarf;
+  const plus = foerderungProMin(world, player);
+  const minus = unterhaltProMin(world, player);
+  const eintrag = (icon, wert, titel, klasse = '') =>
+    `<div class="ri" title="${titel}">${icon}<span class="${klasse}">${wert}</span></div>`;
+  return (
+    eintrag(ICON_GEGENWART, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
+    eintrag(ICON_BLUT, p.goetterblut, 'Götterblut') +
+    eintrag(ICON_FRON, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
+  );
+}
+
 // ------------------------------------------------------------ Info-Karten
 
 /** Kosten als Text: "120 Fron" oder "130 Fron + 10 Götterblut". */
@@ -3664,7 +3705,9 @@ uniform mat4 uVP;
 uniform vec3 uLicht;
 out vec4 vCol;
 out float vTiefe;
+out vec3 vTeam;
 void main() {
+  vTeam = iC.rgb;
   float c = cos(iA.w), s = sin(iA.w);
   // Schritt: der untere Teil des Modells schwingt vor und zurueck -- Beine,
   // Rocksaum, Laeufe. Ohne Skelett, nur nach Hoehe im Modell.
@@ -3687,9 +3730,15 @@ const FS = `#version 300 es
 precision mediump float;
 in vec4 vCol;
 in float vTiefe;
+in vec3 vTeam;
 uniform vec3 uNebel;
+uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
 out vec4 o;
 void main() {
+  if (uRoentgen > 0.5) {
+    o = vec4(mix(vTeam, vec3(1.0), 0.3), 0.5);
+    return;
+  }
   float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
   o = vec4(mix(vCol.rgb, uNebel, f), vCol.a);
 }`;
@@ -3842,14 +3891,14 @@ function instanz(key, x, y, z, rot, scale, team, yScale = 1, hell = 1, alpha = 1
   m.inst.push(x, y, z, rot, scale, yScale, hell, alpha, team[0], team[1], team[2], schritt);
 }
 
-function zeichneInstanzen(m) {
+function zeichneInstanzen(m, behalten = false) {
   const n = m.inst.length / 12;
   if (!n) return;
   gl.bindVertexArray(m.vao);
   gl.bindBuffer(gl.ARRAY_BUFFER, m.ib);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m.inst), gl.DYNAMIC_DRAW);
   gl.drawArraysInstanced(gl.TRIANGLES, 0, m.anzahl, n);
-  m.inst.length = 0;
+  if (!behalten) m.inst.length = 0;
 }
 
 // ------------------------------------------------------------ Kamera
@@ -4021,7 +4070,7 @@ cv3.addEventListener('mousedown', (e) => {
     return;
   }
   if (e.button === 1) {
-    drag = { pan: true, sx: mx, sy: my, x0: kam.x, z0: kam.z, dreh: e.shiftKey, yaw0: kam.yaw };
+    drag = { pan: true, sx: mx, sy: my, x0: kam.x, z0: kam.z };
     e.preventDefault();
     return;
   }
@@ -4048,10 +4097,6 @@ addEventListener('mousemove', (e) => {
   maus = { x: e.clientX - r.left, y: e.clientY - r.top };
   if (!drag) return;
   if (drag.pan) {
-    if (drag.dreh) {
-      kam.yaw = drag.yaw0 - (maus.x - drag.sx) * 0.006;
-      return;
-    }
     // Verschieben in Blickrichtung: Bildschirm-Pixel -> Meter grob nach Zoom
     const k = kam.dist / 700;
     const dx = (maus.x - drag.sx) * k;
@@ -4139,8 +4184,6 @@ addEventListener('keydown', (e) => {
   }
   if (e.key === '+') speed = Math.min(8, speed * 2);
   if (e.key === '-') speed = Math.max(0.5, speed / 2);
-  if (e.key === ',') kam.yaw += 0.25;
-  if (e.key === '.') kam.yaw -= 0.25;
   if (e.key === 'a' && sel.some((id) => byId(world, id)?.kind === 'unit')) {
     angriff = true;
     placing = null;
@@ -4396,7 +4439,18 @@ function zeichne(now, dt) {
     instanz(placing, gx * DM, 0, gy * DM, 0.4, def.radius * DM * ZEIGE_GEBAEUDE, farbe, 1, ok ? 1.1 : 0.8, 0.55);
   }
 
-  for (const k of Object.keys(MODELLE)) if (k !== 'staubwolke') zeichneInstanzen(MODELLE[k]);
+  // Erst alles ausser Einheiten, dann Einheiten zweimal: wo Gebaeude oder
+  // Baeume davor stehen als Umriss in Teamfarbe, dann ganz normal.
+  for (const k of Object.keys(MODELLE)) if (k !== 'staubwolke' && !UNITS[k]) zeichneInstanzen(MODELLE[k]);
+  const roentgen = gl.getUniformLocation(PROG, 'uRoentgen');
+  gl.depthFunc(gl.GREATER);
+  gl.depthMask(false);
+  gl.uniform1f(roentgen, 1);
+  for (const k of Object.keys(UNITS)) zeichneInstanzen(MODELLE[k], true);
+  gl.uniform1f(roentgen, 0);
+  gl.depthFunc(gl.LEQUAL);
+  gl.depthMask(true);
+  for (const k of Object.keys(UNITS)) zeichneInstanzen(MODELLE[k]);
 
   // Staub gefallener Einheiten
   gl.depthMask(false);
@@ -4666,12 +4720,11 @@ function zeichneHud() {
     auswahl = `<div class="sel">${Object.entries(zahl).map(([n, z]) => `${z}× ${n}`).join(' · ')}</div>`;
   }
   const einheiten = world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length;
+  document.getElementById('ressourcen').innerHTML = ressourcenHtml(world, ME);
   document.getElementById('hud').innerHTML = `
     <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}</div>
     <div class="res">
-      <b>Fron</b><span>${p.fron}</span>
       <b title="Förderung minus Unterhalt der Einheiten">Fron/min</b><span>+${foerderungProMin(world, ME)} −${unterhaltProMin(world, ME)}</span>
-      <b>Götterblut</b><span>${p.goetterblut}</span>
       ${skillZeile(world, ME)}
       ${faehigkeitZeile(world, ME)}
       <b>Einheiten</b><span>${einheiten}</span>

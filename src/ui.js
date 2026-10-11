@@ -776,12 +776,11 @@ function drawHud() {
   }
   if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
 
+  document.getElementById('ressourcen').innerHTML = ressourcenHtml(world, ME);
   document.getElementById('hud').innerHTML = `
     <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}</div>
     <div class="res">
-      <b>Fron</b><span>${p.fron}</span>
       ${fronBilanz()}
-      <b>Götterblut</b><span>${p.goetterblut}</span>
       ${skillZeile(world, ME)}
       ${faehigkeitZeile(world, ME)}
       <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>

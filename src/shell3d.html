@@ -27,7 +27,7 @@
   #cv3d { cursor: crosshair; }
 
   #hud {
-    position: absolute; top: 12px; left: 12px; width: 250px;
+    position: absolute; top: 56px; left: 12px; width: 250px;
     background: color-mix(in srgb, var(--panel) 90%, transparent);
     border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px;
   }
@@ -77,6 +77,17 @@
   #intro .go { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   #intro .go button { padding: 8px 14px; font-size: 13px; }
   #nogl { position: absolute; inset: 0; display: none; place-content: center; text-align: center; padding: 24px; }
+  /* Ressourcenleiste nach dem Entwurf des Nutzers */
+  #ressourcen {
+    position: absolute; top: 0; left: 0; z-index: 12; height: 46px;
+    display: flex; align-items: center; gap: 26px; padding: 0 34px 0 16px;
+    background: #021722; color: #fff; border-radius: 0 0 46px 0;
+    font: 500 22px/1 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  #ressourcen .ri { display: flex; align-items: center; gap: 9px; min-width: 64px; }
+  #ressourcen svg { width: 24px; height: 24px; flex: none; }
+  #ressourcen .knapp { color: #ff8a6a; }
   /* Info-Karten */
   #karte {
     position: absolute; left: 12px; bottom: 58px; z-index: 15; width: min(340px, calc(100% - 24px));
@@ -123,6 +134,7 @@
 <body>
 <canvas id="cv3d"></canvas>
 <canvas id="overlay"></canvas>
+<div id="ressourcen"></div>
 <div id="hud"></div>
 <canvas id="mini" width="340" height="340"></canvas>
 <div id="bar">
@@ -131,7 +143,7 @@
   <a class="btn" href="resonit.html" title="Dieselbe Simulation als Draufsicht">2D-Ansicht</a>
   <span class="hint">
     Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Pfeiltasten / mittlere Taste schieben ·
-    Mausrad zoomt · <b>,</b> <b>.</b> drehen · <b>1</b>–<b>9</b> bauen · <b>Q</b>–<b>R</b> Einheiten ·
+    Mausrad zoomt · <b>1</b>–<b>9</b> bauen · <b>Q</b>–<b>R</b> Einheiten ·
     <b>K</b> Kommandant · <b>T</b> Skillbaum · <b>F</b> Fähigkeit · Leertaste Pause · +/− Tempo
   </span>
 </div>

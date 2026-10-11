@@ -27,7 +27,7 @@
   #cv { flex: 1; display: block; width: 100%; cursor: crosshair; }
 
   #hud {
-    position: absolute; top: 12px; left: 12px; width: 268px;
+    position: absolute; top: 56px; left: 12px; width: 268px;
     background: color-mix(in srgb, var(--panel) 92%, transparent);
     border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px;
     backdrop-filter: blur(6px);
@@ -115,6 +115,17 @@
     border: 1px solid var(--line); border-radius: 3px;
     background: #0b0d08; cursor: pointer;
   }
+  /* Ressourcenleiste nach dem Entwurf des Nutzers */
+  #ressourcen {
+    position: absolute; top: 0; left: 0; z-index: 12; height: 46px;
+    display: flex; align-items: center; gap: 26px; padding: 0 34px 0 16px;
+    background: #021722; color: #fff; border-radius: 0 0 46px 0;
+    font: 500 22px/1 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  #ressourcen .ri { display: flex; align-items: center; gap: 9px; min-width: 64px; }
+  #ressourcen svg { width: 24px; height: 24px; flex: none; }
+  #ressourcen .knapp { color: #ff8a6a; }
   /* Info-Karten */
   #karte {
     position: absolute; left: 12px; bottom: 58px; z-index: 15; width: min(340px, calc(100% - 24px));
@@ -161,6 +172,7 @@
 <body>
 <div id="wrap">
   <canvas id="cv"></canvas>
+  <div id="ressourcen"></div>
   <div id="hud"></div>
   <canvas id="mini" width="340" height="340"></canvas>
   <div id="intro"></div>

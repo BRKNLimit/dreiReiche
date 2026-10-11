@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.18
+# Die drei Reiche — Prototyp 0.19
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -13,7 +13,7 @@ Verbesserungen und eine Fähigkeit des Kommandanten frei.
 ## Loslegen
 
 ```bash
-npm test          # 88 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
+npm test          # 89 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -29,9 +29,10 @@ kein Internet: Die 3D-Ansicht zeichnet mit WebGL 2 ohne Bibliothek.
 Dieselbe Simulation, gezeichnet mit einfachen Modellen aus Grundkörpern —
 bewusst rudimentär. Einheiten drehen sich in Laufrichtung und wippen beim
 Gehen, Schüsse sind Linien, Domänen eine Fläche mit Außenkante.
-Pfeiltasten oder mittlere Maustaste schieben, Mausrad zoomt, `,` und `.`
-drehen (oder Umschalt + mittlere Maustaste). Sonst dieselbe Steuerung wie in
-der Draufsicht.
+Pfeiltasten oder mittlere Maustaste schieben, Mausrad zoomt. Einheiten
+hinter Gebäuden bleiben als Umriss sichtbar. Sonst dieselbe Steuerung wie in
+der Draufsicht. Oben links die Ressourcenleiste: Gegenwart-Überschuss,
+Götterblut, Fron.
 
 ## Steuerung
 

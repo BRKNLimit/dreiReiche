@@ -590,7 +590,9 @@ uniform mat4 uVP;
 uniform vec3 uLicht;
 out vec4 vCol;
 out float vTiefe;
+out vec3 vTeam;
 void main() {
+  vTeam = iC.rgb;
   float c = cos(iA.w), s = sin(iA.w);
   // Schritt: der untere Teil des Modells schwingt vor und zurueck -- Beine,
   // Rocksaum, Laeufe. Ohne Skelett, nur nach Hoehe im Modell.
@@ -613,9 +615,15 @@ const FS = `#version 300 es
 precision mediump float;
 in vec4 vCol;
 in float vTiefe;
+in vec3 vTeam;
 uniform vec3 uNebel;
+uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
 out vec4 o;
 void main() {
+  if (uRoentgen > 0.5) {
+    o = vec4(mix(vTeam, vec3(1.0), 0.3), 0.5);
+    return;
+  }
   float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
   o = vec4(mix(vCol.rgb, uNebel, f), vCol.a);
 }`;
@@ -768,14 +776,14 @@ function instanz(key, x, y, z, rot, scale, team, yScale = 1, hell = 1, alpha = 1
   m.inst.push(x, y, z, rot, scale, yScale, hell, alpha, team[0], team[1], team[2], schritt);
 }
 
-function zeichneInstanzen(m) {
+function zeichneInstanzen(m, behalten = false) {
   const n = m.inst.length / 12;
   if (!n) return;
   gl.bindVertexArray(m.vao);
   gl.bindBuffer(gl.ARRAY_BUFFER, m.ib);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m.inst), gl.DYNAMIC_DRAW);
   gl.drawArraysInstanced(gl.TRIANGLES, 0, m.anzahl, n);
-  m.inst.length = 0;
+  if (!behalten) m.inst.length = 0;
 }
 
 // ------------------------------------------------------------ Kamera
@@ -947,7 +955,7 @@ cv3.addEventListener('mousedown', (e) => {
     return;
   }
   if (e.button === 1) {
-    drag = { pan: true, sx: mx, sy: my, x0: kam.x, z0: kam.z, dreh: e.shiftKey, yaw0: kam.yaw };
+    drag = { pan: true, sx: mx, sy: my, x0: kam.x, z0: kam.z };
     e.preventDefault();
     return;
   }
@@ -974,10 +982,6 @@ addEventListener('mousemove', (e) => {
   maus = { x: e.clientX - r.left, y: e.clientY - r.top };
   if (!drag) return;
   if (drag.pan) {
-    if (drag.dreh) {
-      kam.yaw = drag.yaw0 - (maus.x - drag.sx) * 0.006;
-      return;
-    }
     // Verschieben in Blickrichtung: Bildschirm-Pixel -> Meter grob nach Zoom
     const k = kam.dist / 700;
     const dx = (maus.x - drag.sx) * k;
@@ -1065,8 +1069,6 @@ addEventListener('keydown', (e) => {
   }
   if (e.key === '+') speed = Math.min(8, speed * 2);
   if (e.key === '-') speed = Math.max(0.5, speed / 2);
-  if (e.key === ',') kam.yaw += 0.25;
-  if (e.key === '.') kam.yaw -= 0.25;
   if (e.key === 'a' && sel.some((id) => byId(world, id)?.kind === 'unit')) {
     angriff = true;
     placing = null;
@@ -1322,7 +1324,18 @@ function zeichne(now, dt) {
     instanz(placing, gx * DM, 0, gy * DM, 0.4, def.radius * DM * ZEIGE_GEBAEUDE, farbe, 1, ok ? 1.1 : 0.8, 0.55);
   }
 
-  for (const k of Object.keys(MODELLE)) if (k !== 'staubwolke') zeichneInstanzen(MODELLE[k]);
+  // Erst alles ausser Einheiten, dann Einheiten zweimal: wo Gebaeude oder
+  // Baeume davor stehen als Umriss in Teamfarbe, dann ganz normal.
+  for (const k of Object.keys(MODELLE)) if (k !== 'staubwolke' && !UNITS[k]) zeichneInstanzen(MODELLE[k]);
+  const roentgen = gl.getUniformLocation(PROG, 'uRoentgen');
+  gl.depthFunc(gl.GREATER);
+  gl.depthMask(false);
+  gl.uniform1f(roentgen, 1);
+  for (const k of Object.keys(UNITS)) zeichneInstanzen(MODELLE[k], true);
+  gl.uniform1f(roentgen, 0);
+  gl.depthFunc(gl.LEQUAL);
+  gl.depthMask(true);
+  for (const k of Object.keys(UNITS)) zeichneInstanzen(MODELLE[k]);
 
   // Staub gefallener Einheiten
   gl.depthMask(false);
@@ -1592,12 +1605,11 @@ function zeichneHud() {
     auswahl = `<div class="sel">${Object.entries(zahl).map(([n, z]) => `${z}× ${n}`).join(' · ')}</div>`;
   }
   const einheiten = world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length;
+  document.getElementById('ressourcen').innerHTML = ressourcenHtml(world, ME);
   document.getElementById('hud').innerHTML = `
     <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}</div>
     <div class="res">
-      <b>Fron</b><span>${p.fron}</span>
       <b title="Förderung minus Unterhalt der Einheiten">Fron/min</b><span>+${foerderungProMin(world, ME)} −${unterhaltProMin(world, ME)}</span>
-      <b>Götterblut</b><span>${p.goetterblut}</span>
       ${skillZeile(world, ME)}
       ${faehigkeitZeile(world, ME)}
       <b>Einheiten</b><span>${einheiten}</span>

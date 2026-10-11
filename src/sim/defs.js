@@ -519,7 +519,7 @@ export const UNITS = {
     desc: 'Uralt, gewaltig und langsam, genährt von Götterblut.',
     faction: 'gott',
     hp: 2100,
-    radius: 44,
+    radius: 66, // maechtig gross
     speed: 16,
     cost: { fron: 300, goetterblut: 20 },
     unterhalt: 56, // Fron pro Minute, solange sie lebt

@@ -3,6 +3,19 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.19 — Ressourcenleiste, Silhouetten, große Ents
+
+- **Ressourcenleiste** nach dem Entwurf des Nutzers in beiden Ansichten:
+  dunkle Leiste oben links, Glühbirne = Gegenwart-Überschuss aller Netze,
+  Tropfen = Götterblut, Kristalle = Fron; knappe Werte rot, Einzelheiten im
+  Tooltip.
+- 3D: Kamera dreht nicht mehr (Schieben und Zoomen bleiben).
+- 3D: Einheiten hinter Gebäuden und Bäumen bleiben als Umriss in Teamfarbe
+  sichtbar.
+- Ents sind mächtig groß (Radius 66 statt 44) — auch in der Simulation.
+  Ein Test prüft den ganzen Weg: Skills lernen, Götterblut zahlen, im
+  Dickicht ausbilden, zuschlagen.
+
 ## 0.18 — Starke Türme, Reparatur
 
 - **Wachturm und Wächterbaum** halten allein eine frühe Welle von rund

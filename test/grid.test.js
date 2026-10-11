@@ -827,6 +827,35 @@ test('ein Turm haelt allein eine fruehe Welle auf, aber keine doppelte', () => {
   assert.ok(!turmGegen(26), 'faellt gegen 26');
 });
 
+test('Ents: gelernt und mit Goetterblut entstehen sie im Dickicht und kaempfen', () => {
+  const w = bare('gott', 'mensch');
+  spawnBuilding(w, 0, 'herzbaum', 5000, 5000, true);
+  spawnBuilding(w, 0, 'quelle', 4200, 5000, true); // volle Gegenwart fuer das Dickicht
+  const dick = spawnBuilding(w, 0, 'dickicht', 5900, 5000, true);
+  w.players[0].fron = 2000;
+  w.players[0].goetterblut = 100;
+  issue(w, { type: 'produce', player: 0, id: dick.id, unit: 'ent' });
+  step(w);
+  assert.equal(dick.queue.length, 0, 'ohne Skill gesperrt');
+  w.players[0].gelernt.push('waldgeister', 'ents');
+  issue(w, { type: 'produce', player: 0, id: dick.id, unit: 'ent' });
+  step(w);
+  assert.equal(dick.queue.length, 1);
+  assert.equal(w.players[0].goetterblut, 100 - UNITS.ent.cost.goetterblut);
+  let ent = null;
+  for (let i = 0; i < UNITS.ent.buildTime * 2 && !ent; i++) {
+    step(w);
+    ent = w.entities.find((e) => e.type === 'ent');
+  }
+  assert.ok(ent, 'der Ent tritt aus dem Dickicht');
+  assert.ok(UNITS.ent.radius >= 1.5 * UNITS.wolf.radius, 'maechtig gross');
+  const ziel = spawnUnit(w, 1, 'soldat', ent.x + UNITS.ent.radius + UNITS.soldat.radius + 10, ent.y);
+  ziel.cooldown = 1e9;
+  const hp = ziel.hp;
+  for (let i = 0; i < 12; i++) step(w);
+  assert.ok(ziel.dead || ziel.hp < hp, 'der Ent schlaegt zu');
+});
+
 // ---------------------------------------------------- Reparatur
 
 function beschaedigt() {

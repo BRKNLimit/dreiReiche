@@ -74,6 +74,7 @@ const nodes = {
   introSchau: makeEl('introSchau'),
   skills: makeEl('skills'),
   karte: makeEl('karte'),
+  ressourcen: makeEl('ressourcen'),
 };
 globalThis.document = {
   getElementById: (id) => nodes[id] ?? makeEl(id),

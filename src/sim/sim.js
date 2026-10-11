@@ -67,8 +67,8 @@ export function createWorld(opts = {}) {
     nextId: 1,
     entities: [],
     players: [
-      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0 },
-      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0 },
+      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0 },
+      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0 },
     ],
     deposits: [],
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -422,10 +422,25 @@ export function erfahrung(world, e) {
 
 // ------------------------------------------------------------- Skillbaum
 
-/** Bisher verdiente Skillpunkte: skillStart, dann einer je skillTakt Ticks. */
+/**
+ * Bisher verdiente Skillpunkte: skillStart, dann einer je skillTakt Ticks
+ * Grundtakt. Forschungsgebaeude legen etwas drauf, siehe forschungProTick.
+ */
 export function skillPunkte(world, player) {
   if (!RULES.skills) return 0;
-  return RULES.skillStart + ((world.tick / RULES.skillTakt) | 0);
+  return RULES.skillStart + ((world.players[player].forschung / (RULES.skillTakt * 1000)) | 0);
+}
+
+/** Forschung je Tick in Promille des Grundtakts: 1000 plus die versorgten Forschungsgebaeude. */
+export function forschungProTick(world, player) {
+  let s = 1000;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'building' || !e.done || e.player !== player) continue;
+    const f = BUILDINGS[e.type].forschung;
+    if (f) s += ((f * e.powered) / 1000) | 0;
+  }
+  return s;
 }
 
 /** Noch nicht ausgegebene Skillpunkte. */
@@ -707,6 +722,7 @@ export function step(world) {
     }
 
     const pl = world.players[e.player];
+    if (def.forschung) pl.forschung += ((def.forschung * e.powered) / 1000) | 0;
     if (def.fronOut || def.blutOut) {
       const mehr = 1000 + bonus(world, e.player, 'foerderung');
       if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
@@ -761,6 +777,7 @@ export function step(world) {
 
   for (let p = 0; p < world.players.length; p++) {
     const pl = world.players[p];
+    pl.forschung += 1000; // Grundtakt der Skillpunkte
     // Foerderung ist pro Minute angegeben, powered in Promille: 600 Ticks x 1000.
     if (pl.fronAcc) {
       pl.fron += (pl.fronAcc / PER_MIN) | 0;
@@ -857,7 +874,7 @@ function moveUnits(world) {
     const leine = e.arrived ? LEASH + w.range : MAP * 2;
     const o = chaseTarget(world, e, w.range + CHASE, leine);
     if (!o) continue;
-    const nah = w.range - 20;
+    const nah = reichweite(e, o) - 10;
     if (dist2(e.x, e.y, o.x, o.y) > nah * nah) {
       gx[i] = o.x;
       gy[i] = o.y;
@@ -885,15 +902,20 @@ function moveUnits(world) {
   separate(world);
 }
 
-/** Naechster Feind im Umkreis r der Einheit, der nicht weiter als leash vom Befehlspunkt liegt. */
+/**
+ * Naechster Feind, dessen Rand hoechstens r vom eigenen Rand entfernt ist und
+ * der nicht weiter als leash vom Befehlspunkt liegt.
+ */
 function chaseTarget(world, e, r, leash) {
   let best = null;
-  let bestD = r * r;
+  let bestD = Infinity;
+  const re = radiusVon(e);
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
     if (o.dead || o.player === e.player) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
-    if (dd >= bestD) continue;
+    const rr = r + re + radiusVon(o);
+    if (dd > rr * rr || dd >= bestD) continue;
     if (dist2(e.tx, e.ty, o.x, o.y) > leash * leash) continue;
     bestD = dd;
     best = o;
@@ -990,10 +1012,13 @@ function combat(world) {
       e.cooldown--;
       continue;
     }
-    const target = nearestEnemy(world, e, def.weapon.range);
+    // Schiessende Gebaeude brauchen Gegenwart -- gedrosselt schwaecher, ohne gar nicht.
+    if (e.kind === 'building' && !e.powered) continue;
+    const target = nearestEnemy(world, e);
     if (!target) continue;
 
     let dmg = def.weapon.damage;
+    if (e.kind === 'building') dmg = ((dmg * e.powered) / 1000) | 0;
     // Heimvorteil: auf eigenem Boden staerker. Der Gott lebt davon.
     // Zorn: ein versorgter Schrein im Netz, in dem der Schuetze steht.
     const zorn = buffAt(world, e.player, e.x, e.y).zorn;
@@ -1048,14 +1073,30 @@ function combat(world) {
   }
 }
 
-function nearestEnemy(world, e, range) {
+/** Groesse einer Einheit oder eines Gebaeudes, Dezimeter. */
+function radiusVon(e) {
+  return e.kind === 'unit' ? UNITS[e.type].radius : BUILDINGS[e.type].radius;
+}
+
+/**
+ * Wie weit die Mitten hoechstens auseinander sein duerfen, damit e o trifft:
+ * Reichweite (Rand zu Rand) plus beide Raender. Nahkampf heisst Beruehrung.
+ */
+export function reichweite(e, o) {
+  const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
+  return def.weapon.range + radiusVon(e) + radiusVon(o);
+}
+
+/** Naechster Feind, den e mit seiner Waffe erreicht. */
+function nearestEnemy(world, e) {
   let best = null;
-  let bestD = range * range;
+  let bestD = Infinity;
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
     if (o.dead || o.player === e.player) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
-    if (dd <= bestD) {
+    const r = reichweite(e, o);
+    if (dd <= r * r && dd <= bestD) {
       bestD = dd;
       best = o;
     }
@@ -1178,6 +1219,7 @@ export function hash(world) {
     mix(world.players[p].blutAcc || 0);
     mix(world.players[p].unterhaltAcc || 0);
     mix(world.players[p].faehigkeitBereit);
+    mix(world.players[p].forschung);
     for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);

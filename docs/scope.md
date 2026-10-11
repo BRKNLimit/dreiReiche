@@ -435,6 +435,44 @@ starken Dryaden. Die Ergebnisse schwanken stark mit kleinen Änderungen
 Designzahl, die Messung nur ein Anhalt. Die Stil-Paarungen bleiben wie in
 Abschnitt 10: „Sturm“ gewinnt fast immer.
 
+### 14. Gebäude je Rolle, Nah- und Fernkampf (Stand 0.17)
+
+> **Vorgaben des Nutzers:** Jede Fraktion bekommt Hauptgebäude,
+> Verteidigung (Wachturm schießt Pfeile), einen Gegenwart-Erzeuger ohne
+> Ader, einen Fron-Extraktor auf Felsen, Götterblut-Abbau, Kaserne, zwei
+> Schreine und ein Forschungsgebäude — nach Vorbild Supreme Commander 2.
+> Anker und Verteidigung getrennt; Forschung beschleunigt die Skillpunkte;
+> Nahkampf muss ran.
+
+*Turm- und Forschungswerte sind Designzahlen.* Reichweite zählt jetzt von
+Rand zu Rand; Nahkämpfer 2 bis 4 m, Fernkämpfer 38 bis 60 m.
+
+**Duelle** (3000 Fron, neutraler Boden, Restwert; + = Menschen):
+
+| Menschen gegen | Wolf | Waldgeist | Ent | Gott-Mischung |
+| --- | --- | --- | --- | --- |
+| Soldat | +159 | +189 | −1133 | +355 |
+| Jäger | −681 | −709 | −1205 | −414 |
+| Söldner | +281 | +734 | −1070 | +679 |
+| Menschen-Mischung | −451 | +384 | −948 | +619 |
+
+Fernkämpfer leiden ohne Nahkämpfer davor; Ents schlagen alles (sie kosten
+Götterblut).
+
+**KI gegen KI** (64 Seeds × 2 Sitzplätze, falls nicht anders angegeben):
+
+| Stand | Menschen : Gott | Sitz 0 |
+| --- | --- | --- |
+| neue Reichweiten und Gebäude, Werte aus 0.16 (32 Seeds) | 42 : 22 | 32 von 64 |
+| Wolf 600 LP, 24 Schaden, Soldat 8, Waldgeist 30, Jäger 12 (32 Seeds, je einzeln) | 38–41 : 22–26 | — |
+| Dryade 600 (Ausgang 0.16) | 88 : 40 | 64 |
+| Dryade 650 | 75 : 53 | 57 |
+| Dryade 700 | 71 : 57 | 57 |
+| **Dryade 700 + Wolf 600 LP — Ausgang** | **63 : 65** | 53 |
+
+Ø Dauer rund 20 Minuten, zwei bis drei Minuten länger als in 0.16 — die
+Türme bremsen frühe Vorstöße.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

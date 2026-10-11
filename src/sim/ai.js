@@ -10,13 +10,13 @@ import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
 
 const PLAN = {
   mensch: {
-    anker: 'turm', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
-    zorn: 'banner', wehr: 'kapelle',
+    anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
+    zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium',
     bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner',
   },
   gott: {
     anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht',
-    zorn: 'dornenschrein', wehr: 'steinkreis',
+    zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche',
     bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent',
   },
 };
@@ -214,6 +214,24 @@ export function stepAI(ai, world) {
       const platz = daheimFrei(world, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
+  }
+
+  // 3c. Forschung: ab Minute 3 ein Forschungsgebaeude beim Hauptgebaeude,
+  //     ab Minute 12 ein zweites -- mehr Skillpunkte.
+  const forschungZiel = minute >= 12 ? 2 : minute >= 3 ? 1 : 0;
+  const fb = BUILDINGS[plan.forschung];
+  if (zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
+    const platz = daheimFrei(world, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
+    if (platz && bau(plan.forschung, ...platz)) return;
+  }
+
+  // 3d. Verteidigung: ab Minute 6 ein Turm vor dem Hauptgebaeude zur Front
+  //     hin, ab Minute 12 ein zweiter.
+  const turmZiel = minute >= 12 ? 2 : minute >= 6 ? 1 : 0;
+  const tb = BUILDINGS[plan.turm];
+  if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron + 100 && bilanz >= tb.gegenwartIn) {
+    const platz = daheimFrei(world, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
+    if (platz && bau(plan.turm, ...platz)) return;
   }
 
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.

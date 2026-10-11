@@ -175,7 +175,7 @@
     <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
     <span class="hint">
       Bauleiste überfahren zeigt Kosten und Werte · Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Mausrad zoomt · Mittlere Taste schiebt ·
-      <b>1</b>–<b>7</b> bauen · Gebäude anklicken: <b>Q</b>–<b>R</b> Einheiten, <b>Entf</b> abreißen · <b>K</b> Kommandant · <b>T</b> Skillbaum · <b>F</b> Fähigkeit · <b>I</b> Auswertung · Leertaste pausiert · +/− Tempo
+      <b>1</b>–<b>9</b> bauen · Gebäude anklicken: <b>Q</b>–<b>R</b> Einheiten, <b>Entf</b> abreißen · <b>K</b> Kommandant · <b>T</b> Skillbaum · <b>F</b> Fähigkeit · <b>I</b> Auswertung · Leertaste pausiert · +/− Tempo
     </span>
   </div>
 </div>
@@ -231,8 +231,9 @@ const RULES = {
   erfahrungMax: 100,
 
   // Skillbaum (SKILLS): Punkte kommen mit der Zeit -- skillStart zu Beginn,
-  // dann einer je skillTakt Ticks. Aus = alles frei, keine Verbesserungen;
-  // nur fuer Vergleichsmessungen.
+  // dann einer je skillTakt Ticks. Forschungsgebaeude (forschung, Promille)
+  // beschleunigen den Takt. Aus = alles frei, keine Verbesserungen; nur fuer
+  // Vergleichsmessungen.
   skills: true,
   skillStart: 1,
   skillTakt: 1200,
@@ -277,16 +278,30 @@ const BUILDINGS = {
     buildList: ['bauer', 'soldat'],
     vital: true,
   },
-  turm: {
-    name: 'Wachturm',
+  grenzstein: {
+    name: 'Grenzstein',
     desc: 'Anker: dehnt die Domäne aus, sofort in voller Größe. Nur in der Domäne fließt Gegenwart.',
-    short: 'TRM',
+    short: 'GRZ',
     faction: 'mensch',
     hp: 800,
     radius: 48,
     anchor: true,
     cost: { fron: 120 },
     buildTime: 150,
+  },
+  wachturm: {
+    name: 'Wachturm',
+    desc: 'Verteidigung: Schützen schießen Pfeile auf Feinde in Reichweite. Braucht Gegenwart — ohne schweigt er.',
+    short: 'WTM',
+    faction: 'mensch',
+    hp: 1000,
+    radius: 40,
+    gegenwartIn: 10,
+    prio: PRIO.zorn, // Waffen fallen zuletzt
+    cost: { fron: 200 },
+    buildTime: 200,
+    kampf: 'fern',
+    weapon: { range: 600, damage: 14, cooldown: 8 }, // schiesst nur mit Gegenwart
   },
   schmiede: {
     name: 'Schmiede',
@@ -372,6 +387,19 @@ const BUILDINGS = {
     buildTime: 170,
     buff: { wehr: 200, radius: 3000 },
   },
+  skriptorium: {
+    name: 'Skriptorium',
+    desc: 'Forschung: Mönche schreiben, sammeln und ordnen — Skillpunkte kommen schneller. Braucht Gegenwart.',
+    short: 'SKR',
+    faction: 'mensch',
+    hp: 900,
+    radius: 55,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    cost: { fron: 250 },
+    buildTime: 230,
+    forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
+  },
 
   // --------------------------------------------------------------- Gott
   herzbaum: {
@@ -400,6 +428,20 @@ const BUILDINGS = {
     cost: { fron: 110 },
     buildTime: 190,
     needsGrowth: true, // nur auf ungerodetem Boden
+  },
+  waechterbaum: {
+    name: 'Wächterbaum',
+    desc: 'Verteidigung: schleudert Dornen auf Feinde in Reichweite. Braucht Gegenwart — ohne schläft er.',
+    short: 'WBA',
+    faction: 'gott',
+    hp: 1000,
+    radius: 40,
+    gegenwartIn: 10,
+    prio: PRIO.zorn, // Waffen fallen zuletzt
+    cost: { fron: 200 },
+    buildTime: 200,
+    kampf: 'fern',
+    weapon: { range: 600, damage: 14, cooldown: 8 }, // schiesst nur mit Gegenwart
   },
   quelle: {
     name: 'Quellgrund',
@@ -480,10 +522,25 @@ const BUILDINGS = {
     buildTime: 170,
     buff: { wehr: 300, radius: 3000 },
   },
+  eiche: {
+    name: 'Raunende Eiche',
+    desc: 'Forschung: Die alte Eiche flüstert, was der Wald weiß — Skillpunkte kommen schneller. Braucht Gegenwart.',
+    short: 'EIC',
+    faction: 'gott',
+    hp: 900,
+    radius: 55,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    cost: { fron: 250 },
+    buildTime: 230,
+    forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
+  },
 };
 
 // unterhalt: laufende Kosten in Fron pro Minute. Grosse Heere fressen die
 // Wirtschaft -- keine harte Obergrenze, aber eine spuerbare Bremse.
+// kampf: 'nah' schlaegt erst bei Beruehrung zu, 'fern' schiesst aus der Ferne.
+// weapon.range: Abstand von Rand zu Rand, in dem getroffen wird.
 const UNITS = {
   // ------------------------------------------------------------- Menschen
   // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
@@ -500,7 +557,8 @@ const UNITS = {
     worker: true,
     // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
     build: { power: 400 },
-    weapon: { range: 300, damage: 4, cooldown: 8 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 4, cooldown: 8 },
   },
   soldat: {
     name: 'Soldat',
@@ -512,7 +570,8 @@ const UNITS = {
     cost: { fron: 45 },
     unterhalt: 9, // Fron pro Minute, solange sie lebt
     buildTime: 80,
-    weapon: { range: 380, damage: 9, cooldown: 6 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 9, cooldown: 6 },
   },
   jaeger: {
     name: 'Jäger',
@@ -524,7 +583,8 @@ const UNITS = {
     cost: { fron: 55 },
     unterhalt: 10, // Fron pro Minute, solange sie lebt
     buildTime: 100,
-    weapon: { range: 540, damage: 13, cooldown: 8 },
+    kampf: 'fern',
+    weapon: { range: 480, damage: 13, cooldown: 8 },
   },
   soeldner: {
     name: 'Söldner',
@@ -538,7 +598,8 @@ const UNITS = {
     cost: { fron: 130, goetterblut: 10 },
     unterhalt: 24, // Fron pro Minute, solange sie lebt
     buildTime: 190,
-    weapon: { range: 480, damage: 26, cooldown: 8 },
+    kampf: 'nah',
+    weapon: { range: 25, damage: 26, cooldown: 8 },
   },
 
   // Kommandanten -- Designentscheidung, siehe docs/scope.md. Vorbild ist die
@@ -558,7 +619,8 @@ const UNITS = {
     speed: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    weapon: { range: 480, damage: 45, cooldown: 6 },
+    kampf: 'nah',
+    weapon: { range: 30, damage: 45, cooldown: 6 },
     commander: true,
     build: { power: 1000 },
   },
@@ -574,7 +636,8 @@ const UNITS = {
     speed: 22,
     cost: { fron: 0 },
     buildTime: 0,
-    weapon: { range: 440, damage: 42, cooldown: 6 },
+    kampf: 'fern',
+    weapon: { range: 380, damage: 42, cooldown: 6 },
     commander: true,
     build: { power: 1000 },
   },
@@ -589,20 +652,22 @@ const UNITS = {
     unterhalt: 12, // Fron pro Minute, solange sie lebt
     buildTime: 180,
     worker: true,
-    build: { power: 600 },
-    weapon: { range: 380, damage: 8, cooldown: 7 },
+    build: { power: 700 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 8, cooldown: 7 },
   },
   wolf: {
     name: 'Wolf',
     desc: 'Schneller, zäher Nahkämpfer.',
     faction: 'gott',
-    hp: 540,
+    hp: 600,
     radius: 30,
     speed: 34,
     cost: { fron: 130 },
     unterhalt: 24, // Fron pro Minute, solange sie lebt
     buildTime: 210,
-    weapon: { range: 260, damage: 22, cooldown: 6 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 22, cooldown: 6 },
   },
   waldgeist: {
     name: 'Waldgeist',
@@ -614,7 +679,8 @@ const UNITS = {
     cost: { fron: 130 },
     unterhalt: 24, // Fron pro Minute, solange sie lebt
     buildTime: 240,
-    weapon: { range: 600, damage: 26, cooldown: 8 },
+    kampf: 'fern',
+    weapon: { range: 520, damage: 26, cooldown: 8 },
   },
   ent: {
     name: 'Ent',
@@ -626,7 +692,8 @@ const UNITS = {
     cost: { fron: 300, goetterblut: 20 },
     unterhalt: 56, // Fron pro Minute, solange sie lebt
     buildTime: 480,
-    weapon: { range: 360, damage: 52, cooldown: 10 },
+    kampf: 'nah',
+    weapon: { range: 40, damage: 52, cooldown: 10 },
   },
 };
 
@@ -831,8 +898,8 @@ function createWorld(opts = {}) {
     nextId: 1,
     entities: [],
     players: [
-      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0 },
-      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0 },
+      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0 },
+      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0 },
     ],
     deposits: [],
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -1180,10 +1247,25 @@ function erfahrung(world, e) {
 
 // ------------------------------------------------------------- Skillbaum
 
-/** Bisher verdiente Skillpunkte: skillStart, dann einer je skillTakt Ticks. */
+/**
+ * Bisher verdiente Skillpunkte: skillStart, dann einer je skillTakt Ticks
+ * Grundtakt. Forschungsgebaeude legen etwas drauf, siehe forschungProTick.
+ */
 function skillPunkte(world, player) {
   if (!RULES.skills) return 0;
-  return RULES.skillStart + ((world.tick / RULES.skillTakt) | 0);
+  return RULES.skillStart + ((world.players[player].forschung / (RULES.skillTakt * 1000)) | 0);
+}
+
+/** Forschung je Tick in Promille des Grundtakts: 1000 plus die versorgten Forschungsgebaeude. */
+function forschungProTick(world, player) {
+  let s = 1000;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'building' || !e.done || e.player !== player) continue;
+    const f = BUILDINGS[e.type].forschung;
+    if (f) s += ((f * e.powered) / 1000) | 0;
+  }
+  return s;
 }
 
 /** Noch nicht ausgegebene Skillpunkte. */
@@ -1463,6 +1545,7 @@ function step(world) {
     }
 
     const pl = world.players[e.player];
+    if (def.forschung) pl.forschung += ((def.forschung * e.powered) / 1000) | 0;
     if (def.fronOut || def.blutOut) {
       const mehr = 1000 + bonus(world, e.player, 'foerderung');
       if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
@@ -1517,6 +1600,7 @@ function step(world) {
 
   for (let p = 0; p < world.players.length; p++) {
     const pl = world.players[p];
+    pl.forschung += 1000; // Grundtakt der Skillpunkte
     // Foerderung ist pro Minute angegeben, powered in Promille: 600 Ticks x 1000.
     if (pl.fronAcc) {
       pl.fron += (pl.fronAcc / PER_MIN) | 0;
@@ -1613,7 +1697,7 @@ function moveUnits(world) {
     const leine = e.arrived ? LEASH + w.range : MAP * 2;
     const o = chaseTarget(world, e, w.range + CHASE, leine);
     if (!o) continue;
-    const nah = w.range - 20;
+    const nah = reichweite(e, o) - 10;
     if (dist2(e.x, e.y, o.x, o.y) > nah * nah) {
       gx[i] = o.x;
       gy[i] = o.y;
@@ -1641,15 +1725,20 @@ function moveUnits(world) {
   separate(world);
 }
 
-/** Naechster Feind im Umkreis r der Einheit, der nicht weiter als leash vom Befehlspunkt liegt. */
+/**
+ * Naechster Feind, dessen Rand hoechstens r vom eigenen Rand entfernt ist und
+ * der nicht weiter als leash vom Befehlspunkt liegt.
+ */
 function chaseTarget(world, e, r, leash) {
   let best = null;
-  let bestD = r * r;
+  let bestD = Infinity;
+  const re = radiusVon(e);
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
     if (o.dead || o.player === e.player) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
-    if (dd >= bestD) continue;
+    const rr = r + re + radiusVon(o);
+    if (dd > rr * rr || dd >= bestD) continue;
     if (dist2(e.tx, e.ty, o.x, o.y) > leash * leash) continue;
     bestD = dd;
     best = o;
@@ -1746,10 +1835,13 @@ function combat(world) {
       e.cooldown--;
       continue;
     }
-    const target = nearestEnemy(world, e, def.weapon.range);
+    // Schiessende Gebaeude brauchen Gegenwart -- gedrosselt schwaecher, ohne gar nicht.
+    if (e.kind === 'building' && !e.powered) continue;
+    const target = nearestEnemy(world, e);
     if (!target) continue;
 
     let dmg = def.weapon.damage;
+    if (e.kind === 'building') dmg = ((dmg * e.powered) / 1000) | 0;
     // Heimvorteil: auf eigenem Boden staerker. Der Gott lebt davon.
     // Zorn: ein versorgter Schrein im Netz, in dem der Schuetze steht.
     const zorn = buffAt(world, e.player, e.x, e.y).zorn;
@@ -1804,14 +1896,30 @@ function combat(world) {
   }
 }
 
-function nearestEnemy(world, e, range) {
+/** Groesse einer Einheit oder eines Gebaeudes, Dezimeter. */
+function radiusVon(e) {
+  return e.kind === 'unit' ? UNITS[e.type].radius : BUILDINGS[e.type].radius;
+}
+
+/**
+ * Wie weit die Mitten hoechstens auseinander sein duerfen, damit e o trifft:
+ * Reichweite (Rand zu Rand) plus beide Raender. Nahkampf heisst Beruehrung.
+ */
+function reichweite(e, o) {
+  const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
+  return def.weapon.range + radiusVon(e) + radiusVon(o);
+}
+
+/** Naechster Feind, den e mit seiner Waffe erreicht. */
+function nearestEnemy(world, e) {
   let best = null;
-  let bestD = range * range;
+  let bestD = Infinity;
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
     if (o.dead || o.player === e.player) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
-    if (dd <= bestD) {
+    const r = reichweite(e, o);
+    if (dd <= r * r && dd <= bestD) {
       bestD = dd;
       best = o;
     }
@@ -1932,6 +2040,7 @@ function hash(world) {
     mix(world.players[p].blutAcc || 0);
     mix(world.players[p].unterhaltAcc || 0);
     mix(world.players[p].faehigkeitBereit);
+    mix(world.players[p].forschung);
     for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
@@ -1951,13 +2060,13 @@ function hash(world) {
 
 const PLAN = {
   mensch: {
-    anker: 'turm', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
-    zorn: 'banner', wehr: 'kapelle',
+    anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
+    zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium',
     bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner',
   },
   gott: {
     anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht',
-    zorn: 'dornenschrein', wehr: 'steinkreis',
+    zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche',
     bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent',
   },
 };
@@ -2153,6 +2262,24 @@ function stepAI(ai, world) {
       const platz = daheimFrei(world, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
+  }
+
+  // 3c. Forschung: ab Minute 3 ein Forschungsgebaeude beim Hauptgebaeude,
+  //     ab Minute 12 ein zweites -- mehr Skillpunkte.
+  const forschungZiel = minute >= 12 ? 2 : minute >= 3 ? 1 : 0;
+  const fb = BUILDINGS[plan.forschung];
+  if (zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
+    const platz = daheimFrei(world, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
+    if (platz && bau(plan.forschung, ...platz)) return;
+  }
+
+  // 3d. Verteidigung: ab Minute 6 ein Turm vor dem Hauptgebaeude zur Front
+  //     hin, ab Minute 12 ein zweiter.
+  const turmZiel = minute >= 12 ? 2 : minute >= 6 ? 1 : 0;
+  const tb = BUILDINGS[plan.turm];
+  if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron + 100 && bilanz >= tb.gegenwartIn) {
+    const platz = daheimFrei(world, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
+    if (platz && bau(plan.turm, ...platz)) return;
   }
 
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
@@ -2731,6 +2858,17 @@ function karte(titel, desc, zeilen, sperre) {
     <div class="kz">${zeilen.map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('')}</div></div>`;
 }
 
+/** Waffe einer Einheit oder eines Gebaeudes: Kampfart, Schaden, Reichweite. */
+function waffeZeilen(d) {
+  const w = d.weapon;
+  const fern = d.kampf === 'fern';
+  return [
+    ['Kampf', fern ? 'Fernkampf' : 'Nahkampf'],
+    ['Schaden', `${w.damage} je ${fern ? 'Schuss' : 'Schlag'}, ${((w.damage * 10) / w.cooldown).toFixed(1)} pro s`],
+    ['Reichweite', fern ? meterText(w.range) : 'Berührung'],
+  ];
+}
+
 /** Alles, was man vor dem Bau eines Gebaeudes wissen muss. */
 function gebaeudeKarte(world, player, typ) {
   const d = BUILDINGS[typ];
@@ -2759,7 +2897,9 @@ function gebaeudeKarte(world, player, typ) {
     const was = d.buff.zorn ? `+${prozent(d.buff.zorn)} Schaden` : `−${prozent(d.buff.wehr)} genommener Schaden`;
     z.push(['Wirkung', `${was} im Umkreis von ${meterText(d.buff.radius)}`]);
   }
-  if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => UNITS[u].name).join(', ')]);
+  if (d.weapon) z.push(...waffeZeilen(d));
+  if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
+  if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : 'nah'})`).join(', ')]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
@@ -2770,11 +2910,7 @@ function einheitKarte(world, player, typ) {
   if (!d.commander) z.push(['Kosten', kostenText(d.cost)], ['Ausbildung', sekunden(d.buildTime)]);
   if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Fron/min']);
   z.push(['Leben', d.hp + ' LP']);
-  if (d.weapon) {
-    const w = d.weapon;
-    z.push(['Schaden', `${w.damage} je Schlag, ${((w.damage * 10) / w.cooldown).toFixed(1)} pro s`]);
-    z.push(['Reichweite', meterText(w.range)]);
-  }
+  if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
@@ -2809,7 +2945,7 @@ function ausbildungHtml(world, player, typ) {
     .map((u, i) => {
       const d = UNITS[u];
       if (gesperrt(world, player, u)) return `<div class="zeile zu"><kbd>${'QWER'[i]}</kbd> <s>${d.name}</s> — ${sperrText(world, player, u)}</div>`;
-      return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> · ${kostenText(d.cost)} · ${sekunden(d.buildTime)} · ${d.unterhalt} Fron/min</div>`;
+      return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> (${d.kampf === 'fern' ? 'Fernkampf' : 'Nahkampf'}) · ${kostenText(d.cost)} · ${sekunden(d.buildTime)} · ${d.unterhalt} Fron/min</div>`;
     })
     .join('');
 }
@@ -2893,7 +3029,8 @@ function skillBaumHtml(world, player) {
 function skillZeile(world, player) {
   if (!RULES.skills) return '';
   const frei = skillFrei(world, player);
-  const bis = sekunden(RULES.skillTakt - (world.tick % RULES.skillTakt));
+  const je = RULES.skillTakt * 1000;
+  const bis = sekunden(Math.ceil((je - (world.players[player].forschung % je)) / forschungProTick(world, player)));
   return `<b>Skillpunkte <kbd>T</kbd></b><span${frei > 0 ? ' class="hell"' : ''}>${frei} frei · nächster in ${bis}</span>`;
 }
 
@@ -3083,7 +3220,7 @@ cv.addEventListener(
 
 addEventListener('keydown', (e) => {
   const liste = bauListe();
-  const i = '1234567'.indexOf(e.key);
+  const i = '123456789'.indexOf(e.key);
   if (i >= 0 && liste[i] && !gesperrt(world, ME, liste[i])) placing = liste[i];
   if (e.key === 'Escape') {
     placing = null;
@@ -3186,8 +3323,8 @@ function befehl(x, y) {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht', 'banner', 'kapelle']
-    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis'];
+    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium']
+    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
 }
 
 function renderBar() {
@@ -3595,6 +3732,14 @@ function drawSelection() {
     ctx.beginPath();
     ctx.arc(w2sx(e.x), w2sy(e.y), Math.max(5, def.radius * cam.z) + 4, 0, Math.PI * 2);
     ctx.stroke();
+    // Einzeln gewaehlte Fernkaempfer und Tuerme: Reichweite gestrichelt
+    if (sel.length === 1 && def.kampf === 'fern') {
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.arc(w2sx(e.x), w2sy(e.y), (def.weapon.range + def.radius) * cam.z, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
   if (drag && !drag.pan) {
     ctx.strokeStyle = '#c8d8b0';
@@ -3914,7 +4059,7 @@ function introHtml() {
     <div class="cols">
       <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
         <p>Viele günstige Einheiten: Bauern, Soldaten, Jäger, Söldner.
-        Jeder Wachturm deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
+        Jeder Grenzstein deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
         Sägewerke roden den Boden; dort pflanzt der Gott keinen Hain.
         Schreine: Kriegsbanner +${pz('banner')} Schaden, Kapelle −${pw('kapelle')} Schaden.</p></div>
       <div><h2 style="color:${FACTIONS.gott.color}">Wald- und Wiesengott</h2>

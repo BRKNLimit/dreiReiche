@@ -2,7 +2,7 @@
 // aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
 
 import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN } from './sim/defs.js';
-import { erfahrung, skillFrei, kannLernen, faehigkeitVon, gesperrt } from './sim/sim.js';
+import { erfahrung, skillFrei, kannLernen, faehigkeitVon, gesperrt, forschungProTick } from './sim/sim.js';
 
 const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
@@ -30,6 +30,17 @@ function sperrText(world, player, typ) {
 function karte(titel, desc, zeilen, sperre) {
   return `<div class="karte"><b>${titel}</b><i>${desc || ''}</i>${sperre ? `<div class="sperre">${sperre}</div>` : ''}
     <div class="kz">${zeilen.map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('')}</div></div>`;
+}
+
+/** Waffe einer Einheit oder eines Gebaeudes: Kampfart, Schaden, Reichweite. */
+function waffeZeilen(d) {
+  const w = d.weapon;
+  const fern = d.kampf === 'fern';
+  return [
+    ['Kampf', fern ? 'Fernkampf' : 'Nahkampf'],
+    ['Schaden', `${w.damage} je ${fern ? 'Schuss' : 'Schlag'}, ${((w.damage * 10) / w.cooldown).toFixed(1)} pro s`],
+    ['Reichweite', fern ? meterText(w.range) : 'Berührung'],
+  ];
 }
 
 /** Alles, was man vor dem Bau eines Gebaeudes wissen muss. */
@@ -60,7 +71,9 @@ export function gebaeudeKarte(world, player, typ) {
     const was = d.buff.zorn ? `+${prozent(d.buff.zorn)} Schaden` : `−${prozent(d.buff.wehr)} genommener Schaden`;
     z.push(['Wirkung', `${was} im Umkreis von ${meterText(d.buff.radius)}`]);
   }
-  if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => UNITS[u].name).join(', ')]);
+  if (d.weapon) z.push(...waffeZeilen(d));
+  if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
+  if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : 'nah'})`).join(', ')]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
@@ -71,11 +84,7 @@ export function einheitKarte(world, player, typ) {
   if (!d.commander) z.push(['Kosten', kostenText(d.cost)], ['Ausbildung', sekunden(d.buildTime)]);
   if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Fron/min']);
   z.push(['Leben', d.hp + ' LP']);
-  if (d.weapon) {
-    const w = d.weapon;
-    z.push(['Schaden', `${w.damage} je Schlag, ${((w.damage * 10) / w.cooldown).toFixed(1)} pro s`]);
-    z.push(['Reichweite', meterText(w.range)]);
-  }
+  if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
@@ -110,7 +119,7 @@ export function ausbildungHtml(world, player, typ) {
     .map((u, i) => {
       const d = UNITS[u];
       if (gesperrt(world, player, u)) return `<div class="zeile zu"><kbd>${'QWER'[i]}</kbd> <s>${d.name}</s> — ${sperrText(world, player, u)}</div>`;
-      return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> · ${kostenText(d.cost)} · ${sekunden(d.buildTime)} · ${d.unterhalt} Fron/min</div>`;
+      return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> (${d.kampf === 'fern' ? 'Fernkampf' : 'Nahkampf'}) · ${kostenText(d.cost)} · ${sekunden(d.buildTime)} · ${d.unterhalt} Fron/min</div>`;
     })
     .join('');
 }
@@ -194,7 +203,8 @@ export function skillBaumHtml(world, player) {
 export function skillZeile(world, player) {
   if (!RULES.skills) return '';
   const frei = skillFrei(world, player);
-  const bis = sekunden(RULES.skillTakt - (world.tick % RULES.skillTakt));
+  const je = RULES.skillTakt * 1000;
+  const bis = sekunden(Math.ceil((je - (world.players[player].forschung % je)) / forschungProTick(world, player)));
   return `<b>Skillpunkte <kbd>T</kbd></b><span${frei > 0 ? ' class="hell"' : ''}>${frei} frei · nächster in ${bis}</span>`;
 }
 

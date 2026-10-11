@@ -413,10 +413,21 @@ const MODELLE_DEF = {
     ['q', [0.05, 0.9, 0.05], [0.7, 1.0, 0.4], HOLZ],
     ['q', [0.35, 0.22, 0.03], [0.88, 1.3, 0.4], '#d8b06a', 0.8],
   ],
-  turm: [
+  grenzstein: [
+    ['z', [0.45, 0.6, 0.25, 6], [0, 0.12, 0], '#6d726a'],
+    ['q', [0.5, 1.9, 0.35], [0, 1.15, 0], STEIN],
+    ['z', [0, 0.3, 0.3, 4], [0, 2.25, 0], STEIN, 0, [0, Math.PI / 4, 0]],
+    ['q', [0.05, 1.1, 0.05], [0.32, 2.3, 0], HOLZ],
+    ['q', [0.5, 0.3, 0.03], [0.58, 2.65, 0], '#8c2f2f', 0.8],
+  ],
+  wachturm: [
     ['z', [0.55, 0.7, 2.6, 8], [0, 1.3, 0], STEIN],
-    ['z', [0.75, 0.75, 0.2, 8], [0, 2.7, 0], '#6d726a'],
-    ['z', [0, 0.85, 0.9, 8], [0, 3.25, 0], '#8c2f2f', 0.6],
+    ['z', [0.78, 0.78, 0.25, 8], [0, 2.72, 0], '#6d726a'],
+    ['q', [0.18, 0.3, 0.18], [0.62, 3.0, 0], STEIN],
+    ['q', [0.18, 0.3, 0.18], [-0.62, 3.0, 0], STEIN],
+    ['q', [0.18, 0.3, 0.18], [0, 3.0, 0.62], STEIN],
+    ['q', [0.18, 0.3, 0.18], [0, 3.0, -0.62], STEIN],
+    ['k', [0.2, 6], [0, 3.05, 0], '#d8c8a0', 0.6],
   ],
   schmiede: [
     ['q', [1.4, 0.8, 1.2], [0, 0.4, 0], '#6a5a4a'],
@@ -454,6 +465,15 @@ const MODELLE_DEF = {
     ['q', [0.35, 0.9, 0.35], [0, 1.1, 0.55], '#d6d0c0'],
     ['z', [0, 0.3, 0.5, 4], [0, 1.8, 0.55], '#5a4a6a', 0.5],
   ],
+  // Skriptorium: Steinhaus mit Lesepult-Fenster und leuchtender Kerze
+  skriptorium: [
+    ['q', [1.3, 0.9, 1.0], [0, 0.45, 0], '#c8bea8'],
+    ['z', [0, 0.95, 0.55, 4], [0, 1.18, 0], '#5a4a3a', 0.4, [0, Math.PI / 4, 0]],
+    ['z', [0.25, 0.28, 1.4, 6], [0.55, 0.9, -0.3], '#c8bea8'],
+    ['z', [0, 0.32, 0.4, 6], [0.55, 1.8, -0.3], '#5a4a3a', 0.4],
+    ['q', [0.35, 0.3, 0.04], [-0.2, 0.55, 0.51], '#3a2a1a'],
+    ['k', [0.07, 5], [-0.2, 0.6, 0.55], '#ffd36a', GLUEHT],
+  ],
   // ------------------------------------------------------------- Gebaeude Gott
   herzbaum: [
     ['z', [0.35, 0.55, 2.2, 8], [0, 1.1, 0], HOLZ],
@@ -470,6 +490,16 @@ const MODELLE_DEF = {
     ['z', [0, 0.38, 1.0, 6], [-0.35, 0.95, 0.25], LAUB2, 0.3],
     ['z', [0.1, 0.14, 0.7, 5], [0, 0.35, -0.4], HOLZ],
     ['z', [0, 0.4, 1.1, 6], [0, 1.05, -0.4], LAUB, 0.3],
+  ],
+  // Waechterbaum: knorriger dunkler Stamm, Dornenkrone, gluehende Augen
+  waechterbaum: [
+    ['z', [0.25, 0.45, 2.2, 6], [0, 1.1, 0], '#2a2018'],
+    ['z', [0, 0.12, 0.9, 4], [0.35, 2.2, 0], '#2a2018', 0, [0, 0, -0.6]],
+    ['z', [0, 0.12, 0.9, 4], [-0.35, 2.2, 0], '#2a2018', 0, [0, 0, 0.6]],
+    ['z', [0, 0.12, 0.8, 4], [0, 2.25, 0.35], '#2a2018', 0, [0.6, 0, 0]],
+    ['z', [0, 0.12, 0.8, 4], [0, 2.25, -0.35], '#2a2018', 0, [-0.6, 0, 0]],
+    ['k', [0.06, 5], [0.1, 1.7, 0.26], '#ffd23a', GLUEHT],
+    ['k', [0.06, 5], [-0.1, 1.7, 0.26], '#ffd23a', GLUEHT],
   ],
   quelle: [
     ['z', [0.9, 0.9, 0.08, 10], [0, 0.04, 0], '#3a7fb0', 0.15],
@@ -499,6 +529,16 @@ const MODELLE_DEF = {
     ['z', [0, 0.12, 1.0, 4], [0.35, 0.7, 0], '#3a2a20', 0.3, [0, 0, -0.5]],
     ['z', [0, 0.12, 1.0, 4], [-0.35, 0.7, 0], '#3a2a20', 0.3, [0, 0, 0.5]],
     ['z', [0, 0.12, 1.0, 4], [0, 0.7, 0.35], '#3a2a20', 0.3, [0.5, 0, 0]],
+  ],
+  // Raunende Eiche: breite alte Eiche mit gluehenden Runen am Stamm
+  eiche: [
+    ['z', [0.45, 0.65, 1.6, 8], [0, 0.8, 0], HOLZ],
+    ['k', [1.15, 8], [0, 2.2, 0], '#35602c', 0.25],
+    ['k', [0.75, 7], [0.8, 1.9, 0.2], LAUB, 0.25],
+    ['k', [0.75, 7], [-0.75, 1.95, -0.2], LAUB2, 0.25],
+    ['q', [0.05, 0.35, 0.03], [0.12, 0.9, 0.5], '#f5b23c', GLUEHT],
+    ['q', [0.05, 0.25, 0.03], [-0.12, 1.1, 0.5], '#f5b23c', GLUEHT],
+    ['q', [0.18, 0.05, 0.03], [0, 0.65, 0.52], '#f5b23c', GLUEHT],
   ],
   steinkreis: [
     ['q', [0.25, 0.9, 0.18], [0.8, 0.45, 0], STEIN],
@@ -824,8 +864,8 @@ function befehl3(x, y) {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht', 'banner', 'kapelle']
-    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis'];
+    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium']
+    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
 }
 function renderBar() {
   const bar = document.getElementById('builds');
@@ -1003,7 +1043,7 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (!world) return;
-  const i = '1234567'.indexOf(e.key);
+  const i = '123456789'.indexOf(e.key);
   if (i >= 0 && bauListe()[i] && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'Escape') {
     placing = null;
@@ -1103,7 +1143,12 @@ function tick() {
       if (!a || !b) continue;
       // Fernkaempfer schiessen sichtbar: Jaeger Pfeile, Waldgeist und Waldgott
       // Lichtkugeln. Sonst ein kurzer Blitz zwischen Angreifer und Ziel.
-      const art = a.type === 'jaeger' ? 'pfeil' : a.type === 'waldgeist' || a.type === 'waldgott' ? 'kugel' : 'blitz';
+      const art =
+        a.type === 'jaeger' || a.type === 'wachturm' || a.type === 'waechterbaum'
+          ? 'pfeil'
+          : a.type === 'waldgeist' || a.type === 'waldgott'
+            ? 'kugel'
+            : 'blitz';
       const dauer = art === 'blitz' ? 0.22 : 0.4;
       schuesse.push({ a: ev.from, b: ev.to, ax: a.x, ay: a.y, bx: b.x, by: b.y, farbe: teamFarbe(a.player), t: dauer, dauer, art });
       // Schuetzen schauen zum Ziel

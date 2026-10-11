@@ -173,7 +173,7 @@ cv.addEventListener(
 
 addEventListener('keydown', (e) => {
   const liste = bauListe();
-  const i = '1234567'.indexOf(e.key);
+  const i = '123456789'.indexOf(e.key);
   if (i >= 0 && liste[i] && !gesperrt(world, ME, liste[i])) placing = liste[i];
   if (e.key === 'Escape') {
     placing = null;
@@ -276,8 +276,8 @@ function befehl(x, y) {
 
 function bauListe() {
   return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht', 'banner', 'kapelle']
-    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis'];
+    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium']
+    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
 }
 
 function renderBar() {
@@ -685,6 +685,14 @@ function drawSelection() {
     ctx.beginPath();
     ctx.arc(w2sx(e.x), w2sy(e.y), Math.max(5, def.radius * cam.z) + 4, 0, Math.PI * 2);
     ctx.stroke();
+    // Einzeln gewaehlte Fernkaempfer und Tuerme: Reichweite gestrichelt
+    if (sel.length === 1 && def.kampf === 'fern') {
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.arc(w2sx(e.x), w2sy(e.y), (def.weapon.range + def.radius) * cam.z, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
   if (drag && !drag.pan) {
     ctx.strokeStyle = '#c8d8b0';
@@ -1004,7 +1012,7 @@ function introHtml() {
     <div class="cols">
       <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
         <p>Viele günstige Einheiten: Bauern, Soldaten, Jäger, Söldner.
-        Jeder Wachturm deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
+        Jeder Grenzstein deckt ab Bauende <b>${meter(gm.start)}</b> ab — fest, sofort, überall gleich.
         Sägewerke roden den Boden; dort pflanzt der Gott keinen Hain.
         Schreine: Kriegsbanner +${pz('banner')} Schaden, Kapelle −${pw('kapelle')} Schaden.</p></div>
       <div><h2 style="color:${FACTIONS.gott.color}">Wald- und Wiesengott</h2>

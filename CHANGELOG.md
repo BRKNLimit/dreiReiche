@@ -3,6 +3,46 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.17 — Gebäude je Rolle, Nah- und Fernkampf
+
+- Jede Fraktion hat jetzt dieselben zehn Rollen (Vorbild Supreme Commander 2):
+
+  | Rolle | Menschen | Gott |
+  | --- | --- | --- |
+  | Hauptgebäude (vital) | Thingstätte | Herzbaum |
+  | Anker (Domäne) | Grenzstein | Hain |
+  | Verteidigung (schießt) | Wachturm | Wächterbaum |
+  | Gegenwart, ortsunabhängig | Schmiede | Quellgrund |
+  | Fron, auf Steinvorkommen | Sägewerk | Moosgrube |
+  | Götterblut, auf Ader | Blutschacht | Blutwurz |
+  | Fabrik | Kaserne | Dickicht |
+  | Schrein des Zorns | Kriegsbanner | Dornenschrein |
+  | Schrein der Wehr | Kapelle | Steinkreis |
+  | Forschung (Skillpunkte) | Skriptorium | Raunende Eiche |
+  
+  | Kampf | Menschen | Gott |
+  | --- | --- | --- |
+  | Nahkampf | Bauer, Soldat, Söldner, Held | Dryade, Wolf, Ent |
+  | Fernkampf | Jäger | Waldgeist, Waldgott |
+
+- **Grenzstein** ist der neue Anker der Menschen (Werte des bisherigen
+  Wachturms). Der **Wachturm** und der **Wächterbaum** schießen auf Feinde
+  bis 60 m vom Rand, brauchen dafür Gegenwart (Zorn-Stufe, zuletzt
+  gedrosselt) und schweigen ohne sie.
+- **Skriptorium** und **Raunende Eiche** beschleunigen die Skillpunkte um je
+  50 %, solange sie versorgt sind. Skillpunkte sind dafür jetzt ein
+  Forschungsvorrat je Spieler statt einer reinen Zeitrechnung.
+- **Nah- und Fernkampf:** Reichweite zählt jetzt von Rand zu Rand.
+  Nahkämpfer schlagen erst bei Berührung zu (2 bis 4 m), Fernkämpfer
+  schießen weit (Jäger 48 m, Waldgeist 52 m, Waldgott 38 m). Jede Einheit
+  trägt `kampf: 'nah' | 'fern'`.
+- Werte nach Messung: Wolf 600 LP, Dryade wieder 70 % Baukraft.
+- Bauleiste `1`–`9`; Info-Karten zeigen Kampfart, Schaden je Schuss oder
+  Schlag, Reichweite und Forschung; gewählte Fernkämpfer und Türme zeigen
+  ihre Reichweite. 3D-Modelle für die fünf neuen Gebäude.
+- KI baut ab Minute 3 Forschung und ab Minute 6 einen Turm zur Front.
+- Messung (128 Partien): Menschen 63 : Gott 65, Sitz 0 gewinnt 53, Ø 20 min.
+
 ## 0.16 — Gebaut wird nur von Erbauern
 
 - **Baufortschritt gibt es nur, solange Erbauer mit Auftrag direkt daneben

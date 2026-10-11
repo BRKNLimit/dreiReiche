@@ -49,7 +49,7 @@ test('isqrt liefert exakte Integer-Wurzeln', () => {
 
 test('Menschen-Anker hat sofort vollen Radius und wächst nicht', () => {
   const w = bare();
-  const t = spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  const t = spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   computeRegions(w);
   const r0 = anchorRadius(w, t);
   assert.equal(r0, FACTIONS.mensch.growth.start);
@@ -80,7 +80,7 @@ test('Gott-Anker hört beim Höchstradius auf zu wachsen', () => {
 
 test('die Fraktionen überholen sich: Gott ist erst kleiner, dann größer', () => {
   const wm = bare();
-  const tm = spawnBuilding(wm, 0, 'turm', 5000, 5000, true);
+  const tm = spawnBuilding(wm, 0, 'grenzstein', 5000, 5000, true);
   const wg = bare('gott', 'mensch');
   const tg = spawnBuilding(wg, 0, 'hain', 5000, 5000, true);
 
@@ -97,7 +97,7 @@ test('die Fraktionen überholen sich: Gott ist erst kleiner, dann größer', () 
 
 test('eine Baustelle zählt nicht als Anker', () => {
   const w = bare();
-  const t = spawnBuilding(w, 0, 'turm', 5000, 5000, false);
+  const t = spawnBuilding(w, 0, 'grenzstein', 5000, 5000, false);
   computeRegions(w);
   assert.equal(anchorRadius(w, t), 0);
   assert.equal(inDomain(w, 0, 5000, 5000), false);
@@ -107,7 +107,7 @@ test('eine Baustelle zählt nicht als Anker', () => {
 
 test('Gebäude im Ankerkreis bilden eine Region', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 6500, 5000, true);
   computeRegions(w);
   assert.equal(w.regions.length, 1);
@@ -115,7 +115,7 @@ test('Gebäude im Ankerkreis bilden eine Region', () => {
 
 test('eine entfernte Vorwärtsstellung ist eine eigene Region', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 15000, 15000, true);
   computeRegions(w);
   distributeGegenwart(w);
@@ -126,7 +126,7 @@ test('eine entfernte Vorwärtsstellung ist eine eigene Region', () => {
 
 test('Domänen verschiedener Spieler verbinden sich nie', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 1, 'hain', 5400, 5000, true);
   computeRegions(w);
   assert.equal(w.regions.length, 2);
@@ -136,7 +136,7 @@ test('Domänen verschiedener Spieler verbinden sich nie', () => {
 
 test('Drosselleiter: Werk fällt vor Segen', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true); // +40
   const saege = spawnBuilding(w, 0, 'saege', 5000, 5800, true); // 14, Segen
   const kaserne = spawnBuilding(w, 0, 'kaserne', 6200, 5600, true); // 55, Werk
@@ -152,7 +152,7 @@ test('Drosselleiter: Werk fällt vor Segen', () => {
 
 test('ohne Erbauer kein Baufortschritt -- auch nicht in versorgter Domaene', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 15000, 15000, true);
+  spawnBuilding(w, 0, 'grenzstein', 15000, 15000, true);
   spawnBuilding(w, 0, 'schmiede', 15800, 15000, true);
   const b = spawnBuilding(w, 0, 'kaserne', 16600, 15600, false);
   for (let i = 0; i < BUILDINGS.kaserne.buildTime * 3; i++) step(w);
@@ -162,7 +162,7 @@ test('ohne Erbauer kein Baufortschritt -- auch nicht in versorgter Domaene', () 
 
 test('mit einem Erbauer daneben wird sie fertig: buildTime bei voller Kraft', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 15000, 15000, true);
+  spawnBuilding(w, 0, 'grenzstein', 15000, 15000, true);
   spawnBuilding(w, 0, 'schmiede', 15800, 15000, true);
   const b = spawnBuilding(w, 0, 'kaserne', 16600, 15600, false);
   erbauerDaneben(w, b, 'held');
@@ -177,9 +177,9 @@ test('in der Domaene: erst wenn der Erbauer ankommt, geht es los', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   const bauer = spawnUnit(w, 0, 'bauer', 5000, 7500); // 250 m entfernt, in der Domaene
-  issue(w, { type: 'build', player: 0, building: 'turm', x: 7500, y: 5000, ids: [bauer.id] });
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 7500, y: 5000, ids: [bauer.id] });
   step(w);
-  const turm = w.entities.find((e) => e.type === 'turm');
+  const turm = w.entities.find((e) => e.type === 'grenzstein');
   for (let i = 0; i < 20; i++) step(w);
   assert.equal(turm.progress, 0, 'unterwegs wird nicht gebaut, Gegenwart hin oder her');
   for (let i = 0; i < 200; i++) step(w);
@@ -189,13 +189,13 @@ test('in der Domaene: erst wenn der Erbauer ankommt, geht es los', () => {
 test('in der Domaene: wer weggeht, baut nicht weiter -- die Baustelle steht', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
-  const turm = tryPlace(w, 0, 'turm', 7000, 5000);
+  const turm = tryPlace(w, 0, 'grenzstein', 7000, 5000);
   const k = erbauerDaneben(w, turm, 'held');
   for (let i = 0; i < 20; i++) step(w);
   const stand = turm.progress;
   assert.ok(stand > 0, 'angefangen');
   issue(w, { type: 'move', player: 0, ids: [k.id], x: 3000, y: 5000 });
-  for (let i = 0; i < BUILDINGS.turm.buildTime * 3; i++) step(w);
+  for (let i = 0; i < BUILDINGS.grenzstein.buildTime * 3; i++) step(w);
   assert.equal(turm.progress, stand, 'kein Fortschritt ohne Erbauer');
   assert.equal(turm.done, false, 'und nicht trotzdem fertig');
 });
@@ -204,7 +204,7 @@ test('mehrere Erbauer bauen zusammen schneller als einer', () => {
   const zeit = (zweiter) => {
     const w = bare();
     spawnBuilding(w, 0, 'halle', 5000, 5000, true);
-    const b = tryPlace(w, 0, 'turm', 7000, 5000);
+    const b = tryPlace(w, 0, 'grenzstein', 7000, 5000);
     erbauerDaneben(w, b, 'bauer');
     if (zweiter) {
       const u = spawnUnit(w, 0, 'bauer', b.x - 100, b.y);
@@ -224,7 +224,7 @@ test('mehrere Erbauer bauen zusammen schneller als einer', () => {
 
 test('ein Sägewerk rodet den Boden und sperrt Haine aus', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
   w.deposits.push({ x: 5000, y: 6200, kind: 'fron', takenBy: 0 });
   const s = tryPlace(w, 0, 'saege', 5000, 6200);
@@ -249,7 +249,7 @@ test('abseits des gerodeten Bodens lässt sich ein Hain pflanzen', () => {
 test('Fraktionen können nur ihre eigenen Gebäude bauen', () => {
   const w = bare();
   assert.equal(tryPlace(w, 0, 'hain', 9000, 9000), null, 'Mensch baut keinen Hain');
-  assert.equal(tryPlace(w, 1, 'turm', 9000, 9000), null, 'Gott baut keinen Turm');
+  assert.equal(tryPlace(w, 1, 'grenzstein', 9000, 9000), null, 'Gott baut keinen Turm');
 });
 
 // ---------------------------------------------------- Heimvorteil
@@ -261,7 +261,7 @@ function schreinGefecht({ schreine = [], versorgt = true, wolfX = 5100 }) {
   if (!versorgt) w.entities[0].type = 'hain'; // ein Anker ohne Gegenwart
   schreine.forEach((t, i) => spawnBuilding(w, 0, t, 4700, 4800 + i * 200, true));
   const wolf = spawnUnit(w, 0, 'wolf', wolfX, 5000);
-  const soldat = spawnUnit(w, 1, 'soldat', wolfX + 200, 5000);
+  const soldat = spawnUnit(w, 1, 'soldat', wolfX + 60, 5000); // Beruehrung
   const hp = [wolf.hp, soldat.hp];
   step(w);
   return { gegeben: hp[1] - soldat.hp, genommen: hp[0] - wolf.hp };
@@ -383,7 +383,7 @@ test('Baustellen ziehen keine Gegenwart -- auch eine Quelle entsteht in überbuc
 
 test('ohne Überbuchung ändert der Mindestfluss nichts an der Leiter', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
   const saege = spawnBuilding(w, 0, 'saege', 5000, 5800, true);
   computeRegions(w);
@@ -395,7 +395,7 @@ test('ohne Überbuchung ändert der Mindestfluss nichts an der Leiter', () => {
 
 test('Schaden an einer Baustelle bleibt bestehen', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
   const b = spawnBuilding(w, 0, 'kaserne', 6000, 5800, false);
   erbauerDaneben(w, b);
@@ -408,7 +408,7 @@ test('Schaden an einer Baustelle bleibt bestehen', () => {
 
 test('eine unbeschädigte Baustelle ist bei Fertigstellung voll', () => {
   const w = bare();
-  spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+  spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
   const b = spawnBuilding(w, 0, 'kaserne', 6000, 5800, false);
   erbauerDaneben(w, b);
@@ -497,7 +497,7 @@ test('Erfahrung waechst je volle Minute und ist gedeckelt', () => {
 
 test('Erfahrung: Baustellen haben keine, Gebaeude zaehlen ab Bauende', () => {
   const w = bare();
-  const b = spawnBuilding(w, 0, 'turm', 3000, 3000, false);
+  const b = spawnBuilding(w, 0, 'grenzstein', 3000, 3000, false);
   w.tick += 6000;
   assert.equal(erfahrung(w, b), 0);
   b.done = true;
@@ -511,7 +511,7 @@ function erfahrenesGefecht(wolfAlt, soldatAlt) {
   const w = bare('gott', 'mensch');
   w.tick = 600 * 50;
   const wolf = spawnUnit(w, 0, 'wolf', 5000, 5000);
-  const soldat = spawnUnit(w, 1, 'soldat', 5200, 5000);
+  const soldat = spawnUnit(w, 1, 'soldat', 5060, 5000); // Beruehrung
   soldat.cooldown = 1e9; // schlaegt nicht zurueck
   if (wolfAlt) wolf.seit = 0;
   if (soldatAlt) soldat.seit = 0;
@@ -533,10 +533,36 @@ test('Erfahrung: ein alter Wolf trifft haerter, ein alter Soldat steckt mehr weg
 test('Skillpunkte: einer zu Beginn, dann einer je Takt', () => {
   const w = bare();
   assert.equal(skillPunkte(w, 0), RULES.skillStart);
-  w.tick = RULES.skillTakt * 3 - 1;
+  for (let i = 0; i < RULES.skillTakt * 3 - 1; i++) step(w);
   assert.equal(skillPunkte(w, 0), RULES.skillStart + 2);
-  w.tick++;
+  step(w);
   assert.equal(skillPunkte(w, 0), RULES.skillStart + 3);
+});
+
+test('Forschung: ein versorgtes Forschungsgebaeude bringt Skillpunkte schneller', () => {
+  const zeit = (mit) => {
+    const w = bare();
+    spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+    spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
+    if (mit) spawnBuilding(w, 0, 'skriptorium', 4200, 5000, true);
+    let t = 0;
+    while (skillPunkte(w, 0) < RULES.skillStart + 2) {
+      step(w);
+      t++;
+    }
+    return t;
+  };
+  const ohne = zeit(false);
+  assert.equal(ohne, RULES.skillTakt * 2);
+  const f = BUILDINGS.skriptorium.forschung;
+  assert.equal(zeit(true), Math.ceil((RULES.skillTakt * 2 * 1000) / (1000 + f)));
+});
+
+test('Forschung: ohne Gegenwart forscht niemand', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'skriptorium', 15000, 15000, true); // weit weg von jeder Domaene
+  for (let i = 0; i < RULES.skillTakt; i++) step(w);
+  assert.equal(skillPunkte(w, 0), RULES.skillStart + 1, 'nur der Grundtakt');
 });
 
 test('Skillbaum: jede Fraktion hat alle vier Aeste, Voraussetzungen gibt es', () => {
@@ -590,7 +616,7 @@ test('Skillbaum: Verbesserungen wirken auf Schaden, Foerderung und Unterhalt', (
   const w = bare('gott', 'mensch');
   w.players[0].gelernt.push('faenge');
   const wolf = spawnUnit(w, 0, 'wolf', 5000, 5000);
-  const soldat = spawnUnit(w, 1, 'soldat', 5200, 5000);
+  const soldat = spawnUnit(w, 1, 'soldat', 5060, 5000); // Beruehrung
   soldat.cooldown = 1e9;
   const hp = soldat.hp;
   step(w);
@@ -703,7 +729,7 @@ test('Malus in fremder Domäne wirkt nur, wenn eingeschaltet', () => {
     const w = bare();
     spawnBuilding(w, 1, 'hain', 4300, 5000, true); // Gott-Domäne, Hain außer Reichweite
     const lw = spawnUnit(w, 0, 'soldat', 5100, 5000); // Mensch steht darin
-    const ziel = spawnUnit(w, 1, 'dryade', 5300, 5000);
+    const ziel = spawnUnit(w, 1, 'dryade', 5160, 5000); // Beruehrung
     assert.equal(inForeignDomain(w, 0, lw.x, lw.y), true);
     const hp = ziel.hp;
     step(w);
@@ -719,6 +745,84 @@ test('Malus in fremder Domäne wirkt nur, wenn eingeschaltet', () => {
     assert.equal(halb, (UNITS.soldat.weapon.damage * 500 / 1000) | 0);
   } finally {
     RULES.fremdMalus = alt;
+  }
+});
+
+// ---------------------------------------------------- Nah- und Fernkampf
+
+test('Nahkampf trifft erst bei Beruehrung, Fernkampf aus der Ferne', () => {
+  // Wolf und Soldat 2 m Rand zu Rand zu weit fuer einen Schlag, Jaeger trifft von weit.
+  const w = bare('gott', 'mensch');
+  const wolf = spawnUnit(w, 0, 'wolf', 5000, 5000);
+  wolf.cooldown = 1e9; // schlaegt nicht -- hier zaehlt nur, wer trifft
+  wolf.arrived = false; // und jagt nicht
+  wolf.tx = wolf.x;
+  wolf.ty = wolf.y;
+  const abstand = UNITS.wolf.radius + UNITS.soldat.radius + UNITS.soldat.weapon.range + 30;
+  const soldat = spawnUnit(w, 1, 'soldat', 5000 + abstand, 5000);
+  soldat.arrived = false; // jagt nicht, steht nur da
+  soldat.tx = soldat.x;
+  soldat.ty = soldat.y;
+  const jaeger = spawnUnit(w, 1, 'jaeger', 5000, 5000 + UNITS.jaeger.weapon.range + 40);
+  jaeger.arrived = false;
+  jaeger.tx = jaeger.x;
+  jaeger.ty = jaeger.y;
+  const hp = wolf.hp;
+  step(w);
+  assert.equal(hp - wolf.hp, UNITS.jaeger.weapon.damage, 'nur der Jaeger trifft');
+  assert.equal(UNITS.soldat.kampf, 'nah');
+  assert.equal(UNITS.jaeger.kampf, 'fern');
+});
+
+test('jede Einheit ist Nah- oder Fernkaempfer, jede Fraktion hat beides', () => {
+  for (const f of ['mensch', 'gott']) {
+    const arten = new Set(Object.values(UNITS).filter((u) => u.faction === f).map((u) => u.kampf));
+    assert.deepEqual([...arten].sort(), ['fern', 'nah'], f);
+  }
+  for (const [typ, u] of Object.entries(UNITS)) assert.ok(u.kampf === 'nah' || u.kampf === 'fern', typ);
+});
+
+// ---------------------------------------------------- Verteidigung
+
+function turmGefecht(versorgt) {
+  const w = bare();
+  if (versorgt) spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const turm = spawnBuilding(w, 0, 'wachturm', 6000, 5000, true);
+  const wolf = spawnUnit(w, 1, 'wolf', 6000 + BUILDINGS.wachturm.radius + UNITS.wolf.radius + 400, 5000);
+  wolf.arrived = false;
+  wolf.tx = wolf.x;
+  wolf.ty = wolf.y;
+  const hp = wolf.hp;
+  step(w);
+  return { schaden: hp - wolf.hp, turm };
+}
+
+test('der Wachturm schiesst auf Feinde in Reichweite, solange er Gegenwart hat', () => {
+  const { schaden, turm } = turmGefecht(true);
+  assert.equal(turm.powered, 1000);
+  assert.equal(schaden, BUILDINGS.wachturm.weapon.damage);
+});
+
+test('ohne Gegenwart schweigt der Wachturm', () => {
+  const { schaden, turm } = turmGefecht(false);
+  assert.equal(turm.powered, 0);
+  assert.equal(schaden, 0);
+});
+
+test('jede Fraktion hat Hauptgebaeude, Anker, Verteidigung, Gegenwart, Fron, Goetterblut, Fabrik, zwei Schreine, Forschung', () => {
+  for (const f of ['mensch', 'gott']) {
+    const b = Object.values(BUILDINGS).filter((d) => d.faction === f);
+    const hat = (p) => b.filter(p).length;
+    assert.equal(hat((d) => d.vital), 1, f + ' Hauptgebaeude');
+    assert.equal(hat((d) => d.anchor && !d.vital), 1, f + ' Anker');
+    assert.equal(hat((d) => d.weapon), 1, f + ' Verteidigung');
+    assert.equal(hat((d) => d.gegenwartOut && !d.vital), 1, f + ' Gegenwart');
+    assert.equal(hat((d) => d.fronOut), 1, f + ' Fron');
+    assert.equal(hat((d) => d.blutOut), 1, f + ' Goetterblut');
+    assert.equal(hat((d) => d.buildList && !d.vital), 1, f + ' Fabrik');
+    assert.equal(hat((d) => d.buff && d.buff.zorn), 1, f + ' Zorn-Schrein');
+    assert.equal(hat((d) => d.buff && d.buff.wehr), 1, f + ' Wehr-Schrein');
+    assert.equal(hat((d) => d.forschung), 1, f + ' Forschung');
   }
 });
 
@@ -793,7 +897,7 @@ test('Abriss erstattet auch das Götterblut wartender Aufträge', () => {
 test('Kampf ist gleichzeitig: kein Erstschlag durch Listenplatz', () => {
   const w = bare('mensch', 'mensch');
   const a = spawnUnit(w, 0, 'soldat', 5000, 5000);
-  const b = spawnUnit(w, 1, 'soldat', 5300, 5000);
+  const b = spawnUnit(w, 1, 'soldat', 5060, 5000); // Beruehrung
   a.hp = UNITS.soldat.weapon.damage; // stirbt am ersten Treffer
   b.hp = UNITS.soldat.weapon.damage;
   step(w);
@@ -929,7 +1033,7 @@ test('ein Ziel im Gebäude: Einheit bleibt am Rand stehen', () => {
 test('Ankerkraft: eingeschaltet spendet jeder Anker Gegenwart nach Radius', () => {
   const welt = () => {
     const w = bare();
-    spawnBuilding(w, 0, 'turm', 5000, 5000, true);
+    spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
     computeRegions(w);
     distributeGegenwart(w);
     return w.regions[0].supply;
@@ -948,7 +1052,7 @@ test('Ankerkraft: eingeschaltet spendet jeder Anker Gegenwart nach Radius', () =
 test('ein Todesereignis nennt Art, Typ und Spieler', () => {
   const w = bare();
   spawnUnit(w, 0, 'soeldner', 5000, 5000);
-  const opfer = spawnUnit(w, 1, 'dryade', 5300, 5000);
+  const opfer = spawnUnit(w, 1, 'dryade', 5070, 5000); // Beruehrung
   opfer.hp = 1;
   step(w);
   const ev = w.events.find((e) => e.t === 'died');
@@ -969,10 +1073,10 @@ test('jeder Spieler beginnt mit genau einem Kommandanten seiner Fraktion', () =>
 test('der Kommandant baut seinen Auftrag auch außerhalb der Domäne', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 3000, 3000, true);
-  const turm = tryPlace(w, 0, 'turm', 12000, 12000);
+  const turm = tryPlace(w, 0, 'grenzstein', 12000, 12000);
   const k = spawnUnit(w, 0, 'held', 12200, 12000);
   issue(w, { type: 'bauen', player: 0, ids: [k.id], id: turm.id });
-  for (let i = 0; i < BUILDINGS.turm.buildTime + 10; i++) step(w);
+  for (let i = 0; i < BUILDINGS.grenzstein.buildTime + 10; i++) step(w);
   assert.equal(turm.done, true, 'fertig ohne Gegenwart, allein durch den Kommandanten');
   assert.equal(k.auftrag, 0, 'Auftrag erledigt');
 });
@@ -980,7 +1084,7 @@ test('der Kommandant baut seinen Auftrag auch außerhalb der Domäne', () => {
 test('ohne Auftrag baut ein Erbauer nichts, auch direkt daneben', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 3000, 3000, true);
-  const turm = tryPlace(w, 0, 'turm', 12000, 12000);
+  const turm = tryPlace(w, 0, 'grenzstein', 12000, 12000);
   spawnUnit(w, 0, 'held', 12100, 12000);
   for (let i = 0; i < 100; i++) step(w);
   assert.equal(turm.progress, 0);
@@ -989,22 +1093,22 @@ test('ohne Auftrag baut ein Erbauer nichts, auch direkt daneben', () => {
 test('ein Erbauer baut nur direkt daneben: erst hinlaufen, dann bauen', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 3000, 3000, true);
-  const turm = tryPlace(w, 0, 'turm', 12000, 12000);
+  const turm = tryPlace(w, 0, 'grenzstein', 12000, 12000);
   const b = spawnUnit(w, 0, 'bauer', 9000, 12000); // 300 m entfernt
   issue(w, { type: 'bauen', player: 0, ids: [b.id], id: turm.id });
   for (let i = 0; i < 20; i++) step(w);
   assert.equal(turm.progress, 0, 'unterwegs wird nicht gebaut');
   for (let i = 0; i < 200; i++) step(w);
   assert.ok(turm.progress > 0, 'angekommen: es geht voran');
-  const nah = BUILDINGS.turm.radius + UNITS.bauer.radius + 60;
+  const nah = BUILDINGS.grenzstein.radius + UNITS.bauer.radius + 60;
   assert.ok((b.x - turm.x) ** 2 + (b.y - turm.y) ** 2 <= nah * nah, 'steht daneben');
 });
 
 test('ein Auftrag je Einheit: der neue ersetzt den alten', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 3000, 3000, true);
-  const a = tryPlace(w, 0, 'turm', 12000, 12000);
-  const c = tryPlace(w, 0, 'turm', 12000, 12600);
+  const a = tryPlace(w, 0, 'grenzstein', 12000, 12000);
+  const c = tryPlace(w, 0, 'grenzstein', 12000, 12600);
   const k = spawnUnit(w, 0, 'held', 12000, 12300); // zwischen beiden
   issue(w, { type: 'bauen', player: 0, ids: [k.id], id: a.id });
   issue(w, { type: 'bauen', player: 0, ids: [k.id], id: c.id });
@@ -1017,7 +1121,7 @@ test('ein Auftrag je Einheit: der neue ersetzt den alten', () => {
 test('ein Bewegungsbefehl beendet den Bauauftrag', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 3000, 3000, true);
-  const turm = tryPlace(w, 0, 'turm', 12000, 12000);
+  const turm = tryPlace(w, 0, 'grenzstein', 12000, 12000);
   const k = spawnUnit(w, 0, 'held', 12100, 12000);
   issue(w, { type: 'bauen', player: 0, ids: [k.id], id: turm.id });
   for (let i = 0; i < 10; i++) step(w);
@@ -1034,9 +1138,9 @@ test('beim Platzieren bekommen ausgewaehlte Erbauer den Auftrag', () => {
   spawnBuilding(w, 0, 'halle', 3000, 3000, true);
   const b = spawnUnit(w, 0, 'bauer', 11800, 12000);
   const s = spawnUnit(w, 0, 'soldat', 11800, 12100);
-  issue(w, { type: 'build', player: 0, building: 'turm', x: 12000, y: 12000, ids: [b.id, s.id] });
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 12000, y: 12000, ids: [b.id, s.id] });
   step(w);
-  const turm = w.entities.find((e) => e.type === 'turm');
+  const turm = w.entities.find((e) => e.type === 'grenzstein');
   assert.equal(b.auftrag, turm.id, 'der Bauer baut');
   assert.equal(s.auftrag || 0, 0, 'der Soldat kann nicht bauen');
 });

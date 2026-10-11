@@ -51,8 +51,9 @@ export const RULES = {
   erfahrungMax: 100,
 
   // Skillbaum (SKILLS): Punkte kommen mit der Zeit -- skillStart zu Beginn,
-  // dann einer je skillTakt Ticks. Aus = alles frei, keine Verbesserungen;
-  // nur fuer Vergleichsmessungen.
+  // dann einer je skillTakt Ticks. Forschungsgebaeude (forschung, Promille)
+  // beschleunigen den Takt. Aus = alles frei, keine Verbesserungen; nur fuer
+  // Vergleichsmessungen.
   skills: true,
   skillStart: 1,
   skillTakt: 1200,
@@ -98,16 +99,30 @@ export const BUILDINGS = {
     buildList: ['bauer', 'soldat'],
     vital: true,
   },
-  turm: {
-    name: 'Wachturm',
+  grenzstein: {
+    name: 'Grenzstein',
     desc: 'Anker: dehnt die Domäne aus, sofort in voller Größe. Nur in der Domäne fließt Gegenwart.',
-    short: 'TRM',
+    short: 'GRZ',
     faction: 'mensch',
     hp: 800,
     radius: 48,
     anchor: true,
     cost: { fron: 120 },
     buildTime: 150,
+  },
+  wachturm: {
+    name: 'Wachturm',
+    desc: 'Verteidigung: Schützen schießen Pfeile auf Feinde in Reichweite. Braucht Gegenwart — ohne schweigt er.',
+    short: 'WTM',
+    faction: 'mensch',
+    hp: 1000,
+    radius: 40,
+    gegenwartIn: 10,
+    prio: PRIO.zorn, // Waffen fallen zuletzt
+    cost: { fron: 200 },
+    buildTime: 200,
+    kampf: 'fern',
+    weapon: { range: 600, damage: 14, cooldown: 8 }, // schiesst nur mit Gegenwart
   },
   schmiede: {
     name: 'Schmiede',
@@ -193,6 +208,19 @@ export const BUILDINGS = {
     buildTime: 170,
     buff: { wehr: 200, radius: 3000 },
   },
+  skriptorium: {
+    name: 'Skriptorium',
+    desc: 'Forschung: Mönche schreiben, sammeln und ordnen — Skillpunkte kommen schneller. Braucht Gegenwart.',
+    short: 'SKR',
+    faction: 'mensch',
+    hp: 900,
+    radius: 55,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    cost: { fron: 250 },
+    buildTime: 230,
+    forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
+  },
 
   // --------------------------------------------------------------- Gott
   herzbaum: {
@@ -221,6 +249,20 @@ export const BUILDINGS = {
     cost: { fron: 110 },
     buildTime: 190,
     needsGrowth: true, // nur auf ungerodetem Boden
+  },
+  waechterbaum: {
+    name: 'Wächterbaum',
+    desc: 'Verteidigung: schleudert Dornen auf Feinde in Reichweite. Braucht Gegenwart — ohne schläft er.',
+    short: 'WBA',
+    faction: 'gott',
+    hp: 1000,
+    radius: 40,
+    gegenwartIn: 10,
+    prio: PRIO.zorn, // Waffen fallen zuletzt
+    cost: { fron: 200 },
+    buildTime: 200,
+    kampf: 'fern',
+    weapon: { range: 600, damage: 14, cooldown: 8 }, // schiesst nur mit Gegenwart
   },
   quelle: {
     name: 'Quellgrund',
@@ -301,10 +343,25 @@ export const BUILDINGS = {
     buildTime: 170,
     buff: { wehr: 300, radius: 3000 },
   },
+  eiche: {
+    name: 'Raunende Eiche',
+    desc: 'Forschung: Die alte Eiche flüstert, was der Wald weiß — Skillpunkte kommen schneller. Braucht Gegenwart.',
+    short: 'EIC',
+    faction: 'gott',
+    hp: 900,
+    radius: 55,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    cost: { fron: 250 },
+    buildTime: 230,
+    forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
+  },
 };
 
 // unterhalt: laufende Kosten in Fron pro Minute. Grosse Heere fressen die
 // Wirtschaft -- keine harte Obergrenze, aber eine spuerbare Bremse.
+// kampf: 'nah' schlaegt erst bei Beruehrung zu, 'fern' schiesst aus der Ferne.
+// weapon.range: Abstand von Rand zu Rand, in dem getroffen wird.
 export const UNITS = {
   // ------------------------------------------------------------- Menschen
   // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
@@ -321,7 +378,8 @@ export const UNITS = {
     worker: true,
     // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
     build: { power: 400 },
-    weapon: { range: 300, damage: 4, cooldown: 8 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 4, cooldown: 8 },
   },
   soldat: {
     name: 'Soldat',
@@ -333,7 +391,8 @@ export const UNITS = {
     cost: { fron: 45 },
     unterhalt: 9, // Fron pro Minute, solange sie lebt
     buildTime: 80,
-    weapon: { range: 380, damage: 9, cooldown: 6 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 9, cooldown: 6 },
   },
   jaeger: {
     name: 'Jäger',
@@ -345,7 +404,8 @@ export const UNITS = {
     cost: { fron: 55 },
     unterhalt: 10, // Fron pro Minute, solange sie lebt
     buildTime: 100,
-    weapon: { range: 540, damage: 13, cooldown: 8 },
+    kampf: 'fern',
+    weapon: { range: 480, damage: 13, cooldown: 8 },
   },
   soeldner: {
     name: 'Söldner',
@@ -359,7 +419,8 @@ export const UNITS = {
     cost: { fron: 130, goetterblut: 10 },
     unterhalt: 24, // Fron pro Minute, solange sie lebt
     buildTime: 190,
-    weapon: { range: 480, damage: 26, cooldown: 8 },
+    kampf: 'nah',
+    weapon: { range: 25, damage: 26, cooldown: 8 },
   },
 
   // Kommandanten -- Designentscheidung, siehe docs/scope.md. Vorbild ist die
@@ -379,7 +440,8 @@ export const UNITS = {
     speed: 24,
     cost: { fron: 0 },
     buildTime: 0,
-    weapon: { range: 480, damage: 45, cooldown: 6 },
+    kampf: 'nah',
+    weapon: { range: 30, damage: 45, cooldown: 6 },
     commander: true,
     build: { power: 1000 },
   },
@@ -395,7 +457,8 @@ export const UNITS = {
     speed: 22,
     cost: { fron: 0 },
     buildTime: 0,
-    weapon: { range: 440, damage: 42, cooldown: 6 },
+    kampf: 'fern',
+    weapon: { range: 380, damage: 42, cooldown: 6 },
     commander: true,
     build: { power: 1000 },
   },
@@ -410,20 +473,22 @@ export const UNITS = {
     unterhalt: 12, // Fron pro Minute, solange sie lebt
     buildTime: 180,
     worker: true,
-    build: { power: 600 },
-    weapon: { range: 380, damage: 8, cooldown: 7 },
+    build: { power: 700 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 8, cooldown: 7 },
   },
   wolf: {
     name: 'Wolf',
     desc: 'Schneller, zäher Nahkämpfer.',
     faction: 'gott',
-    hp: 540,
+    hp: 600,
     radius: 30,
     speed: 34,
     cost: { fron: 130 },
     unterhalt: 24, // Fron pro Minute, solange sie lebt
     buildTime: 210,
-    weapon: { range: 260, damage: 22, cooldown: 6 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 22, cooldown: 6 },
   },
   waldgeist: {
     name: 'Waldgeist',
@@ -435,7 +500,8 @@ export const UNITS = {
     cost: { fron: 130 },
     unterhalt: 24, // Fron pro Minute, solange sie lebt
     buildTime: 240,
-    weapon: { range: 600, damage: 26, cooldown: 8 },
+    kampf: 'fern',
+    weapon: { range: 520, damage: 26, cooldown: 8 },
   },
   ent: {
     name: 'Ent',
@@ -447,7 +513,8 @@ export const UNITS = {
     cost: { fron: 300, goetterblut: 20 },
     unterhalt: 56, // Fron pro Minute, solange sie lebt
     buildTime: 480,
-    weapon: { range: 360, damage: 52, cooldown: 10 },
+    kampf: 'nah',
+    weapon: { range: 40, damage: 52, cooldown: 10 },
   },
 };
 

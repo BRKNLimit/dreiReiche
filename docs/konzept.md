@@ -107,11 +107,39 @@ die Fabriken. Werk fällt weiter zuerst — nur nicht ganz auf null.
 Eingeführt wurde er für Baustellen, die früher Gegenwart brauchten; seit
 Erbauer allein bauen, ist das sein einziger Zweck.
 
+### Dieselben Rollen für alle
+
+Jede Fraktion hat dieselben zehn Gebäuderollen, nach Vorbild von Supreme
+Commander 2: Hauptgebäude, Anker, Verteidigung, Gegenwart (ortsunabhängig
+wie ein Energiegenerator), Fron auf Steinvorkommen (wie ein
+Masseextraktor), Götterblut auf einer Ader, Fabrik, zwei Schreine,
+Forschung. Die Asymmetrie steckt in den Zahlen und in der Domäne, nicht in
+fehlenden Rollen. Einheiten sind Nah- oder Fernkämpfer; jede Fraktion hat
+beides.
+
+| Rolle | Menschen | Gott |
+| --- | --- | --- |
+| Hauptgebäude (vital) | Thingstätte | Herzbaum |
+| Anker (Domäne) | Grenzstein | Hain |
+| Verteidigung (schießt) | Wachturm | Wächterbaum |
+| Gegenwart, ortsunabhängig | Schmiede | Quellgrund |
+| Fron, auf Steinvorkommen | Sägewerk | Moosgrube |
+| Götterblut, auf Ader | Blutschacht | Blutwurz |
+| Fabrik | Kaserne | Dickicht |
+| Schrein des Zorns | Kriegsbanner | Dornenschrein |
+| Schrein der Wehr | Kapelle | Steinkreis |
+| Forschung (Skillpunkte) | Skriptorium | Raunende Eiche |
+
+| Kampf | Menschen | Gott |
+| --- | --- | --- |
+| Nahkampf | Bauer, Soldat, Söldner, Held | Dryade, Wolf, Ent |
+| Fernkampf | Jäger | Waldgeist, Waldgott |
+
 ### Skillbaum statt Zeitalter
 
 Ursprünglich ohne Tech-Tree geplant; auf Wunsch des Nutzers gibt es jetzt
-einen **Skillbaum** je Fraktion. Punkte kommen mit der Zeit, nicht aus
-Ressourcen — wer früh angreift, hat wenige, wer lange lebt, viele. Er hat vier
+einen **Skillbaum** je Fraktion. Punkte kommen mit der Zeit, schneller mit
+Forschungsgebäuden, nicht aus Ressourcen — wer früh angreift, hat wenige, wer lange lebt, viele. Er hat vier
 Äste: Einheiten (Fernkämpfer und schwere Einheiten), Gebäude (die Schreine),
 Verbesserungen des ganzen Volkes und den Kommandanten mit einer aktiven
 Fähigkeit. Grundeinheiten, Förderung, Fabriken und Anker sind ab Minute eins
@@ -126,7 +154,7 @@ eines Ankers über die Zeit verändert. Siehe `anchorRadius()` in
 
 | Fraktion | Anker | Radius wächst durch | Spielgefühl |
 | --- | --- | --- | --- |
-| Menschen | Wachturm | gar nicht — fest bei Bau | Sofort da, überall gleich, planbar |
+| Menschen | Grenzstein | gar nicht — fest bei Bau | Sofort da, überall gleich, planbar |
 | Wald- und Wiesengott | Hain, Herzbaum | Zeit | Langsam klein, später riesig |
 | *Todesgott (später)* | *Grabhügel* | *Tode im Umkreis* | *Wächst nur, wo gekämpft wird* |
 
@@ -136,8 +164,10 @@ drittes Regelwerk.
 
 ## Menschen
 
-**Anker:** Wachturm. Fester Radius ab Bauende, mittelgroß, billig. Menschen
-decken Fläche ab, indem sie viele kleine Anker setzen.
+**Anker:** Grenzstein. Fester Radius ab Bauende, mittelgroß, billig.
+Menschen decken Fläche ab, indem sie viele kleine Anker setzen. Verteidigt
+wird mit dem Wachturm, der Pfeile schießt — getrennt vom Anker, damit nicht
+jede Ausdehnung zugleich eine Festung ist.
 
 **Quelle der Gegenwart:** Keine Gottheit, sondern Feuer und Arbeit —
 Schmieden. Funktioniert überall gleich gut, ortsunabhängig.
@@ -148,9 +178,9 @@ nicht indem sie angreifen.
 
 **Einheiten: viele, günstig.** Stärke kommt aus der Zahl.
 
-**Im Prototyp:** Thingstätte, Wachturm, Schmiede, Sägewerk, Kaserne,
-Blutschacht, Kriegsbanner, Kapelle · Held (Kommandant), Bauer, Soldat, Jäger,
-Söldner.
+**Im Prototyp:** Thingstätte, Grenzstein, Wachturm, Schmiede, Sägewerk,
+Kaserne, Blutschacht, Kriegsbanner, Kapelle, Skriptorium · Held (Kommandant,
+Nahkampf), Bauer, Soldat, Söldner (Nahkampf), Jäger (Fernkampf).
 
 **Später:** Wagenburg, Armbrust, Priester, Bergung der Gefallenen.
 
@@ -169,11 +199,12 @@ Einer, der nach drei Minuten fällt, hat nichts gebracht.
 **Heimvorteil** über Schreine — Dornenschrein und Steinkreis wirken bei ihm
 stärker als die Schreine der Menschen.
 
-**Im Prototyp:** Herzbaum, Hain, Quellgrund, Moosgrube, Dickicht, Blutwurz,
-Dornenschrein, Steinkreis · Waldgott (Kommandant), Dryade, Wolf, Waldgeist,
-Ent.
+**Im Prototyp:** Herzbaum, Hain, Wächterbaum, Quellgrund, Moosgrube,
+Dickicht, Blutwurz, Dornenschrein, Steinkreis, Raunende Eiche · Waldgott
+(Kommandant, Fernkampf), Dryade, Wolf, Ent (Nahkampf), Waldgeist
+(Fernkampf).
 
-**Später:** Dornwerfer, Moosbär, Flüsterer, aktives Überwuchern von Gerodetem.
+**Später:** Moosbär, Flüsterer, aktives Überwuchern von Gerodetem.
 
 ## Todesgott — zurückgestellt
 

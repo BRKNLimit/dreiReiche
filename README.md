@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.16
+# Die drei Reiche — Prototyp 0.17
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -13,7 +13,7 @@ Verbesserungen und eine Fähigkeit des Kommandanten frei.
 ## Loslegen
 
 ```bash
-npm test          # 77 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
+npm test          # 84 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -42,7 +42,7 @@ der Draufsicht.
 | Rechtsklick | Bewegen (Einheiten stellen Feinde erst am Ziel) |
 | `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |
 | Mittlere Maustaste | Karte schieben · Mausrad zoomen |
-| `1`–`7` | Gebäude wählen, dann Linksklick setzen (`5` Förderbau auf Götterblut, `6` `7` Schreine) |
+| `1`–`9` | Gebäude wählen, dann Linksklick setzen (`3` Anker, `5` Förderbau auf Götterblut, `6` `7` Schreine, `8` Verteidigung, `9` Forschung) |
 | Erbauer gewählt + Gebäude setzen | Bauer, Dryade oder Kommandant bekommen den Bauauftrag, gehen hin und bauen direkt daneben — ein Auftrag je Einheit. **Ohne Erbauer wächst keine Baustelle**, auch nicht in der Domäne; wer weggeht, baut nicht weiter |
 | Erbauer gewählt + Rechtsklick auf eigene Baustelle | Mitbauen |
 | Gebäude anklicken, `Q` / `W` | Einheiten bauen (schwere kosten Götterblut) |
@@ -53,6 +53,29 @@ der Draufsicht.
 | `I` | Auswertung: Reibung, Kampfort, Anker, Götterblut (am Ende automatisch) |
 | Leertaste | Pause · `+` / `−` Tempo |
 | Knöpfe unten rechts | Seite wechseln und neu starten · „Zuschauen“: KI gegen KI |
+
+## Gebäude und Einheiten
+
+| Rolle | Menschen | Gott |
+| --- | --- | --- |
+| Hauptgebäude (vital) | Thingstätte | Herzbaum |
+| Anker (Domäne) | Grenzstein | Hain |
+| Verteidigung (schießt) | Wachturm | Wächterbaum |
+| Gegenwart, ortsunabhängig | Schmiede | Quellgrund |
+| Fron, auf Steinvorkommen | Sägewerk | Moosgrube |
+| Götterblut, auf Ader | Blutschacht | Blutwurz |
+| Fabrik | Kaserne | Dickicht |
+| Schrein des Zorns | Kriegsbanner | Dornenschrein |
+| Schrein der Wehr | Kapelle | Steinkreis |
+| Forschung (Skillpunkte) | Skriptorium | Raunende Eiche |
+
+| Kampf | Menschen | Gott |
+| --- | --- | --- |
+| Nahkampf | Bauer, Soldat, Söldner, Held | Dryade, Wolf, Ent |
+| Fernkampf | Jäger | Waldgeist, Waldgott |
+
+Reichweite zählt von Rand zu Rand: Nahkämpfer müssen ran, Fernkämpfer
+schießen weit. Was gesperrt ist, schaltet der Skillbaum frei.
 
 ## Die Domäne
 

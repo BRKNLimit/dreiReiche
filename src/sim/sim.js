@@ -1109,6 +1109,51 @@ const COS = (() => {
 const CHASE = 600;
 const LEASH = 1500;
 
+// ------------------------------------------------------------------ Raster
+// Nachbarsuche ueber ein grobes Raster statt "jeder gegen jeden". Die
+// Ergebnisse muessen exakt dieselben bleiben (Determinismus, Wiederholungen):
+// Wo die Reihenfolge zaehlt, werden die Kandidaten nach ihrem Index in der
+// urspruenglichen Liste sortiert -- dieselbe Reihenfolge wie die volle Schleife.
+const RASTER = 500; // dm je Zelle
+const RASTER_N = Math.ceil(MAP / RASTER) + 1;
+// Groesster Radius einer Entity -- so weit kann ein Rand ueber die Zelle hinausragen.
+const GROESSTER_EINHEIT = Math.max(...Object.values(UNITS).map((d) => d.radius));
+const GROESSTER_RADIUS = Math.max(GROESSTER_EINHEIT, ...Object.values(BUILDINGS).map((d) => d.radius));
+
+/** Raster ueber eine Liste: je Zelle die Indizes in der Liste, aufsteigend. */
+function raster(liste) {
+  const zellen = new Array(RASTER_N * RASTER_N);
+  for (let i = 0; i < liste.length; i++) {
+    const e = liste[i];
+    const k = zelleVon(e.y) * RASTER_N + zelleVon(e.x);
+    (zellen[k] || (zellen[k] = [])).push(i);
+  }
+  return zellen;
+}
+function zelleVon(v) {
+  const c = (v / RASTER) | 0;
+  return c < 0 ? 0 : c >= RASTER_N ? RASTER_N - 1 : c;
+}
+/**
+ * Indizes aller Eintraege in Zellen, die das Quadrat um (x, y) mit Halbweite
+ * w beruehren; mit sortieren aufsteigend (wo die Reihenfolge zaehlt).
+ */
+function nachbarn(zellen, x, y, w, sortieren = true) {
+  const x0 = zelleVon(x - w);
+  const x1 = zelleVon(x + w);
+  const y0 = zelleVon(y - w);
+  const y1 = zelleVon(y + w);
+  const out = [];
+  for (let cy = y0; cy <= y1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) {
+      const z = zellen[cy * RASTER_N + cx];
+      if (z) for (let k = 0; k < z.length; k++) out.push(z[k]);
+    }
+  }
+  if (sortieren && (y1 > y0 || x1 > x0)) return Int32Array.from(out).sort();
+  return out;
+}
+
 function moveUnits(world) {
   // Erst alle Ziele aus denselben Ausgangslagen, dann alle bewegen --
   // sonst haengt die Verfolgung von der Reihenfolge in der Liste ab.
@@ -1119,6 +1164,8 @@ function moveUnits(world) {
   }
   const gx = new Int32Array(us.length);
   const gy = new Int32Array(us.length);
+  const alle = world.entities.filter((e) => !e.dead);
+  const alleRaster = raster(alle);
   for (let i = 0; i < us.length; i++) {
     const e = us[i];
     gx[i] = e.tx;
@@ -1126,7 +1173,7 @@ function moveUnits(world) {
     const w = UNITS[e.type].weapon;
     if (!w || !(e.arrived || e.aggro) || e.auftrag) continue; // wer baut, jagt nicht
     const leine = e.arrived ? LEASH + w.range : MAP * 2;
-    const o = chaseTarget(world, e, w.range + CHASE, leine);
+    const o = chaseTarget(alle, alleRaster, e, w.range + CHASE, leine);
     if (!o) continue;
     const nah = reichweite(e, o) - 10;
     if (dist2(e.x, e.y, o.x, o.y) > nah * nah) {
@@ -1143,6 +1190,7 @@ function moveUnits(world) {
   // (2) Wer angekommen ist und nur ein wenig weggeschoben wurde, bleibt, wo
   //     er ist -- statt zurueckzulaufen und die Nachbarn wieder zu schieben.
   const da = new Uint8Array(us.length);
+  const usRaster = raster(us);
   for (let i = 0; i < us.length; i++) {
     const e = us[i];
     if (gx[i] !== e.tx || gy[i] !== e.ty) continue; // jagt gerade
@@ -1152,7 +1200,7 @@ function moveUnits(world) {
       continue;
     }
     if (e.auftrag) continue;
-    for (let j = 0; j < us.length; j++) {
+    for (const j of nachbarn(usRaster, e.x, e.y, r + GROESSTER_EINHEIT + 8, false)) {
       const o = us[j];
       if (j === i || !o.arrived || o.player !== e.player || o.befX !== e.befX || o.befY !== e.befY) continue;
       const min = r + UNITS[o.type].radius + 8;
@@ -1203,14 +1251,14 @@ function moveUnits(world) {
  * Naechster Feind, dessen Rand hoechstens r vom eigenen Rand entfernt ist und
  * der nicht weiter als leash vom Befehlspunkt liegt.
  */
-function chaseTarget(world, e, r, leash) {
+function chaseTarget(alle, alleRaster, e, r, leash) {
   let best = null;
   let bestD = Infinity;
   let bestRang = 1;
   const re = radiusVon(e);
   const gebaeudeZuerst = UNITS[e.type].weapon.vorrang === 'gebaeude';
-  for (let i = 0; i < world.entities.length; i++) {
-    const o = world.entities[i];
+  for (const i of nachbarn(alleRaster, e.x, e.y, r + re + GROESSTER_RADIUS)) {
+    const o = alle[i];
     if (o.dead || o.player === e.player || !erreicht(e, o)) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const rr = r + re + radiusVon(o);
@@ -1235,8 +1283,11 @@ function separate(world) {
   // sonst haengt das Ergebnis von der Reihenfolge in der Liste ab.
   const px = new Int32Array(us.length);
   const py = new Int32Array(us.length);
+  // Stoesse sind Ganzzahl-Summen -- die Reihenfolge der Paare aendert nichts.
+  const usRaster = raster(us);
   for (let i = 0; i < us.length; i++) {
-    for (let j = i + 1; j < us.length; j++) {
+    for (const j of nachbarn(usRaster, us[i].x, us[i].y, 2 * GROESSTER_EINHEIT, false)) {
+      if (j <= i) continue;
       const a = us[i];
       const b = us[j];
       if (UNITS[a.type].fliegt || UNITS[b.type].fliegt) continue; // in der Luft drängelt niemand
@@ -1268,7 +1319,8 @@ function separate(world) {
     us[i].x = clamp(us[i].x + px[i]);
     us[i].y = clamp(us[i].y + py[i]);
   }
-  for (let i = 0; i < us.length; i++) umgehen(world, us[i]);
+  const gebaeude = world.entities.filter((b) => !b.dead && b.kind === 'building');
+  for (let i = 0; i < us.length; i++) umgehen(world, us[i], gebaeude);
 }
 
 /**
@@ -1277,7 +1329,7 @@ function separate(world) {
  * fuer Pathfinding auf offener Karte. Liegt das Ziel im Gebaeude selbst
  * (Angriff aufs Hauptgebaeude), bleibt die Einheit am Rand stehen.
  */
-function umgehen(world, u) {
+function umgehen(world, u, gebaeude) {
   if (UNITS[u.type].fliegt) return; // ueber Fels, Wasser und Mauern hinweg
   const ur = UNITS[u.type].radius;
   const slide = UNITS[u.type].speed >> 1;
@@ -1299,9 +1351,8 @@ function umgehen(world, u) {
     u.x = clamp(h.x + (((ox * min) / d) | 0));
     u.y = clamp(h.y + (((oy * min) / d) | 0));
   }
-  for (let i = 0; i < world.entities.length; i++) {
-    const b = world.entities[i];
-    if (b.dead || b.kind !== 'building') continue;
+  for (let i = 0; i < gebaeude.length; i++) {
+    const b = gebaeude[i];
     const min = ur + BUILDINGS[b.type].radius;
     let ox = u.x - b.x;
     let oy = u.y - b.y;
@@ -1336,6 +1387,8 @@ function umgehen(world, u) {
  */
 function combat(world) {
   const shots = [];
+  const alle = world.entities.filter((e) => !e.dead);
+  const alleRaster = raster(alle);
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead) continue;
@@ -1348,7 +1401,7 @@ function combat(world) {
     }
     // Schiessende Gebaeude brauchen Gegenwart -- gedrosselt schwaecher, ohne gar nicht.
     if (e.kind === 'building' && !e.powered) continue;
-    const target = nearestEnemy(world, e);
+    const target = nearestEnemy(alle, alleRaster, e);
     if (!target) continue;
 
     let dmg = target.kind === 'building' && def.weapon.gebaeude ? def.weapon.gebaeude : def.weapon.damage;
@@ -1429,14 +1482,14 @@ export function reichweite(e, o) {
 }
 
 /** Naechster Feind, den e mit seiner Waffe erreicht -- Belagerung nimmt Gebaeude zuerst. */
-function nearestEnemy(world, e) {
+function nearestEnemy(alle, alleRaster, e) {
   const w = (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).weapon;
   const gebaeudeZuerst = w.vorrang === 'gebaeude';
   let best = null;
   let bestD = Infinity;
   let bestRang = 1;
-  for (let i = 0; i < world.entities.length; i++) {
-    const o = world.entities[i];
+  for (const i of nachbarn(alleRaster, e.x, e.y, w.range + radiusVon(e) + GROESSTER_RADIUS)) {
+    const o = alle[i];
     if (o.dead || o.player === e.player || !erreicht(e, o)) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const r = reichweite(e, o);

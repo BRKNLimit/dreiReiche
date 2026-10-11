@@ -3,6 +3,29 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.35 — Online gegen einen Menschen
+
+- **Online-Mehrspieler** (Startbildschirm, „🌐 Online gegen einen
+  Menschen“): Einer eröffnet und wählt Volk und Karte, der andere tritt
+  bei. Ohne Server — die beiden tauschen zwei Codes per Chat oder Mail aus
+  (Angebot und Antwort, je rund 700 Zeichen), dann verbindet WebRTC die
+  Browser direkt. Ein öffentlicher STUN-Server hilft nur, die eigene Adresse
+  hinter dem Router zu finden. 2D und 3D können gegeneinander spielen.
+- **Gleichschritt** (`src/netz.js`): Über das Netz gehen nur Befehle. Was
+  man in Tick T befiehlt, wirkt in Tick T + 3 auf beiden Rechnern (300 ms
+  Puffer); fehlt der Zug des anderen, wartet das Spiel („Warte auf den
+  Mitspieler …“). Alle 10 s tauschen beide eine Prüfsumme — laufen die
+  Welten auseinander, steht es im HUD. Getrennte Verbindung ebenso.
+- Online gibt es keine Pause, kein Tempo und keine Spielstände; Aufgeben
+  geht über das Menü (F10) und ist ein Befehl wie jeder andere. Die
+  Wiederholung einer Online-Partie enthält die Befehle beider.
+- Der Gast spielt Sitzplatz 1: Kamera an der eigenen Basis, im 3D von der
+  eigenen Seite aus.
+- Tests mit einem simulierten, wackeligen Netz (zufällige Verzögerung):
+  beide Seiten bleiben über 2500 Ticks bitgleich; eine absichtlich
+  verstimmte Welt wird an der nächsten Prüfsumme erkannt. Im Browser mit
+  zwei Tabs (2D gegen 3D) verbunden, gespielt und getrennt.
+
 ## 0.34 — Spielstände
 
 - **F5 speichert, F9 lädt** — in 2D und 3D, auch mitten in einer Mission.

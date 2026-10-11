@@ -107,6 +107,12 @@
   #funk .funkspruch b { color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
   @keyframes funkEin { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
   #intro .go.menue { flex-direction: column; align-items: stretch; max-width: 280px; }
+  #intro .online { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+  #intro .online b { color: #8ab4d8; margin-right: 6px; }
+  #intro .online span { color: var(--dim); font-size: 12px; }
+  #intro .online-dialog textarea { width: 100%; box-sizing: border-box; font: 11px/1.4 ui-monospace, Consolas, monospace; background: #0d0f0b; color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 6px; resize: vertical; }
+  #intro .online-dialog .status { color: var(--accent); min-height: 1.4em; }
+  #intro .online-dialog p { margin: 10px 0 4px; }
   #intro .fortsetzen { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--dim); }
   #intro .fortsetzen button { font-weight: 600; color: var(--accent); }
   #intro .kampagne.gott b, #intro .vorwort.gott h1 { color: #7fb069; }
@@ -5610,11 +5616,11 @@ function gruppenHtml(world, auswahl) {
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
 /** Pausenmenue (F10, Knopf unten rechts); laufend: Partie kann gespeichert und aufgegeben werden. */
-function menueHtml(laufend, hatStand) {
+function menueHtml(laufend, hatStand, speicherbar = true) {
   return `<div class="vorwort"><div class="kapitel">Pause</div><h1>Menü</h1>
     <div class="go menue">
       <button id="menueWeiter">Weiter</button>
-      ${laufend ? '<button id="menueSpeichern">Speichern (F5)</button>' : ''}
+      ${laufend && speicherbar ? '<button id="menueSpeichern">Speichern (F5)</button>' : ''}
       ${hatStand ? '<button id="menueLaden">Letzten Spielstand laden (F9)</button>' : ''}
       <button id="menueHilfe">Steuerung (H)</button>
       ${laufend ? '<button id="menueAufgeben">Aufgeben</button>' : ''}
@@ -7143,6 +7149,313 @@ function schnellInfo() {
 
 /* ---------------------------------- */
 
+// Online-Mehrspieler: zwei Browser, eine Partie -- ohne eigenen Server.
+//
+// Gleichschritt (Lockstep): Beide Rechner rechnen dieselbe deterministische
+// Simulation. Ueber das Netz gehen nur Befehle. Was ein Spieler in Tick T
+// befiehlt, wirkt in Tick T + VERZUG auf beiden Seiten; ein Tick wird erst
+// gerechnet, wenn die Befehle beider Spieler fuer ihn da sind. Alle
+// PRUEF_TAKT Ticks tauschen beide eine Pruefsumme -- weicht sie ab, sind die
+// Welten auseinandergelaufen ("asynchron").
+//
+// Verbindung: WebRTC-Datenkanal. Statt eines Vermittlungsservers tauschen die
+// Spieler zwei Codes von Hand aus (Chat, Mail): der Gastgeber schickt ein
+// Angebot, der Gast eine Antwort. Ein oeffentlicher STUN-Server hilft nur,
+// die eigene Adresse hinter dem Router zu finden; die Spieldaten gehen direkt
+// von Browser zu Browser.
+const VERZUG = 3; // Ticks zwischen Befehl und Wirkung (300 ms) -- deckt die Laufzeit im Netz
+const PRUEF_TAKT = 100;
+const STUN = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+// ------------------------------------------------------------ Gleichschritt (ohne Netz, testbar)
+
+/** ich: eigener Sitzplatz (0 Gastgeber, 1 Gast). */
+function neuerGleichschritt(ich, verzug = VERZUG) {
+  const zuege = {};
+  for (let t = 0; t < verzug; t++) zuege[t] = [[], []]; // die ersten Ticks sind leer
+  return { ich, verzug, zuege, gesendet: verzug - 1, eigeneHashes: {}, fremdeHashes: {}, asynchron: -1 };
+}
+
+function gsEintragen(g, tick, p, befehle) {
+  if (!g.zuege[tick]) g.zuege[tick] = [null, null];
+  g.zuege[tick][p] = befehle;
+}
+
+/**
+ * Einmal je Tick vor dem Rechnen: die eigenen neuen Befehle fuer Tick
+ * world.tick + verzug festlegen und abschicken. Was waehrend des Wartens dazukommt,
+ * bleibt in world.pending und geht mit dem naechsten Tick.
+ */
+function gsSenden(g, world, senden) {
+  const ziel = world.tick + g.verzug;
+  if (g.gesendet >= ziel) return;
+  const eigene = JSON.parse(JSON.stringify(world.pending.filter((c) => c.player === g.ich)));
+  world.pending.length = 0;
+  gsEintragen(g, ziel, g.ich, eigene);
+  g.gesendet = ziel;
+  senden({ t: 'zug', tick: ziel, befehle: eigene });
+}
+
+/** Sind die Befehle beider Spieler fuer diesen Tick da? */
+function gsBereit(g, tick) {
+  const z = g.zuege[tick];
+  return !!z && !!z[0] && !!z[1];
+}
+
+/** Nachricht des Mitspielers verarbeiten. */
+function gsEmpfangen(g, msg) {
+  if (msg.t === 'zug') gsEintragen(g, msg.tick, 1 - g.ich, msg.befehle);
+  else if (msg.t === 'pruef') {
+    g.fremdeHashes[msg.tick] = msg.h;
+    gsVergleichen(g, msg.tick);
+  }
+}
+
+/**
+ * Befehle beider fuer den aktuellen Tick einsetzen (Gastgeber zuerst, auf
+ * beiden Seiten gleich). Liefert die eigenen, noch nicht verschickten
+ * Befehle -- nach step() mit gsNachSchritt wieder anhaengen.
+ */
+function gsEinsetzen(g, world) {
+  const z = g.zuege[world.tick];
+  const offen = world.pending.splice(0);
+  for (const c of z[0]) world.pending.push(c);
+  for (const c of z[1]) world.pending.push(c);
+  delete g.zuege[world.tick];
+  return offen;
+}
+
+/** Nach step(): offene eigene Befehle zurueck, ab und zu die Pruefsumme tauschen. */
+function gsNachSchritt(g, world, offen, senden) {
+  for (const c of offen) world.pending.push(c);
+  if (world.tick % PRUEF_TAKT === 0) {
+    g.eigeneHashes[world.tick] = hash(world);
+    senden({ t: 'pruef', tick: world.tick, h: g.eigeneHashes[world.tick] });
+    gsVergleichen(g, world.tick);
+  }
+}
+
+function gsVergleichen(g, tick) {
+  const a = g.eigeneHashes[tick];
+  const b = g.fremdeHashes[tick];
+  if (a === undefined || b === undefined) return;
+  if (a !== b && g.asynchron < 0) g.asynchron = tick;
+  delete g.eigeneHashes[tick];
+  delete g.fremdeHashes[tick];
+}
+
+// ------------------------------------------------------------ Verbindung (nur im Browser)
+
+/** Beschreibung als kurzer Text: JSON, gepackt (wenn der Browser es kann), Base64. */
+async function packen(obj) {
+  const text = JSON.stringify(obj);
+  if (typeof CompressionStream === 'undefined') return 'J' + btoa(unescape(encodeURIComponent(text)));
+  const strom = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  const bytes = new Uint8Array(await new Response(strom).arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return 'D' + btoa(bin);
+}
+async function entpacken(code) {
+  const c = (code || '').replace(/\s+/g, '');
+  if (c[0] === 'J') return JSON.parse(decodeURIComponent(escape(atob(c.slice(1)))));
+  if (c[0] !== 'D' || typeof DecompressionStream === 'undefined') throw new Error('Kein gültiger Code.');
+  const bin = atob(c.slice(1));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const strom = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return JSON.parse(await new Response(strom).text());
+}
+
+/** Warten, bis alle Adressen gesammelt sind (hoechstens 5 s) -- dann passt alles in einen Code. */
+function adressenSammeln(pc) {
+  return new Promise((fertig) => {
+    if (pc.iceGatheringState === 'complete') return fertig();
+    const pruefe = () => {
+      if (pc.iceGatheringState !== 'complete') return;
+      pc.removeEventListener('icegatheringstatechange', pruefe);
+      fertig();
+    };
+    pc.addEventListener('icegatheringstatechange', pruefe);
+    setTimeout(fertig, 5000);
+  });
+}
+
+function kanalVerdrahten(kanal, bei) {
+  kanal.onopen = () => bei.offen(kanal);
+  kanal.onmessage = (e) => bei.nachricht(JSON.parse(e.data));
+  kanal.onclose = () => bei.zu();
+}
+function neueVerbindung(bei) {
+  const pc = new RTCPeerConnection({ iceServers: STUN });
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed') bei.zu('Verbindung fehlgeschlagen — vielleicht lässt ein Router sie nicht durch.');
+  };
+  return pc;
+}
+
+/** Gastgeber: liefert { code, antwort(code) }; bei: { offen(kanal), nachricht(msg), zu(grund) }. */
+async function netzGastgeber(bei) {
+  const pc = neueVerbindung(bei);
+  const kanal = pc.createDataChannel('spiel', { ordered: true });
+  kanalVerdrahten(kanal, bei);
+  await pc.setLocalDescription(await pc.createOffer());
+  await adressenSammeln(pc);
+  return {
+    pc,
+    code: await packen(pc.localDescription),
+    antwort: async (code) => pc.setRemoteDescription(await entpacken(code)),
+  };
+}
+
+/** Gast: nimmt den Code des Gastgebers, liefert { code } (die Antwort). */
+async function netzGast(angebot, bei) {
+  const pc = neueVerbindung(bei);
+  pc.ondatachannel = (e) => kanalVerdrahten(e.channel, bei);
+  await pc.setRemoteDescription(await entpacken(angebot));
+  await pc.setLocalDescription(await pc.createAnswer());
+  await adressenSammeln(pc);
+  return { pc, code: await packen(pc.localDescription) };
+}
+function netzSenden(kanal, msg) {
+  if (kanal && kanal.readyState === 'open') kanal.send(JSON.stringify(msg));
+}
+
+// ------------------------------------------------------------ Startbildschirm und Dialoge
+function onlineHtml() {
+  return `<div class="online"><b>🌐 Online gegen einen Menschen</b>
+    <button id="onlineEroeffnen">Spiel eröffnen</button><button id="onlineBeitreten">Beitreten</button>
+    <span>Beta — zwei Browser, Codes per Chat austauschen</span></div>`;
+}
+
+function gastgeberHtml(karteName) {
+  return `<div class="vorwort online-dialog"><div class="kapitel">Online · Gastgeber</div><h1>Spiel eröffnen</h1>
+    <p>Du spielst <label><input type="radio" name="onlineVolk" value="mensch" checked> Menschen</label>
+    <label><input type="radio" name="onlineVolk" value="gott"> Gott</label> auf der Karte <b>${karteName}</b>.</p>
+    <p>1. Schicke diesen Code deinem Mitspieler (Chat, Mail …):</p>
+    <textarea id="onlineCode" readonly rows="3">Code wird erzeugt …</textarea>
+    <div class="go"><button id="onlineKopieren" disabled>Kopieren</button></div>
+    <p>2. Füge hier seine Antwort ein:</p>
+    <textarea id="onlineAntwort" rows="3" placeholder="Antwort-Code"></textarea>
+    <div class="go"><button id="onlineVerbinden">Verbinden</button><button id="onlineZurueck">Zurück</button></div>
+    <p id="onlineStatus" class="status"></p></div>`;
+}
+
+function gastHtml() {
+  return `<div class="vorwort online-dialog"><div class="kapitel">Online · Gast</div><h1>Beitreten</h1>
+    <p>1. Füge den Code des Gastgebers ein:</p>
+    <textarea id="onlineCode" rows="3" placeholder="Code des Gastgebers"></textarea>
+    <div class="go"><button id="onlineWeiter">Weiter</button></div>
+    <p>2. Schicke diese Antwort zurück:</p>
+    <textarea id="onlineAntwort" readonly rows="3"></textarea>
+    <div class="go"><button id="onlineKopieren" disabled>Kopieren</button><button id="onlineZurueck">Zurück</button></div>
+    <p id="onlineStatus" class="status"></p></div>`;
+}
+
+const netzEl = (id) => document.getElementById(id);
+function netzStatus(text) {
+  const s = netzEl('onlineStatus');
+  if (s) s.textContent = text;
+}
+function kopierKnopf(feld) {
+  const k = netzEl('onlineKopieren');
+  k.disabled = false;
+  k.onclick = () => {
+    netzEl(feld).select();
+    if (navigator.clipboard) navigator.clipboard.writeText(netzEl(feld).value).catch(() => document.execCommand && document.execCommand('copy'));
+    else if (document.execCommand) document.execCommand('copy');
+    netzStatus('Kopiert.');
+  };
+}
+
+/**
+ * Dialog des Gastgebers. k: { karte() -> { schluessel, daten }, start(config, ich, kanal),
+ * nachricht(msg), zu(grund), zurueck() }. Beim Verbinden schickt der Gastgeber die
+ * Startwerte; beide beginnen gleichzeitig.
+ */
+async function onlineEroeffnen(el, k) {
+  const karte = k.karte();
+  el.innerHTML = gastgeberHtml(karte.daten.name || karte.schluessel);
+  el.style.display = '';
+  netzEl('onlineZurueck').onclick = k.zurueck;
+  let verbindung = null;
+  let gestartet = false;
+  const bei = {
+    offen: (kanal) => {
+      const volk = document.querySelector('input[name="onlineVolk"]:checked');
+      const f = volk ? volk.value : 'mensch';
+      const config = {
+        t: 'start',
+        stand: typeof SPIEL_STAND !== 'undefined' ? SPIEL_STAND : 'dev',
+        seed: (Date.now() / 1000) | 0,
+        factions: [f, f === 'mensch' ? 'gott' : 'mensch'],
+        karte: karte.schluessel,
+        karteDaten: karte.daten,
+      };
+      netzSenden(kanal, config);
+      gestartet = true;
+      k.start(config, 0, kanal);
+    },
+    nachricht: (msg) => k.nachricht(msg),
+    zu: (grund) => (gestartet ? k.zu(grund) : netzStatus(grund || 'Verbindung getrennt.')),
+  };
+  try {
+    verbindung = await netzGastgeber(bei);
+  } catch (e) {
+    netzStatus('Online geht in diesem Browser nicht: ' + e.message);
+    return;
+  }
+  netzEl('onlineCode').value = verbindung.code;
+  kopierKnopf('onlineCode');
+  netzEl('onlineVerbinden').onclick = async () => {
+    try {
+      await verbindung.antwort(netzEl('onlineAntwort').value);
+      netzStatus('Verbinde …');
+    } catch (e) {
+      netzStatus('Die Antwort passt nicht: ' + e.message);
+    }
+  };
+}
+
+/** Dialog des Gasts; k wie bei onlineEroeffnen (ohne karte). */
+function onlineBeitreten(el, k) {
+  el.innerHTML = gastHtml();
+  el.style.display = '';
+  netzEl('onlineZurueck').onclick = k.zurueck;
+  let gestartet = false;
+  const bei = {
+    offen: () => netzStatus('Verbunden — warte auf den Gastgeber …'),
+    nachricht: (msg) => {
+      if (msg.t === 'start') {
+        const meinStand = typeof SPIEL_STAND !== 'undefined' ? SPIEL_STAND : 'dev';
+        if (msg.stand !== meinStand) return netzStatus('Ihr habt verschiedene Stände des Spiels — beide bitte neu laden.');
+        gestartet = true;
+        k.start(msg, 1, bei.kanal);
+      } else k.nachricht(msg);
+    },
+    zu: (grund) => (gestartet ? k.zu(grund) : netzStatus(grund || 'Verbindung getrennt.')),
+  };
+  const offen = bei.offen;
+  bei.offen = (kanal) => {
+    bei.kanal = kanal;
+    offen(kanal);
+  };
+  netzEl('onlineWeiter').onclick = async () => {
+    netzStatus('Erzeuge Antwort …');
+    try {
+      const v = await netzGast(netzEl('onlineCode').value, bei);
+      netzEl('onlineAntwort').value = v.code;
+      kopierKnopf('onlineAntwort');
+      netzStatus('Schicke die Antwort zurück. Sobald der Gastgeber sie eingefügt hat, geht es los.');
+    } catch (e) {
+      netzStatus('Der Code passt nicht: ' + e.message);
+    }
+  };
+}
+
+
+/* ---------------------------------- */
+
 // Gelaende der 2D-Ansicht: Boden, gerodete Flaechen, Felsen und Seen.
 // Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
 // anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
@@ -8486,7 +8799,7 @@ let zeigeAuswertung = false;
 let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
 let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
-const ME = 0;
+let ME = 0; // eigener Sitzplatz -- online als Gast 1
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
@@ -8502,6 +8815,7 @@ let mission = null; // laufende Mission der Kampagne (src/kampagne.js), sonst nu
 let missionStand = []; // erledigte Ziele der Mission
 let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
 let missionMeldungen = []; // Indizes der schon gezeigten Funksprueche
+let netz = null; // Online-Partie (src/netz.js): { kanal, gs, zu, wartetSeit }
 let funkText = ''; // aktueller Funkspruch (HTML) und bis wann er steht
 let funkBis = 0;
 let funkGezeigt = null;
@@ -8545,7 +8859,13 @@ const COL = {
   blut: '#a86fb5',
 };
 
-function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
+function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = null) {
+  // Eine laufende Online-Partie endet mit jeder neuen
+  const altesNetz = netz;
+  netz = null;
+  if (altesNetz && altesNetz.kanal && (!online || online.kanal !== altesNetz.kanal)) altesNetz.kanal.close();
+  ME = online ? online.ich : 0;
+  const ohneKI = !!online || !!(wdh && wdh.online); // online spielen zwei Menschen
   // Spielstand (src/spielstand.js): Welt und KI von dort, Einstellungen aus extra
   const geladen = stand ? zustandLaden(stand.zustand) : null;
   if (stand) {
@@ -8574,20 +8894,26 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
     f = m.volk;
   }
   meFaction = f;
+  if (online) meFaction = online.config.factions[online.ich]; // als Gast das zweite Volk
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  const seed = geladen ? geladen.world.seed : wdh ? wdh.seed : (Date.now() / 1000) | 0;
-  const karte = geladen ? { schluessel: geladen.world.karte, daten: geladen.world.karteDaten } : karteFuerSpiel(karteSchluessel, wdh, seed);
+  const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : (Date.now() / 1000) | 0;
+  const karte = online
+    ? { schluessel: online.config.karte, daten: online.config.karteDaten || KARTEN[online.config.karte] }
+    : geladen
+      ? { schluessel: geladen.world.karte, daten: geladen.world.karteDaten }
+      : karteFuerSpiel(karteSchluessel, wdh, seed);
   karteWaehlen(karte.schluessel, karte.daten);
   world = geladen ? geladen.world : createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
   if (m && !geladen) m.aufbau(world);
-  ai = geladen ? geladen.ais[1] : m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
+  ai = ohneKI ? null : geladen ? geladen.ais[1] : m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
-  aiMe = geladen ? geladen.ais[0] : zuschauen ? createAI(0, world.seed + 1) : null;
+  aiMe = ohneKI ? null : geladen ? geladen.ais[0] : zuschauen ? createAI(0, world.seed + 1) : null;
   nebel = neuerNebel(!zuschauen && !wdh, ME);
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null, online: !!online });
+  netz = online ? { kanal: online.kanal, gs: neuerGleichschritt(online.ich), zu: '', wartetSeit: 0 } : null;
   verlauf = stand ? stand.extra.verlauf : neuerVerlauf();
   if (stand) aufnahme = stand.extra.aufnahme;
   endeGezeigt = false;
@@ -8608,6 +8934,10 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
   cam.x = 3000;
   cam.y = 3000;
   if (stand && stand.extra.cam) Object.assign(cam, stand.extra.cam);
+  if (ME === 1) {
+    cam.x = MAP - 3000;
+    cam.y = MAP - 3000;
+  }
   renderBar();
 }
 
@@ -8740,6 +9070,7 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (menueOffen) return;
+  if (netz && (e.key === ' ' || e.key === '+' || e.key === '-')) return; // online laeuft die Zeit fuer beide gleich
   const g = steuergruppe(e, gruppen, sel, world, ME);
   if (g) {
     sel = g.sel;
@@ -9051,12 +9382,25 @@ function frame(now) {
     acc += dt * speed;
     let guard = 0;
     while (acc >= TICK_MS && guard++ < 12) {
+      let netzOffen = null; // online: eigene Befehle, die erst mit dem naechsten Tick gehen
+      if (netz) {
+        if (netz.zu) break;
+        gsSenden(netz.gs, world, netzPost);
+        if (!gsBereit(netz.gs, world.tick)) {
+          if (!netz.wartetSeit) netz.wartetSeit = performance.now();
+          acc = Math.min(acc, TICK_MS);
+          break;
+        }
+        netz.wartetSeit = 0;
+        netzOffen = gsEinsetzen(netz.gs, world);
+      }
       if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
       else if (aufnahme) aufnehmen(aufnahme, world);
       if (aiMe) stepAI(aiMe, world);
       if (ai) stepAI(ai, world);
       if (mission && mission.takt) mission.takt(world); // Missionsereignisse, auch beim Abspielen
       step(world);
+      if (netz) gsNachSchritt(netz.gs, world, netzOffen, netzPost);
       verlaufFortschreiben(verlauf, world);
       if (wiederholung && world.tick >= wiederholung.ende && !world.over) paused = true;
       for (const ev of world.events) if (ev.t === 'faehigkeit') wirkungen.push({ ...ev, bis: world.tick + 12 });
@@ -9614,9 +9958,9 @@ function drawHud() {
   document.getElementById('hud').innerHTML = `
     <div class="res">
       ${kommandantZeile()}
-      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : ''}</span>
+      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : netz ? ' · Online' : ''}</span>
     </div>
-    ${mission ? zieleHtml(mission, missionStand, world) : ''}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
+    ${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahlHtml()}
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
     ${world.over || zeigeAuswertung ? flaecheHtml() + auswertungHtml() : ''}`;
@@ -9844,6 +10188,7 @@ function introHtml() {
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
     ${fortsetzenHtml()}
     ${kampagneHtml()}
+    ${onlineHtml()}
     <div class="cols">
       <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
         <p>Viele günstige Einheiten: Bauern, Soldaten, Jäger, Söldner.
@@ -9987,11 +10332,13 @@ function standText() {
 }
 /** F5: Schnellspeichern (auch automatisch beim Verlassen der Seite). */
 function standSpeichern() {
+  if (netz) return standHinweis('Online gibt es keine Spielstände');
   if (!world || world.over || wiederholung || missionGewonnen) return standHinweis('Hier gibt es nichts zu speichern');
   standHinweis(schnellSpeichern(standText()) ? 'Gespeichert — F9 lädt' : 'Speichern fehlgeschlagen (Speicher voll?)');
 }
 /** F9 oder "Fortsetzen": Spielstand laden und weiterspielen. */
 function standLaden(text) {
+  if (netz && !netz.zu && !world.over) return standHinweis('Online gibt es keine Spielstände');
   const r = spielstandLesen(text || '');
   if (r.fehler) return standHinweis(r.fehler);
   document.getElementById('intro').style.display = 'none';
@@ -10001,12 +10348,48 @@ function standLaden(text) {
   standHinweis('Spielstand geladen');
 }
 function autoSpeichern() {
-  if (autoSpeichernSinnvoll(world, !!aiMe, wiederholung) && !missionGewonnen) schnellSpeichern(standText());
+  if (autoSpeichernSinnvoll(world, !!aiMe, wiederholung) && !missionGewonnen && !netz) schnellSpeichern(standText());
 }
 addEventListener('pagehide', autoSpeichern);
 addEventListener('visibilitychange', () => {
   if (document.hidden) autoSpeichern();
 });
+
+// ------------------------------------------------------------ Online (src/netz.js)
+function netzPost(msg) {
+  if (netz) netzSenden(netz.kanal, msg);
+}
+/** Hinweise im HUD: Warten auf den Mitspieler, getrennt, auseinandergelaufen. */
+function netzHinweis() {
+  if (!netz) return '';
+  if (netz.zu) return `<div class="warn"><span>${netz.zu} — F10: Hauptmenü</span></div>`;
+  if (netz.gs.asynchron >= 0) return `<div class="warn"><span>Die Partien sind auseinandergelaufen (Tick ${netz.gs.asynchron}) — bitte neu starten.</span></div>`;
+  if (netz.wartetSeit && performance.now() - netz.wartetSeit > 700) return '<div class="warn"><span>Warte auf den Mitspieler …</span></div>';
+  return '';
+}
+/** Rueckrufe fuer die Online-Dialoge: Karte aus dem Startbildschirm, Start, Nachrichten, Abbruch. */
+function onlineRueckrufe() {
+  return {
+    karte: () => {
+      const r = document.querySelector?.('#intro input[name="karte"]:checked');
+      if (r) karteSchluessel = r.value;
+      return karteFuerSpiel(karteSchluessel, null, (Date.now() / 1000) | 0);
+    },
+    start: (config, ich, kanal) => {
+      document.getElementById('intro').style.display = 'none';
+      paused = false;
+      speed = 1;
+      neu(config.factions[0], false, null, null, null, { config, ich, kanal });
+    },
+    nachricht: (msg) => {
+      if (netz) gsEmpfangen(netz.gs, msg);
+    },
+    zu: (grund) => {
+      if (netz) netz.zu = grund || 'Verbindung zum Mitspieler getrennt';
+    },
+    zurueck: startbildschirm,
+  };
+}
 
 // ------------------------------------------------------------ Pausenmenue (F10)
 let menueOffen = false;
@@ -10017,9 +10400,9 @@ function menueZeigen() {
   if (el.style.display !== 'none') return; // Start-, End- oder Missionsbildschirm ist offen
   menueOffen = true;
   pauseVorMenue = paused;
-  paused = true;
+  if (!netz) paused = true; // online laeuft die Partie weiter
   const laufend = !world.over && !wiederholung && !missionGewonnen;
-  el.innerHTML = menueHtml(laufend, !!schnellLaden());
+  el.innerHTML = menueHtml(laufend, !netz && !!schnellLaden(), !netz);
   el.style.display = '';
   const knopf = (id, f) => {
     const b = document.getElementById(id);
@@ -10065,6 +10448,10 @@ function startbildschirm() {
   document.getElementById('introGott').onclick = () => starte('gott', false);
   document.getElementById('introSchau').onclick = () => starte('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
+  const eroeffnen = document.getElementById('onlineEroeffnen');
+  if (eroeffnen) eroeffnen.onclick = () => onlineEroeffnen(el, onlineRueckrufe());
+  const beitreten = document.getElementById('onlineBeitreten');
+  if (beitreten) beitreten.onclick = () => onlineBeitreten(el, onlineRueckrufe());
   const weiterKnopf = document.getElementById('standFortsetzen');
   if (weiterKnopf) weiterKnopf.onclick = () => standLaden(schnellLaden());
   const datei = document.getElementById('wiederholungDatei');

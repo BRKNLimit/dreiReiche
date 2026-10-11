@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.34
+# Die drei Reiche — Prototyp 0.35
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -42,6 +42,15 @@ der Menschen — von der Lernmission bis zum Kampf gegen den eingegrabenen
 Waldgott — und **„Der Zorn des Waldes“**, drei Missionen aus Sicht des
 Gottes. Ziele stehen links oben im HUD, geschaffte Missionen schalten die
 nächste frei.
+
+## Online
+
+„🌐 Online gegen einen Menschen“ im Startbildschirm: Einer klickt **Spiel
+eröffnen** (Volk wählen, Karte wie im Startbildschirm gewählt) und schickt
+den Code per Chat, der andere klickt **Beitreten**, fügt ihn ein und
+schickt die Antwort zurück. Dann geht es los — ohne Server, Browser zu
+Browser. Beide brauchen denselben Stand des Spiels. Hinter manchen
+Firmen- oder Mobilfunk-Routern kommt keine direkte Verbindung zustande.
 
 ## Karten
 

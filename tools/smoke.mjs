@@ -91,7 +91,7 @@ const nodes = {
 };
 
 globalThis.document = {
-  getElementById: (id) => nodes[id] ?? makeEl(id),
+  getElementById: (id) => nodes[id] ?? (nodes[id] = makeEl(id)), // wie im Browser: dieselbe Id, dasselbe Element
   createElement: () => makeCanvas(1, 1),
   querySelectorAll: () => [],
 };
@@ -165,6 +165,8 @@ fire('keydown', { ...base, key: 'f' });
 fire('keydown', { ...base, key: 'F5' });
 if (!speicher['dreiReiche.spielstand']) errors.push(new Error('F5 hat nichts gespeichert'));
 fire('keydown', { ...base, key: 'F9' });
+// Online-Dialog ohne WebRTC (Node): muss sauber melden statt abzustuerzen
+if (nodes.onlineEroeffnen && nodes.onlineEroeffnen.onclick) nodes.onlineEroeffnen.onclick();
 
 for (let i = 0; i < 400 && frameFn; i++) {
   const f = frameFn;

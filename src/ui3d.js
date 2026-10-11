@@ -18,7 +18,7 @@ const mini3 = document.getElementById('mini');
 const mctx3 = mini3.getContext('2d');
 const gl = cv3.getContext('webgl2', { antialias: true, stencil: true });
 
-const ME = 0;
+let ME = 0; // eigener Sitzplatz -- online als Gast 1
 // Darstellungsmassstab: Einheiten und Gebaeude groesser als ihr Kollisionskreis,
 // wie in jedem RTS -- sonst sind 3 m grosse Soldaten auf 2 km Karte Punkte.
 const ZEIGE_EINHEIT = 1.6;
@@ -52,6 +52,7 @@ let mission = null; // laufende Mission der Kampagne (src/kampagne.js), sonst nu
 let missionStand = []; // erledigte Ziele der Mission
 let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
 let missionMeldungen = []; // Indizes der schon gezeigten Funksprueche
+let netz = null; // Online-Partie (src/netz.js): { kanal, gs, zu, wartetSeit }
 let funkText = ''; // aktueller Funkspruch (HTML) und bis wann er steht
 let funkBis = 0;
 let funkGezeigt = null;
@@ -128,7 +129,13 @@ function aufBoden(sx, sy) {
 }
 
 // ------------------------------------------------------------ Spielstart
-function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
+function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = null) {
+  // Eine laufende Online-Partie endet mit jeder neuen
+  const altesNetz = netz;
+  netz = null;
+  if (altesNetz && altesNetz.kanal && (!online || online.kanal !== altesNetz.kanal)) altesNetz.kanal.close();
+  ME = online ? online.ich : 0;
+  const ohneKI = !!online || !!(wdh && wdh.online); // online spielen zwei Menschen
   // Spielstand (src/spielstand.js): Welt und KI von dort, Einstellungen aus extra
   const geladen = stand ? zustandLaden(stand.zustand) : null;
   if (stand) {
@@ -157,9 +164,14 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
     f = m.volk;
   }
   meFaction = f;
+  if (online) meFaction = online.config.factions[online.ich]; // als Gast das zweite Volk
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  const seed = geladen ? geladen.world.seed : wdh ? wdh.seed : (Date.now() / 1000) | 0;
-  const karte = geladen ? { schluessel: geladen.world.karte, daten: geladen.world.karteDaten } : karteFuerSpiel(karteSchluessel, wdh, seed);
+  const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : (Date.now() / 1000) | 0;
+  const karte = online
+    ? { schluessel: online.config.karte, daten: online.config.karteDaten || KARTEN[online.config.karte] }
+    : geladen
+      ? { schluessel: geladen.world.karte, daten: geladen.world.karteDaten }
+      : karteFuerSpiel(karteSchluessel, wdh, seed);
   if (KARTE.schluessel !== karte.schluessel || KARTE.name !== karte.daten.name) {
     karteWaehlen(karte.schluessel, karte.daten);
     if (typeof baueBoden === 'function') bodenModell = baueBoden(); // src/gelaende3d.js liest KARTE
@@ -167,13 +179,14 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
   }
   world = geladen ? geladen.world : createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
   if (m && !geladen) m.aufbau(world);
-  ai = geladen ? geladen.ais[1] : m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
-  aiMe = geladen ? geladen.ais[0] : zuschauen ? createAI(0, world.seed + 1) : null;
+  ai = ohneKI ? null : geladen ? geladen.ais[1] : m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
+  aiMe = ohneKI ? null : geladen ? geladen.ais[0] : zuschauen ? createAI(0, world.seed + 1) : null;
   nebel = neuerNebel(!zuschauen && !wdh, ME);
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null, online: !!online });
+  netz = online ? { kanal: online.kanal, gs: neuerGleichschritt(online.ich), zu: '', wartetSeit: 0 } : null;
   verlauf = stand ? stand.extra.verlauf : neuerVerlauf();
   if (stand) aufnahme = stand.extra.aufnahme;
   endeGezeigt = false;
@@ -196,6 +209,11 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
   kam.dist = 300;
   kam.yaw = -Math.PI * 0.75;
   if (stand && stand.extra.kam) Object.assign(kam, stand.extra.kam);
+  if (ME === 1) {
+    kam.x = MAP * DM - 420;
+    kam.z = MAP * DM - 420;
+    kam.yaw += Math.PI; // von der eigenen Seite aus
+  }
   renderBar();
 }
 
@@ -484,6 +502,7 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (menueOffen) return;
+  if (netz && (e.key === ' ' || e.key === '+' || e.key === '-')) return; // online laeuft die Zeit fuer beide gleich
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
     tastenGehalten.add(e.key);
     e.preventDefault();
@@ -682,7 +701,19 @@ function lage(e) {
   return [v[0] + (e.x - v[0]) * alphaTick, v[1] + (e.y - v[1]) * alphaTick];
 }
 
+/** Ein Tick der Simulation; online false, solange der Mitspieler fehlt. */
 function tick() {
+  let netzOffen = null; // online: eigene Befehle, die erst mit dem naechsten Tick gehen
+  if (netz) {
+    if (netz.zu) return false;
+    gsSenden(netz.gs, world, netzPost);
+    if (!gsBereit(netz.gs, world.tick)) {
+      if (!netz.wartetSeit) netz.wartetSeit = performance.now();
+      return false;
+    }
+    netz.wartetSeit = 0;
+    netzOffen = gsEinsetzen(netz.gs, world);
+  }
   for (const e of world.entities) if (e.kind === 'unit') vorher.set(e.id, [e.x, e.y]);
   if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
   else if (aufnahme) aufnehmen(aufnahme, world);
@@ -690,6 +721,7 @@ function tick() {
   if (ai) stepAI(ai, world);
   if (mission && mission.takt) mission.takt(world); // Missionsereignisse, auch beim Abspielen
   step(world);
+  if (netz) gsNachSchritt(netz.gs, world, netzOffen, netzPost);
   verlaufFortschreiben(verlauf, world);
   if (wiederholung && world.tick >= wiederholung.ende && !world.over) paused = true;
   for (const ev of world.events) {
@@ -721,7 +753,10 @@ function frame(now) {
     acc += dt * speed;
     let guard = 0;
     while (acc >= TICK_MS && guard++ < 12) {
-      tick();
+      if (tick() === false) {
+        acc = Math.min(acc, TICK_MS); // online: auf den Mitspieler warten
+        break;
+      }
       acc -= TICK_MS;
     }
     if (guard >= 12) acc = 0;
@@ -1250,7 +1285,7 @@ function zeichneHud() {
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : ''}</span>
     </div>
-    ${mission ? zieleHtml(mission, missionStand, world) : ''}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
+    ${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahl}
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}`;
 }
@@ -1307,6 +1342,7 @@ function introHtml3() {
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
     ${fortsetzenHtml()}
     ${kampagneHtml()}
+    ${onlineHtml()}
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
     (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
     ist die Partie verloren.</p>
@@ -1435,11 +1471,13 @@ function standText() {
 }
 /** F5: Schnellspeichern (auch automatisch beim Verlassen der Seite). */
 function standSpeichern() {
+  if (netz) return standHinweis('Online gibt es keine Spielstände');
   if (!world || world.over || wiederholung || missionGewonnen) return standHinweis('Hier gibt es nichts zu speichern');
   standHinweis(schnellSpeichern(standText()) ? 'Gespeichert — F9 lädt' : 'Speichern fehlgeschlagen (Speicher voll?)');
 }
 /** F9 oder "Fortsetzen": Spielstand laden und weiterspielen. */
 function standLaden(text) {
+  if (netz && !netz.zu && !world.over) return standHinweis('Online gibt es keine Spielstände');
   const r = spielstandLesen(text || '');
   if (r.fehler) return standHinweis(r.fehler);
   document.getElementById('intro').style.display = 'none';
@@ -1449,12 +1487,48 @@ function standLaden(text) {
   standHinweis('Spielstand geladen');
 }
 function autoSpeichern() {
-  if (autoSpeichernSinnvoll(world, !!aiMe, wiederholung) && !missionGewonnen) schnellSpeichern(standText());
+  if (autoSpeichernSinnvoll(world, !!aiMe, wiederholung) && !missionGewonnen && !netz) schnellSpeichern(standText());
 }
 addEventListener('pagehide', autoSpeichern);
 addEventListener('visibilitychange', () => {
   if (document.hidden) autoSpeichern();
 });
+
+// ------------------------------------------------------------ Online (src/netz.js)
+function netzPost(msg) {
+  if (netz) netzSenden(netz.kanal, msg);
+}
+/** Hinweise im HUD: Warten auf den Mitspieler, getrennt, auseinandergelaufen. */
+function netzHinweis() {
+  if (!netz) return '';
+  if (netz.zu) return `<div class="warn"><span>${netz.zu} — F10: Hauptmenü</span></div>`;
+  if (netz.gs.asynchron >= 0) return `<div class="warn"><span>Die Partien sind auseinandergelaufen (Tick ${netz.gs.asynchron}) — bitte neu starten.</span></div>`;
+  if (netz.wartetSeit && performance.now() - netz.wartetSeit > 700) return '<div class="warn"><span>Warte auf den Mitspieler …</span></div>';
+  return '';
+}
+/** Rueckrufe fuer die Online-Dialoge: Karte aus dem Startbildschirm, Start, Nachrichten, Abbruch. */
+function onlineRueckrufe() {
+  return {
+    karte: () => {
+      const r = document.querySelector?.('#intro input[name="karte"]:checked');
+      if (r) karteSchluessel = r.value;
+      return karteFuerSpiel(karteSchluessel, null, (Date.now() / 1000) | 0);
+    },
+    start: (config, ich, kanal) => {
+      document.getElementById('intro').style.display = 'none';
+      paused = false;
+      speed = 1;
+      neu(config.factions[0], false, null, null, null, { config, ich, kanal });
+    },
+    nachricht: (msg) => {
+      if (netz) gsEmpfangen(netz.gs, msg);
+    },
+    zu: (grund) => {
+      if (netz) netz.zu = grund || 'Verbindung zum Mitspieler getrennt';
+    },
+    zurueck: startbildschirm,
+  };
+}
 
 // ------------------------------------------------------------ Pausenmenue (F10)
 let menueOffen = false;
@@ -1465,9 +1539,9 @@ function menueZeigen() {
   if (el.style.display !== 'none') return; // Start-, End- oder Missionsbildschirm ist offen
   menueOffen = true;
   pauseVorMenue = paused;
-  paused = true;
+  if (!netz) paused = true; // online laeuft die Partie weiter
   const laufend = !world.over && !wiederholung && !missionGewonnen;
-  el.innerHTML = menueHtml(laufend, !!schnellLaden());
+  el.innerHTML = menueHtml(laufend, !netz && !!schnellLaden(), !netz);
   el.style.display = '';
   const knopf = (id, f) => {
     const b = document.getElementById(id);
@@ -1513,6 +1587,10 @@ function startbildschirm() {
   document.getElementById('introGott').onclick = () => starte3('gott', false);
   document.getElementById('introSchau').onclick = () => starte3('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
+  const eroeffnen = document.getElementById('onlineEroeffnen');
+  if (eroeffnen) eroeffnen.onclick = () => onlineEroeffnen(el, onlineRueckrufe());
+  const beitreten = document.getElementById('onlineBeitreten');
+  if (beitreten) beitreten.onclick = () => onlineBeitreten(el, onlineRueckrufe());
   const weiterKnopf = document.getElementById('standFortsetzen');
   if (weiterKnopf) weiterKnopf.onclick = () => standLaden(schnellLaden());
   const datei = document.getElementById('wiederholungDatei');

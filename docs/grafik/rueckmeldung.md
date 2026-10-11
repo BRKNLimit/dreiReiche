@@ -58,6 +58,19 @@ Sauber: beide Nacharbeiten erledigt, Rabe und Spähposten mit Modell und
 Icon, Budgets eingehalten, alles grün. Die Platzhalter in
 `src/platzhalter.js` sind wieder leer. Danke!
 
+## Runde 9 — Auftrag 2 (gemergt)
+
+Großer Sprung: Menschen mit Beinen und Ausrüstung, der Held mit Krone und
+Umhang, die Balliste nach Vorlage, vier Jahreszeiten-Waldgeister, alle
+Gebäude neu, und das Schwanken ist weg — Beine gegenphasig, Vierbeiner im
+Kreuzgang, Galerie mit „Gehen“-Knopf. Alles grün, ohne Konflikte gemergt.
+Danke! Das Spiel nimmt die Jahreszeiten-Modelle schon (je Einheit fest).
+
+Für die nächste Runde stehen zwei neue Wünsche in `wuensche.md`: die
+Karte „Flusstal“ (Fluss, Furten, Wald, Wiesen, Bäume je Karte) und eigene
+Geschoss-Modelle (Bolzen, Dorn, Lichtpfeil, Glutball). Der Ent darf noch
+deutlich größer und hagerer wirken (Vorlage: Riese mit langen Gliedern).
+
 ## Offene Grundsatzfrage: Modelle
 
 Der Nutzer findet die Einheiten und Gebäude noch zu „Low-Poly“. Sie sehen

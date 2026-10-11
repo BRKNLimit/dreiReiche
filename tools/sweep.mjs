@@ -43,6 +43,19 @@ export const CONFIGS = {
   'lang + max 7000': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 7000 } },
   'malus 800': { rules: { fremdMalus: 800 } },
   'malus 650': { rules: { fremdMalus: 650 } },
+  // Karte (0.22): ohne Grat vor den Basen, ganz ohne Hindernisse
+  'Karte ohne Grat': { karte: 'ohneGrat' },
+  'Karte ohne Hindernisse': { karte: 'leer' },
+  'Karte leer, Adern wie 0.21': { karte: 'alt' },
+  // Menschen nach der Trennung uebereinanderstehender Einheiten (0.22)
+  'M: Soldat 240 LP, Jaeger 210': { units: { soldat: { hp: 240 }, jaeger: { hp: 210 } } },
+  'M: Soldat 11 Schaden': { units: { soldat: { weapon: { damage: 11 } } } },
+  'M: Soldat 240 LP 10 Schaden': { units: { soldat: { hp: 240, weapon: { damage: 10 } } } },
+  'M: Bauer 550': { units: { bauer: { build: { power: 550 } } } },
+  'Wolf 540 + Soldat 230': { units: { wolf: { hp: 540 }, soldat: { hp: 230 } } },
+  'Wolf 500 LP': { units: { wolf: { hp: 500 } } },
+  'Wolf 520 LP': { units: { wolf: { hp: 520 } } },
+  'Wolf 540 + Soldat 215': { units: { wolf: { hp: 540 }, soldat: { hp: 215 } } },
   // Nah-/Fernkampf (0.17): Werte nachziehen
   'Wolf 24 Schaden': { units: { wolf: { weapon: { damage: 24 } } } },
   'Soldat 8 Schaden': { units: { soldat: { weapon: { damage: 8 } } } },
@@ -193,7 +206,7 @@ if (isMainThread) {
   const { createWorld, step } = await import('../src/sim/sim.js');
   const { createAI, stepAI, STILE } = await import('../src/sim/ai.js');
   const stilNamen = Object.keys(STILE);
-  const { FACTIONS, UNITS, BUILDINGS, RULES } = await import('../src/sim/defs.js');
+  const { FACTIONS, UNITS, BUILDINGS, RULES, KARTE } = await import('../src/sim/defs.js');
   const c = CONFIGS[name];
   Object.assign(FACTIONS.gott.growth, c.g || {});
   Object.assign(FACTIONS.mensch.growth, c.m || {});
@@ -207,6 +220,14 @@ if (isMainThread) {
       }
     }
   };
+  // Karte: Grat vor den Basen weg (Felsen auf x+y = 13000 bzw. 27000) oder alles weg
+  if (c.karte === 'ohneGrat') KARTE.hindernisse = KARTE.hindernisse.filter((h) => h.art !== 'fels' || (Math.abs(h.x + h.y - 13000) > 100 && Math.abs(h.x + h.y - 27000) > 100));
+  if (c.karte === 'leer' || c.karte === 'alt') KARTE.hindernisse = [];
+  if (c.karte === 'alt') {
+    const f = (x, y) => ({ x, y, kind: 'fron' });
+    KARTE.adern = [f(4800, 2200), f(2200, 4800), f(6200, 4500), f(15200, 17800), f(17800, 15200), f(13800, 15500), f(10000, 7400), f(10000, 12600),
+      { x: 10000, y: 10000, kind: 'goetterblut' }, { x: 6600, y: 13400, kind: 'goetterblut' }, { x: 13400, y: 6600, kind: 'goetterblut' }];
+  }
   mische(UNITS, c.units);
   mische(BUILDINGS, c.buildings);
 

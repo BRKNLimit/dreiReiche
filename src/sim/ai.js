@@ -4,7 +4,7 @@
 
 import {
   issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, buffAt, rng, cosDeg, sinDeg,
-  unterhaltProMin, foerderungProMin, gesperrt, kannLernen, faehigkeitenVon, faehigkeitWarten,
+  unterhaltProMin, foerderungProMin, aufHindernis, gesperrt, kannLernen, faehigkeitenVon, faehigkeitWarten,
 } from './sim.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
 
@@ -156,7 +156,8 @@ export function stepAI(ai, world) {
   // bindet nur Fron.
   const erbauerZahl = arbeiter.length + (kdt ? 1 : 0);
   const bau = (building, x, y) => {
-    if (offen.length >= Math.max(1, erbauerZahl)) return false;
+    // Foerderung geht immer vor -- ohne sie fehlt spaeter alles.
+    if (offen.length >= Math.max(1, erbauerZahl) && building !== plan.fron) return false;
     if (ai.gesperrt.some((g) => g.building === building && dist2(g.x, g.y, x, y) < 200 * 200)) return false;
     issue(world, { type: 'build', player: ai.player, building, x, y });
     ai.letzterBau = { building, x, y };
@@ -315,13 +316,22 @@ export function stepAI(ai, world) {
   // Ist das Heer kleiner als eine Welle, wird nicht gespart: ohne Truppen ist
   // jede Wirtschaft nur Beute (und der Kommandant schutzlos).
   const heerSchwach = minute >= 5 && wert(kaempfer) < ai.stil.welle;
-  const sparen = heerSchwach ? 0 : naechster ? kosten(naechster) : vene ? kosten(plan.anker) + 100 : 0;
+  // Fehlt Gegenwart fuer den naechsten Bau, wird zuerst fuer die Quelle gespart.
+  const sparen = heerSchwach
+    ? 0
+    : naechster && bilanz < bedarf
+      ? kosten(plan.kraft)
+      : naechster
+        ? kosten(naechster)
+        : vene
+          ? kosten(plan.anker) + 100
+          : 0;
   let rest = fron;
   let blutRest = p.goetterblut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
   // Arbeiter nach Baukraft: Bauern bauen schwaecher als Dryaden, also mehr davon.
-  const zielKraft = 1200 + (minute >= 6 ? 800 : 0) + (minute >= 12 ? 800 : 0);
+  const zielKraft = 1600 + (minute >= 6 ? 1200 : 0) + (minute >= 12 ? 1200 : 0);
   const arbeiterZiel = Math.ceil(zielKraft / UNITS[plan.bauer].build.power);
   let arbeiterBestellt = arbeiter.length;
   for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
@@ -432,10 +442,21 @@ export function stepAI(ai, world) {
   for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
-  const angriff = gegnerFoerderung(world, ai.player, haupt) || ziel;
-  if (ai.unterwegs.length && angriff && !world.entities.some((e) => e.id === ai.welleZiel && !e.dead)) {
-    ai.welleZiel = angriff.id;
-    issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
+  const angriff = angriffsziel(world, ai.player, haupt) || ziel;
+  // Faellt das Ziel einer laufenden Welle, zieht sie zum Foerderbau, der ihr
+  // selbst am naechsten ist -- nicht quer ueber die Karte zu dem, der dem
+  // eigenen Hauptgebaeude am naechsten waere.
+  if (ai.unterwegs.length && !world.entities.some((e) => e.id === ai.welleZiel && !e.dead)) {
+    const welle = einheiten.filter((u) => ai.unterwegs.includes(u.id));
+    const mitte = {
+      x: (welle.reduce((s, u) => s + u.x, 0) / welle.length) | 0,
+      y: (welle.reduce((s, u) => s + u.y, 0) / welle.length) | 0,
+    };
+    const weiter = angriffsziel(world, ai.player, mitte) || ziel;
+    if (weiter) {
+      ai.welleZiel = weiter.id;
+      issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: weiter.x, y: weiter.y });
+    }
   }
   // Nur angreifen, wenn die Welle das gegnerische Heer daheim samt dessen
   // Heimvorteil uebertrifft -- sonst zerschellt sie an der Verteidigung.
@@ -590,8 +611,9 @@ function nahePlatz(world, um, haupt, abstand, radius, typ, drehung = 0) {
   return null;
 }
 
-/** Steht hier schon ein Gebaeude im Weg? Dieselbe Regel wie tryPlace(). */
+/** Steht hier schon ein Gebaeude, Fels oder See im Weg? Dieselbe Regel wie tryPlace(). */
 function blockiert(world, x, y, radius) {
+  if (aufHindernis(world, x, y, radius)) return true;
   for (const e of world.entities) {
     if (e.dead || e.kind !== 'building') continue;
     const min = radius + BUILDINGS[e.type].radius + 20;
@@ -695,14 +717,27 @@ function naechsterEindringling(world, me, bauten) {
   return best || drin;
 }
 
-/** Naechster gegnerischer Foerderbau fuer Goetterblut, vom eigenen Hauptgebaeude aus. */
-function gegnerFoerderung(world, me, haupt) {
+/**
+ * Ziel einer Welle: ein gegnerischer Foerderbau, moeglichst einer, den kein
+ * Turm deckt -- Wirtschaft treffen statt an Mauern zerschellen --, dann
+ * Goetterblut vor Fron, dann der naechste vom Punkt von aus.
+ */
+function angriffsziel(world, me, von) {
   let best = null;
+  let bestRang = Infinity;
   let bestD = Infinity;
   for (const e of world.entities) {
-    if (e.dead || e.player === me || e.kind !== 'building' || !BUILDINGS[e.type].blutOut) continue;
-    const dd = dist2(e.x, e.y, haupt.x, haupt.y);
-    if (dd < bestD) {
+    if (e.dead || e.player === me || e.kind !== 'building') continue;
+    const d = BUILDINGS[e.type];
+    if (!d.fronOut && !d.blutOut) continue;
+    const gedeckt = world.entities.some(
+      (t) => !t.dead && t.player === e.player && t.kind === 'building' && t.done && BUILDINGS[t.type].weapon &&
+        dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
+    );
+    const rang = (gedeckt ? 2 : 0) + (d.blutOut ? 0 : 1);
+    const dd = dist2(e.x, e.y, von.x, von.y);
+    if (rang < bestRang || (rang === bestRang && dd < bestD)) {
+      bestRang = rang;
       bestD = dd;
       best = e;
     }

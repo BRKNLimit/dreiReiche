@@ -509,6 +509,41 @@ Stil-Paarungen (45 Seeds): „Sturm“ gewinnt weiter jede Paarung. Seine erste
 Welle kommt nach gut vier Minuten und scheitert am Turm; er gewinnt später —
 mit dem Kommandanten vorn, der Außenposten an den Adern baut.
 
+### 16. Karte mit Hindernissen, Wegfindung (Stand 0.22)
+
+> **Vorgaben des Nutzers:** Eine spannendere Karte und eine überarbeitete
+> Wegfindung.
+
+Die Karte ist Daten (`KARTE`), punktsymmetrisch; die Wegfindung folgt
+Flussfeldern auf einem 20-m-Gitter und bleibt punktsymmetrisch (Spiegeltest
+grün). *Karte und Werte sind Designzahlen.*
+
+**Was die Messung aufdeckte** (32 Seeds × 2 Sitzplätze, falls nicht anders):
+
+| Stand | Menschen : Gott | offen |
+| --- | --- | --- |
+| neue Karte, sonst 0.21 (64 Seeds) | 12 : 82 | 34 von 128 |
+| ohne Grat | 1 : 52 | 11 |
+| ganz ohne Hindernisse | 1 : 49 | 14 |
+| ohne Hindernisse, Adern wie 0.21 | 19 : 45 | 0 |
+| dasselbe, Einheiten dürfen sich wieder stapeln | 33 : 31 | 0 |
+| KI: spart für Gegenwart, greift ungedeckte Förderbauten an | 7 : 41 | 16 |
+| Wolf 520 LP (64 Seeds) | 38 : 62 | 28 |
+| **Wolf 540 LP, Soldat 215 LP — Ausgang (64 Seeds)** | **48 : 47** | 33 |
+
+- **Der eigentliche Ausschlag kam nicht von der Karte**, sondern von einem
+  alten Fehler: Einheiten auf exakt demselben Punkt wurden nie getrennt.
+  Aus Fabriken kommen sie oft so heraus; gestapelt schlugen alle zugleich zu.
+  Davon profitierte die Masse der Menschen. Seit der Korrektur waren reine
+  Wolfsrudel zu stark.
+- **KI-Fehler, die die Karte sichtbar machte:** Ohne Gegenwart für ein
+  weiteres Sägewerk sparte die KI nur dessen Preis, nie den der Schmiede —
+  die Menschen blieben bei drei Sägewerken. Wellen pendelten zwischen
+  Götterblut-Adern an gegenüberliegenden Rändern. Beides ist behoben.
+- **Ein Viertel der Partien bleibt offen.** Türme, Schreine und Engstellen
+  machen Basen schwer einnehmbar; die KI wartet dann bis zur Unterhaltsgrenze.
+  Ob das Spieler auch so erleben, zeigt nur Spielen.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,
@@ -541,7 +576,6 @@ mehrfach.
 
 | Fehlt | Warum | Aufwand später |
 | --- | --- | --- |
-| Pathfinding | Einheiten fahren gerade; auf offener Karte reicht das | hoch |
 | Gelände und Wälder als Karte | Roden ist derzeit ein Kreis, kein Gelände | mittel |
 | Fog of War | Verdeckt den Test eher, als dass er schärft | mittel |
 | Todesgott | Dritte Fraktion erst nach dem Fundament | niedrig (eine Zahl) |

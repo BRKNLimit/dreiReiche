@@ -356,6 +356,7 @@ function draw() {
   drawGrid(W, H);
   drawCleared();
   drawDomains();
+  drawHindernisse();
   drawDeposits();
   drawSchreine();
   drawEntities();
@@ -541,6 +542,19 @@ function grenzlinie(anker, farbe, breite, alpha) {
   ctx.globalAlpha = alpha;
   ctx.drawImage(randCv, 0, 0);
   ctx.restore();
+}
+
+/** Felsen und Seen: unpassierbar, nicht bebaubar. */
+function drawHindernisse() {
+  for (const h of world.hindernisse) {
+    ctx.fillStyle = h.art === 'see' ? '#1d3a4d' : '#34352d';
+    ctx.strokeStyle = h.art === 'see' ? '#2c5670' : '#4c4e42';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(w2sx(h.x), w2sy(h.y), h.r * cam.z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
 }
 
 function drawDeposits() {
@@ -754,7 +768,8 @@ function drawGhost() {
   const r = Math.max(4, def.radius * cam.z);
   const drin = inDomain(world, ME, gx, gy);
   const gerodet = def.needsGrowth && isCleared(world, gx, gy);
-  const col = gerodet || ohneAder ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
+  const fels = aufHindernis(world, gx, gy, def.radius);
+  const col = gerodet || ohneAder || fels ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
 
   if (def.anchor) {
     ctx.strokeStyle = col;
@@ -783,6 +798,8 @@ function drawGhost() {
   const ader = def.needs === 'goetterblut' ? 'Götterblut-Ader' : 'Fron-Ader';
   const txt = ohneAder
     ? def.name + ' — braucht eine freie ' + ader
+    : fels
+    ? def.name + ' — auf Fels und Wasser wird nicht gebaut'
     : gerodet
     ? def.name + ' — gerodeter Boden trägt nicht'
     : def.name +
@@ -1000,6 +1017,12 @@ function drawMini() {
   for (const c of world.cleared) {
     mctx.beginPath();
     mctx.arc(c.x * s, c.y * s, c.r * s, 0, Math.PI * 2);
+    mctx.fill();
+  }
+  for (const h of world.hindernisse) {
+    mctx.fillStyle = h.art === 'see' ? '#2c5670' : '#4c4e42';
+    mctx.beginPath();
+    mctx.arc(h.x * s, h.y * s, h.r * s, 0, Math.PI * 2);
     mctx.fill();
   }
   for (let p = 0; p < 2; p++) {

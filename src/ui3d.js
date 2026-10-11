@@ -577,6 +577,13 @@ const MODELLE_DEF = {
     ['k', [0.16, 5], [0, 0, -0.35], '#bfe8b0', GLUEHT],
   ],
   stein: [['k', [0.45, 6], [0, 0, 0], STEIN]],
+  // Fels: ein grosser und zwei kleinere Brocken, Groesse 1 = Felsradius
+  fels: [
+    ['k', [0.85, 6], [0, 0.35, 0], '#5c5e55'],
+    ['k', [0.55, 5], [0.55, 0.3, 0.35], '#6c6e64'],
+    ['k', [0.5, 5], [-0.5, 0.25, -0.4], '#53554c'],
+    ['k', [0.35, 5], [0.2, 0.75, -0.2], '#74766b'],
+  ],
   // Katapult: Holzrahmen auf vier Raedern, Wurfarm mit Schale
   katapult: [
     ['q', [1.2, 0.18, 0.7], [0, 0.45, 0], HOLZ],
@@ -770,10 +777,11 @@ const DEKO = (() => {
   for (let i = 0; i < 260; i++) {
     const x = r() * MAP * DM;
     const z = r() * MAP * DM;
-    // Nicht auf Basen, Adern und Mittelachse
+    // Nicht auf Basen, Mittelachse, Felsen und Seen
     const nahBasis = Math.hypot(x - 300, z - 300) < 520 || Math.hypot(x - 1700, z - 1700) < 520;
     const nahAchse = Math.abs(x + z - 2000) < 360;
-    if (nahBasis || nahAchse) continue;
+    const imWeg = KARTE.hindernisse.some((h) => Math.hypot(x - h.x * DM, z - h.y * DM) < h.r * DM + 25);
+    if (nahBasis || nahAchse || imWeg) continue;
     d.push([x, z, 2.5 + r() * 2.5, r() * 6.28]);
   }
   return d;
@@ -1311,6 +1319,17 @@ function zeichne(now, dt) {
 
   zeichneDomaenen();
 
+  // Seen: flache Scheiben knapp ueber dem Boden; Felsen: Brocken in Felsgroesse
+  gl.depthMask(false);
+  for (const h of world.hindernisse) {
+    if (h.art === 'see') instanz('scheibe', h.x * DM, 0.1, h.y * DM, 0, h.r * DM, [0.16, 0.32, 0.44], 1, 1, 0.95);
+  }
+  zeichneInstanzen(MODELLE.scheibe);
+  gl.depthMask(true);
+  for (const h of world.hindernisse) {
+    if (h.art === 'fels') instanz('fels', h.x * DM, 0, h.y * DM, ((h.x * 7 + h.y * 3) % 628) / 100, h.r * DM, [1, 1, 1]);
+  }
+
   // Adern
   for (const d of world.deposits) {
     const key = d.kind === 'goetterblut' ? 'blutAder' : 'fronAder';
@@ -1372,6 +1391,7 @@ function zeichne(now, dt) {
       } else ok = false;
     }
     if (def.needsGrowth && isCleared(world, gx, gy)) ok = false;
+    if (aufHindernis(world, gx, gy, def.radius)) ok = false;
     const farbe = ok ? teamFarbe(ME) : [0.8, 0.3, 0.2];
     instanz(placing, gx * DM, 0, gy * DM, 0.4, def.radius * DM * ZEIGE_GEBAEUDE, farbe, 1, ok ? 1.1 : 0.8, 0.55);
   }
@@ -1677,6 +1697,12 @@ function zeichneMini() {
   mctx3.fillStyle = '#0b0d08';
   mctx3.fillRect(0, 0, W, W);
   const s = W / MAP;
+  for (const h of world.hindernisse) {
+    mctx3.fillStyle = h.art === 'see' ? '#2c5670' : '#4c4e42';
+    mctx3.beginPath();
+    mctx3.arc(h.x * s, h.y * s, h.r * s, 0, Math.PI * 2);
+    mctx3.fill();
+  }
   for (let p = 0; p < 2; p++) {
     mctx3.fillStyle = FACTIONS[world.players[p].faction].color;
     mctx3.globalAlpha = 0.18;

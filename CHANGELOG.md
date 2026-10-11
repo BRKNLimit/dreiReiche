@@ -3,6 +3,27 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.22 — Karte mit Felsen und Seen, Wegfindung
+
+- **Neue Karte** (`KARTE` in `defs.js`, punktsymmetrisch): vor jeder Basis
+  ein Felsgrat mit breitem Tor zur Mitte und zwei Seitenpfaden; ein Felsring
+  um die große Götterblut-Ader mit vier Zugängen; zwei Seen; Götterblut auch
+  an den Seitenrändern; je Basis fünf Fron-Vorkommen in der Grunddomäne.
+  Felsen und Seen sind unpassierbar und nicht bebaubar.
+- **Wegfindung** (`src/sim/weg.js`): Gitter mit 20-m-Zellen, je Ziel ein
+  Flussfeld (Dijkstra vom Ziel aus). Wer sein Ziel sieht, läuft gerade; sonst
+  zum weitesten sichtbaren Punkt entlang des Feldes. Ganzzahlig und
+  punktsymmetrisch — auch für Punkte genau auf Zellgrenzen.
+- Einheiten auf exakt demselben Punkt werden jetzt auseinandergeschoben.
+  Vorher stapelten sie sich unbemerkt — ein Vorteil für die Masse, der die
+  Menschen in KI-Partien um 14 Siege gestärkt hatte. Ausgeglichen mit Soldat
+  215 LP und Wolf 540 LP.
+- KI: zieht Wellen gegen Förderbauten, die kein Turm deckt, und von der
+  Welle aus zum nächsten; spart für Gegenwart, wenn sie fehlt; Förderbauten
+  gehen der Baustellen-Obergrenze vor; mehr Arbeiter; plant nicht auf Felsen.
+- Darstellung: Felsen und Seen in beiden Ansichten und auf der Minikarte.
+- Messung (128 Partien): Menschen 48 : Gott 47, 33 offen, Ø 31 min.
+
 ## 0.21 — Belagerung
 
 - **Katapult** (Menschen): Fernkampf, 100 m — weiter als jeder Turm —,

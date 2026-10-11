@@ -21,6 +21,7 @@ function strip(src) {
 }
 
 const defs = strip(await readFile(join(root, 'src/sim/defs.js'), 'utf8'));
+const weg = strip(await readFile(join(root, 'src/sim/weg.js'), 'utf8'));
 const sim = strip(await readFile(join(root, 'src/sim/sim.js'), 'utf8'));
 const ai = strip(await readFile(join(root, 'src/sim/ai.js'), 'utf8'));
 const gemeinsam = strip(await readFile(join(root, 'src/ui-gemeinsam.js'), 'utf8'));
@@ -34,7 +35,7 @@ await mkdir(join(root, 'dist'), { recursive: true });
 for (const [shellPfad, uiPfad, ziel] of SEITEN) {
   const shell = await readFile(join(root, shellPfad), 'utf8');
   const ui = await readFile(join(root, uiPfad), 'utf8');
-  const out = shell.replace('/*__SIM__*/', [defs, sim, ai, gemeinsam, ui].join('\n\n/* ---------------------------------- */\n\n'));
+  const out = shell.replace('/*__SIM__*/', [defs, weg, sim, ai, gemeinsam, ui].join('\n\n/* ---------------------------------- */\n\n'));
   await writeFile(join(root, ziel), out);
   console.log(ziel + ' geschrieben (' + (out.length / 1024).toFixed(0) + ' KB)');
 }

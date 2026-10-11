@@ -25,7 +25,8 @@ import {
   kannLernen,
   spawnKommandant,
 } from '../src/sim/sim.js';
-import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN } from '../src/sim/defs.js';
+import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN, KARTE } from '../src/sim/defs.js';
+import { wegGitter } from '../src/sim/weg.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
 
 function bare(f0 = 'mensch', f1 = 'gott') {
@@ -1173,6 +1174,77 @@ test('Spiegelpartie bleibt punktsymmetrisch, bis eine geteilte Ader umkämpft is
     assert.equal(lage(1, true), lage(0, false), 'Lage in Tick ' + ticks);
   }
   assert.ok(ticks > 1500, 'lange genug symmetrisch verglichen: ' + ticks + ' Ticks');
+});
+
+// ---------------------------------------------------- Karte und Wegfindung
+
+test('die Karte ist punktsymmetrisch: Hindernisse und Adern', () => {
+  const schluessel = (o) => `${o.x},${o.y},${o.r || 0},${o.art || o.kind}`;
+  for (const liste of [KARTE.hindernisse, KARTE.adern]) {
+    const alle = new Set(liste.map(schluessel));
+    for (const o of liste) assert.ok(alle.has(schluessel({ ...o, x: MAP - o.x, y: MAP - o.y })), 'Spiegelbild fehlt: ' + schluessel(o));
+  }
+});
+
+test('keine Ader und kein Hauptgebaeude liegt auf einem Hindernis', () => {
+  const w = createWorld({ seed: 1 });
+  for (const d of w.deposits) assert.ok(!KARTE.hindernisse.some((h) => (d.x - h.x) ** 2 + (d.y - h.y) ** 2 < (h.r + 100) ** 2), `${d.x},${d.y}`);
+  for (const e of w.entities) assert.ok(!KARTE.hindernisse.some((h) => (e.x - h.x) ** 2 + (e.y - h.y) ** 2 < (h.r + 200) ** 2), e.type);
+});
+
+test('auf Felsen und Seen laesst sich nicht bauen', () => {
+  const w = createWorld({ seed: 1 });
+  const see = KARTE.hindernisse.find((h) => h.art === 'see');
+  w.players[0].fron = 5000;
+  assert.equal(tryPlace(w, 0, 'grenzstein', see.x, see.y), null);
+});
+
+/** Kleine Welt mit einem Felsriegel zwischen Start und Ziel. */
+function riegel() {
+  const w = bare();
+  w.hindernisse = [
+    { x: 6000, y: 4000, r: 700, art: 'fels' },
+    { x: 6000, y: 5000, r: 700, art: 'fels' },
+    { x: 6000, y: 6000, r: 700, art: 'fels' },
+  ];
+  w.weg = wegGitter(w.hindernisse);
+  return w;
+}
+
+test('Wegfindung: eine Einheit laeuft um einen Felsriegel herum ans Ziel', () => {
+  const w = riegel();
+  const u = spawnUnit(w, 0, 'soldat', 4000, 5000);
+  issue(w, { type: 'move', player: 0, ids: [u.id], x: 8000, y: 5000 });
+  let t = 0;
+  for (; t < 1500 && !u.arrived; t++) step(w);
+  assert.ok(u.arrived, 'kommt an');
+  assert.ok(t < 400, 'ohne lange zu irren: ' + t + ' Ticks');
+});
+
+test('Wegfindung: keine Einheit steht je in einem Felsen', () => {
+  const w = riegel();
+  const ids = [];
+  for (let i = 0; i < 12; i++) ids.push(spawnUnit(w, 0, 'wolf', 4000 + (i % 4) * 80, 4600 + ((i / 4) | 0) * 80).id);
+  issue(w, { type: 'move', player: 0, ids, x: 8000, y: 5000 });
+  for (let t = 0; t < 600; t++) {
+    step(w);
+    for (const e of w.entities) {
+      if (e.kind !== 'unit') continue;
+      for (const h of w.hindernisse) {
+        const min = h.r + UNITS[e.type].radius - 2;
+        assert.ok((e.x - h.x) ** 2 + (e.y - h.y) ** 2 >= min * min, 'Einheit im Fels in Tick ' + t);
+      }
+    }
+  }
+});
+
+test('Wegfindung: durch das Tor im Grat zur Mitte', () => {
+  const w = createWorld({ seed: 1 });
+  const u = spawnUnit(w, 0, 'wolf', 4500, 4500);
+  issue(w, { type: 'move', player: 0, ids: [u.id], x: 9300, y: 9300 });
+  let t = 0;
+  for (; t < 2000 && !u.arrived; t++) step(w);
+  assert.ok(u.arrived, 'kommt an: ' + u.x + ',' + u.y);
 });
 
 // ---------------------------------------------------- Verfolgung

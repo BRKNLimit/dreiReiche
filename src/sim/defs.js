@@ -401,7 +401,7 @@ export const UNITS = {
     name: 'Soldat',
     desc: 'Günstiger Nahkämpfer — die Masse des Heeres.',
     faction: 'mensch',
-    hp: 200,
+    hp: 215,
     radius: 26,
     speed: 30,
     cost: { fron: 45 },
@@ -497,7 +497,7 @@ export const UNITS = {
     name: 'Wolf',
     desc: 'Schneller, zäher Nahkämpfer.',
     faction: 'gott',
-    hp: 600,
+    hp: 540,
     radius: 30,
     speed: 34,
     cost: { fron: 130 },
@@ -719,6 +719,57 @@ export const FAEHIGKEITEN = {
 };
 
 export const START_FRON = 1100;
+
+// ------------------------------------------------------------- Karte
+// Punktsymmetrisch um die Kartenmitte -- beide Sitzplaetze spielen dieselbe
+// Karte. hindernisse: Felsen und Seen als Kreise, unpassierbar und nicht
+// bebaubar. adern: Fron- und Goetterblut-Vorkommen. Nur ganze Zahlen.
+//
+// Vor jeder Basis ein Felsgrat mit einem Tor zur Mitte und zwei Seitenpfaden;
+// dahinter zwei Fron-Vorkommen zum Ausbauen. In der Mitte ein Felsring um die
+// grosse Goetterblut-Ader, mit vier Zugaengen; zwei Seen; zwei weitere
+// Goetterblut-Adern an den Seitenraendern.
+const gespiegelt = (o) => ({ ...o, x: MAP - o.x, y: MAP - o.y });
+const paarweise = (liste) => liste.flatMap((o) => [o, gespiegelt(o)]);
+
+/** Felsgrat: n Felsen gleichmaessig von (x0,y0) nach (x1,y1), ohne die Luecken. */
+function grat(x0, y0, x1, y1, n, r, luecken) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    if (luecken.includes(k)) continue;
+    out.push({ x: x0 + (((x1 - x0) * k) / (n - 1)) | 0, y: y0 + (((y1 - y0) * k) / (n - 1)) | 0, r, art: 'fels' });
+  }
+  return out;
+}
+
+export const KARTE = {
+  hindernisse: [
+    // Grat vor jeder Basis: breites Tor in der Mitte, zwei Seitenpfade
+    ...paarweise(grat(700, 12300, 12300, 700, 21, 560, [2, 3, 9, 10, 11, 17, 18])),
+    // Felsring um die Mitte, Zugaenge diagonal
+    { x: 11300, y: 10000, r: 500, art: 'fels' },
+    { x: 8700, y: 10000, r: 500, art: 'fels' },
+    { x: 10000, y: 11300, r: 500, art: 'fels' },
+    { x: 10000, y: 8700, r: 500, art: 'fels' },
+    // Seen zwischen Mitte und Seitenraendern
+    ...paarweise([{ x: 7200, y: 12800, r: 1300, art: 'see' }]),
+  ],
+  adern: [
+    // je Basis fuenf Vorkommen -- alle in der Grunddomaene des Hauptgebaeudes
+    ...paarweise([
+      { x: 4800, y: 2200, kind: 'fron' },
+      { x: 2200, y: 4800, kind: 'fron' },
+      { x: 6200, y: 4500, kind: 'fron' },
+      { x: 6700, y: 2100, kind: 'fron' },
+      { x: 2100, y: 6700, kind: 'fron' },
+    ]),
+    // Mitte: je eines naeher an jedem Spieler
+    ...paarweise([{ x: 10000, y: 7400, kind: 'fron' }]),
+    // Goetterblut: die grosse Ader im Felsring, zwei an den Seitenraendern
+    { x: 10000, y: 10000, kind: 'goetterblut' },
+    ...paarweise([{ x: 5200, y: 14800, kind: 'goetterblut' }]),
+  ],
+};
 
 /** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
 export const RESOURCES = ['fron', 'goetterblut'];

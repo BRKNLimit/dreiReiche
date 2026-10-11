@@ -607,7 +607,7 @@ const UNITS = {
     name: 'Soldat',
     desc: 'Günstiger Nahkämpfer — die Masse des Heeres.',
     faction: 'mensch',
-    hp: 200,
+    hp: 215,
     radius: 26,
     speed: 30,
     cost: { fron: 45 },
@@ -703,7 +703,7 @@ const UNITS = {
     name: 'Wolf',
     desc: 'Schneller, zäher Nahkämpfer.',
     faction: 'gott',
-    hp: 600,
+    hp: 540,
     radius: 30,
     speed: 34,
     cost: { fron: 130 },
@@ -924,6 +924,56 @@ const FAEHIGKEITEN = {
 };
 const START_FRON = 1100;
 
+// ------------------------------------------------------------- Karte
+// Punktsymmetrisch um die Kartenmitte -- beide Sitzplaetze spielen dieselbe
+// Karte. hindernisse: Felsen und Seen als Kreise, unpassierbar und nicht
+// bebaubar. adern: Fron- und Goetterblut-Vorkommen. Nur ganze Zahlen.
+//
+// Vor jeder Basis ein Felsgrat mit einem Tor zur Mitte und zwei Seitenpfaden;
+// dahinter zwei Fron-Vorkommen zum Ausbauen. In der Mitte ein Felsring um die
+// grosse Goetterblut-Ader, mit vier Zugaengen; zwei Seen; zwei weitere
+// Goetterblut-Adern an den Seitenraendern.
+const gespiegelt = (o) => ({ ...o, x: MAP - o.x, y: MAP - o.y });
+const paarweise = (liste) => liste.flatMap((o) => [o, gespiegelt(o)]);
+
+/** Felsgrat: n Felsen gleichmaessig von (x0,y0) nach (x1,y1), ohne die Luecken. */
+function grat(x0, y0, x1, y1, n, r, luecken) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    if (luecken.includes(k)) continue;
+    out.push({ x: x0 + (((x1 - x0) * k) / (n - 1)) | 0, y: y0 + (((y1 - y0) * k) / (n - 1)) | 0, r, art: 'fels' });
+  }
+  return out;
+}
+const KARTE = {
+  hindernisse: [
+    // Grat vor jeder Basis: breites Tor in der Mitte, zwei Seitenpfade
+    ...paarweise(grat(700, 12300, 12300, 700, 21, 560, [2, 3, 9, 10, 11, 17, 18])),
+    // Felsring um die Mitte, Zugaenge diagonal
+    { x: 11300, y: 10000, r: 500, art: 'fels' },
+    { x: 8700, y: 10000, r: 500, art: 'fels' },
+    { x: 10000, y: 11300, r: 500, art: 'fels' },
+    { x: 10000, y: 8700, r: 500, art: 'fels' },
+    // Seen zwischen Mitte und Seitenraendern
+    ...paarweise([{ x: 7200, y: 12800, r: 1300, art: 'see' }]),
+  ],
+  adern: [
+    // je Basis fuenf Vorkommen -- alle in der Grunddomaene des Hauptgebaeudes
+    ...paarweise([
+      { x: 4800, y: 2200, kind: 'fron' },
+      { x: 2200, y: 4800, kind: 'fron' },
+      { x: 6200, y: 4500, kind: 'fron' },
+      { x: 6700, y: 2100, kind: 'fron' },
+      { x: 2100, y: 6700, kind: 'fron' },
+    ]),
+    // Mitte: je eines naeher an jedem Spieler
+    ...paarweise([{ x: 10000, y: 7400, kind: 'fron' }]),
+    // Goetterblut: die grosse Ader im Felsring, zwei an den Seitenraendern
+    { x: 10000, y: 10000, kind: 'goetterblut' },
+    ...paarweise([{ x: 5200, y: 14800, kind: 'goetterblut' }]),
+  ],
+};
+
 /** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
 const RESOURCES = ['fron', 'goetterblut'];
 
@@ -938,8 +988,248 @@ function unitsOf(f) {
 
 /* ---------------------------------- */
 
+// Wegfindung. Ein Gitter ueber die Karte; Hindernisse (Felsen, Seen) sind
+// unpassierbar. Ein Ziel bekommt ein Flussfeld -- Dijkstra vom Ziel aus --,
+// dem jede Einheit folgt, bis sie ihr Ziel direkt sieht. Gebaeude stehen
+// nicht im Gitter: um die gleiten Einheiten wie bisher herum (umgehen()).
+//
+// Nur Integer, feste Reihenfolge, und punktsymmetrisch: Die Karte ist es,
+// also muessen beide Sitzplaetze gespiegelte Wege finden.
+//  - Ein Punkt genau auf einer Zellgrenze gehoert zu beiden Nachbarzellen
+//    (sonst landete er rechts, sein Spiegelbild aber links der Grenze).
+//  - Gleich gute Nachbarn entscheidet zuerst die Richtung zum Ziel, dann die
+//    Drehrichtung -- beides bleibt bei einer Drehung um die Mitte gleich.
+const ZELLE = 200; // Dezimeter je Zelle: 20 m
+const N = MAP / ZELLE;
+const SPIELRAUM = 60; // so viel Abstand halten Wege von Hindernissen
+const UNENDLICH = 0x3fffffff;
+const FELDER_HOECHSTENS = 64;
+
+/** Gitter aus den Hindernissen: frei[i] = 1, wenn die Zellmitte begehbar ist. */
+function wegGitter(hindernisse) {
+  const frei = new Uint8Array(N * N).fill(1);
+  for (let k = 0; k < hindernisse.length; k++) {
+    const h = hindernisse[k];
+    const r = h.r + SPIELRAUM;
+    const x0 = Math.max(0, ((h.x - r) / ZELLE) | 0);
+    const x1 = Math.min(N - 1, ((h.x + r) / ZELLE) | 0);
+    const y0 = Math.max(0, ((h.y - r) / ZELLE) | 0);
+    const y1 = Math.min(N - 1, ((h.y + r) / ZELLE) | 0);
+    for (let cy = y0; cy <= y1; cy++) {
+      for (let cx = x0; cx <= x1; cx++) {
+        const mx = cx * ZELLE + (ZELLE >> 1) - h.x;
+        const my = cy * ZELLE + (ZELLE >> 1) - h.y;
+        if (mx * mx + my * my <= r * r) frei[cy * N + cx] = 0;
+      }
+    }
+  }
+  return { frei, felder: new Map(), leer: hindernisse.length === 0 };
+}
+
+/**
+ * Doppelte Zellkoordinate: gerade d = mitten in Zelle d/2, ungerade d = auf
+ * der Grenze zwischen den Zellen (d-1)/2 und (d+1)/2. Spiegelt sich als 2N-2-d.
+ */
+function doppelt(v) {
+  if (v <= 0) return 0;
+  if (v >= MAP) return 2 * N - 2;
+  return v % ZELLE === 0 ? 2 * (v / ZELLE) - 1 : 2 * ((v / ZELLE) | 0);
+}
+
+/** Die Zellen zu einem Punkt: eine, zwei oder (in einer Ecke) vier. */
+function zellen(x, y) {
+  const dx = doppelt(x);
+  const dy = doppelt(y);
+  const xs = dx & 1 ? [(dx - 1) >> 1, (dx + 1) >> 1] : [dx >> 1];
+  const ys = dy & 1 ? [(dy - 1) >> 1, (dy + 1) >> 1] : [dy >> 1];
+  const out = [];
+  for (const cy of ys) for (const cx of xs) out.push(cy * N + cx);
+  return out;
+}
+
+/** Ist der Punkt begehbar? Auf einer Grenze nur, wenn alle angrenzenden Zellen es sind. */
+function punktFrei(weg, x, y) {
+  for (const c of zellen(x, y)) if (!weg.frei[c]) return false;
+  return true;
+}
+
+/** Liegt zwischen den beiden Punkten kein Hindernis? Abgetastet je halbe Zelle, ohne die Endpunkte. */
+function sichtfrei(weg, x0, y0, x1, y1) {
+  if (weg.leer) return true;
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const n = Math.max(1, (Math.max(Math.abs(dx), Math.abs(dy)) / (ZELLE >> 1)) | 0);
+  for (let k = 1; k < n; k++) {
+    if (!punktFrei(weg, x0 + (((dx * k) / n) | 0), y0 + (((dy * k) / n) | 0))) return false;
+  }
+  return true;
+}
+
+// Acht Nachbarn: gerade kosten 10, schraeg 14.
+const NB = [
+  [1, 0, 10], [-1, 0, 10], [0, 1, 10], [0, -1, 10],
+  [1, 1, 14], [-1, 1, 14], [1, -1, 14], [-1, -1, 14],
+];
+
+/**
+ * Darf man von Zelle (cx,cy) in Richtung (dx,dy) gehen? Nicht in Hindernisse
+ * (ausser in eine Zielzelle, f = 0), schraeg nicht an Ecken vorbei.
+ */
+function begehbar(weg, f, cx, cy, dx, dy) {
+  const nx = cx + dx;
+  const ny = cy + dy;
+  if (nx < 0 || ny < 0 || nx >= N || ny >= N) return false;
+  const nb = ny * N + nx;
+  if (!weg.frei[nb] && !(f && f[nb] === 0)) return false;
+  if (dx && dy && (!weg.frei[cy * N + nx] || !weg.frei[ny * N + cx])) return false;
+  return true;
+}
+
+/** Flussfeld zu einem Zielpunkt: Wegkosten jeder Zelle bis dorthin. Zwischengespeichert. */
+function feld(weg, tx, ty) {
+  const schluessel = doppelt(ty) * (2 * N) + doppelt(tx);
+  const alt = weg.felder.get(schluessel);
+  if (alt) return alt;
+  const f = new Int32Array(N * N).fill(UNENDLICH);
+  // Binaerer Heap aus (Kosten, Zelle), Gleichstand nach Zelle -- deterministisch.
+  const hk = [];
+  const hz = [];
+  const vor = (a, b) => hk[a] < hk[b] || (hk[a] === hk[b] && hz[a] < hz[b]);
+  const tausch = (a, b) => {
+    [hk[a], hk[b]] = [hk[b], hk[a]];
+    [hz[a], hz[b]] = [hz[b], hz[a]];
+  };
+  const push = (k, z) => {
+    let i = hk.length;
+    hk.push(k);
+    hz.push(z);
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (!vor(i, p)) break;
+      tausch(i, p);
+      i = p;
+    }
+  };
+  const pop = () => {
+    const k = hk[0];
+    const z = hz[0];
+    const lk = hk.pop();
+    const lz = hz.pop();
+    if (hk.length) {
+      hk[0] = lk;
+      hz[0] = lz;
+      let i = 0;
+      for (;;) {
+        const a = 2 * i + 1;
+        const b = a + 1;
+        let m = i;
+        if (a < hk.length && vor(a, m)) m = a;
+        if (b < hk.length && vor(b, m)) m = b;
+        if (m === i) break;
+        tausch(i, m);
+        i = m;
+      }
+    }
+    return [k, z];
+  };
+  for (const c of zellen(tx, ty)) {
+    f[c] = 0;
+    push(0, c);
+  }
+  while (hk.length) {
+    const [k, c] = pop();
+    if (k > f[c]) continue;
+    const cx = c % N;
+    const cy = (c / N) | 0;
+    for (let i = 0; i < 8; i++) {
+      const [dx, dy, kosten] = NB[i];
+      if (!begehbar(weg, null, cx, cy, dx, dy)) continue;
+      const nb = (cy + dy) * N + cx + dx;
+      const nk = k + kosten;
+      if (nk < f[nb]) {
+        f[nb] = nk;
+        push(nk, nb);
+      }
+    }
+  }
+  if (weg.felder.size >= FELDER_HOECHSTENS) weg.felder.delete(weg.felder.keys().next().value);
+  weg.felder.set(schluessel, f);
+  return f;
+}
+
+/** Mitte einer Zelle. */
+const mitteX = (c) => (c % N) * ZELLE + (ZELLE >> 1);
+const mitteY = (c) => ((c / N) | 0) * ZELLE + (ZELLE >> 1);
+
+/**
+ * Von mehreren Zellen die beste: niedrigste Kosten, dann am ehesten in
+ * Zielrichtung (gx, gy) von (x, y) aus, dann links davon -- drehungsfest.
+ */
+function besteZelle(kandidaten, f, x, y, gx, gy) {
+  let best = -1;
+  let bk = UNENDLICH + 1;
+  let bdot = -Infinity;
+  let bkreuz = -Infinity;
+  for (const c of kandidaten) {
+    const ox = mitteX(c) - x;
+    const oy = mitteY(c) - y;
+    const dot = ox * gx + oy * gy;
+    const kreuz = ox * gy - oy * gx;
+    if (f[c] < bk || (f[c] === bk && (dot > bdot || (dot === bdot && kreuz > bkreuz)))) {
+      best = c;
+      bk = f[c];
+      bdot = dot;
+      bkreuz = kreuz;
+    }
+  }
+  return best;
+}
+
+/** Naechste Zelle entlang des Feldes von Zelle c aus -- nur, wenn sie naeher am Ziel ist; sonst -1. */
+function naechsteZelle(weg, f, c, x, y, gx, gy) {
+  const cx = c % N;
+  const cy = (c / N) | 0;
+  const kandidaten = [];
+  for (let i = 0; i < 8; i++) {
+    const [dx, dy] = NB[i];
+    if (!begehbar(weg, f, cx, cy, dx, dy)) continue;
+    const nb = (cy + dy) * N + cx + dx;
+    if (f[nb] < f[c]) kandidaten.push(nb);
+  }
+  return kandidaten.length ? besteZelle(kandidaten, f, x, y, gx, gy) : -1;
+}
+
+/**
+ * Wohin eine Einheit bei (x, y) als Naechstes laeuft, um (tx, ty) zu
+ * erreichen: direkt, wenn nichts im Weg ist, sonst zum weitesten Punkt
+ * entlang des Flussfeldes, den sie noch direkt sieht.
+ */
+function wegpunkt(weg, x, y, tx, ty) {
+  if (weg.leer || sichtfrei(weg, x, y, tx, ty)) return [tx, ty];
+  const f = feld(weg, tx, ty);
+  const gx = tx - x;
+  const gy = ty - y;
+  let c = besteZelle(zellen(x, y), f, x, y, gx, gy);
+  let px = tx;
+  let py = ty;
+  for (let s = 0; s < 8; s++) {
+    const n = naechsteZelle(weg, f, c, x, y, gx, gy);
+    if (n < 0) break;
+    c = n;
+    if (s > 0 && !sichtfrei(weg, x, y, mitteX(c), mitteY(c))) break;
+    px = mitteX(c);
+    py = mitteY(c);
+    if (f[c] === 0) break;
+  }
+  return [px, py];
+}
+
+
+/* ---------------------------------- */
+
 // Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
+
 
 // ---------------------------------------------------------------- Mathematik
 
@@ -1006,6 +1296,7 @@ function createWorld(opts = {}) {
       { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 },
     ],
     deposits: [],
+    hindernisse: opts.empty ? [] : KARTE.hindernisse, // Felsen und Seen, unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
     regions: [],
     pending: [],
@@ -1014,6 +1305,7 @@ function createWorld(opts = {}) {
     over: false,
     winner: -1,
   };
+  world.weg = wegGitter(world.hindernisse); // Wegfindung, aus den Hindernissen abgeleitet
   if (!opts.empty) setupMap(world);
   return world;
 }
@@ -1029,24 +1321,7 @@ function setupMap(world) {
   }
   if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
 
-  const spots = [
-    [lo + 1800, lo - 800],
-    [lo - 800, lo + 1800],
-    [lo + 3200, lo + 1500],
-    [hi - 1800, hi + 800],
-    [hi + 800, hi - 1800],
-    [hi - 3200, hi - 1500],
-    // Mitte: punktsymmetrisch, je eine Ader naeher an jedem Spieler.
-    [MAP >> 1, (MAP >> 1) - 2600],
-    [MAP >> 1, (MAP >> 1) + 2600],
-  ];
-  for (const [x, y] of spots) {
-    world.deposits.push({ x: clamp(x), y: clamp(y), kind: 'fron', takenBy: 0 });
-  }
-  // Goetterblut: drei Adern auf der Mittelachse, der Streitpunkt.
-  world.deposits.push({ x: MAP >> 1, y: MAP >> 1, kind: 'goetterblut', takenBy: 0 });
-  world.deposits.push({ x: (MAP >> 1) - 3400, y: (MAP >> 1) + 3400, kind: 'goetterblut', takenBy: 0 });
-  world.deposits.push({ x: (MAP >> 1) + 3400, y: (MAP >> 1) - 3400, kind: 'goetterblut', takenBy: 0 });
+  for (const a of KARTE.adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
 }
 
 function clamp(v) {
@@ -1277,11 +1552,22 @@ function tryPlace(world, player, type, x, y) {
     const min = def.radius + BUILDINGS[e.type].radius;
     if (dist2(x, y, e.x, e.y) < min * min) return null;
   }
+  if (aufHindernis(world, x, y, def.radius)) return null;
 
   pay(p, def.cost, 1000);
   const b = spawnBuilding(world, player, type, x, y, false);
   if (dep) dep.takenBy = b.id;
   return b;
+}
+
+/** Ueberschneidet ein Kreis (x, y, r) einen Felsen oder See? */
+function aufHindernis(world, x, y, r) {
+  for (let i = 0; i < world.hindernisse.length; i++) {
+    const h = world.hindernisse[i];
+    const min = r + h.r;
+    if (dist2(x, y, h.x, h.y) < min * min) return true;
+  }
+  return false;
 }
 
 /**
@@ -1882,6 +2168,12 @@ function moveUnits(world) {
     if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
     let speed = UNITS[e.type].speed;
     if (e.tempoBis > world.tick) speed = ((speed * (1000 + e.tempoWert)) / 1000) | 0; // Ansturm
+    // Wegfindung: direkt, wenn nichts im Weg ist, sonst den naechsten Wegpunkt.
+    if (gx[i] !== e.x || gy[i] !== e.y) {
+      const [wx, wy] = wegpunkt(world.weg, e.x, e.y, gx[i], gy[i]);
+      gx[i] = wx;
+      gy[i] = wy;
+    }
     const dx = gx[i] - e.x;
     const dy = gy[i] - e.y;
     const d = isqrt(dx * dx + dy * dy);
@@ -1939,7 +2231,18 @@ function separate(world) {
       const b = us[j];
       const min = UNITS[a.type].radius + UNITS[b.type].radius;
       const dd = dist2(a.x, a.y, b.x, b.y);
-      if (dd >= min * min || dd === 0) continue;
+      if (dd >= min * min) continue;
+      if (dd === 0) {
+        // Genau uebereinander: auseinanderschieben, quer zur Richtung der
+        // Kartenmitte -- punktsymmetrisch, die aeltere Einheit nach links.
+        const s = a.x + a.y < MAP ? 1 : -1;
+        const q = (min >> 1) || 1;
+        px[i] += s * q;
+        py[i] -= s * q;
+        px[j] -= s * q;
+        py[j] += s * q;
+        continue;
+      }
       const d = isqrt(dd) || 1;
       const push = ((min - d) / 2) | 0 || 1;
       const nx = (((a.x - b.x) * push) / d) | 0;
@@ -1966,6 +2269,23 @@ function separate(world) {
 function umgehen(world, u) {
   const ur = UNITS[u.type].radius;
   const slide = UNITS[u.type].speed >> 1;
+  // Felsen und Seen schieben genauso hinaus wie Gebaeude, nur ohne Seitwaertsgleiten.
+  for (let i = 0; i < world.hindernisse.length; i++) {
+    const h = world.hindernisse[i];
+    const min = ur + h.r;
+    let ox = u.x - h.x;
+    let oy = u.y - h.y;
+    const dd = ox * ox + oy * oy;
+    if (dd >= min * min) continue;
+    let d = isqrt(dd);
+    if (d === 0) {
+      ox = 1;
+      oy = 0;
+      d = 1;
+    }
+    u.x = clamp(h.x + (((ox * min) / d) | 0));
+    u.y = clamp(h.y + (((oy * min) / d) | 0));
+  }
   for (let i = 0; i < world.entities.length; i++) {
     const b = world.entities[i];
     if (b.dead || b.kind !== 'building') continue;
@@ -2400,7 +2720,8 @@ function stepAI(ai, world) {
   // bindet nur Fron.
   const erbauerZahl = arbeiter.length + (kdt ? 1 : 0);
   const bau = (building, x, y) => {
-    if (offen.length >= Math.max(1, erbauerZahl)) return false;
+    // Foerderung geht immer vor -- ohne sie fehlt spaeter alles.
+    if (offen.length >= Math.max(1, erbauerZahl) && building !== plan.fron) return false;
     if (ai.gesperrt.some((g) => g.building === building && dist2(g.x, g.y, x, y) < 200 * 200)) return false;
     issue(world, { type: 'build', player: ai.player, building, x, y });
     ai.letzterBau = { building, x, y };
@@ -2559,13 +2880,22 @@ function stepAI(ai, world) {
   // Ist das Heer kleiner als eine Welle, wird nicht gespart: ohne Truppen ist
   // jede Wirtschaft nur Beute (und der Kommandant schutzlos).
   const heerSchwach = minute >= 5 && wert(kaempfer) < ai.stil.welle;
-  const sparen = heerSchwach ? 0 : naechster ? kosten(naechster) : vene ? kosten(plan.anker) + 100 : 0;
+  // Fehlt Gegenwart fuer den naechsten Bau, wird zuerst fuer die Quelle gespart.
+  const sparen = heerSchwach
+    ? 0
+    : naechster && bilanz < bedarf
+      ? kosten(plan.kraft)
+      : naechster
+        ? kosten(naechster)
+        : vene
+          ? kosten(plan.anker) + 100
+          : 0;
   let rest = fron;
   let blutRest = p.goetterblut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
   // Arbeiter nach Baukraft: Bauern bauen schwaecher als Dryaden, also mehr davon.
-  const zielKraft = 1200 + (minute >= 6 ? 800 : 0) + (minute >= 12 ? 800 : 0);
+  const zielKraft = 1600 + (minute >= 6 ? 1200 : 0) + (minute >= 12 ? 1200 : 0);
   const arbeiterZiel = Math.ceil(zielKraft / UNITS[plan.bauer].build.power);
   let arbeiterBestellt = arbeiter.length;
   for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
@@ -2676,10 +3006,21 @@ function stepAI(ai, world) {
   for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
-  const angriff = gegnerFoerderung(world, ai.player, haupt) || ziel;
-  if (ai.unterwegs.length && angriff && !world.entities.some((e) => e.id === ai.welleZiel && !e.dead)) {
-    ai.welleZiel = angriff.id;
-    issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: angriff.x, y: angriff.y });
+  const angriff = angriffsziel(world, ai.player, haupt) || ziel;
+  // Faellt das Ziel einer laufenden Welle, zieht sie zum Foerderbau, der ihr
+  // selbst am naechsten ist -- nicht quer ueber die Karte zu dem, der dem
+  // eigenen Hauptgebaeude am naechsten waere.
+  if (ai.unterwegs.length && !world.entities.some((e) => e.id === ai.welleZiel && !e.dead)) {
+    const welle = einheiten.filter((u) => ai.unterwegs.includes(u.id));
+    const mitte = {
+      x: (welle.reduce((s, u) => s + u.x, 0) / welle.length) | 0,
+      y: (welle.reduce((s, u) => s + u.y, 0) / welle.length) | 0,
+    };
+    const weiter = angriffsziel(world, ai.player, mitte) || ziel;
+    if (weiter) {
+      ai.welleZiel = weiter.id;
+      issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: weiter.x, y: weiter.y });
+    }
   }
   // Nur angreifen, wenn die Welle das gegnerische Heer daheim samt dessen
   // Heimvorteil uebertrifft -- sonst zerschellt sie an der Verteidigung.
@@ -2834,8 +3175,9 @@ function nahePlatz(world, um, haupt, abstand, radius, typ, drehung = 0) {
   return null;
 }
 
-/** Steht hier schon ein Gebaeude im Weg? Dieselbe Regel wie tryPlace(). */
+/** Steht hier schon ein Gebaeude, Fels oder See im Weg? Dieselbe Regel wie tryPlace(). */
 function blockiert(world, x, y, radius) {
+  if (aufHindernis(world, x, y, radius)) return true;
   for (const e of world.entities) {
     if (e.dead || e.kind !== 'building') continue;
     const min = radius + BUILDINGS[e.type].radius + 20;
@@ -2939,14 +3281,27 @@ function naechsterEindringling(world, me, bauten) {
   return best || drin;
 }
 
-/** Naechster gegnerischer Foerderbau fuer Goetterblut, vom eigenen Hauptgebaeude aus. */
-function gegnerFoerderung(world, me, haupt) {
+/**
+ * Ziel einer Welle: ein gegnerischer Foerderbau, moeglichst einer, den kein
+ * Turm deckt -- Wirtschaft treffen statt an Mauern zerschellen --, dann
+ * Goetterblut vor Fron, dann der naechste vom Punkt von aus.
+ */
+function angriffsziel(world, me, von) {
   let best = null;
+  let bestRang = Infinity;
   let bestD = Infinity;
   for (const e of world.entities) {
-    if (e.dead || e.player === me || e.kind !== 'building' || !BUILDINGS[e.type].blutOut) continue;
-    const dd = dist2(e.x, e.y, haupt.x, haupt.y);
-    if (dd < bestD) {
+    if (e.dead || e.player === me || e.kind !== 'building') continue;
+    const d = BUILDINGS[e.type];
+    if (!d.fronOut && !d.blutOut) continue;
+    const gedeckt = world.entities.some(
+      (t) => !t.dead && t.player === e.player && t.kind === 'building' && t.done && BUILDINGS[t.type].weapon &&
+        dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
+    );
+    const rang = (gedeckt ? 2 : 0) + (d.blutOut ? 0 : 1);
+    const dd = dist2(e.x, e.y, von.x, von.y);
+    if (rang < bestRang || (rang === bestRang && dd < bestD)) {
+      bestRang = rang;
       bestD = dd;
       best = e;
     }
@@ -3688,6 +4043,7 @@ function draw() {
   drawGrid(W, H);
   drawCleared();
   drawDomains();
+  drawHindernisse();
   drawDeposits();
   drawSchreine();
   drawEntities();
@@ -3873,6 +4229,19 @@ function grenzlinie(anker, farbe, breite, alpha) {
   ctx.globalAlpha = alpha;
   ctx.drawImage(randCv, 0, 0);
   ctx.restore();
+}
+
+/** Felsen und Seen: unpassierbar, nicht bebaubar. */
+function drawHindernisse() {
+  for (const h of world.hindernisse) {
+    ctx.fillStyle = h.art === 'see' ? '#1d3a4d' : '#34352d';
+    ctx.strokeStyle = h.art === 'see' ? '#2c5670' : '#4c4e42';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(w2sx(h.x), w2sy(h.y), h.r * cam.z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
 }
 
 function drawDeposits() {
@@ -4086,7 +4455,8 @@ function drawGhost() {
   const r = Math.max(4, def.radius * cam.z);
   const drin = inDomain(world, ME, gx, gy);
   const gerodet = def.needsGrowth && isCleared(world, gx, gy);
-  const col = gerodet || ohneAder ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
+  const fels = aufHindernis(world, gx, gy, def.radius);
+  const col = gerodet || ohneAder || fels ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
 
   if (def.anchor) {
     ctx.strokeStyle = col;
@@ -4115,6 +4485,8 @@ function drawGhost() {
   const ader = def.needs === 'goetterblut' ? 'Götterblut-Ader' : 'Fron-Ader';
   const txt = ohneAder
     ? def.name + ' — braucht eine freie ' + ader
+    : fels
+    ? def.name + ' — auf Fels und Wasser wird nicht gebaut'
     : gerodet
     ? def.name + ' — gerodeter Boden trägt nicht'
     : def.name +
@@ -4332,6 +4704,12 @@ function drawMini() {
   for (const c of world.cleared) {
     mctx.beginPath();
     mctx.arc(c.x * s, c.y * s, c.r * s, 0, Math.PI * 2);
+    mctx.fill();
+  }
+  for (const h of world.hindernisse) {
+    mctx.fillStyle = h.art === 'see' ? '#2c5670' : '#4c4e42';
+    mctx.beginPath();
+    mctx.arc(h.x * s, h.y * s, h.r * s, 0, Math.PI * 2);
     mctx.fill();
   }
   for (let p = 0; p < 2; p++) {

@@ -1,7 +1,8 @@
 // Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
 
-import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES, RESOURCES, SKILLS, FAEHIGKEITEN } from './defs.js';
+import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES, RESOURCES, SKILLS, FAEHIGKEITEN, KARTE } from './defs.js';
+import { wegGitter, wegpunkt } from './weg.js';
 
 // ---------------------------------------------------------------- Mathematik
 
@@ -71,6 +72,7 @@ export function createWorld(opts = {}) {
       { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 },
     ],
     deposits: [],
+    hindernisse: opts.empty ? [] : KARTE.hindernisse, // Felsen und Seen, unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
     regions: [],
     pending: [],
@@ -79,6 +81,7 @@ export function createWorld(opts = {}) {
     over: false,
     winner: -1,
   };
+  world.weg = wegGitter(world.hindernisse); // Wegfindung, aus den Hindernissen abgeleitet
   if (!opts.empty) setupMap(world);
   return world;
 }
@@ -94,24 +97,7 @@ function setupMap(world) {
   }
   if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
 
-  const spots = [
-    [lo + 1800, lo - 800],
-    [lo - 800, lo + 1800],
-    [lo + 3200, lo + 1500],
-    [hi - 1800, hi + 800],
-    [hi + 800, hi - 1800],
-    [hi - 3200, hi - 1500],
-    // Mitte: punktsymmetrisch, je eine Ader naeher an jedem Spieler.
-    [MAP >> 1, (MAP >> 1) - 2600],
-    [MAP >> 1, (MAP >> 1) + 2600],
-  ];
-  for (const [x, y] of spots) {
-    world.deposits.push({ x: clamp(x), y: clamp(y), kind: 'fron', takenBy: 0 });
-  }
-  // Goetterblut: drei Adern auf der Mittelachse, der Streitpunkt.
-  world.deposits.push({ x: MAP >> 1, y: MAP >> 1, kind: 'goetterblut', takenBy: 0 });
-  world.deposits.push({ x: (MAP >> 1) - 3400, y: (MAP >> 1) + 3400, kind: 'goetterblut', takenBy: 0 });
-  world.deposits.push({ x: (MAP >> 1) + 3400, y: (MAP >> 1) - 3400, kind: 'goetterblut', takenBy: 0 });
+  for (const a of KARTE.adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
 }
 
 function clamp(v) {
@@ -346,11 +332,22 @@ export function tryPlace(world, player, type, x, y) {
     const min = def.radius + BUILDINGS[e.type].radius;
     if (dist2(x, y, e.x, e.y) < min * min) return null;
   }
+  if (aufHindernis(world, x, y, def.radius)) return null;
 
   pay(p, def.cost, 1000);
   const b = spawnBuilding(world, player, type, x, y, false);
   if (dep) dep.takenBy = b.id;
   return b;
+}
+
+/** Ueberschneidet ein Kreis (x, y, r) einen Felsen oder See? */
+export function aufHindernis(world, x, y, r) {
+  for (let i = 0; i < world.hindernisse.length; i++) {
+    const h = world.hindernisse[i];
+    const min = r + h.r;
+    if (dist2(x, y, h.x, h.y) < min * min) return true;
+  }
+  return false;
 }
 
 /**
@@ -955,6 +952,12 @@ function moveUnits(world) {
     if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
     let speed = UNITS[e.type].speed;
     if (e.tempoBis > world.tick) speed = ((speed * (1000 + e.tempoWert)) / 1000) | 0; // Ansturm
+    // Wegfindung: direkt, wenn nichts im Weg ist, sonst den naechsten Wegpunkt.
+    if (gx[i] !== e.x || gy[i] !== e.y) {
+      const [wx, wy] = wegpunkt(world.weg, e.x, e.y, gx[i], gy[i]);
+      gx[i] = wx;
+      gy[i] = wy;
+    }
     const dx = gx[i] - e.x;
     const dy = gy[i] - e.y;
     const d = isqrt(dx * dx + dy * dy);
@@ -1012,7 +1015,18 @@ function separate(world) {
       const b = us[j];
       const min = UNITS[a.type].radius + UNITS[b.type].radius;
       const dd = dist2(a.x, a.y, b.x, b.y);
-      if (dd >= min * min || dd === 0) continue;
+      if (dd >= min * min) continue;
+      if (dd === 0) {
+        // Genau uebereinander: auseinanderschieben, quer zur Richtung der
+        // Kartenmitte -- punktsymmetrisch, die aeltere Einheit nach links.
+        const s = a.x + a.y < MAP ? 1 : -1;
+        const q = (min >> 1) || 1;
+        px[i] += s * q;
+        py[i] -= s * q;
+        px[j] -= s * q;
+        py[j] += s * q;
+        continue;
+      }
       const d = isqrt(dd) || 1;
       const push = ((min - d) / 2) | 0 || 1;
       const nx = (((a.x - b.x) * push) / d) | 0;
@@ -1039,6 +1053,23 @@ function separate(world) {
 function umgehen(world, u) {
   const ur = UNITS[u.type].radius;
   const slide = UNITS[u.type].speed >> 1;
+  // Felsen und Seen schieben genauso hinaus wie Gebaeude, nur ohne Seitwaertsgleiten.
+  for (let i = 0; i < world.hindernisse.length; i++) {
+    const h = world.hindernisse[i];
+    const min = ur + h.r;
+    let ox = u.x - h.x;
+    let oy = u.y - h.y;
+    const dd = ox * ox + oy * oy;
+    if (dd >= min * min) continue;
+    let d = isqrt(dd);
+    if (d === 0) {
+      ox = 1;
+      oy = 0;
+      d = 1;
+    }
+    u.x = clamp(h.x + (((ox * min) / d) | 0));
+    u.y = clamp(h.y + (((oy * min) / d) | 0));
+  }
   for (let i = 0; i < world.entities.length; i++) {
     const b = world.entities[i];
     if (b.dead || b.kind !== 'building') continue;

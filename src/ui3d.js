@@ -27,7 +27,7 @@ let meFaction = 'mensch';
 let world, ai, aiMe;
 let gegnerStil = 'standard';
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
-let karteSchluessel = 'klassisch'; // Karte, im Startbildschirm waehlbar
+let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 let paused = true;
 let speed = 1;
 let acc = 0;

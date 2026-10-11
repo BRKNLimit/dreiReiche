@@ -176,6 +176,20 @@ export function ressourcenHtml(world, player) {
 
 const KARTEN_SPEICHER = 'dreiReiche.karten';
 
+/** Vom Editor gewaehlte Karte (einmalig), sonst die klassische. */
+export function vorgewaehlteKarte() {
+  try {
+    const k = localStorage.getItem('dreiReiche.karteWahl');
+    if (k) {
+      localStorage.removeItem('dreiReiche.karteWahl');
+      return k;
+    }
+  } catch {
+    /* ohne Speicher eben die Vorgabe */
+  }
+  return 'klassisch';
+}
+
 /** Eigene Karten aus dem Speicher des Browsers (vom Editor oder geladen). */
 export function eigeneKarten() {
   try {

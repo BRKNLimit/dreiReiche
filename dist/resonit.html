@@ -5357,6 +5357,20 @@ function ressourcenHtml(world, player) {
 
 const KARTEN_SPEICHER = 'dreiReiche.karten';
 
+/** Vom Editor gewaehlte Karte (einmalig), sonst die klassische. */
+function vorgewaehlteKarte() {
+  try {
+    const k = localStorage.getItem('dreiReiche.karteWahl');
+    if (k) {
+      localStorage.removeItem('dreiReiche.karteWahl');
+      return k;
+    }
+  } catch {
+    /* ohne Speicher eben die Vorgabe */
+  }
+  return 'klassisch';
+}
+
 /** Eigene Karten aus dem Speicher des Browsers (vom Editor oder geladen). */
 function eigeneKarten() {
   try {
@@ -7841,7 +7855,7 @@ let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
 let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
-let karteSchluessel = 'klassisch'; // Karte, im Startbildschirm waehlbar
+let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 const ME = 0;
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums

@@ -7,7 +7,7 @@
   "scripts": {
     "test": "node --test",
     "bundle": "node tools/bundle.mjs",
-    "smoke": "node tools/bundle.mjs && node tools/smoke.mjs && node tools/smoke3d.mjs && node tools/smoke-galerie.mjs",
+    "smoke": "node tools/bundle.mjs && node tools/smoke.mjs && node tools/smoke3d.mjs && node tools/smoke-galerie.mjs && node tools/smoke-editor.mjs",
     "match": "node tools/match.mjs",
     "sweep": "node tools/sweep.mjs",
     "galerie": "node tools/bundle.mjs && node tools/smoke-galerie.mjs"

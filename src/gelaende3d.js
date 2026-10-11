@@ -154,8 +154,10 @@ export function baueBoden() {
 
       const wegRausch = rauschen(i, j, 5, 8);
       const pfadBreite = istFlusstal ? 32 : 45;
-      if (dPfad < pfadBreite + wegRausch * 12 && wx > 220 && wx < 1780 && wz > 220 && wz < 1780) {
-        const wegFaktor = Math.max(0, 1 - dPfad / (pfadBreite + wegRausch * 12)) * 0.45;
+      if (dPfad < pfadBreite + wegRausch * 12 && wx > 220 && wx < 1780 && wz > 220 && wz < 1780 && dSee > 2 && dFels > 2) {
+        const uferFade = Math.min(1.0, (dSee - 2) / 25);
+        const felsFade = Math.min(1.0, (dFels - 2) / 20);
+        const wegFaktor = Math.max(0, 1 - dPfad / (pfadBreite + wegRausch * 12)) * 0.45 * uferFade * felsFade;
         r = r * (1 - wegFaktor) + 0.34 * wegFaktor;
         gr = gr * (1 - wegFaktor) + 0.27 * wegFaktor;
         b = b * (1 - wegFaktor) + 0.17 * wegFaktor;

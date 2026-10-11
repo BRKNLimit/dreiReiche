@@ -320,6 +320,22 @@ geprüft (Tests, Galerie, Spiel).
     - Berücksichtigt Ambient Occlusion, sodass Scharten und Vertiefungen matt bleiben, während exponierte Rundungen im Sonnenlicht aufblitzen.
 - **Wie geprüft:** `npm test` (137/137 Tests grün, Eckenbudgets strikt eingehalten), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
 
+### Runde 21: High-Res Geländemodelle (Fels, Baum, Adern, Staubwolke) & Galerie-Animationen (src/modelle3d.js, src/gelaende3d.js, src/galerie.js)
+- **Was war schwach:** Während Einheiten und Gebäude bereits hochauflösend überarbeitet wurden, bestanden Geländeelemente (`fels`, `baum`, `fronAder`, `blutAder`, `staubwolke`) noch aus groben 6-Teile-Primitiven. In der Galerie unter „Effekte“ stand das Wasser zudem still, da `schritt` (Zeitphase) nur in den Einheiten- und Waldgott-Ansichten übergeben wurde.
+- **Was wurde geändert:**
+  - **Gelände- und Umgebungsmodelle (`src/modelle3d.js`):**
+    - `felsModell` (804 Ecken, vorher 144): Granit-Felsmassiv mit steiler Schieferbruchwand, Quarzader-Einschlüssen, mehreren zerklüfteten Felszacken, Moosflechten in Fugen und einem Geröllsockel mit Felsblöcken. Der maximale Radius bleibt exakt bei $\le 0.96$, wodurch die $10\%$-Kollisionsgrenze strikt gewahrt bleibt.
+    - `baumModell` (2.082 Ecken, vorher 144): Majestätischer Waldbaum mit 5 knorrigen Stützwurzeln, wetterseitigem Moosbelag am Stamm, organischem Stammknick, 4 ausladenden Astgabeln und 9-teiliger gestaffelter Laubkrone.
+    - `fronAderModell` (840 Ecken, vorher 156): Steinbruch- und Schürfstätte mit Eichenholz-Stützbalken, Querträgern, Abraumrutsche, angelehnter Bergmanns-Spitzhacke und funkelnden Eisenerznuggets mit Reflexionsglanz.
+    - `blutAderModell` (1.932 Ecken, vorher 156): Aufgerissener Obsidiankrater mit kochendem Götterblutsee, umschlungen von 6 dornigen Raubwurzeln mit Saftadern, 7 säulenförmigen Götterblut-Kristallspitzen und schwebenden Splittern im magischen Auftrieb.
+    - `staubwolkeModell` (336 Ecken, vorher 72): 5-teilig bauschende Staubwolke mit abgestuften Erdtönen für Geschosseinschläge und Gebäudeeinstürze.
+  - **Geländeanpassung (`src/gelaende3d.js`):**
+    - Marschpfade blenden beim Annähern an Wasserflächen (`uferFade`) und Felsbarrieren (`felsFade`) organisch aus, um unschöne Überschneidungen auf Zufallskarten oder Uferlinien auszuschließen.
+  - **Galerie (`src/galerie.js`):**
+    - In der Ansicht „Effekte“ wird dem Modell nun die dynamische Zeitphase übergeben, sodass die Wasseroberfläche lebendig wellt und schimmert und Magieeffekte sanft pulsieren.
+- **Wie geprüft:** `npm test` (137/137 Tests grün, alle Modelle innerhalb des Budgets), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
+
+
 
 
 

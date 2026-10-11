@@ -2048,6 +2048,219 @@ function truemmerModell() {
   return t;
 }
 
+/** Fels: Markante, kantige Granit-Felsformation mit Schichtungen, Geroellkragen und Moosspalten. */
+function felsModell() {
+  const t = [];
+  const FELS_B = '#383b38';
+  const FELS_M = '#4d524e';
+  const FELS_H = '#666d67';
+  const FELS_L = '#7c857e';
+  const SCHIEFER = '#323533';
+  const MOOS = '#2d3824';
+  const QUARZ = '#94a09a';
+
+  // 1. Verwitterter Sockel & Geroellkranz am Boden (Moos und Schutt)
+  t.push(
+    ['z', [0.82, 0.96, 0.30, 8], [0, 0.15, 0], MOOS],
+    ['z', [0.65, 0.88, 0.45, 8], [0.04, 0.35, -0.02], FELS_B],
+    // Geroellbrocken am Hangfuss
+    ['q', [0.34, 0.22, 0.38], [0.55, 0.11, 0.42], FELS_M, 0, [0.15, 0.6, 0.1]],
+    ['q', [0.38, 0.25, 0.32], [-0.52, 0.12, 0.45], FELS_H, 0, [-0.2, -0.4, 0.15]],
+    ['q', [0.42, 0.20, 0.35], [-0.45, 0.10, -0.55], FELS_M, 0, [0.2, 0.8, -0.1]],
+    ['q', [0.36, 0.22, 0.40], [0.52, 0.11, -0.48], FELS_H, 0, [-0.15, -0.7, 0.2]]
+  );
+
+  // 2. Massiver Hauptpfeiler mit steilen Facetten und Bruchspalten
+  t.push(
+    ['z', [0.42, 0.72, 1.45, 7], [-0.05, 0.85, 0.05], FELS_M, 0, [0.06, 0.3, -0.04]],
+    ['z', [0.18, 0.48, 1.15, 6], [0.12, 1.10, -0.12], FELS_H, 0, [-0.08, 0.9, 0.12]],
+    ['z', [0.04, 0.28, 0.75, 5], [0.18, 1.65, -0.15], FELS_L, 0, [-0.05, 0.5, 0.08]]
+  );
+
+  // 3. Markante Felsflanken und Schichtbloecke
+  t.push(
+    ['q', [0.72, 0.95, 0.62], [-0.28, 0.65, 0.18], SCHIEFER, 0, [0.12, 0.45, 0.18]],
+    ['q', [0.65, 0.78, 0.68], [0.35, 0.55, -0.12], FELS_M, 0, [-0.18, -0.35, 0.08]],
+    ['q', [0.48, 0.58, 0.52], [-0.25, 0.45, -0.35], FELS_H, 0, [0.22, 0.65, -0.15]],
+    ['q', [0.55, 0.62, 0.48], [0.28, 0.42, 0.32], FELS_M, 0, [-0.12, -0.6, 0.2]],
+    ['q', [0.12, 0.85, 0.06], [-0.08, 0.85, 0.42], QUARZ, 0, [0.1, 0.3, 0.22]],
+    ['q', [0.28, 0.08, 0.32], [0.25, 0.95, 0.12], MOOS, 0, [-0.1, 0.4, 0.05]],
+    ['q', [0.24, 0.08, 0.28], [-0.15, 1.15, -0.18], MOOS, 0, [0.15, -0.5, -0.1]]
+  );
+
+  return t;
+}
+
+/** Baum: Alter Waldbaum mit Wurzelanlaeufen, geschwungenem Stamm, Astgabeln und dichter Krone. */
+function baumModell() {
+  const t = [];
+  const STAMM = '#48321e';
+  const STAMM_D = '#322013';
+  const MOOS = '#2d3d1f';
+  const LAUB_D = '#1b3b18';
+  const LAUB_M = '#275222';
+  const LAUB_H = '#366930';
+  const LAUB_L = '#488240';
+
+  // 1. Knorrige Wurzelanlaeufe am Boden
+  for (let i = 0; i < 5; i++) {
+    const phi = (i / 5) * Math.PI * 2 + 0.25;
+    const c = Math.cos(phi);
+    const s = Math.sin(phi);
+    t.push(
+      stab([c * 0.25, 0.40, s * 0.25], [c * 0.65, 0.02, s * 0.65], 0.12, STAMM_D, 0, 5, 0.2),
+      ['k', [0.10, 4], [c * 0.52, 0.08, s * 0.52], MOOS, 0.2]
+    );
+  }
+
+  // 2. Stamm mit Biegung
+  t.push(
+    ['z', [0.22, 0.34, 0.95, 8], [0, 0.50, 0], STAMM],
+    ['z', [0.16, 0.22, 0.85, 7], [0.04, 1.30, 0.02], STAMM_D, 0, [0.05, 0, -0.06]],
+    ['q', [0.08, 0.90, 0.16], [-0.14, 0.70, 0], MOOS, 0.2, [0, 0, 0.08]]
+  );
+
+  // 3. Astgabeln
+  t.push(
+    stab([0.04, 1.65, 0.02], [0.45, 2.15, 0.20], 0.11, STAMM, 0, 4),
+    stab([0.04, 1.65, 0.02], [-0.42, 2.10, -0.18], 0.11, STAMM, 0, 4),
+    stab([0.04, 1.70, 0.02], [0.10, 2.30, -0.38], 0.09, STAMM_D, 0, 4),
+    stab([0.04, 1.70, 0.02], [-0.12, 2.35, 0.35], 0.09, STAMM_D, 0, 4)
+  );
+
+  // 4. Gestaffelte Laubkrone
+  t.push(
+    ['k', [0.92, 8], [0.45, 2.30, 0.22], LAUB_D, 0.3],
+    ['k', [0.88, 8], [-0.42, 2.25, -0.20], LAUB_M, 0.3],
+    ['k', [0.82, 7], [0.12, 2.45, -0.40], LAUB_D, 0.3],
+    ['k', [0.82, 7], [-0.14, 2.50, 0.38], LAUB_M, 0.35],
+    ['k', [1.10, 9], [0, 2.75, 0], LAUB_M, 0.35],
+    ['k', [0.85, 8], [0.35, 3.05, -0.15], LAUB_H, 0.35],
+    ['k', [0.85, 8], [-0.32, 3.10, 0.18], LAUB_H, 0.35],
+    ['k', [0.82, 8], [0, 3.55, 0], LAUB_H, 0.35],
+    ['k', [0.55, 7], [0.08, 4.05, 0.05], LAUB_L, 0.4]
+  );
+
+  return t;
+}
+
+/** Fron-Ader: Steinbruch- und Erzabbau-Sohle mit Stuetzen, Schienen und Eisenerzglaenzern. */
+function fronAderModell() {
+  const t = [];
+  const STEIN_D = '#3a3d3c';
+  const STEIN_M = '#545956';
+  const STEIN_H = '#707873';
+  const BALKEN = '#4d331e';
+  const ERZ = '#b8c0c8';
+  const ERZ_GLANZ = '#e2e8f0';
+
+  // 1. Steinbruchsohle & Abbauterrasse
+  t.push(
+    ['z', [0.75, 0.95, 0.25, 8], [0, 0.125, 0], STEIN_D],
+    ['q', [0.65, 0.45, 0.55], [0.15, 0.30, -0.12], STEIN_M, 0, [0.15, 0.4, 0.1]],
+    ['q', [0.55, 0.38, 0.52], [-0.28, 0.25, 0.22], STEIN_D, 0, [-0.1, 0.6, -0.15]],
+    ['z', [0.22, 0.42, 0.48, 6], [0.38, 0.28, 0.28], STEIN_H, 0, [0.25, 0.2, 0.35]]
+  );
+
+  // 2. Gruben-Abstuetzbalken aus schwerem Eichenholz
+  t.push(
+    stab([-0.42, 0.12, -0.28], [-0.42, 0.72, -0.28], 0.09, BALKEN),
+    stab([-0.12, 0.12, -0.42], [-0.12, 0.72, -0.42], 0.09, BALKEN),
+    stab([-0.45, 0.70, -0.26], [-0.10, 0.70, -0.44], 0.08, BALKEN),
+    stab([-0.42, 0.12, -0.28], [-0.12, 0.72, -0.42], 0.05, '#3b2413'),
+    ['q', [0.18, 0.05, 0.75], [0.22, 0.25, -0.35], BALKEN, 0, [0.35, 0.4, 0]]
+  );
+
+  // 3. Freigelegte Eisenerzadern (funkelnd)
+  t.push(
+    ['k', [0.18, 6], [0.12, 0.52, -0.08], ERZ],
+    ['k', [0.15, 5], [-0.18, 0.42, 0.26], ERZ],
+    ['k', [0.12, 5], [0.32, 0.45, 0.18], ERZ_GLANZ],
+    ['q', [0.12, 0.12, 0.12], [-0.05, 0.48, 0.35], ERZ_GLANZ, 0, [0.4, 0.4, 0.4]],
+    ['q', [0.14, 0.14, 0.14], [0.25, 0.40, -0.22], ERZ, 0, [0.2, 0.6, 0.1]],
+    ['k', [0.11, 4], [-0.45, 0.18, 0.12], ERZ],
+    ['k', [0.09, 4], [0.48, 0.16, -0.15], ERZ_GLANZ],
+    stab([0.38, 0.12, 0.42], [0.22, 0.62, 0.28], 0.025, '#5c3d25'),
+    ['z', [0, 0.05, 0.22, 4], [0.22, 0.62, 0.28], '#22262a', 0, [0, 0.6, Math.PI / 2]]
+  );
+
+  return t;
+}
+
+/** Goetterblut-Ader: Reissender Obsidiankrater mit gluehendem Magmasee, Raubwurzeln und Kristallspitzen. */
+function blutAderModell() {
+  const t = [];
+  const OBSIDIAN = '#15111c';
+  const OBSIDIAN_H = '#231c2e';
+  const WURZEL = '#261710';
+  const BLUT_KERN = '#991b1b';
+  const BLUT_KRISTALL = '#ef4444';
+  const BLUT_HELL = '#fca5a5';
+  const MAGMA = '#ffedd5';
+
+  // 1. Zerrissener Obsidian-Krater
+  t.push(
+    ['z', [0.72, 0.94, 0.24, 8], [0, 0.12, 0], OBSIDIAN],
+    ['q', [0.70, 0.35, 0.60], [0, 0.22, 0], OBSIDIAN_H, 0, [0.1, 0.5, 0.1]],
+    ['q', [0.55, 0.30, 0.55], [-0.15, 0.25, -0.15], OBSIDIAN, 0, [-0.2, -0.4, 0.2]]
+  );
+
+  // 2. Kochender Goetterblut-See
+  t.push(
+    ['k', [0.48, 7], [0, 0.28, 0], BLUT_KERN, GLUEHT],
+    ['k', [0.26, 6], [0, 0.34, 0], MAGMA, GLUEHT]
+  );
+
+  // 3. Raubwurzeln mit Saftadern
+  for (let i = 0; i < 6; i++) {
+    const phi = (i / 6) * Math.PI * 2 + 0.15;
+    const c = Math.cos(phi);
+    const s = Math.sin(phi);
+    t.push(
+      stab([c * 0.82, 0.05, s * 0.82], [c * 0.42, 0.42, s * 0.42], 0.12, WURZEL, 0, 4, 0.6),
+      ['k', [0.045, 4], [c * 0.55, 0.30, s * 0.55], BLUT_KRISTALL, GLUEHT]
+    );
+  }
+
+  // 4. Goetterblut-Kristallspitzen
+  const kristalle = [
+    [0.00, 0.85, 0.00, 1.55, 0.22, 0.08, 0.15, -0.05],
+    [0.26, 0.65, 0.18, 1.25, 0.18, -0.22, 0.50, 0.32],
+    [-0.24, 0.60, -0.16, 1.15, 0.17, 0.30, -0.40, -0.22],
+    [-0.15, 0.52, 0.28, 0.95, 0.15, -0.38, 0.25, -0.28],
+    [0.24, 0.48, -0.22, 0.88, 0.14, 0.22, 0.75, 0.24],
+    [0.10, 0.42, 0.34, 0.72, 0.12, -0.15, -0.3, 0.40],
+    [-0.32, 0.38, 0.05, 0.68, 0.11, 0.42, 0.15, -0.18]
+  ];
+  for (const [kx, ky, kz, kh, kd, rx, ry, rz] of kristalle) {
+    t.push(
+      ['z', [0.02, kd, kh, 6], [kx, ky, kz], BLUT_KRISTALL, GLUEHT, [rx, ry, rz]],
+      ['k', [kd * 0.45, 4], [kx, ky + kh * 0.35, kz], BLUT_HELL, GLUEHT]
+    );
+  }
+
+  // 5. Schwebende Splitter
+  t.push(
+    ['k', [0.065, 4], [0.12, 1.75, 0.08], MAGMA, GLUEHT],
+    ['k', [0.055, 4], [-0.15, 1.62, -0.10], BLUT_HELL, GLUEHT],
+    ['k', [0.045, 4], [0.05, 1.88, -0.12], MAGMA, GLUEHT],
+    ['k', [0.045, 4], [-0.08, 1.55, 0.20], BLUT_KRISTALL, GLUEHT]
+  );
+
+  return t;
+}
+
+/** Staubwolke: Vielteilige aufwirbelnde Staubpartikelwolke. */
+function staubwolkeModell() {
+  return [
+    ['k', [0.65, 6], [0, 0, 0], '#b8ae98'],
+    ['k', [0.52, 6], [0.35, 0.15, 0.10], '#a89e88'],
+    ['k', [0.48, 6], [-0.30, 0.12, -0.15], '#c4baa4'],
+    ['k', [0.42, 5], [0.12, 0.35, -0.22], '#aba18c'],
+    ['k', [0.38, 5], [-0.18, -0.15, 0.28], '#b0a692'],
+  ];
+}
+
 export const MODELLE_DEF = {
   // Baustelle & Zerstoerung
   baugeruest: baugeruestModell(),
@@ -2130,41 +2343,10 @@ export const MODELLE_DEF = {
 
   // ------------------------------------------------------------- Karte und Effekte
   scheibe: [['s', [1, 64], [0, 0, 0], '#ffffff', 1]],
-  fronAder: [
-    // Ausgrabungs- und Steinbruchsohle
-    ['z', [0.72, 0.92, 0.25, 7], [0, 0.12, 0], '#424540'],
-    ['q', [0.55, 0.42, 0.5], [0.1, 0.26, -0.1], '#6b726f', 0, [0.2, 0.4, 0.1]],
-    ['q', [0.45, 0.36, 0.46], [-0.3, 0.22, 0.2], '#555c59', 0, [-0.1, 0.6, -0.2]],
-    ['z', [0.15, 0.35, 0.42, 5], [0.35, 0.24, 0.25], '#78807d', 0, [0.3, 0.2, 0.4]],
-    // Abstuetzbalken aus Holz
-    ['q', [0.1, 0.52, 0.1], [-0.35, 0.26, -0.25], '#5a3d24', 0, [0.1, 0, 0.15]],
-    ['q', [0.1, 0.52, 0.1], [-0.1, 0.26, -0.38], '#5a3d24', 0, [-0.1, 0, -0.1]],
-    ['q', [0.46, 0.09, 0.09], [-0.22, 0.5, -0.32], '#6b492b', 0, [0, 0.45, 0]],
-    // Schimmernde Eisenerz-Nuggets
-    ['k', [0.14, 5], [0.18, 0.46, -0.05], '#d8dee4', 0],
-    ['k', [0.12, 5], [-0.15, 0.38, 0.25], '#c5cbd2', 0],
-  ],
-  blutAder: [
-    // Tiefschwarzer Obsidian-Spalt mit glutroten Kristallspitzen
-    ['z', [0.7, 0.9, 0.22, 7], [0, 0.11, 0], '#18141d'],
-    ['q', [0.65, 0.3, 0.55], [0, 0.18, 0], '#241c2c', 0, [0.1, 0.5, 0.1]],
-    ['z', [0.02, 0.18, 0.95, 5], [0, 0.55, 0], '#dc2626', GLUEHT, [0.1, 0.1, -0.05]],
-    ['z', [0.02, 0.14, 0.72, 5], [0.28, 0.42, 0.15], '#ef4444', GLUEHT, [-0.25, 0.5, 0.35]],
-    ['z', [0.02, 0.13, 0.65, 5], [-0.25, 0.38, -0.18], '#b91c1c', GLUEHT, [0.35, -0.4, -0.25]],
-    ['z', [0.02, 0.1, 0.52, 4], [-0.12, 0.3, 0.3], '#f87171', GLUEHT, [-0.4, 0.2, -0.3]],
-    ['z', [0.02, 0.09, 0.48, 4], [0.22, 0.28, -0.25], '#f87171', GLUEHT, [0.2, 0.7, 0.25]],
-  ],
-  baum: [
-    // Knorriger Stamm mit Wurzelansatz
-    ['z', [0.13, 0.22, 1.1, 6], [0, 0.55, 0], '#523821'],
-    ['z', [0.22, 0.36, 0.3, 5], [0, 0.15, 0], '#3a2717'],
-    // Mehrstufige Nadel-/Laubkrone
-    ['z', [0.3, 0.85, 0.88, 7], [0, 1.25, 0], '#1f451b'],
-    ['z', [0.2, 0.68, 0.85, 7], [0, 1.85, 0], '#2d5e26'],
-    ['z', [0.05, 0.5, 0.8, 6], [0, 2.45, 0], '#3c7533'],
-    ['z', [0.04, 0.08, 0.45, 4], [0.35, 1.1, 0.1], '#4d341e', 0, [0, 0, -1.0]],
-  ],
-  staubwolke: [['k', [1, 6], [0, 0, 0], '#b0a890']],
+  fronAder: fronAderModell(),
+  blutAder: blutAderModell(),
+  baum: baumModell(),
+  staubwolke: staubwolkeModell(),
   pfeil: [
     ['q', [0.05, 0.05, 1.0], [0, 0, 0], HOLZ],
     ['z', [0, 0.06, 0.18, 4], [0, 0, 0.55], EISEN, 0, [Math.PI / 2, 0, 0]],
@@ -2209,20 +2391,7 @@ export const MODELLE_DEF = {
   ],
   stein: [['k', [0.45, 6], [0, 0, 0], STEIN]],
   // Fels: markante kantige Felsformation aus Pfeilern, Kanten und Schichtungen; Radius max. 1.0
-  fels: [
-    // Hauptpfeiler mit steilen Facetten
-    ['z', [0.35, 0.75, 1.15, 6], [0, 0.58, 0], '#4f5350', 0, [0.08, 0.2, -0.05]],
-    // Aufstrebende Felskante
-    ['z', [0.1, 0.42, 0.88, 5], [0.15, 0.85, -0.1], '#626864', 0, [-0.15, 0.8, 0.2]],
-    // Abgeschraegte Felswand links
-    ['q', [0.82, 0.82, 0.65], [-0.2, 0.41, 0.2], '#3e423f', 0, [0.1, 0.5, 0.15]],
-    // Gesteinsscholle rechts
-    ['q', [0.72, 0.58, 0.75], [0.32, 0.35, -0.15], '#555b57', 0, [-0.2, -0.4, 0.1]],
-    // Verwitterter Sockel mit Moosrand
-    ['z', [0.78, 0.94, 0.32, 7], [0, 0.16, 0], '#333b28', 0],
-    // Vorgezogener Felssporn
-    ['q', [0.52, 0.42, 0.58], [-0.32, 0.25, -0.28], '#464a47', 0, [0.15, 0.7, -0.1]],
-  ],
+  fels: felsModell(),
   // Balliste (katapult): Fahrbare Belagerungsballiste
   katapult: ballisteModell(),
   // Wurzelbrecher: massiges vierbeiniges Holz-Ungetuem mit Astzacken und Magmakern

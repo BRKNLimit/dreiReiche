@@ -157,9 +157,12 @@ function bild(now) {
     instanz('scheibe', 0, 0, 0, 0, m.breite * 1.3, [0.2, 0.25, 0.16], 1, 1, 1);
     zeichneInstanzen(MODELLE.scheibe);
     const istWaldgott = ansicht === 'waldgott' || e.key === 'waldgott' || e.key.startsWith('variante:');
-    const schritt = (ansicht === 'waldgott' || ansicht === 'einheiten')
-      ? (gehenAktiv ? Math.sin(now * 0.003) : (istWaldgott ? Math.sin(now * 0.002) * 0.5 : 0))
-      : 0;
+    const istWasserModell = e.key === 'wasser';
+    const schritt = istWasserModell
+      ? now * 0.001
+      : (ansicht === 'waldgott' || ansicht === 'einheiten')
+        ? (gehenAktiv ? Math.sin(now * 0.003) : (istWaldgott ? Math.sin(now * 0.002) * 0.5 : 0))
+        : (ansicht === 'effekte' ? (now * 0.0015) % 2 : 0);
     instanz(e.key, 0, 0, 0, drehung, 1, e.team, 1, 1, 1, schritt);
     zeichneInstanzen(MODELLE[e.key]);
   });

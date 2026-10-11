@@ -233,16 +233,20 @@ export function planen(world, player, type, x, y) {
   const p = world.players[player];
   if (!def || def.vital || def.faction !== p.faction || gesperrt(world, player, type)) return null;
   if (x < 200 || y < 200 || x > MAP - 200 || y > MAP - 200) return null;
+  // Geprueft wird nur, was der Spieler wissen kann: eigene Gebaeude, eigene
+  // Adern, Hindernisse. Ein gegnerisches Gebaeude im Nebel verraet sich nicht
+  // durch einen abgelehnten Plan -- der Erbauer findet es vor Ort, dann
+  // verfaellt der Plan.
   if (def.needs) {
     const dep = findDeposit(world, x, y, def.needs);
-    if (!dep || dep.takenBy !== 0) return null;
+    if (!dep || (dep.takenBy !== 0 && byId(world, dep.takenBy)?.player === player)) return null;
     x = dep.x;
     y = dep.y;
   }
   if (def.needsGrowth && isCleared(world, x, y)) return null;
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
-    if (e.dead || e.kind !== 'building') continue;
+    if (e.dead || e.kind !== 'building' || e.player !== player) continue;
     const min = def.radius + BUILDINGS[e.type].radius;
     if (dist2(x, y, e.x, e.y) < min * min) return null;
   }

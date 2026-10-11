@@ -21,8 +21,9 @@ let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
 const wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
-let nebel = neuerNebel(true); // Nebel des Krieges; beim Zuschauen aus
-const verborgen = (e) => e.player !== ME && !sieht(nebel, e.x, e.y);
+let nebel = neuerNebel(true, ME); // Nebel des Krieges; beim Zuschauen aus
+let nebelFrame = 0; // Zaehler, damit das Nebelbild je Frame nur einmal entsteht
+const verborgen = (e) => imNebel(nebel, e, ME);
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 
@@ -54,7 +55,7 @@ function neu(f, zuschauen = false) {
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
-  nebel = neuerNebel(!zuschauen);
+  nebel = neuerNebel(!zuschauen, ME);
   angriff = false;
   zeigeAuswertung = false;
   stats = neueStats();
@@ -396,7 +397,8 @@ function draw() {
   const H = cv.clientHeight;
   ctx.fillStyle = COL.bg;
   ctx.fillRect(0, 0, W, H);
-  nebelAktualisieren(nebel, world, ME);
+  nebelAktualisieren(nebel, world);
+  nebelFrame++;
 
   drawGrid(W, H);
   drawCleared();
@@ -418,28 +420,14 @@ function draw() {
   drawMini();
 }
 
-// Nebel als kleines Bild (eine Zelle = ein Pixel), weich hochskaliert.
-const nebelBild = document.createElement ? document.createElement('canvas') : null;
-const nebelHell = new Uint8Array(NEBEL_N * NEBEL_N);
-
-/** Nebel ueber die Karte legen: unbekannt fast schwarz, erkundet gedaempft. */
+/** Nebel ueber die Karte legen: unbekannt fast schwarz, erkundet gedaempft, weich hochskaliert. */
 function nebelMalen(ziel, x, y, groesse) {
-  if (!nebel.an || !nebelBild) return;
-  nebelBild.width = NEBEL_N;
-  nebelBild.height = NEBEL_N;
-  const nctx = nebelBild.getContext('2d');
-  const img = nctx.createImageData(NEBEL_N, NEBEL_N);
-  if (!img || !img.data) return;
-  nebelHelligkeit(nebel, nebelHell);
-  for (let i = 0; i < nebelHell.length; i++) {
-    img.data[i * 4] = 11;
-    img.data[i * 4 + 1] = 13;
-    img.data[i * 4 + 2] = 8;
-    img.data[i * 4 + 3] = nebelHell[i] === 255 ? 0 : nebelHell[i] ? 115 : 225;
-  }
-  nctx.putImageData(img, 0, 0);
+  if (!nebel.an) return;
+  const bild = nebelBild(nebel, nebelFrame);
+  if (!bild) return;
   ziel.imageSmoothingEnabled = true;
-  ziel.drawImage(nebelBild, x, y, groesse, groesse);
+  if ('imageSmoothingQuality' in ziel) ziel.imageSmoothingQuality = 'high';
+  ziel.drawImage(bild, x, y, groesse, groesse);
 }
 
 function drawNebel() {
@@ -626,7 +614,7 @@ function drawDeposits() {
     const y = w2sy(d.y);
     const r = Math.max(3, (d.kind === 'goetterblut' ? 150 : 90) * cam.z);
     ctx.strokeStyle = d.kind === 'goetterblut' ? COL.blut : COL.dim;
-    ctx.globalAlpha = d.takenBy ? 0.3 : 0.85;
+    ctx.globalAlpha = aderBesetzt(nebel, world, d, ME) ? 0.3 : 0.85;
     ctx.lineWidth = 2;
     ctx.beginPath();
     if (d.kind === 'goetterblut') {
@@ -647,7 +635,7 @@ function drawEntities() {
   // Gegnerische Gebaeude im Nebel: dort, wo man sie zuletzt gesehen hat.
   ctx.globalAlpha = 0.4;
   for (const b of nebel.bekannt.values()) {
-    if (sieht(nebel, b.x, b.y)) continue;
+    if (nebel.kunde.jetzt.has(b.id)) continue;
     const r = Math.max(4, BUILDINGS[b.type].radius * cam.z);
     ctx.strokeStyle = FACTIONS[world.players[b.player].faction].color;
     ctx.lineWidth = 1.5;
@@ -832,7 +820,7 @@ function drawGhost() {
   let ohneAder = false;
   if (def.needs) {
     const dep = findDeposit(world, hover.x, hover.y, def.needs);
-    if (dep && !dep.takenBy) {
+    if (dep && !aderBesetzt(nebel, world, dep, ME)) {
       gx = dep.x;
       gy = dep.y;
     } else ohneAder = true;

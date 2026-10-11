@@ -626,7 +626,6 @@ mehrfach.
 | Fehlt | Warum | Aufwand später |
 | --- | --- | --- |
 | Gelände und Wälder als Karte | Roden ist derzeit ein Kreis, kein Gelände | mittel |
-| Fog of War | Verdeckt den Test eher, als dass er schärft | mittel |
 | Todesgott | Dritte Fraktion erst nach dem Fundament | niedrig (eine Zahl) |
 | Weitere Götterblut-Verwendung | Bisher nur schwere Einheiten | niedrig |
 | Bergung der Gefallenen | Gehört zum Todesgott | niedrig |

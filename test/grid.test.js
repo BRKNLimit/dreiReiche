@@ -31,6 +31,7 @@ import {
 import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN, KARTE } from '../src/sim/defs.js';
 import { wegGitter, ZELLE } from '../src/sim/weg.js';
 import { createAI, stepAI, STUFEN, freieAder } from '../src/sim/ai.js';
+import { neueKunde, aufklaeren, vermutetesHaupt, VERGESSEN } from '../src/sim/kunde.js';
 
 function bare(f0 = 'mensch', f1 = 'gott') {
   return createWorld({ empty: true, factions: [f0, f1] });
@@ -540,11 +541,11 @@ test('KI: eine Ader mit eigenem Plan gilt nicht mehr als frei', () => {
   const w = bare();
   w.deposits.push({ x: 10000, y: 10000, kind: 'goetterblut', takenBy: 0 });
   const haupt = { x: 3000, y: 3000 };
-  assert.equal(freieAder(w, haupt, 'goetterblut', []).x, 10000);
+  assert.equal(freieAder(w, haupt, 'goetterblut', [], neueKunde(0)).x, 10000);
   issue(w, { type: 'build', player: 0, building: 'schacht', x: 10000, y: 10000 });
   step(w);
   assert.equal(w.plaene.length, 1);
-  assert.equal(freieAder(w, haupt, 'goetterblut', w.plaene), null);
+  assert.equal(freieAder(w, haupt, 'goetterblut', w.plaene, neueKunde(0)), null);
 });
 
 test('KI: verwirft einen Plan ohne Erbauer, bei dem Feinde stehen', () => {
@@ -562,7 +563,114 @@ test('KI: verwirft einen Plan ohne Erbauer, bei dem Feinde stehen', () => {
   ai.next = 0;
   stepAI(ai, w);
   step(w);
+  assert.equal(w.plaene.length, 1, 'der Wolf steht im Nebel -- die KI weiss nichts von ihm');
+  spawnUnit(w, 0, 'soldat', 12000, 12600); // jetzt sieht sie ihn
+  ai.next = 0;
+  stepAI(ai, w);
+  step(w);
   assert.ok(!w.plaene.some((q) => q.x === 12000 && q.y === 12000), 'Feinde am Plan: verworfen');
+});
+
+// ---------------------------------------------------- Nebel: was ein Spieler weiss
+
+test('Kunde: nur was in Sicht ist; Gebaeude bleiben in Erinnerung, bis man den Platz leer sieht', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  const turm = spawnBuilding(w, 1, 'wachturm', 9000, 9000, true);
+  const wolf = spawnUnit(w, 1, 'wolf', 9300, 9000);
+  const k = neueKunde(0);
+  aufklaeren(k, w);
+  assert.equal(k.gebaeude.length, 0, 'weit weg: nichts bekannt');
+  assert.equal(k.einheiten.length, 0);
+  const spaeher = spawnUnit(w, 0, 'soldat', 9000, 9800);
+  step(w);
+  aufklaeren(k, w);
+  assert.ok(k.gebaeude.some((b) => b.id === turm.id), 'den Turm gesehen');
+  assert.ok(k.einheiten.includes(wolf), 'den Wolf gesehen');
+  spaeher.dead = true; // weg -- Erinnerung bleibt
+  w.entities = w.entities.filter((e) => !e.dead);
+  step(w);
+  aufklaeren(k, w);
+  assert.ok(k.gebaeude.some((b) => b.id === turm.id), 'der Turm bleibt in Erinnerung');
+  assert.equal(k.einheiten.length, 0, 'den Wolf sieht man nicht mehr');
+  assert.ok(k.gesehen.some((u) => u.id === wolf.id), 'aber man weiss von ihm');
+  turm.dead = true;
+  w.entities = w.entities.filter((e) => !e.dead);
+  for (let i = 0; i <= VERGESSEN; i++) step(w);
+  aufklaeren(k, w);
+  assert.ok(k.gebaeude.some((b) => b.id === turm.id), 'zerstoert, aber ungesehen: noch bekannt');
+  assert.ok(!k.gesehen.some((u) => u.id === wolf.id), 'nach VERGESSEN vergessen');
+  spawnUnit(w, 0, 'soldat', 9000, 9600);
+  step(w);
+  aufklaeren(k, w);
+  assert.ok(!k.gebaeude.some((b) => b.id === turm.id), 'Platz leer gesehen: vergessen');
+});
+
+test('KI im Nebel: Ungesehenes aendert keinen ihrer Befehle', () => {
+  // Zwei Partien, gleich bis auf gegnerische Bauten und Einheiten in einer
+  // Ecke, die die KI nie sieht. Sie muss in beiden genau dasselbe befehlen.
+  // Wuerde sie irgendwo an der Kunde vorbei Gegner zaehlen (Tuerme,
+  // Foerderbauten, Heer), wuerde sich das hier zeigen.
+  const lauf = (mitVersteck) => {
+    const w = createWorld({ seed: 21 });
+    const extra = [
+      spawnBuilding(w, 1, 'waechterbaum', 19300, 18200, true),
+      spawnBuilding(w, 1, 'moos', 18200, 19300, true),
+      spawnBuilding(w, 1, 'blutwurz', 19300, 19300, true),
+      ...[0, 1, 2, 3, 4, 5].map((i) => spawnUnit(w, 1, i % 2 ? 'ent' : 'wolf', 18600 + i * 120, 18600)),
+    ];
+    if (!mitVersteck) {
+      for (const e of extra) e.dead = true;
+      w.entities = w.entities.filter((e) => !e.dead);
+    }
+    const ai = createAI(0, 3, 'standard');
+    const befehle = [];
+    for (let i = 0; i < 3000; i++) {
+      stepAI(ai, w);
+      for (const c of w.pending) if (c.player === 0) befehle.push(i + ':' + JSON.stringify(c));
+      step(w);
+    }
+    assert.ok(!ai.kunde.gebaeude.some((b) => extra.some((e) => e.id === b.id)), 'das Versteck blieb ungesehen');
+    return befehle;
+  };
+  const ohne = lauf(false);
+  const mit = lauf(true);
+  assert.ok(ohne.length > 50, 'die KI hat etwas getan');
+  assert.deepEqual(mit, ohne);
+});
+
+test('Kunde: das gegnerische Hauptgebaeude wird gegenueber vermutet, bis man es sieht', () => {
+  const w = bare();
+  const h0 = spawnBuilding(w, 0, 'halle', 3000, 4000, true);
+  const h1 = spawnBuilding(w, 1, 'herzbaum', MAP - 3000, MAP - 4000, true);
+  const k = aufklaeren(neueKunde(0), w);
+  const v = vermutetesHaupt(k, h0);
+  assert.ok(v.vermutet);
+  assert.deepEqual([v.x, v.y], [h1.x, h1.y], 'punktsymmetrisch gegenueber');
+  spawnUnit(w, 0, 'soldat', h1.x - 800, h1.y);
+  step(w);
+  aufklaeren(k, w);
+  assert.equal(vermutetesHaupt(k, h0).id, h1.id, 'gesehen');
+});
+
+test('Nebel: ein Plan verraet kein gegnerisches Gebaeude -- er verfaellt erst vor Ort', () => {
+  const w = bare();
+  w.players[0].fron = 2000;
+  w.deposits.push({ x: 9000, y: 9000, kind: 'fron', takenBy: 0 });
+  spawnBuilding(w, 1, 'moos', 9000, 9000, true); // im Nebel
+  spawnBuilding(w, 1, 'hain', 12000, 12000, true);
+  issue(w, { type: 'build', player: 0, building: 'saege', x: 9000, y: 9000 });
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 12000, y: 12000 });
+  step(w);
+  assert.equal(w.plaene.length, 2, 'beide Plaene angenommen');
+  const a = spawnUnit(w, 0, 'held', 8800, 9000);
+  const b = spawnUnit(w, 0, 'held', 12000, 12300);
+  issue(w, { type: 'bauen', player: 0, ids: [a.id], id: w.plaene[0].id });
+  issue(w, { type: 'bauen', player: 0, ids: [b.id], id: w.plaene[1].id });
+  for (let i = 0; i < 100; i++) step(w);
+  assert.equal(w.plaene.length, 0, 'vor Ort verfallen');
+  assert.ok(!w.entities.some((e) => e.player === 0 && (e.type === 'saege' || e.type === 'grenzstein')), 'nichts gebaut');
+  assert.equal(w.players[0].fron, 2000, 'nichts bezahlt');
 });
 
 test('KI-Partie ist deterministisch', () => {

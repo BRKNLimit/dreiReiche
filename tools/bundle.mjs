@@ -22,7 +22,7 @@ function strip(src) {
     .replace(/^\s*export\s*\{[^}]*\};?\s*$/gm, '');
 }
 
-const SIM = ['src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/ai.js'];
+const SIM = ['src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/kunde.js', 'src/sim/ai.js'];
 const SEITEN = [
   ['src/shell.html', [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/gelaende2d.js', 'src/ui.js'], 'dist/resonit.html'],
   [

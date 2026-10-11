@@ -1508,16 +1508,20 @@ function planen(world, player, type, x, y) {
   const p = world.players[player];
   if (!def || def.vital || def.faction !== p.faction || gesperrt(world, player, type)) return null;
   if (x < 200 || y < 200 || x > MAP - 200 || y > MAP - 200) return null;
+  // Geprueft wird nur, was der Spieler wissen kann: eigene Gebaeude, eigene
+  // Adern, Hindernisse. Ein gegnerisches Gebaeude im Nebel verraet sich nicht
+  // durch einen abgelehnten Plan -- der Erbauer findet es vor Ort, dann
+  // verfaellt der Plan.
   if (def.needs) {
     const dep = findDeposit(world, x, y, def.needs);
-    if (!dep || dep.takenBy !== 0) return null;
+    if (!dep || (dep.takenBy !== 0 && byId(world, dep.takenBy)?.player === player)) return null;
     x = dep.x;
     y = dep.y;
   }
   if (def.needsGrowth && isCleared(world, x, y)) return null;
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
-    if (e.dead || e.kind !== 'building') continue;
+    if (e.dead || e.kind !== 'building' || e.player !== player) continue;
     const min = def.radius + BUILDINGS[e.type].radius;
     if (dist2(x, y, e.x, e.y) < min * min) return null;
   }
@@ -2837,9 +2841,125 @@ function hash(world) {
 
 /* ---------------------------------- */
 
+// Kunde: Was ein Spieler vom Gegner weiss. Die Simulation selbst kennt keinen
+// Nebel -- sie sieht alles. Diese Sicht ist fuer die Oberflaechen und fuer
+// die KI, die damit nichts weiss, was ein Spieler an ihrer Stelle nicht
+// wuesste. Deterministisch wie die Simulation: nur Integer, nur Arrays in
+// Entity-Reihenfolge; Sets nur zum Nachschlagen, nie zum Durchlaufen.
+//
+// Bekannt ist ohne Sicht nur die Karte selbst (Hindernisse, Adern) und, wie
+// auf jeder Zwei-Spieler-Karte, wo der Gegner beginnt: punktsymmetrisch
+// gegenueber dem eigenen Hauptgebaeude.
+
+
+// Wie lange eine gesehene Einheit in Erinnerung bleibt (Ticks, 3 min).
+// Designzahl: Wer laenger nichts gesehen hat, weiss nicht, was dort steht.
+const VERGESSEN = 1800;
+function neueKunde(player) {
+  return {
+    player,
+    tick: -1,
+    // Sichtquellen: x, y, Sichtweite je eigener Einheit und eigenem Gebaeude
+    quellen: [],
+    // Gerade sichtbare gegnerische Entities (nur zum Nachschlagen)
+    jetzt: new Set(),
+    // Gerade sichtbare gegnerische Einheiten
+    einheiten: [],
+    // Zuletzt gesehene gegnerische Gebaeude: { id, type, player, x, y, done, powered, tick }
+    gebaeude: [],
+    // Zuletzt gesehene gegnerische Einheiten: { id, type, player, x, y, tick }
+    gesehen: [],
+  };
+}
+
+/** Sichtquellen eines Spielers: [x, y, r, x, y, r, ...] */
+function sichtQuellen(world, player) {
+  const q = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.player !== player) continue;
+    q.push(e.x, e.y, sichtweite(e));
+  }
+  return q;
+}
+
+/** Liegt der Punkt in Sicht? Mit Rand: ein Gebaeude sieht man, sobald sein Rand in Sicht ist. */
+function inSicht(quellen, x, y, rand = 0) {
+  for (let i = 0; i < quellen.length; i += 3) {
+    const r = quellen[i + 2] + rand;
+    if (dist2(x, y, quellen[i], quellen[i + 1]) <= r * r) return true;
+  }
+  return false;
+}
+
+/**
+ * Kunde auf den Stand des Ticks bringen: was jetzt sichtbar ist, merken.
+ * Vergessen wird, was man an seinem Platz nicht mehr sieht -- zerstoert oder
+ * weitergezogen, das weiss man nicht --, und Einheiten nach VERGESSEN.
+ */
+function aufklaeren(k, world) {
+  if (k.tick === world.tick) return k;
+  k.tick = world.tick;
+  const q = sichtQuellen(world, k.player);
+  k.quellen = q;
+  const jetzt = new Set();
+  const einheiten = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.player === k.player) continue;
+    if (e.kind === 'unit') {
+      if (!inSicht(q, e.x, e.y)) continue;
+      jetzt.add(e.id);
+      einheiten.push(e);
+      const alt = k.gesehen.find((u) => u.id === e.id);
+      if (alt) {
+        alt.x = e.x;
+        alt.y = e.y;
+        alt.tick = world.tick;
+      } else k.gesehen.push({ id: e.id, type: e.type, player: e.player, x: e.x, y: e.y, tick: world.tick });
+    } else if (e.kind === 'building') {
+      if (!inSicht(q, e.x, e.y, BUILDINGS[e.type].radius)) continue;
+      jetzt.add(e.id);
+      const alt = k.gebaeude.find((b) => b.id === e.id);
+      if (alt) {
+        alt.done = e.done;
+        alt.powered = e.powered;
+        alt.tick = world.tick;
+      } else {
+        k.gebaeude.push({ id: e.id, type: e.type, player: e.player, x: e.x, y: e.y, done: e.done, powered: e.powered, tick: world.tick });
+      }
+    }
+  }
+  k.jetzt = jetzt;
+  k.einheiten = einheiten;
+  k.gebaeude = k.gebaeude.filter((b) => jetzt.has(b.id) || !inSicht(q, b.x, b.y, BUILDINGS[b.type].radius));
+  k.gesehen = k.gesehen.filter((u) => jetzt.has(u.id) || (world.tick - u.tick <= VERGESSEN && !inSicht(q, u.x, u.y)));
+  return k;
+}
+
+/**
+ * Das gegnerische Hauptgebaeude, soweit bekannt; sonst dort, wo der Gegner
+ * beginnt -- gegenueber dem eigenen Hauptgebaeude.
+ */
+function vermutetesHaupt(k, haupt) {
+  const b = k.gebaeude.find((g) => BUILDINGS[g.type].vital);
+  return b || { id: 0, x: MAP - haupt.x, y: MAP - haupt.y, vermutet: true };
+}
+
+/** Steht hier ein bekanntes gegnerisches Gebaeude im Weg (fuer Bauplaetze)? */
+function bekanntBei(k, x, y, r) {
+  return k.gebaeude.some((b) => dist2(x, y, b.x, b.y) < (r + BUILDINGS[b.type].radius) ** 2);
+}
+
+
+/* ---------------------------------- */
+
 // Einfacher Gegner. Bewusst dumm: er soll Druck erzeugen, damit sich die
 // Domänenmechanik unter Stress zeigt. Nutzt nur issue(), nie direkten Zugriff.
 // Nur Integer-Arithmetik und rng() -- dieselben Regeln wie die Simulation.
+// Vom Gegner weiss die KI nur, was ihre Einheiten und Gebaeude sehen oder
+// gesehen haben (src/sim/kunde.js) -- der Nebel gilt auch fuer sie.
+
 
 
 const PLAN = {
@@ -2931,6 +3051,9 @@ function createAI(player = 1, seed = 1, stil = 'standard', stufe = 'mittel') {
   return {
     player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0, stil: STILE[stil],
     stufe: STUFEN[stufe], letzterBau: null, gesperrt: [],
+    // Ziel der laufenden Welle: Gebaeude-Id (0 = vermutetes Hauptgebaeude), Ort, und ob es das Hauptgebaeude ist
+    welleX: 0, welleY: 0, welleAufHaupt: false,
+    kunde: neueKunde(player),
   };
 }
 function stepAI(ai, world) {
@@ -2942,6 +3065,7 @@ function stepAI(ai, world) {
   const mine = world.entities.filter((e) => e.player === ai.player && !e.dead);
   const haupt = mine.find((e) => e.kind === 'building' && BUILDINGS[e.type].vital);
   if (!haupt) return;
+  const kunde = aufklaeren(ai.kunde, world);
 
   // Eigene Bauplaene zaehlen wie Baustellen: Sie werden bezahlt, sobald ein
   // Arbeiter anfaengt, und sollen nicht doppelt gesetzt werden.
@@ -2965,7 +3089,7 @@ function stepAI(ai, world) {
   const minute = (world.tick / 600) | 0;
   const frei = (t) => !gesperrt(world, ai.player, t);
 
-  const sicher = (pt, r) => feindeBei(world, ai.player, pt, r) === 0;
+  const sicher = (pt, r) => feindeBei(kunde, pt, r) === 0;
   // Erbauer je Baustelle -- Baustellen wachsen nur, solange jemand daran arbeitet.
   const helfer = {};
   for (const u of einheiten) if (u.auftrag) helfer[u.auftrag] = (helfer[u.auftrag] || 0) + 1;
@@ -3013,7 +3137,8 @@ function stepAI(ai, world) {
     bilanz += (d.gegenwartOut || 0) - (d.gegenwartIn || 0);
     if (d.anchor) bilanz += ankerGegenwart(anchorRadius(world, b));
   }
-  const ziel = gegnerHaupt(world, ai.player);
+  // Das gegnerische Hauptgebaeude -- gesehen oder dort vermutet, wo der Gegner beginnt.
+  const ziel = vermutetesHaupt(kunde, haupt);
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
   // Abgelehnte Bauten merken: Steht nach einem Bauauftrag nichts an der
@@ -3048,14 +3173,14 @@ function stepAI(ai, world) {
   const [aus4, aus5] = ai.stufe.ausbau;
   const fabrikZiel = 1 + (minute >= fab2 ? 1 : 0) + (minute >= fab3 ? 1 : 0);
   const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= aus4 ? 1 : 0) + (minute >= aus5 ? 1 : 0);
-  const ader = freieAder(world, haupt, 'fron', plaene);
+  const ader = freieAder(world, haupt, 'fron', plaene, kunde);
 
   // Goetterblut liegt in der Mitte. Ein Schacht braucht Gegenwart, also muss
   // die Ader in einer versorgten eigenen Domaene liegen -- hier zaehlt Reichweite.
   // Erst wenn Fron-Foerderung und Fabrik stehen -- sonst frisst der Vorstoss die Wirtschaft.
   const wirtschaftSteht = zahl(plan.fabrik) > 0 && (zahl(plan.fron) >= 3 || !ader);
   const blutZiel = !wirtschaftSteht ? 0 : minute >= 12 ? 2 : 1;
-  const vene = zahl(plan.blut) < blutZiel ? freieAder(world, haupt, 'goetterblut', plaene) : null;
+  const vene = zahl(plan.blut) < blutZiel ? freieAder(world, haupt, 'goetterblut', plaene, kunde) : null;
   const veneBereit = vene && versorgt(world, ai.player, vene);
 
   // 1. Foerderung, aber nur mit Deckung.
@@ -3085,14 +3210,14 @@ function stepAI(ai, world) {
   const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
   if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
     const n = zahl(plan.kraft);
-    const platz = daheimFrei(world, haupt, plan.kraft, 700 + n * 250, front + 40 + n * 83);
+    const platz = daheimFrei(world, kunde, haupt, plan.kraft, 700 + n * 250, front + 40 + n * 83);
     if (platz && bau(plan.kraft, ...platz)) return;
   }
 
   // 3. Fabrik
   if (zahl(plan.fabrik) < fabrikZiel && fron >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].gegenwartIn) {
     const n = zahl(plan.fabrik);
-    const platz = daheimFrei(world, haupt, plan.fabrik, 900, front + 200 + n * 70);
+    const platz = daheimFrei(world, kunde, haupt, plan.fabrik, 900, front + 200 + n * 70);
     if (platz && bau(plan.fabrik, ...platz)) return;
   }
 
@@ -3102,7 +3227,7 @@ function stepAI(ai, world) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
       if (zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
-      const platz = daheimFrei(world, haupt, typ, 600, front + grad);
+      const platz = daheimFrei(world, kunde, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
   }
@@ -3110,14 +3235,14 @@ function stepAI(ai, world) {
   // 3c. Verteidigung: ein Turm vor dem Hauptgebaeude zur Front hin.
   const tb = BUILDINGS[plan.turm];
   if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
-    const platz = daheimFrei(world, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
+    const platz = daheimFrei(world, kunde, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
     if (platz && bau(plan.turm, ...platz)) return;
   }
 
   // 3d. Forschung beim Hauptgebaeude -- mehr Skillpunkte.
   const fb = BUILDINGS[plan.forschung];
   if (zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
-    const platz = daheimFrei(world, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
+    const platz = daheimFrei(world, kunde, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
     if (platz && bau(plan.forschung, ...platz)) return;
   }
 
@@ -3134,7 +3259,7 @@ function stepAI(ai, world) {
     const posten = bauten.find((b) => BUILDINGS[b.type].anchor && dist2(b.x, b.y, vene.x, vene.y) <= start * start);
     if (!posten) {
       if (fron >= kosten(plan.anker)) {
-        const platz = nahePlatz(world, vene, haupt, Math.min(start >> 1, 600), BUILDINGS[plan.anker].radius, plan.anker);
+        const platz = nahePlatz(world, kunde, vene, haupt, Math.min(start >> 1, 600), BUILDINGS[plan.anker].radius, plan.anker);
         if (platz && bau(plan.anker, platz.x, platz.y)) return;
       }
     } else {
@@ -3143,7 +3268,7 @@ function stepAI(ai, world) {
         (b) => BUILDINGS[b.type].gegenwartOut && dist2(b.x, b.y, posten.x, posten.y) <= start * start
       );
       if (posten.done && (!reg || reg.supply === 0) && !quelleDa && fron >= kosten(plan.kraft)) {
-        const platz = nahePlatz(world, posten, haupt, 350, BUILDINGS[plan.kraft].radius, plan.kraft, 90);
+        const platz = nahePlatz(world, kunde, posten, haupt, 350, BUILDINGS[plan.kraft].radius, plan.kraft, 90);
         if (platz && bau(plan.kraft, platz.x, platz.y)) return;
       }
     }
@@ -3151,7 +3276,7 @@ function stepAI(ai, world) {
     // Lohnt der Vorstoss? Nur wenn zwei neue Anker die Luecke schliessen.
     // Sonst warten: wachsende Kreise oder Anker am Rand bringen die Ader naeher.
     // Dieselbe Regel fuer alle -- der Startradius der Fraktion entscheidet.
-    const platz = vorstoss(world, ai.player, haupt, vene, plan.anker);
+    const platz = vorstoss(world, kunde, haupt, vene, plan.anker);
     const start = FACTIONS[p.faction].growth.start;
     if (platz && dist2(platz.x, platz.y, vene.x, vene.y) <= 4 * start * start) {
       if (bau(plan.anker, platz.x, platz.y)) return;
@@ -3164,7 +3289,7 @@ function stepAI(ai, world) {
   // Gedeckelt: spaet im Spiel braucht es Truppen, nicht den zwanzigsten Anker.
   const ankerZiel = Math.min(ANKER_HOECHSTENS, 2 + ((minute / ai.stil.ankerTakt) | 0));
   if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + ai.stil.ankerAb) {
-    const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
+    const platz = randplatz(world, ai, kunde, haupt, front, bauten, plan.anker);
     if (platz && bau(plan.anker, platz.x, platz.y)) return;
   }
 
@@ -3184,7 +3309,7 @@ function stepAI(ai, world) {
     if (quelle) {
       const x = quelle.x + (((steht.x - quelle.x) / 2) | 0);
       const y = quelle.y + (((steht.y - quelle.y) / 2) | 0);
-      const frei = !blockiert(world, x, y, BUILDINGS[plan.anker].radius);
+      const frei = !blockiert(world, kunde, x, y, BUILDINGS[plan.anker].radius);
       if (frei && (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) && bau(plan.anker, x, y)) return;
     }
   }
@@ -3227,7 +3352,7 @@ function stepAI(ai, world) {
       // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
       // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
       // Belagerung, solange der Gegner Tuerme hat: je Turm eine, hoechstens drei.
-      const feindTuerme = world.entities.filter((o) => !o.dead && o.player !== ai.player && o.kind === 'building' && BUILDINGS[o.type].weapon).length;
+      const feindTuerme = kunde.gebaeude.filter((o) => BUILDINGS[o.type].weapon).length;
       const belagerer = einheiten.filter((u) => u.type === plan.belagerung).length;
       if (feindTuerme && belagerer < Math.min(3, feindTuerme) && frei(plan.belagerung) && liste.includes(plan.belagerung)) {
         unit = plan.belagerung;
@@ -3256,7 +3381,7 @@ function stepAI(ai, world) {
   // Eine KI-Entscheidung, keine Regel: Heilung gibt es nicht.
   const rueckzug =
     kdt &&
-    (kdt.hp * 2 < kdt.maxHp || (feindeBei(world, ai.player, kdt, 1200) >= 2 && !inDomain(world, ai.player, kdt.x, kdt.y)));
+    (kdt.hp * 2 < kdt.maxHp || (feindeBei(kunde, kdt, 1200) >= 2 && !inDomain(world, ai.player, kdt.x, kdt.y)));
 
   // 6a. Faehigkeiten des Kommandanten, sobald bereit: Rufe (Zorn, Wehr,
   //     Tempo), wenn genug eigene Kaempfer bei ihm stehen und Feinde nahe
@@ -3270,9 +3395,9 @@ function stepAI(ai, world) {
     if (f.art === 'griff') {
       let best = null;
       let bestN = 3;
-      for (const o of world.entities) {
-        if (o.dead || o.player === ai.player || o.kind !== 'unit' || !nah(o, f.reichweite)) continue;
-        const n = feindeBei(world, ai.player, o, f.radius);
+      for (const o of kunde.einheiten) {
+        if (!nah(o, f.reichweite)) continue;
+        const n = feindeBei(kunde, o, f.radius);
         if (n > bestN) {
           bestN = n;
           best = o;
@@ -3282,8 +3407,8 @@ function stepAI(ai, world) {
     } else if (f.art === 'heilung') {
       if (einheiten.filter((u) => nah(u, f.radius) && u.hp * 10 < u.maxHp * 7).length >= 4) wirken(kdt.x, kdt.y);
     } else if (f.art === 'rufen') {
-      if (feindeBei(world, ai.player, kdt, 1200) >= 3) wirken(kdt.x, kdt.y);
-    } else if (kaempfer.filter((u) => nah(u, f.radius)).length >= 5 && feindeBei(world, ai.player, kdt, f.radius) >= 3) {
+      if (feindeBei(kunde, kdt, 1200) >= 3) wirken(kdt.x, kdt.y);
+    } else if (kaempfer.filter((u) => nah(u, f.radius)).length >= 5 && feindeBei(kunde, kdt, f.radius) >= 3) {
       wirken(kdt.x, kdt.y);
     }
   }
@@ -3292,7 +3417,7 @@ function stepAI(ai, world) {
   //    die nicht gerade mit einer Welle unterwegs sind. Der Kommandant
   //    kaempft nur auf eigenem Boden mit.
   // Verteidigt wird, was steht -- ein Plan ist noch nichts.
-  const bedrohung = naechsterEindringling(world, ai.player, gebaeude);
+  const bedrohung = naechsterEindringling(world, kunde, gebaeude);
   if (bedrohung) {
     const imHinterland = (pt) => dist2(pt.x, pt.y, haupt.x, haupt.y) <= HINTEN * HINTEN;
     const kdtHilft =
@@ -3324,34 +3449,46 @@ function stepAI(ai, world) {
   for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
-  const angriff = angriffsziel(world, ai.player, haupt) || ziel;
-  // Faellt das Ziel einer laufenden Welle, zieht sie zum Foerderbau, der ihr
-  // selbst am naechsten ist -- nicht quer ueber die Karte zu dem, der dem
-  // eigenen Hauptgebaeude am naechsten waere.
-  if (ai.unterwegs.length && !world.entities.some((e) => e.id === ai.welleZiel && !e.dead)) {
+  const angriff = angriffsziel(kunde, haupt) || ziel;
+  const welleAuf = (z) => {
+    ai.welleZiel = z.id;
+    ai.welleX = z.x;
+    ai.welleY = z.y;
+    ai.welleAufHaupt = !!(z.vermutet || BUILDINGS[z.type].vital);
+  };
+  // Faellt das Ziel einer laufenden Welle -- man sieht seinen Platz leer --,
+  // zieht sie zum Foerderbau, der ihr selbst am naechsten ist, nicht quer
+  // ueber die Karte zu dem, der dem eigenen Hauptgebaeude am naechsten waere.
+  // Geht sie aufs Hauptgebaeude, weil sie nichts Besseres kannte, und sieht
+  // unterwegs einen Foerderbau, nimmt sie den.
+  if (ai.unterwegs.length) {
     const welle = einheiten.filter((u) => ai.unterwegs.includes(u.id));
     const mitte = {
       x: (welle.reduce((s, u) => s + u.x, 0) / welle.length) | 0,
       y: (welle.reduce((s, u) => s + u.y, 0) / welle.length) | 0,
     };
-    const weiter = angriffsziel(world, ai.player, mitte) || ziel;
-    if (weiter) {
-      ai.welleZiel = weiter.id;
-      issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: weiter.x, y: weiter.y });
+    const bekannt = kunde.gebaeude.some((b) => b.id === ai.welleZiel);
+    const besser = angriffsziel(kunde, mitte);
+    if (!bekannt || (ai.welleAufHaupt && besser)) {
+      const weiter = besser || ziel;
+      if (weiter.id !== ai.welleZiel || weiter.x !== ai.welleX || weiter.y !== ai.welleY) {
+        welleAuf(weiter);
+        issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: weiter.x, y: weiter.y });
+      }
     }
   }
   // Nur angreifen, wenn die Welle das gegnerische Heer daheim samt dessen
   // Heimvorteil uebertrifft -- sonst zerschellt sie an der Verteidigung.
   // Ausser das Heer ist satt: Der Unterhalt frisst die Foerderung fast ganz,
   // es waechst nicht mehr. Dann bringt Warten nichts, und es geht los.
-  const gegnerDaheim = heimHeer(world, ai.player);
+  const gegnerDaheim = heimHeer(kunde, haupt, ziel);
   const satt = minute >= 8 && unterhaltProMin(world, ai.player) * 1000 >= foerderungProMin(world, ai.player) * ai.stufe.satt;
   const genug = satt
     ? wellenWert
     : Math.max(wellenWert, ((gegnerDaheim * 12) / 10) | 0);
   if (!bedrohung && wert(daheimStehend) >= genug && angriff) {
     ai.welle++;
-    ai.welleZiel = angriff.id;
+    welleAuf(angriff);
     const ids = daheimStehend.map((u) => u.id);
     ai.unterwegs.push(...ids);
     issue(world, { type: 'attack', player: ai.player, ids, x: angriff.x, y: angriff.y });
@@ -3413,7 +3550,7 @@ function stepAI(ai, world) {
  * Baustelle ohne Gegenwart), im Halbkreis Richtung Front, und dort, wo der
  * naechste eigene Anker am weitesten weg ist.
  */
-function randplatz(world, ai, haupt, front, bauten, typ) {
+function randplatz(world, ai, kunde, haupt, front, bauten, typ) {
   const def = BUILDINGS[typ];
   const anker = bauten.filter((b) => BUILDINGS[b.type].anchor);
   const versatz = (rng(ai) % 9) - 4;
@@ -3426,7 +3563,7 @@ function randplatz(world, ai, haupt, front, bauten, typ) {
       const y = grenze(haupt.y + (((d * sinDeg(grad)) / 1000) | 0));
       if (!inDomain(world, ai.player, x, y)) continue;
       if (def.needsGrowth && isCleared(world, x, y)) continue;
-      if (blockiert(world, x, y, def.radius)) continue;
+      if (blockiert(world, kunde, x, y, def.radius)) continue;
       let s = Infinity;
       for (const a of anker) s = Math.min(s, dist2(x, y, a.x, a.y));
       if (s > bestS) {
@@ -3455,7 +3592,7 @@ function versorgt(world, me, pt) {
  * Domaene, der ihr am naechsten liegt. Gesucht wird auf der Linie von der
  * Ader zum Hauptgebaeude, mit etwas seitlichem Spielraum.
  */
-function vorstoss(world, me, haupt, ziel, typ) {
+function vorstoss(world, kunde, haupt, ziel, typ) {
   const def = BUILDINGS[typ];
   const dx = haupt.x - ziel.x;
   const dy = haupt.y - ziel.y;
@@ -3465,9 +3602,9 @@ function vorstoss(world, me, haupt, ziel, typ) {
     for (const quer of [0, 300, -300, 600, -600]) {
       const x = grenze(ziel.x + (((dx * s - dy * quer) / d) | 0));
       const y = grenze(ziel.y + (((dy * s + dx * quer) / d) | 0));
-      if (!inDomain(world, me, x, y)) continue;
+      if (!inDomain(world, kunde.player, x, y)) continue;
       if (def.needsGrowth && isCleared(world, x, y)) continue;
-      if (blockiert(world, x, y, def.radius)) continue;
+      if (blockiert(world, kunde, x, y, def.radius)) continue;
       return { x, y };
     }
   }
@@ -3478,14 +3615,14 @@ function vorstoss(world, me, haupt, ziel, typ) {
  * Freier Bauplatz im Abstand abstand von um, zuerst Richtung Heimat, dann
  * seitlich gedreht. Ohne Ader-Pflicht; Hain nicht auf gerodetem Boden.
  */
-function nahePlatz(world, um, haupt, abstand, radius, typ, drehung = 0) {
+function nahePlatz(world, kunde, um, haupt, abstand, radius, typ, drehung = 0) {
   const basis = winkel(um, haupt);
   for (const g of [0, 40, -40, 80, -80, 120, -120, 180]) {
     const grad = basis + drehung + g;
     const x = grenze(um.x + (((abstand * cosDeg(grad)) / 1000) | 0));
     const y = grenze(um.y + (((abstand * sinDeg(grad)) / 1000) | 0));
     if (BUILDINGS[typ].needsGrowth && isCleared(world, x, y)) continue;
-    if (blockiert(world, x, y, radius)) continue;
+    if (blockiert(world, kunde, x, y, radius)) continue;
     // Nicht auf eine Ader bauen, die noch gebraucht wird.
     if (world.deposits.some((d) => dist2(d.x, d.y, x, y) < (radius + 120) * (radius + 120))) continue;
     return { x, y };
@@ -3493,48 +3630,56 @@ function nahePlatz(world, um, haupt, abstand, radius, typ, drehung = 0) {
   return null;
 }
 
-/** Steht hier schon ein Gebaeude, Fels oder See im Weg? Dieselbe Regel wie tryPlace(). */
-function blockiert(world, x, y, radius) {
+/**
+ * Steht hier schon ein Gebaeude, Fels oder See im Weg? Dieselbe Regel wie
+ * tryPlace(), aber nur mit dem, was die KI weiss: eigene Gebaeude und Plaene,
+ * gesehene gegnerische Gebaeude.
+ */
+function blockiert(world, kunde, x, y, radius) {
   if (aufHindernis(world, x, y, radius)) return true;
   for (const e of world.entities.concat(world.plaene)) {
-    if (e.dead || (e.kind !== 'building' && e.kind !== 'plan')) continue;
+    if (e.dead || e.player !== kunde.player || (e.kind !== 'building' && e.kind !== 'plan')) continue;
     const min = radius + BUILDINGS[e.type].radius + 20;
     if (dist2(x, y, e.x, e.y) < min * min) return true;
   }
-  return false;
+  return bekanntBei(kunde, x, y, radius + 20);
 }
 
-/**
- * Wert des gegnerischen Heers, das in seiner eigenen Domaene steht, gewichtet
- * mit der Wirkung seiner Schreine dort (Zorn und Wehr). Arbeiter zaehlen nicht.
- */
 // So viel Heereswert zaehlt ein versorgter feindlicher Turm: er haelt allein
 // eine fruehe Welle von rund 600 Fron auf (Messung in docs/scope.md).
 const TURM_WERT = 600;
 
-function heimHeer(world, me) {
+/**
+ * Geschaetzter Wert des gegnerischen Heers daheim, aus dem, was die KI
+ * gesehen hat: gesehene Tuerme, und Kaempfer, die zuletzt naeher an seinem
+ * Hauptgebaeude standen als am eigenen -- gewichtet mit gesehenen Schreinen
+ * dort (Zorn und Wehr, der staerkste je Art). Arbeiter zaehlen nicht.
+ */
+function heimHeer(kunde, haupt, gegner) {
   let summe = 0;
-  for (const o of world.entities) {
-    if (!o.dead && o.player !== me && o.kind === 'building' && o.done && o.powered && BUILDINGS[o.type].weapon) {
-      summe += TURM_WERT;
-    }
-  }
-  for (const o of world.entities) {
-    if (o.dead || o.player === me || o.kind !== 'unit') continue;
+  for (const b of kunde.gebaeude) if (b.done && b.powered && BUILDINGS[b.type].weapon) summe += TURM_WERT;
+  for (const o of kunde.gesehen) {
     const d = UNITS[o.type];
-    if (d.worker || !d.weapon || !inDomain(world, o.player, o.x, o.y)) continue;
+    if (d.worker || !d.weapon || dist2(o.x, o.y, gegner.x, gegner.y) >= dist2(o.x, o.y, haupt.x, haupt.y)) continue;
+    let zorn = 0;
+    let wehr = 0;
+    for (const s of kunde.gebaeude) {
+      const buff = BUILDINGS[s.type].buff;
+      if (!buff || !s.done || dist2(o.x, o.y, s.x, s.y) > buff.radius * buff.radius) continue;
+      zorn = Math.max(zorn, buff.zorn || 0);
+      wehr = Math.max(wehr, buff.wehr || 0);
+    }
     const kosten = d.commander ? 600 : d.cost.fron;
-    const b = buffAt(world, o.player, o.x, o.y);
-    summe += ((((kosten * (1000 + b.zorn)) / 1000) * 1000) / (1000 - b.wehr)) | 0;
+    summe += ((((kosten * (1000 + zorn)) / 1000) * 1000) / (1000 - wehr)) | 0;
   }
   return summe;
 }
 
-/** Feindliche Kaempfer im Umkreis r um einen Punkt. */
-function feindeBei(world, me, pt, r) {
+/** Gesehene feindliche Kaempfer im Umkreis r um einen Punkt. */
+function feindeBei(kunde, pt, r) {
   let n = 0;
-  for (const o of world.entities) {
-    if (o.dead || o.player === me || o.kind !== 'unit' || !UNITS[o.type].weapon) continue;
+  for (const o of kunde.einheiten) {
+    if (!UNITS[o.type].weapon) continue;
     if (dist2(o.x, o.y, pt.x, pt.y) <= r * r) n++;
   }
   return n;
@@ -3576,18 +3721,17 @@ function vordersterAnker(world, bauten, ziel) {
 }
 
 /**
- * Feindliche Einheit, die einem eigenen Gebaeude am naechsten gekommen ist --
- * oder die irgendwo in der eigenen Domaene steht. Eine grosse Domaene ist
- * damit auch ein grosses Gebiet, das verteidigt wird.
+ * Gesehene feindliche Einheit, die einem eigenen Gebaeude am naechsten
+ * gekommen ist -- oder die irgendwo in der eigenen Domaene steht. Eine grosse
+ * Domaene ist damit auch ein grosses Gebiet, das verteidigt wird.
  */
-function naechsterEindringling(world, me, bauten) {
+function naechsterEindringling(world, kunde, bauten) {
   const nah = 3000 * 3000;
   let best = null;
   let bestD = nah;
   let drin = null;
-  for (const o of world.entities) {
-    if (o.dead || o.player === me || o.kind !== 'unit') continue;
-    if (!drin && inDomain(world, me, o.x, o.y)) drin = o;
+  for (const o of kunde.einheiten) {
+    if (!drin && inDomain(world, kunde.player, o.x, o.y)) drin = o;
     for (const b of bauten) {
       const dd = dist2(o.x, o.y, b.x, b.y);
       if (dd < bestD) {
@@ -3600,21 +3744,19 @@ function naechsterEindringling(world, me, bauten) {
 }
 
 /**
- * Ziel einer Welle: ein gegnerischer Foerderbau, moeglichst einer, den kein
- * Turm deckt -- Wirtschaft treffen statt an Mauern zerschellen --, dann
- * Goetterblut vor Fron, dann der naechste vom Punkt von aus.
+ * Ziel einer Welle: ein gesehener gegnerischer Foerderbau, moeglichst einer,
+ * den kein gesehener Turm deckt -- Wirtschaft treffen statt an Mauern
+ * zerschellen --, dann Goetterblut vor Fron, dann der naechste vom Punkt von aus.
  */
-function angriffsziel(world, me, von) {
+function angriffsziel(kunde, von) {
   let best = null;
   let bestRang = Infinity;
   let bestD = Infinity;
-  for (const e of world.entities) {
-    if (e.dead || e.player === me || e.kind !== 'building') continue;
+  for (const e of kunde.gebaeude) {
     const d = BUILDINGS[e.type];
     if (!d.fronOut && !d.blutOut) continue;
-    const gedeckt = world.entities.some(
-      (t) => !t.dead && t.player === e.player && t.kind === 'building' && t.done && BUILDINGS[t.type].weapon &&
-        dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
+    const gedeckt = kunde.gebaeude.some(
+      (t) => t.done && BUILDINGS[t.type].weapon && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
     );
     const rang = (gedeckt ? 2 : 0) + (d.blutOut ? 0 : 1);
     const dd = dist2(e.x, e.y, von.x, von.y);
@@ -3625,12 +3767,6 @@ function angriffsziel(world, me, von) {
     }
   }
   return best;
-}
-
-function gegnerHaupt(world, me) {
-  return world.entities.find(
-    (e) => e.player !== me && !e.dead && e.kind === 'building' && BUILDINGS[e.type].vital
-  );
 }
 
 function naechsteVersorgte(world, bauten, zu) {
@@ -3655,14 +3791,17 @@ function naechsteVersorgte(world, bauten, zu) {
  * Richtung zur Kartenmitte -- punktsymmetrisch, nicht die Listenreihenfolge,
  * die beide Sitzplaetze verschieden behandeln wuerde.
  */
-function freieAder(world, von, kind, plaene) {
+function freieAder(world, von, kind, plaene, kunde) {
   let best = null;
   let bestD = Infinity;
   let bestSeite = Infinity;
   const mx = (MAP >> 1) - von.x;
   const my = (MAP >> 1) - von.y;
   for (const d of world.deposits) {
-    if (d.kind !== kind || d.takenBy !== 0) continue;
+    if (d.kind !== kind) continue;
+    // Besetzt ist, was man weiss: ein eigener Bau darauf oder ein gesehener
+    // gegnerischer. Einen ungesehenen findet erst der Erbauer vor Ort.
+    if (d.takenBy !== 0 && (kunde.gebaeude.some((b) => b.id === d.takenBy) || world.entities.some((e) => e.id === d.takenBy && e.player === kunde.player))) continue;
     // Eine Ader mit eigenem Plan ist schon vergeben -- sonst setzt die KI den
     // Plan jeden Zug neu, die Simulation lehnt ab, und es bleibt beim Sparen.
     if (plaene.some((q) => dist2(q.x, q.y, d.x, d.y) < 100 * 100)) continue;
@@ -3691,11 +3830,11 @@ function daheim(world, haupt, radius, grad) {
  * suchen. Ohne freien Platz null, sonst haengt die KI an einem Bau fest, den
  * die Simulation jedes Mal ablehnt.
  */
-function daheimFrei(world, haupt, typ, radius, grad) {
+function daheimFrei(world, kunde, haupt, typ, radius, grad) {
   const r = BUILDINGS[typ].radius;
   for (let k = 0; k < 15; k++) {
     const [x, y] = daheim(world, haupt, radius + ((k / 3) | 0) * 250, grad + [0, 35, -35][k % 3]);
-    if (blockiert(world, x, y, r)) continue;
+    if (blockiert(world, kunde, x, y, r)) continue;
     if (world.deposits.some((d) => dist2(d.x, d.y, x, y) < (r + 120) * (r + 120))) continue;
     return [x, y];
   }
@@ -3804,41 +3943,134 @@ const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
 
 // ------------------------------------------------------------ Nebel des Krieges
-// Die Simulation sieht alles; der Nebel ist eine Sicht der Oberflaeche:
-// sichtbar, erkundet (schon einmal gesehen) oder unbekannt. Gegnerische
-// Gebaeude bleiben dort, wo man sie zuletzt gesehen hat.
-const NEBEL_N = MAP / ZELLE;
-function neuerNebel(an) {
-  return { an, sicht: new Uint8Array(NEBEL_N * NEBEL_N), erkundet: new Uint8Array(NEBEL_N * NEBEL_N), bekannt: new Map() };
+// Was man weiss, kommt aus src/sim/kunde.js -- dieselbe Sicht, mit der auch
+// die KI spielt. Hier nur die Darstellung: ein feines Sichtfeld mit weichem
+// Rand, das beim Auf- und Zudecken ueberblendet, und das Erkundete.
+
+/** Kantenlaenge des Sichtfelds in Zellen (eine Zelle knapp 8 m). */
+const NEBEL_N = 256;
+const NEBEL_Z = MAP / NEBEL_N;
+// Breite des weichen Rands (dm) und Tempo der Ueberblendung (je Sekunde)
+const NEBEL_KANTE = 220;
+const NEBEL_TEMPO = 6;
+// Helligkeit des Erkundeten, 0..1 (sichtbar 1, unbekannt 0)
+const NEBEL_ERKUNDET = 0.47;
+function neuerNebel(an, player) {
+  const n = NEBEL_N * NEBEL_N;
+  const hell = new Uint8Array(n);
+  if (!an) hell.fill(255);
+  return {
+    an,
+    kunde: neueKunde(player),
+    bekannt: new Map(), // zuletzt gesehene gegnerische Gebaeude nach Id
+    ziel: new Float32Array(n), // Sicht jetzt, 0..1
+    anzeige: new Float32Array(n), // Sicht, wie sie gerade gezeigt wird (blendet zum Ziel)
+    erkundet: new Float32Array(n),
+    hell, // 0..255 je Zelle: was Karte und Textur zeigen
+    tick: -1,
+    zeit: 0,
+    bild: null, // Canvas mit dem Nebel, je Frame einmal gemalt
+    bildFrame: -1,
+  };
 }
 
-/** Sicht neu berechnen, Erkundetes und zuletzt gesehene Gebaeude nachfuehren. */
-function nebelAktualisieren(nebel, world, player) {
+/**
+ * Je Frame: Wissen und Sichtfeld auf den Stand des Ticks bringen (nur wenn
+ * ein neuer Tick da ist), dann die Anzeige zum Ziel ueberblenden.
+ */
+function nebelAktualisieren(nebel, world) {
   if (!nebel.an) return;
-  nebel.sicht = sichtGitter(world, player);
-  for (let i = 0; i < nebel.sicht.length; i++) if (nebel.sicht[i]) nebel.erkundet[i] = 1;
-  const lebend = new Set();
-  for (const e of world.entities) {
-    if (e.dead || e.player === player || e.kind !== 'building') continue;
-    lebend.add(e.id);
-    if (sieht(nebel, e.x, e.y)) nebel.bekannt.set(e.id, { id: e.id, type: e.type, player: e.player, x: e.x, y: e.y, done: e.done });
+  if (nebel.tick !== world.tick) {
+    nebel.tick = world.tick;
+    aufklaeren(nebel.kunde, world);
+    nebel.bekannt = new Map(nebel.kunde.gebaeude.map((b) => [b.id, b]));
+    sichtfeld(nebel);
   }
-  // Gesehen, dass es weg ist: vergessen.
-  for (const [id, b] of nebel.bekannt) if (!lebend.has(id) && sieht(nebel, b.x, b.y)) nebel.bekannt.delete(id);
+  const jetzt = typeof performance !== 'undefined' ? performance.now() : 0;
+  const dt = nebel.zeit ? Math.min(0.25, (jetzt - nebel.zeit) / 1000) : 1;
+  nebel.zeit = jetzt;
+  const a = dt >= 1 ? 1 : 1 - Math.exp(-dt * NEBEL_TEMPO);
+  const { ziel, anzeige, erkundet, hell } = nebel;
+  for (let i = 0; i < ziel.length; i++) {
+    const s = (anzeige[i] += (ziel[i] - anzeige[i]) * a);
+    const e = erkundet[i] * NEBEL_ERKUNDET;
+    hell[i] = ((s > e ? s : e) * 255) | 0;
+  }
+}
+
+/** Sichtfeld aus den Quellen: je Zelle der beste Wert, weicher Rand, Erkundetes merken. */
+function sichtfeld(nebel) {
+  const z = nebel.ziel;
+  z.fill(0);
+  const q = nebel.kunde.quellen;
+  const n = NEBEL_N;
+  for (let i = 0; i < q.length; i += 3) {
+    const x = q[i];
+    const y = q[i + 1];
+    const aussen = q[i + 2] + NEBEL_KANTE / 2;
+    const x0 = Math.max(0, Math.floor((x - aussen) / NEBEL_Z));
+    const x1 = Math.min(n - 1, Math.floor((x + aussen) / NEBEL_Z));
+    const y0 = Math.max(0, Math.floor((y - aussen) / NEBEL_Z));
+    const y1 = Math.min(n - 1, Math.floor((y + aussen) / NEBEL_Z));
+    for (let cy = y0; cy <= y1; cy++) {
+      const my = (cy + 0.5) * NEBEL_Z - y;
+      for (let cx = x0; cx <= x1; cx++) {
+        const mx = (cx + 0.5) * NEBEL_Z - x;
+        const v = (aussen - Math.sqrt(mx * mx + my * my)) / NEBEL_KANTE;
+        if (v <= 0) continue;
+        const w = v >= 1 ? 1 : v * v * (3 - 2 * v);
+        const k = cy * n + cx;
+        if (w > z[k]) z[k] = w;
+      }
+    }
+  }
+  const e = nebel.erkundet;
+  for (let i = 0; i < z.length; i++) if (z[i] > e[i]) e[i] = z[i];
 }
 
 /** Liegt der Punkt gerade in eigener Sicht? Ohne Nebel immer. */
 function sieht(nebel, x, y) {
-  if (!nebel.an) return true;
-  const cx = Math.min(NEBEL_N - 1, Math.max(0, (x / ZELLE) | 0));
-  const cy = Math.min(NEBEL_N - 1, Math.max(0, (y / ZELLE) | 0));
-  return nebel.sicht[cy * NEBEL_N + cx] === 1;
+  return !nebel.an || inSicht(nebel.kunde.quellen, x, y);
 }
 
-/** Helligkeit je Zelle, 0..255: sichtbar 255, erkundet 120, unbekannt 0. */
-function nebelHelligkeit(nebel, ziel) {
-  for (let i = 0; i < ziel.length; i++) ziel[i] = !nebel.an || nebel.sicht[i] ? 255 : nebel.erkundet[i] ? 120 : 0;
-  return ziel;
+/** Ist diese gegnerische Entity gerade verborgen? Eigene nie, ohne Nebel nie. */
+function imNebel(nebel, e, ich) {
+  return nebel.an && e.player !== ich && !nebel.kunde.jetzt.has(e.id);
+}
+
+/** Ist die Ader besetzt -- soweit man es weiss? Ein eigener Bau darauf oder ein gesehener gegnerischer. */
+function aderBesetzt(nebel, world, d, ich) {
+  if (!d.takenBy) return false;
+  if (!nebel.an || nebel.bekannt.has(d.takenBy)) return true;
+  const b = byId(world, d.takenBy);
+  return !!b && b.player === ich;
+}
+
+/**
+ * Der Nebel als Bild (NEBEL_N × NEBEL_N), zum Hochskalieren: unbekannt fast
+ * schwarz, erkundet halb, sichtbar frei. Je Frame nur einmal gemalt.
+ */
+function nebelBild(nebel, frame) {
+  if (typeof document === 'undefined' || !document.createElement) return null;
+  if (!nebel.bild) {
+    nebel.bild = document.createElement('canvas');
+    nebel.bild.width = NEBEL_N;
+    nebel.bild.height = NEBEL_N;
+  }
+  if (nebel.bildFrame === frame) return nebel.bild;
+  nebel.bildFrame = frame;
+  const c = nebel.bild.getContext && nebel.bild.getContext('2d');
+  const img = c && c.createImageData ? c.createImageData(NEBEL_N, NEBEL_N) : null;
+  if (!img || !img.data) return null;
+  const h = nebel.hell;
+  for (let i = 0; i < h.length; i++) {
+    img.data[i * 4] = 11;
+    img.data[i * 4 + 1] = 13;
+    img.data[i * 4 + 2] = 8;
+    img.data[i * 4 + 3] = (225 * (255 - h[i])) / 255;
+  }
+  c.putImageData(img, 0, 0);
+  return nebel.bild;
 }
 
 // ------------------------------------------------------------ Ressourcenleiste
@@ -4241,8 +4473,9 @@ let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
 const wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
-let nebel = neuerNebel(true); // Nebel des Krieges; beim Zuschauen aus
-const verborgen = (e) => e.player !== ME && !sieht(nebel, e.x, e.y);
+let nebel = neuerNebel(true, ME); // Nebel des Krieges; beim Zuschauen aus
+let nebelFrame = 0; // Zaehler, damit das Nebelbild je Frame nur einmal entsteht
+const verborgen = (e) => imNebel(nebel, e, ME);
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 
@@ -4274,7 +4507,7 @@ function neu(f, zuschauen = false) {
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
-  nebel = neuerNebel(!zuschauen);
+  nebel = neuerNebel(!zuschauen, ME);
   angriff = false;
   zeigeAuswertung = false;
   stats = neueStats();
@@ -4616,7 +4849,8 @@ function draw() {
   const H = cv.clientHeight;
   ctx.fillStyle = COL.bg;
   ctx.fillRect(0, 0, W, H);
-  nebelAktualisieren(nebel, world, ME);
+  nebelAktualisieren(nebel, world);
+  nebelFrame++;
 
   drawGrid(W, H);
   drawCleared();
@@ -4638,28 +4872,14 @@ function draw() {
   drawMini();
 }
 
-// Nebel als kleines Bild (eine Zelle = ein Pixel), weich hochskaliert.
-const nebelBild = document.createElement ? document.createElement('canvas') : null;
-const nebelHell = new Uint8Array(NEBEL_N * NEBEL_N);
-
-/** Nebel ueber die Karte legen: unbekannt fast schwarz, erkundet gedaempft. */
+/** Nebel ueber die Karte legen: unbekannt fast schwarz, erkundet gedaempft, weich hochskaliert. */
 function nebelMalen(ziel, x, y, groesse) {
-  if (!nebel.an || !nebelBild) return;
-  nebelBild.width = NEBEL_N;
-  nebelBild.height = NEBEL_N;
-  const nctx = nebelBild.getContext('2d');
-  const img = nctx.createImageData(NEBEL_N, NEBEL_N);
-  if (!img || !img.data) return;
-  nebelHelligkeit(nebel, nebelHell);
-  for (let i = 0; i < nebelHell.length; i++) {
-    img.data[i * 4] = 11;
-    img.data[i * 4 + 1] = 13;
-    img.data[i * 4 + 2] = 8;
-    img.data[i * 4 + 3] = nebelHell[i] === 255 ? 0 : nebelHell[i] ? 115 : 225;
-  }
-  nctx.putImageData(img, 0, 0);
+  if (!nebel.an) return;
+  const bild = nebelBild(nebel, nebelFrame);
+  if (!bild) return;
   ziel.imageSmoothingEnabled = true;
-  ziel.drawImage(nebelBild, x, y, groesse, groesse);
+  if ('imageSmoothingQuality' in ziel) ziel.imageSmoothingQuality = 'high';
+  ziel.drawImage(bild, x, y, groesse, groesse);
 }
 
 function drawNebel() {
@@ -4846,7 +5066,7 @@ function drawDeposits() {
     const y = w2sy(d.y);
     const r = Math.max(3, (d.kind === 'goetterblut' ? 150 : 90) * cam.z);
     ctx.strokeStyle = d.kind === 'goetterblut' ? COL.blut : COL.dim;
-    ctx.globalAlpha = d.takenBy ? 0.3 : 0.85;
+    ctx.globalAlpha = aderBesetzt(nebel, world, d, ME) ? 0.3 : 0.85;
     ctx.lineWidth = 2;
     ctx.beginPath();
     if (d.kind === 'goetterblut') {
@@ -4867,7 +5087,7 @@ function drawEntities() {
   // Gegnerische Gebaeude im Nebel: dort, wo man sie zuletzt gesehen hat.
   ctx.globalAlpha = 0.4;
   for (const b of nebel.bekannt.values()) {
-    if (sieht(nebel, b.x, b.y)) continue;
+    if (nebel.kunde.jetzt.has(b.id)) continue;
     const r = Math.max(4, BUILDINGS[b.type].radius * cam.z);
     ctx.strokeStyle = FACTIONS[world.players[b.player].faction].color;
     ctx.lineWidth = 1.5;
@@ -5052,7 +5272,7 @@ function drawGhost() {
   let ohneAder = false;
   if (def.needs) {
     const dep = findDeposit(world, hover.x, hover.y, def.needs);
-    if (dep && !dep.takenBy) {
+    if (dep && !aderBesetzt(nebel, world, dep, ME)) {
       gx = dep.x;
       gy = dep.y;
     } else ohneAder = true;

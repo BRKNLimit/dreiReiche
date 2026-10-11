@@ -78,9 +78,19 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 
 ## Bewusst weggelassen (v1)
 
-Höhen im Gelände, Todesgott, Bergung der Gefallenen, Netzwerk. Die KI
-sieht durch den Nebel des Krieges (er ist nur eine Sicht der Oberfläche).
-Siehe `docs/scope.md`.
+Höhen im Gelände, Todesgott, Bergung der Gefallenen, Netzwerk. Siehe
+`docs/scope.md`.
+
+## Nebel des Krieges
+
+Die Simulation selbst sieht alles. Was ein Spieler weiß, steht in
+`src/sim/kunde.js`: was seine Einheiten und Gebäude gerade sehen, zuletzt
+gesehene Gebäude und Einheiten, und wo der Gegner beginnt (gegenüber dem
+eigenen Hauptgebäude). **Die KI nutzt nur das** — kein Zugriff auf
+gegnerische Entities in `src/sim/ai.js` an der Kunde vorbei. Auch
+Befehle verraten nichts: Ein Bauplan wird nur gegen Eigenes und die Karte
+geprüft; ein ungesehenes gegnerisches Gebäude findet erst der Erbauer vor
+Ort.
 
 ## Zusammenarbeit mit Gemini (Grafik)
 

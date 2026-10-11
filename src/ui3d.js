@@ -40,9 +40,9 @@ let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
 let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
-let nebel = neuerNebel(true); // Nebel des Krieges; beim Zuschauen aus
-const verborgen = (e) => e.player !== ME && !sieht(nebel, e.x, e.y);
-const nebelHell = new Uint8Array(NEBEL_N * NEBEL_N);
+let nebel = neuerNebel(true, ME); // Nebel des Krieges; beim Zuschauen aus
+let nebelFrame = 0; // Zaehler, damit das Nebelbild je Frame nur einmal entsteht
+const verborgen = (e) => imNebel(nebel, e, ME);
 let nebelTex = null;
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
@@ -106,7 +106,7 @@ function neu(f, zuschauen = false) {
   world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
-  nebel = neuerNebel(!zuschauen);
+  nebel = neuerNebel(!zuschauen, ME);
   sel = [];
   selPlan = null;
   leistenSig = '';
@@ -574,12 +574,12 @@ function zeichne(now, dt) {
   const ll = Math.hypot(...l);
   gl.uniform3f(gl.getUniformLocation(PROG, 'uLicht'), l[0] / ll, l[1] / ll, l[2] / ll);
   gl.uniform3f(gl.getUniformLocation(PROG, 'uNebel'), ...NEBEL);
-  // Nebel des Krieges als Textur, eine Zelle je Texel
-  nebelAktualisieren(nebel, world, ME);
-  nebelHelligkeit(nebel, nebelHell);
+  // Nebel des Krieges als Textur, eine Zelle je Texel, linear gefiltert
+  nebelAktualisieren(nebel, world);
+  nebelFrame++;
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, nebelTex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, NEBEL_N, NEBEL_N, 0, gl.RED, gl.UNSIGNED_BYTE, nebelHell);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, NEBEL_N, NEBEL_N, 0, gl.RED, gl.UNSIGNED_BYTE, nebel.hell);
   gl.uniform1i(gl.getUniformLocation(PROG, 'uSicht'), 0);
   gl.uniform1f(gl.getUniformLocation(PROG, 'uKarte'), MAP * DM);
 
@@ -612,7 +612,7 @@ function zeichne(now, dt) {
   }
   // Gegnerische Gebaeude im Nebel: dort, wo man sie zuletzt gesehen hat, matt.
   for (const b of nebel.bekannt.values()) {
-    if (sieht(nebel, b.x, b.y)) continue;
+    if (nebel.kunde.jetzt.has(b.id)) continue;
     const r = BUILDINGS[b.type].radius * DM * ZEIGE_GEBAEUDE;
     instanz(b.type, b.x * DM, 0, b.y * DM, (b.id % 4) * (Math.PI / 2) + 0.4, r, teamFarbe(b.player), 1, 0.6);
   }
@@ -661,7 +661,7 @@ function zeichne(now, dt) {
     let ok = true;
     if (def.needs) {
       const dep = findDeposit(world, hover.x, hover.y, def.needs);
-      if (dep && !dep.takenBy) {
+      if (dep && !aderBesetzt(nebel, world, dep, ME)) {
         gx = dep.x;
         gy = dep.y;
       } else ok = false;
@@ -994,14 +994,11 @@ function zeichneMini() {
       mctx3.fillRect(e.x * s - sz / 2, e.y * s - sz / 2, sz, sz);
     }
   }
-  // Nebel auf der Minikarte: Zelle fuer Zelle abgedunkelt
-  if (nebel.an) {
-    const z = W / NEBEL_N;
-    for (let i = 0; i < nebelHell.length; i++) {
-      if (nebelHell[i] === 255) continue;
-      mctx3.fillStyle = nebelHell[i] ? 'rgba(11,13,8,0.45)' : 'rgba(11,13,8,0.88)';
-      mctx3.fillRect((i % NEBEL_N) * z, ((i / NEBEL_N) | 0) * z, z + 0.5, z + 0.5);
-    }
+  // Nebel auf der Minikarte: dasselbe Bild wie auf der Karte
+  const bild = nebel.an ? nebelBild(nebel, nebelFrame) : null;
+  if (bild) {
+    mctx3.imageSmoothingEnabled = true;
+    mctx3.drawImage(bild, 0, 0, W, W);
   }
   // Kamera-Ziel
   mctx3.strokeStyle = '#e8dcc0';

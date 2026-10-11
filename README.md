@@ -124,8 +124,10 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 - Abriss mit Teilerstattung
 - Karte mit Felsgraten, Felsring um die Mitte und Seen; Wegfindung über
   Flussfelder, Gebäude umgleiten Einheiten seitlich
-- Nebel des Krieges: Sichtweite je Einheit und Gebäude, Erkundetes bleibt
-  gedämpft, gegnerische Gebäude bleiben, wo man sie zuletzt sah
+- Nebel des Krieges: Sichtweite je Einheit und Gebäude, weiche Ränder, die
+  beim Auf- und Zudecken überblenden; Erkundetes bleibt gedämpft, gegnerische
+  Gebäude bleiben, wo man sie zuletzt sah. Die KI sieht nur, was ihre
+  Einheiten und Gebäude sehen (`src/sim/kunde.js`)
 - Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine),
   Angriffsbewegung verfolgt auch unterwegs
 - Faire Simulation: Befehle reihum, Kampf gleichzeitig, punktsymmetrische

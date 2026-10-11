@@ -4,9 +4,9 @@
 import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PRIO_NAMES } from './sim/defs.js';
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
-  gridReport, foerderungProMin, unterhaltProMin, sichtGitter, byId, canAfford,
+  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford,
 } from './sim/sim.js';
-import { ZELLE } from './sim/weg.js';
+import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
 
 const prozent = (promille) => Math.round(promille / 10) + ' %';
@@ -14,42 +14,135 @@ const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
 
 // ------------------------------------------------------------ Nebel des Krieges
-// Die Simulation sieht alles; der Nebel ist eine Sicht der Oberflaeche:
-// sichtbar, erkundet (schon einmal gesehen) oder unbekannt. Gegnerische
-// Gebaeude bleiben dort, wo man sie zuletzt gesehen hat.
-export const NEBEL_N = MAP / ZELLE;
+// Was man weiss, kommt aus src/sim/kunde.js -- dieselbe Sicht, mit der auch
+// die KI spielt. Hier nur die Darstellung: ein feines Sichtfeld mit weichem
+// Rand, das beim Auf- und Zudecken ueberblendet, und das Erkundete.
 
-export function neuerNebel(an) {
-  return { an, sicht: new Uint8Array(NEBEL_N * NEBEL_N), erkundet: new Uint8Array(NEBEL_N * NEBEL_N), bekannt: new Map() };
+/** Kantenlaenge des Sichtfelds in Zellen (eine Zelle knapp 8 m). */
+export const NEBEL_N = 256;
+const NEBEL_Z = MAP / NEBEL_N;
+// Breite des weichen Rands (dm) und Tempo der Ueberblendung (je Sekunde)
+const NEBEL_KANTE = 220;
+const NEBEL_TEMPO = 6;
+// Helligkeit des Erkundeten, 0..1 (sichtbar 1, unbekannt 0)
+const NEBEL_ERKUNDET = 0.47;
+
+export function neuerNebel(an, player) {
+  const n = NEBEL_N * NEBEL_N;
+  const hell = new Uint8Array(n);
+  if (!an) hell.fill(255);
+  return {
+    an,
+    kunde: neueKunde(player),
+    bekannt: new Map(), // zuletzt gesehene gegnerische Gebaeude nach Id
+    ziel: new Float32Array(n), // Sicht jetzt, 0..1
+    anzeige: new Float32Array(n), // Sicht, wie sie gerade gezeigt wird (blendet zum Ziel)
+    erkundet: new Float32Array(n),
+    hell, // 0..255 je Zelle: was Karte und Textur zeigen
+    tick: -1,
+    zeit: 0,
+    bild: null, // Canvas mit dem Nebel, je Frame einmal gemalt
+    bildFrame: -1,
+  };
 }
 
-/** Sicht neu berechnen, Erkundetes und zuletzt gesehene Gebaeude nachfuehren. */
-export function nebelAktualisieren(nebel, world, player) {
+/**
+ * Je Frame: Wissen und Sichtfeld auf den Stand des Ticks bringen (nur wenn
+ * ein neuer Tick da ist), dann die Anzeige zum Ziel ueberblenden.
+ */
+export function nebelAktualisieren(nebel, world) {
   if (!nebel.an) return;
-  nebel.sicht = sichtGitter(world, player);
-  for (let i = 0; i < nebel.sicht.length; i++) if (nebel.sicht[i]) nebel.erkundet[i] = 1;
-  const lebend = new Set();
-  for (const e of world.entities) {
-    if (e.dead || e.player === player || e.kind !== 'building') continue;
-    lebend.add(e.id);
-    if (sieht(nebel, e.x, e.y)) nebel.bekannt.set(e.id, { id: e.id, type: e.type, player: e.player, x: e.x, y: e.y, done: e.done });
+  if (nebel.tick !== world.tick) {
+    nebel.tick = world.tick;
+    aufklaeren(nebel.kunde, world);
+    nebel.bekannt = new Map(nebel.kunde.gebaeude.map((b) => [b.id, b]));
+    sichtfeld(nebel);
   }
-  // Gesehen, dass es weg ist: vergessen.
-  for (const [id, b] of nebel.bekannt) if (!lebend.has(id) && sieht(nebel, b.x, b.y)) nebel.bekannt.delete(id);
+  const jetzt = typeof performance !== 'undefined' ? performance.now() : 0;
+  const dt = nebel.zeit ? Math.min(0.25, (jetzt - nebel.zeit) / 1000) : 1;
+  nebel.zeit = jetzt;
+  const a = dt >= 1 ? 1 : 1 - Math.exp(-dt * NEBEL_TEMPO);
+  const { ziel, anzeige, erkundet, hell } = nebel;
+  for (let i = 0; i < ziel.length; i++) {
+    const s = (anzeige[i] += (ziel[i] - anzeige[i]) * a);
+    const e = erkundet[i] * NEBEL_ERKUNDET;
+    hell[i] = ((s > e ? s : e) * 255) | 0;
+  }
+}
+
+/** Sichtfeld aus den Quellen: je Zelle der beste Wert, weicher Rand, Erkundetes merken. */
+function sichtfeld(nebel) {
+  const z = nebel.ziel;
+  z.fill(0);
+  const q = nebel.kunde.quellen;
+  const n = NEBEL_N;
+  for (let i = 0; i < q.length; i += 3) {
+    const x = q[i];
+    const y = q[i + 1];
+    const aussen = q[i + 2] + NEBEL_KANTE / 2;
+    const x0 = Math.max(0, Math.floor((x - aussen) / NEBEL_Z));
+    const x1 = Math.min(n - 1, Math.floor((x + aussen) / NEBEL_Z));
+    const y0 = Math.max(0, Math.floor((y - aussen) / NEBEL_Z));
+    const y1 = Math.min(n - 1, Math.floor((y + aussen) / NEBEL_Z));
+    for (let cy = y0; cy <= y1; cy++) {
+      const my = (cy + 0.5) * NEBEL_Z - y;
+      for (let cx = x0; cx <= x1; cx++) {
+        const mx = (cx + 0.5) * NEBEL_Z - x;
+        const v = (aussen - Math.sqrt(mx * mx + my * my)) / NEBEL_KANTE;
+        if (v <= 0) continue;
+        const w = v >= 1 ? 1 : v * v * (3 - 2 * v);
+        const k = cy * n + cx;
+        if (w > z[k]) z[k] = w;
+      }
+    }
+  }
+  const e = nebel.erkundet;
+  for (let i = 0; i < z.length; i++) if (z[i] > e[i]) e[i] = z[i];
 }
 
 /** Liegt der Punkt gerade in eigener Sicht? Ohne Nebel immer. */
 export function sieht(nebel, x, y) {
-  if (!nebel.an) return true;
-  const cx = Math.min(NEBEL_N - 1, Math.max(0, (x / ZELLE) | 0));
-  const cy = Math.min(NEBEL_N - 1, Math.max(0, (y / ZELLE) | 0));
-  return nebel.sicht[cy * NEBEL_N + cx] === 1;
+  return !nebel.an || inSicht(nebel.kunde.quellen, x, y);
 }
 
-/** Helligkeit je Zelle, 0..255: sichtbar 255, erkundet 120, unbekannt 0. */
-export function nebelHelligkeit(nebel, ziel) {
-  for (let i = 0; i < ziel.length; i++) ziel[i] = !nebel.an || nebel.sicht[i] ? 255 : nebel.erkundet[i] ? 120 : 0;
-  return ziel;
+/** Ist diese gegnerische Entity gerade verborgen? Eigene nie, ohne Nebel nie. */
+export function imNebel(nebel, e, ich) {
+  return nebel.an && e.player !== ich && !nebel.kunde.jetzt.has(e.id);
+}
+
+/** Ist die Ader besetzt -- soweit man es weiss? Ein eigener Bau darauf oder ein gesehener gegnerischer. */
+export function aderBesetzt(nebel, world, d, ich) {
+  if (!d.takenBy) return false;
+  if (!nebel.an || nebel.bekannt.has(d.takenBy)) return true;
+  const b = byId(world, d.takenBy);
+  return !!b && b.player === ich;
+}
+
+/**
+ * Der Nebel als Bild (NEBEL_N × NEBEL_N), zum Hochskalieren: unbekannt fast
+ * schwarz, erkundet halb, sichtbar frei. Je Frame nur einmal gemalt.
+ */
+export function nebelBild(nebel, frame) {
+  if (typeof document === 'undefined' || !document.createElement) return null;
+  if (!nebel.bild) {
+    nebel.bild = document.createElement('canvas');
+    nebel.bild.width = NEBEL_N;
+    nebel.bild.height = NEBEL_N;
+  }
+  if (nebel.bildFrame === frame) return nebel.bild;
+  nebel.bildFrame = frame;
+  const c = nebel.bild.getContext && nebel.bild.getContext('2d');
+  const img = c && c.createImageData ? c.createImageData(NEBEL_N, NEBEL_N) : null;
+  if (!img || !img.data) return null;
+  const h = nebel.hell;
+  for (let i = 0; i < h.length; i++) {
+    img.data[i * 4] = 11;
+    img.data[i * 4 + 1] = 13;
+    img.data[i * 4 + 2] = 8;
+    img.data[i * 4 + 3] = (225 * (255 - h[i])) / 255;
+  }
+  c.putImageData(img, 0, 0);
+  return nebel.bild;
 }
 
 // ------------------------------------------------------------ Ressourcenleiste

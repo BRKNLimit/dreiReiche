@@ -1,11 +1,14 @@
 // Einfacher Gegner. Bewusst dumm: er soll Druck erzeugen, damit sich die
 // Domänenmechanik unter Stress zeigt. Nutzt nur issue(), nie direkten Zugriff.
 // Nur Integer-Arithmetik und rng() -- dieselben Regeln wie die Simulation.
+// Vom Gegner weiss die KI nur, was ihre Einheiten und Gebaeude sehen oder
+// gesehen haben (src/sim/kunde.js) -- der Nebel gilt auch fuer sie.
 
 import {
-  issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, buffAt, rng, cosDeg, sinDeg,
+  issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, rng, cosDeg, sinDeg,
   unterhaltProMin, foerderungProMin, aufHindernis, gesperrt, kannLernen, faehigkeitenVon, faehigkeitWarten,
 } from './sim.js';
+import { neueKunde, aufklaeren, vermutetesHaupt, bekanntBei } from './kunde.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
 
 const PLAN = {
@@ -98,6 +101,12 @@ export function createAI(player = 1, seed = 1, stil = 'standard', stufe = 'mitte
   return {
     player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0, stil: STILE[stil],
     stufe: STUFEN[stufe], letzterBau: null, gesperrt: [],
+    // Ziel der laufenden Welle: Gebaeude-Id (0 = vermutetes Hauptgebaeude), Ort, und ob es das Hauptgebaeude ist
+    welleX: 0, welleY: 0, welleAufHaupt: false,
+    // Aus Wellen lernen: Zerschellt eine, ohne etwas zu zerstoeren, muss die
+    // naechste groesser sein. welleWert: Wert der laufenden Wellen beim Aufbruch.
+    welleWert: 0, welleZerstoert: 0, mindestWelle: 0,
+    kunde: neueKunde(player),
   };
 }
 
@@ -110,6 +119,7 @@ export function stepAI(ai, world) {
   const mine = world.entities.filter((e) => e.player === ai.player && !e.dead);
   const haupt = mine.find((e) => e.kind === 'building' && BUILDINGS[e.type].vital);
   if (!haupt) return;
+  const kunde = aufklaeren(ai.kunde, world);
 
   // Eigene Bauplaene zaehlen wie Baustellen: Sie werden bezahlt, sobald ein
   // Arbeiter anfaengt, und sollen nicht doppelt gesetzt werden.
@@ -133,7 +143,7 @@ export function stepAI(ai, world) {
   const minute = (world.tick / 600) | 0;
   const frei = (t) => !gesperrt(world, ai.player, t);
 
-  const sicher = (pt, r) => feindeBei(world, ai.player, pt, r) === 0;
+  const sicher = (pt, r) => feindeBei(kunde, pt, r) === 0;
   // Erbauer je Baustelle -- Baustellen wachsen nur, solange jemand daran arbeitet.
   const helfer = {};
   for (const u of einheiten) if (u.auftrag) helfer[u.auftrag] = (helfer[u.auftrag] || 0) + 1;
@@ -181,7 +191,8 @@ export function stepAI(ai, world) {
     bilanz += (d.gegenwartOut || 0) - (d.gegenwartIn || 0);
     if (d.anchor) bilanz += ankerGegenwart(anchorRadius(world, b));
   }
-  const ziel = gegnerHaupt(world, ai.player);
+  // Das gegnerische Hauptgebaeude -- gesehen oder dort vermutet, wo der Gegner beginnt.
+  const ziel = vermutetesHaupt(kunde, haupt);
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
   // Abgelehnte Bauten merken: Steht nach einem Bauauftrag nichts an der
@@ -216,14 +227,14 @@ export function stepAI(ai, world) {
   const [aus4, aus5] = ai.stufe.ausbau;
   const fabrikZiel = 1 + (minute >= fab2 ? 1 : 0) + (minute >= fab3 ? 1 : 0);
   const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= aus4 ? 1 : 0) + (minute >= aus5 ? 1 : 0);
-  const ader = freieAder(world, haupt, 'fron', plaene);
+  const ader = freieAder(world, haupt, 'fron', plaene, kunde);
 
   // Goetterblut liegt in der Mitte. Ein Schacht braucht Gegenwart, also muss
   // die Ader in einer versorgten eigenen Domaene liegen -- hier zaehlt Reichweite.
   // Erst wenn Fron-Foerderung und Fabrik stehen -- sonst frisst der Vorstoss die Wirtschaft.
   const wirtschaftSteht = zahl(plan.fabrik) > 0 && (zahl(plan.fron) >= 3 || !ader);
   const blutZiel = !wirtschaftSteht ? 0 : minute >= 12 ? 2 : 1;
-  const vene = zahl(plan.blut) < blutZiel ? freieAder(world, haupt, 'goetterblut', plaene) : null;
+  const vene = zahl(plan.blut) < blutZiel ? freieAder(world, haupt, 'goetterblut', plaene, kunde) : null;
   const veneBereit = vene && versorgt(world, ai.player, vene);
 
   // 1. Foerderung, aber nur mit Deckung.
@@ -253,14 +264,14 @@ export function stepAI(ai, world) {
   const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
   if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
     const n = zahl(plan.kraft);
-    const platz = daheimFrei(world, haupt, plan.kraft, 700 + n * 250, front + 40 + n * 83);
+    const platz = daheimFrei(world, kunde, haupt, plan.kraft, 700 + n * 250, front + 40 + n * 83);
     if (platz && bau(plan.kraft, ...platz)) return;
   }
 
   // 3. Fabrik
   if (zahl(plan.fabrik) < fabrikZiel && fron >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].gegenwartIn) {
     const n = zahl(plan.fabrik);
-    const platz = daheimFrei(world, haupt, plan.fabrik, 900, front + 200 + n * 70);
+    const platz = daheimFrei(world, kunde, haupt, plan.fabrik, 900, front + 200 + n * 70);
     if (platz && bau(plan.fabrik, ...platz)) return;
   }
 
@@ -270,7 +281,7 @@ export function stepAI(ai, world) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
       if (zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
-      const platz = daheimFrei(world, haupt, typ, 600, front + grad);
+      const platz = daheimFrei(world, kunde, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
   }
@@ -278,14 +289,14 @@ export function stepAI(ai, world) {
   // 3c. Verteidigung: ein Turm vor dem Hauptgebaeude zur Front hin.
   const tb = BUILDINGS[plan.turm];
   if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
-    const platz = daheimFrei(world, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
+    const platz = daheimFrei(world, kunde, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
     if (platz && bau(plan.turm, ...platz)) return;
   }
 
   // 3d. Forschung beim Hauptgebaeude -- mehr Skillpunkte.
   const fb = BUILDINGS[plan.forschung];
   if (zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
-    const platz = daheimFrei(world, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
+    const platz = daheimFrei(world, kunde, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
     if (platz && bau(plan.forschung, ...platz)) return;
   }
 
@@ -302,7 +313,7 @@ export function stepAI(ai, world) {
     const posten = bauten.find((b) => BUILDINGS[b.type].anchor && dist2(b.x, b.y, vene.x, vene.y) <= start * start);
     if (!posten) {
       if (fron >= kosten(plan.anker)) {
-        const platz = nahePlatz(world, vene, haupt, Math.min(start >> 1, 600), BUILDINGS[plan.anker].radius, plan.anker);
+        const platz = nahePlatz(world, kunde, vene, haupt, Math.min(start >> 1, 600), BUILDINGS[plan.anker].radius, plan.anker);
         if (platz && bau(plan.anker, platz.x, platz.y)) return;
       }
     } else {
@@ -311,7 +322,7 @@ export function stepAI(ai, world) {
         (b) => BUILDINGS[b.type].gegenwartOut && dist2(b.x, b.y, posten.x, posten.y) <= start * start
       );
       if (posten.done && (!reg || reg.supply === 0) && !quelleDa && fron >= kosten(plan.kraft)) {
-        const platz = nahePlatz(world, posten, haupt, 350, BUILDINGS[plan.kraft].radius, plan.kraft, 90);
+        const platz = nahePlatz(world, kunde, posten, haupt, 350, BUILDINGS[plan.kraft].radius, plan.kraft, 90);
         if (platz && bau(plan.kraft, platz.x, platz.y)) return;
       }
     }
@@ -319,7 +330,7 @@ export function stepAI(ai, world) {
     // Lohnt der Vorstoss? Nur wenn zwei neue Anker die Luecke schliessen.
     // Sonst warten: wachsende Kreise oder Anker am Rand bringen die Ader naeher.
     // Dieselbe Regel fuer alle -- der Startradius der Fraktion entscheidet.
-    const platz = vorstoss(world, ai.player, haupt, vene, plan.anker);
+    const platz = vorstoss(world, kunde, haupt, vene, plan.anker);
     const start = FACTIONS[p.faction].growth.start;
     if (platz && dist2(platz.x, platz.y, vene.x, vene.y) <= 4 * start * start) {
       if (bau(plan.anker, platz.x, platz.y)) return;
@@ -332,7 +343,7 @@ export function stepAI(ai, world) {
   // Gedeckelt: spaet im Spiel braucht es Truppen, nicht den zwanzigsten Anker.
   const ankerZiel = Math.min(ANKER_HOECHSTENS, 2 + ((minute / ai.stil.ankerTakt) | 0));
   if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + ai.stil.ankerAb) {
-    const platz = randplatz(world, ai, haupt, front, bauten, plan.anker);
+    const platz = randplatz(world, ai, kunde, haupt, front, bauten, plan.anker);
     if (platz && bau(plan.anker, platz.x, platz.y)) return;
   }
 
@@ -352,7 +363,7 @@ export function stepAI(ai, world) {
     if (quelle) {
       const x = quelle.x + (((steht.x - quelle.x) / 2) | 0);
       const y = quelle.y + (((steht.y - quelle.y) / 2) | 0);
-      const frei = !blockiert(world, x, y, BUILDINGS[plan.anker].radius);
+      const frei = !blockiert(world, kunde, x, y, BUILDINGS[plan.anker].radius);
       if (frei && (!BUILDINGS[plan.anker].needsGrowth || !isCleared(world, x, y)) && bau(plan.anker, x, y)) return;
     }
   }
@@ -395,7 +406,7 @@ export function stepAI(ai, world) {
       // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
       // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
       // Belagerung, solange der Gegner Tuerme hat: je Turm eine, hoechstens drei.
-      const feindTuerme = world.entities.filter((o) => !o.dead && o.player !== ai.player && o.kind === 'building' && BUILDINGS[o.type].weapon).length;
+      const feindTuerme = kunde.gebaeude.filter((o) => BUILDINGS[o.type].weapon).length;
       const belagerer = einheiten.filter((u) => u.type === plan.belagerung).length;
       if (feindTuerme && belagerer < Math.min(3, feindTuerme) && frei(plan.belagerung) && liste.includes(plan.belagerung)) {
         unit = plan.belagerung;
@@ -424,7 +435,7 @@ export function stepAI(ai, world) {
   // Eine KI-Entscheidung, keine Regel: Heilung gibt es nicht.
   const rueckzug =
     kdt &&
-    (kdt.hp * 2 < kdt.maxHp || (feindeBei(world, ai.player, kdt, 1200) >= 2 && !inDomain(world, ai.player, kdt.x, kdt.y)));
+    (kdt.hp * 2 < kdt.maxHp || (feindeBei(kunde, kdt, 1200) >= 2 && !inDomain(world, ai.player, kdt.x, kdt.y)));
 
   // 6a. Faehigkeiten des Kommandanten, sobald bereit: Rufe (Zorn, Wehr,
   //     Tempo), wenn genug eigene Kaempfer bei ihm stehen und Feinde nahe
@@ -438,9 +449,9 @@ export function stepAI(ai, world) {
     if (f.art === 'griff') {
       let best = null;
       let bestN = 3;
-      for (const o of world.entities) {
-        if (o.dead || o.player === ai.player || o.kind !== 'unit' || !nah(o, f.reichweite)) continue;
-        const n = feindeBei(world, ai.player, o, f.radius);
+      for (const o of kunde.einheiten) {
+        if (!nah(o, f.reichweite)) continue;
+        const n = feindeBei(kunde, o, f.radius);
         if (n > bestN) {
           bestN = n;
           best = o;
@@ -450,8 +461,8 @@ export function stepAI(ai, world) {
     } else if (f.art === 'heilung') {
       if (einheiten.filter((u) => nah(u, f.radius) && u.hp * 10 < u.maxHp * 7).length >= 4) wirken(kdt.x, kdt.y);
     } else if (f.art === 'rufen') {
-      if (feindeBei(world, ai.player, kdt, 1200) >= 3) wirken(kdt.x, kdt.y);
-    } else if (kaempfer.filter((u) => nah(u, f.radius)).length >= 5 && feindeBei(world, ai.player, kdt, f.radius) >= 3) {
+      if (feindeBei(kunde, kdt, 1200) >= 3) wirken(kdt.x, kdt.y);
+    } else if (kaempfer.filter((u) => nah(u, f.radius)).length >= 5 && feindeBei(kunde, kdt, f.radius) >= 3) {
       wirken(kdt.x, kdt.y);
     }
   }
@@ -460,7 +471,7 @@ export function stepAI(ai, world) {
   //    die nicht gerade mit einer Welle unterwegs sind. Der Kommandant
   //    kaempft nur auf eigenem Boden mit.
   // Verteidigt wird, was steht -- ein Plan ist noch nichts.
-  const bedrohung = naechsterEindringling(world, ai.player, gebaeude);
+  const bedrohung = naechsterEindringling(world, kunde, gebaeude);
   if (bedrohung) {
     const imHinterland = (pt) => dist2(pt.x, pt.y, haupt.x, haupt.y) <= HINTEN * HINTEN;
     const kdtHilft =
@@ -479,6 +490,11 @@ export function stepAI(ai, world) {
   //    Foerderbau fuer Goetterblut -- die Mitte entscheidet --, sonst das
   //    Hauptgebaeude. Faellt das Ziel, zieht die Welle zum naechsten weiter.
   ai.unterwegs = ai.unterwegs.filter((id) => einheiten.some((u) => u.id === id));
+  // Alle Wellen gefallen: Hat sie nichts zerstoert, braucht die naechste mehr.
+  if (!ai.unterwegs.length && ai.welleWert) {
+    ai.mindestWelle = kunde.zerstoert > ai.welleZerstoert ? 0 : Math.max(ai.mindestWelle, (ai.welleWert * 3) >> 1);
+    ai.welleWert = 0;
+  }
   // Leibwache: Wer seinen Kommandanten verliert, verliert die Partie. Die ihm
   // naechsten Einheiten bleiben bei ihm, nur der Rest geht mit Wellen.
   const daheimAlle = kaempfer.filter((u) => !ai.unterwegs.includes(u.id));
@@ -492,35 +508,49 @@ export function stepAI(ai, world) {
   for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
-  const angriff = angriffsziel(world, ai.player, haupt) || ziel;
-  // Faellt das Ziel einer laufenden Welle, zieht sie zum Foerderbau, der ihr
-  // selbst am naechsten ist -- nicht quer ueber die Karte zu dem, der dem
-  // eigenen Hauptgebaeude am naechsten waere.
-  if (ai.unterwegs.length && !world.entities.some((e) => e.id === ai.welleZiel && !e.dead)) {
+  const angriff = angriffsziel(kunde, haupt) || vermuteteFoerderung(world, kunde, haupt, ziel, haupt) || ziel;
+  const welleAuf = (z) => {
+    ai.welleZiel = z.id;
+    ai.welleX = z.x;
+    ai.welleY = z.y;
+    ai.welleAufHaupt = !!(z.vermutet || BUILDINGS[z.type].vital);
+  };
+  // Faellt das Ziel einer laufenden Welle -- man sieht seinen Platz leer --,
+  // zieht sie zum Foerderbau, der ihr selbst am naechsten ist, nicht quer
+  // ueber die Karte zu dem, der dem eigenen Hauptgebaeude am naechsten waere.
+  // Geht sie aufs Hauptgebaeude, weil sie nichts Besseres kannte, und sieht
+  // unterwegs einen Foerderbau, nimmt sie den.
+  if (ai.unterwegs.length) {
     const welle = einheiten.filter((u) => ai.unterwegs.includes(u.id));
     const mitte = {
       x: (welle.reduce((s, u) => s + u.x, 0) / welle.length) | 0,
       y: (welle.reduce((s, u) => s + u.y, 0) / welle.length) | 0,
     };
-    const weiter = angriffsziel(world, ai.player, mitte) || ziel;
-    if (weiter) {
-      ai.welleZiel = weiter.id;
-      issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: weiter.x, y: weiter.y });
+    const bekannt = kunde.gebaeude.some((b) => b.id === ai.welleZiel);
+    const besser = angriffsziel(kunde, mitte) || vermuteteFoerderung(world, kunde, mitte, ziel, haupt);
+    if (!bekannt || (ai.welleAufHaupt && besser)) {
+      const weiter = besser || ziel;
+      if (weiter.id !== ai.welleZiel || weiter.x !== ai.welleX || weiter.y !== ai.welleY) {
+        welleAuf(weiter);
+        issue(world, { type: 'attack', player: ai.player, ids: ai.unterwegs.slice(), x: weiter.x, y: weiter.y });
+      }
     }
   }
   // Nur angreifen, wenn die Welle das gegnerische Heer daheim samt dessen
   // Heimvorteil uebertrifft -- sonst zerschellt sie an der Verteidigung.
   // Ausser das Heer ist satt: Der Unterhalt frisst die Foerderung fast ganz,
   // es waechst nicht mehr. Dann bringt Warten nichts, und es geht los.
-  const gegnerDaheim = heimHeer(world, ai.player);
+  const gegnerDaheim = heimHeer(kunde, haupt, ziel);
   const satt = minute >= 8 && unterhaltProMin(world, ai.player) * 1000 >= foerderungProMin(world, ai.player) * ai.stufe.satt;
   const genug = satt
     ? wellenWert
-    : Math.max(wellenWert, ((gegnerDaheim * 12) / 10) | 0);
+    : Math.max(wellenWert, ai.mindestWelle, ((gegnerDaheim * 12) / 10) | 0);
   if (!bedrohung && wert(daheimStehend) >= genug && angriff) {
     ai.welle++;
-    ai.welleZiel = angriff.id;
+    welleAuf(angriff);
     const ids = daheimStehend.map((u) => u.id);
+    if (!ai.welleWert) ai.welleZerstoert = kunde.zerstoert;
+    ai.welleWert += wert(daheimStehend);
     ai.unterwegs.push(...ids);
     issue(world, { type: 'attack', player: ai.player, ids, x: angriff.x, y: angriff.y });
     return;
@@ -581,7 +611,7 @@ export function stepAI(ai, world) {
  * Baustelle ohne Gegenwart), im Halbkreis Richtung Front, und dort, wo der
  * naechste eigene Anker am weitesten weg ist.
  */
-function randplatz(world, ai, haupt, front, bauten, typ) {
+function randplatz(world, ai, kunde, haupt, front, bauten, typ) {
   const def = BUILDINGS[typ];
   const anker = bauten.filter((b) => BUILDINGS[b.type].anchor);
   const versatz = (rng(ai) % 9) - 4;
@@ -594,7 +624,7 @@ function randplatz(world, ai, haupt, front, bauten, typ) {
       const y = grenze(haupt.y + (((d * sinDeg(grad)) / 1000) | 0));
       if (!inDomain(world, ai.player, x, y)) continue;
       if (def.needsGrowth && isCleared(world, x, y)) continue;
-      if (blockiert(world, x, y, def.radius)) continue;
+      if (blockiert(world, kunde, x, y, def.radius)) continue;
       let s = Infinity;
       for (const a of anker) s = Math.min(s, dist2(x, y, a.x, a.y));
       if (s > bestS) {
@@ -623,7 +653,7 @@ function versorgt(world, me, pt) {
  * Domaene, der ihr am naechsten liegt. Gesucht wird auf der Linie von der
  * Ader zum Hauptgebaeude, mit etwas seitlichem Spielraum.
  */
-function vorstoss(world, me, haupt, ziel, typ) {
+function vorstoss(world, kunde, haupt, ziel, typ) {
   const def = BUILDINGS[typ];
   const dx = haupt.x - ziel.x;
   const dy = haupt.y - ziel.y;
@@ -633,9 +663,9 @@ function vorstoss(world, me, haupt, ziel, typ) {
     for (const quer of [0, 300, -300, 600, -600]) {
       const x = grenze(ziel.x + (((dx * s - dy * quer) / d) | 0));
       const y = grenze(ziel.y + (((dy * s + dx * quer) / d) | 0));
-      if (!inDomain(world, me, x, y)) continue;
+      if (!inDomain(world, kunde.player, x, y)) continue;
       if (def.needsGrowth && isCleared(world, x, y)) continue;
-      if (blockiert(world, x, y, def.radius)) continue;
+      if (blockiert(world, kunde, x, y, def.radius)) continue;
       return { x, y };
     }
   }
@@ -646,14 +676,14 @@ function vorstoss(world, me, haupt, ziel, typ) {
  * Freier Bauplatz im Abstand abstand von um, zuerst Richtung Heimat, dann
  * seitlich gedreht. Ohne Ader-Pflicht; Hain nicht auf gerodetem Boden.
  */
-function nahePlatz(world, um, haupt, abstand, radius, typ, drehung = 0) {
+function nahePlatz(world, kunde, um, haupt, abstand, radius, typ, drehung = 0) {
   const basis = winkel(um, haupt);
   for (const g of [0, 40, -40, 80, -80, 120, -120, 180]) {
     const grad = basis + drehung + g;
     const x = grenze(um.x + (((abstand * cosDeg(grad)) / 1000) | 0));
     const y = grenze(um.y + (((abstand * sinDeg(grad)) / 1000) | 0));
     if (BUILDINGS[typ].needsGrowth && isCleared(world, x, y)) continue;
-    if (blockiert(world, x, y, radius)) continue;
+    if (blockiert(world, kunde, x, y, radius)) continue;
     // Nicht auf eine Ader bauen, die noch gebraucht wird.
     if (world.deposits.some((d) => dist2(d.x, d.y, x, y) < (radius + 120) * (radius + 120))) continue;
     return { x, y };
@@ -661,48 +691,56 @@ function nahePlatz(world, um, haupt, abstand, radius, typ, drehung = 0) {
   return null;
 }
 
-/** Steht hier schon ein Gebaeude, Fels oder See im Weg? Dieselbe Regel wie tryPlace(). */
-function blockiert(world, x, y, radius) {
+/**
+ * Steht hier schon ein Gebaeude, Fels oder See im Weg? Dieselbe Regel wie
+ * tryPlace(), aber nur mit dem, was die KI weiss: eigene Gebaeude und Plaene,
+ * gesehene gegnerische Gebaeude.
+ */
+function blockiert(world, kunde, x, y, radius) {
   if (aufHindernis(world, x, y, radius)) return true;
   for (const e of world.entities.concat(world.plaene)) {
-    if (e.dead || (e.kind !== 'building' && e.kind !== 'plan')) continue;
+    if (e.dead || e.player !== kunde.player || (e.kind !== 'building' && e.kind !== 'plan')) continue;
     const min = radius + BUILDINGS[e.type].radius + 20;
     if (dist2(x, y, e.x, e.y) < min * min) return true;
   }
-  return false;
+  return bekanntBei(kunde, x, y, radius + 20);
 }
 
-/**
- * Wert des gegnerischen Heers, das in seiner eigenen Domaene steht, gewichtet
- * mit der Wirkung seiner Schreine dort (Zorn und Wehr). Arbeiter zaehlen nicht.
- */
 // So viel Heereswert zaehlt ein versorgter feindlicher Turm: er haelt allein
 // eine fruehe Welle von rund 600 Fron auf (Messung in docs/scope.md).
 const TURM_WERT = 600;
 
-function heimHeer(world, me) {
+/**
+ * Geschaetzter Wert des gegnerischen Heers daheim, aus dem, was die KI
+ * gesehen hat: gesehene Tuerme, und Kaempfer, die zuletzt naeher an seinem
+ * Hauptgebaeude standen als am eigenen -- gewichtet mit gesehenen Schreinen
+ * dort (Zorn und Wehr, der staerkste je Art). Arbeiter zaehlen nicht.
+ */
+function heimHeer(kunde, haupt, gegner) {
   let summe = 0;
-  for (const o of world.entities) {
-    if (!o.dead && o.player !== me && o.kind === 'building' && o.done && o.powered && BUILDINGS[o.type].weapon) {
-      summe += TURM_WERT;
-    }
-  }
-  for (const o of world.entities) {
-    if (o.dead || o.player === me || o.kind !== 'unit') continue;
+  for (const b of kunde.gebaeude) if (b.done && b.powered && BUILDINGS[b.type].weapon) summe += TURM_WERT;
+  for (const o of kunde.gesehen) {
     const d = UNITS[o.type];
-    if (d.worker || !d.weapon || !inDomain(world, o.player, o.x, o.y)) continue;
+    if (d.worker || !d.weapon || dist2(o.x, o.y, gegner.x, gegner.y) >= dist2(o.x, o.y, haupt.x, haupt.y)) continue;
+    let zorn = 0;
+    let wehr = 0;
+    for (const s of kunde.gebaeude) {
+      const buff = BUILDINGS[s.type].buff;
+      if (!buff || !s.done || dist2(o.x, o.y, s.x, s.y) > buff.radius * buff.radius) continue;
+      zorn = Math.max(zorn, buff.zorn || 0);
+      wehr = Math.max(wehr, buff.wehr || 0);
+    }
     const kosten = d.commander ? 600 : d.cost.fron;
-    const b = buffAt(world, o.player, o.x, o.y);
-    summe += ((((kosten * (1000 + b.zorn)) / 1000) * 1000) / (1000 - b.wehr)) | 0;
+    summe += ((((kosten * (1000 + zorn)) / 1000) * 1000) / (1000 - wehr)) | 0;
   }
   return summe;
 }
 
-/** Feindliche Kaempfer im Umkreis r um einen Punkt. */
-function feindeBei(world, me, pt, r) {
+/** Gesehene feindliche Kaempfer im Umkreis r um einen Punkt. */
+function feindeBei(kunde, pt, r) {
   let n = 0;
-  for (const o of world.entities) {
-    if (o.dead || o.player === me || o.kind !== 'unit' || !UNITS[o.type].weapon) continue;
+  for (const o of kunde.einheiten) {
+    if (!UNITS[o.type].weapon) continue;
     if (dist2(o.x, o.y, pt.x, pt.y) <= r * r) n++;
   }
   return n;
@@ -744,18 +782,17 @@ function vordersterAnker(world, bauten, ziel) {
 }
 
 /**
- * Feindliche Einheit, die einem eigenen Gebaeude am naechsten gekommen ist --
- * oder die irgendwo in der eigenen Domaene steht. Eine grosse Domaene ist
- * damit auch ein grosses Gebiet, das verteidigt wird.
+ * Gesehene feindliche Einheit, die einem eigenen Gebaeude am naechsten
+ * gekommen ist -- oder die irgendwo in der eigenen Domaene steht. Eine grosse
+ * Domaene ist damit auch ein grosses Gebiet, das verteidigt wird.
  */
-function naechsterEindringling(world, me, bauten) {
+function naechsterEindringling(world, kunde, bauten) {
   const nah = 3000 * 3000;
   let best = null;
   let bestD = nah;
   let drin = null;
-  for (const o of world.entities) {
-    if (o.dead || o.player === me || o.kind !== 'unit') continue;
-    if (!drin && inDomain(world, me, o.x, o.y)) drin = o;
+  for (const o of kunde.einheiten) {
+    if (!drin && inDomain(world, kunde.player, o.x, o.y)) drin = o;
     for (const b of bauten) {
       const dd = dist2(o.x, o.y, b.x, b.y);
       if (dd < bestD) {
@@ -768,21 +805,48 @@ function naechsterEindringling(world, me, bauten) {
 }
 
 /**
- * Ziel einer Welle: ein gegnerischer Foerderbau, moeglichst einer, den kein
- * Turm deckt -- Wirtschaft treffen statt an Mauern zerschellen --, dann
- * Goetterblut vor Fron, dann der naechste vom Punkt von aus.
+ * Wer keinen gegnerischen Foerderbau kennt, sucht ihn dort, wo er stehen
+ * muss: an den Adern auf der gegnerischen Seite (naeher an dessen
+ * Hauptgebaeude als am eigenen), die man seit drei Minuten nicht gesehen hat --
+ * die naechste vom Punkt von aus. Sonst null.
  */
-function angriffsziel(world, me, von) {
+function vermuteteFoerderung(world, kunde, von, gegner, haupt) {
+  let best = null;
+  let bestD = Infinity;
+  let bestSeite = Infinity;
+  // Gleich weite Adern entscheidet die Seite, wie in freieAder() -- punktsymmetrisch.
+  const mx = (MAP >> 1) - von.x;
+  const my = (MAP >> 1) - von.y;
+  for (let i = 0; i < world.deposits.length; i++) {
+    const d = world.deposits[i];
+    if (dist2(d.x, d.y, gegner.x, gegner.y) >= dist2(d.x, d.y, haupt.x, haupt.y)) continue;
+    const zuletzt = kunde.adern[i] ?? -1;
+    if (zuletzt >= 0 && kunde.tick - zuletzt < 1800) continue;
+    const dd = dist2(d.x, d.y, von.x, von.y);
+    const seite = mx * (d.y - von.y) - my * (d.x - von.x);
+    if (dd < bestD || (dd === bestD && seite < bestSeite)) {
+      bestD = dd;
+      bestSeite = seite;
+      best = { id: 0, x: d.x, y: d.y, vermutet: true, ader: true };
+    }
+  }
+  return best;
+}
+
+/**
+ * Ziel einer Welle: ein gesehener gegnerischer Foerderbau, moeglichst einer,
+ * den kein gesehener Turm deckt -- Wirtschaft treffen statt an Mauern
+ * zerschellen --, dann Goetterblut vor Fron, dann der naechste vom Punkt von aus.
+ */
+function angriffsziel(kunde, von) {
   let best = null;
   let bestRang = Infinity;
   let bestD = Infinity;
-  for (const e of world.entities) {
-    if (e.dead || e.player === me || e.kind !== 'building') continue;
+  for (const e of kunde.gebaeude) {
     const d = BUILDINGS[e.type];
     if (!d.fronOut && !d.blutOut) continue;
-    const gedeckt = world.entities.some(
-      (t) => !t.dead && t.player === e.player && t.kind === 'building' && t.done && BUILDINGS[t.type].weapon &&
-        dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
+    const gedeckt = kunde.gebaeude.some(
+      (t) => t.done && BUILDINGS[t.type].weapon && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
     );
     const rang = (gedeckt ? 2 : 0) + (d.blutOut ? 0 : 1);
     const dd = dist2(e.x, e.y, von.x, von.y);
@@ -793,12 +857,6 @@ function angriffsziel(world, me, von) {
     }
   }
   return best;
-}
-
-function gegnerHaupt(world, me) {
-  return world.entities.find(
-    (e) => e.player !== me && !e.dead && e.kind === 'building' && BUILDINGS[e.type].vital
-  );
 }
 
 function naechsteVersorgte(world, bauten, zu) {
@@ -823,14 +881,17 @@ function naechsteVersorgte(world, bauten, zu) {
  * Richtung zur Kartenmitte -- punktsymmetrisch, nicht die Listenreihenfolge,
  * die beide Sitzplaetze verschieden behandeln wuerde.
  */
-export function freieAder(world, von, kind, plaene) {
+export function freieAder(world, von, kind, plaene, kunde) {
   let best = null;
   let bestD = Infinity;
   let bestSeite = Infinity;
   const mx = (MAP >> 1) - von.x;
   const my = (MAP >> 1) - von.y;
   for (const d of world.deposits) {
-    if (d.kind !== kind || d.takenBy !== 0) continue;
+    if (d.kind !== kind) continue;
+    // Besetzt ist, was man weiss: ein eigener Bau darauf oder ein gesehener
+    // gegnerischer. Einen ungesehenen findet erst der Erbauer vor Ort.
+    if (d.takenBy !== 0 && (kunde.gebaeude.some((b) => b.id === d.takenBy) || world.entities.some((e) => e.id === d.takenBy && e.player === kunde.player))) continue;
     // Eine Ader mit eigenem Plan ist schon vergeben -- sonst setzt die KI den
     // Plan jeden Zug neu, die Simulation lehnt ab, und es bleibt beim Sparen.
     if (plaene.some((q) => dist2(q.x, q.y, d.x, d.y) < 100 * 100)) continue;
@@ -859,11 +920,11 @@ function daheim(world, haupt, radius, grad) {
  * suchen. Ohne freien Platz null, sonst haengt die KI an einem Bau fest, den
  * die Simulation jedes Mal ablehnt.
  */
-function daheimFrei(world, haupt, typ, radius, grad) {
+function daheimFrei(world, kunde, haupt, typ, radius, grad) {
   const r = BUILDINGS[typ].radius;
   for (let k = 0; k < 15; k++) {
     const [x, y] = daheim(world, haupt, radius + ((k / 3) | 0) * 250, grad + [0, 35, -35][k % 3]);
-    if (blockiert(world, x, y, r)) continue;
+    if (blockiert(world, kunde, x, y, r)) continue;
     if (world.deposits.some((d) => dist2(d.x, d.y, x, y) < (r + 120) * (r + 120))) continue;
     return [x, y];
   }

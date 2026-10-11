@@ -63,8 +63,9 @@ yScale, hell, alpha, schritt)`, `zeichneInstanzen(m, behalten)`, `MODELLE`,
 braucht weiter die Attribute 0–5 (Ecke: Position, Normale, Farbe+team;
 Instanz: 12 Floats) und die Uniforms `uVP`, `uLicht`, `uNebel`, `uRoentgen`
 (1 = verdeckte Einheit als Umriss in Teamfarbe), `uSicht` (Nebel des
-Krieges, R8-Textur auf Einheit 0, 1 = sichtbar) und `uKarte` (Kartengröße in
-m). Wie du daraus Licht, Material und Nebel berechnest, ist deine Sache.
+Krieges, R8-Textur 256 × 256 auf Einheit 0, linear gefiltert, schon mit
+weichen Rändern und Überblendung: 1 = sichtbar, 0,47 = erkundet, 0 = unbekannt)
+und `uKarte` (Kartengröße in m). Wie du daraus Licht, Material und Nebel berechnest, ist deine Sache.
 
 **`src/gelaende3d.js`** — `baueBoden()`, `DEKO`, `zeichneBoden(world)`,
 `zeichneGelaende(world, now)`. **`src/gelaende2d.js`** — `drawGrid(W, H)`,

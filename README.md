@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.10
+# Die drei Reiche — Prototyp 0.11
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -10,7 +10,7 @@ der Zeit; in ihr fließt Gegenwart, und dort wirken die Schreine.
 ## Loslegen
 
 ```bash
-npm test          # 55 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
+npm test          # 59 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -38,7 +38,9 @@ der Draufsicht.
 | Rechtsklick | Bewegen (Einheiten stellen Feinde erst am Ziel) |
 | `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |
 | Mittlere Maustaste | Karte schieben · Mausrad zoomen |
-| `1`–`5` | Gebäude wählen, dann Linksklick setzen (`5` = Förderbau auf Götterblut) |
+| `1`–`7` | Gebäude wählen, dann Linksklick setzen (`5` Förderbau auf Götterblut, `6` `7` Schreine) |
+| Erbauer gewählt + Gebäude setzen | Bauer, Dryade oder Kommandant bekommen den Bauauftrag, gehen hin und bauen direkt daneben — ein Auftrag je Einheit |
+| Erbauer gewählt + Rechtsklick auf eigene Baustelle | Mitbauen |
 | Gebäude anklicken, `Q` / `W` | Einheiten bauen (schwere kosten Götterblut) |
 | Gebäude anklicken, `Entf` | Abreißen: Baustelle ¾, fertig ½ der Kosten zurück |
 | `K` | Kommandant wählen und hinspringen |

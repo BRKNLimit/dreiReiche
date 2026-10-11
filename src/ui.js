@@ -75,9 +75,7 @@ cv.addEventListener('mousedown', (e) => {
   if (e.button === 2) {
     placing = null;
     angriff = false;
-    if (sel.length) {
-      issue(world, { type: 'move', player: ME, ids: sel.slice(), x: s2wx(mx) | 0, y: s2wy(my) | 0 });
-    }
+    if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0);
     return;
   }
   if (e.button === 1) {
@@ -85,7 +83,8 @@ cv.addEventListener('mousedown', (e) => {
     return;
   }
   if (placing) {
-    issue(world, { type: 'build', player: ME, building: placing, x: s2wx(mx) | 0, y: s2wy(my) | 0 });
+    // Ausgewaehlte Erbauer bekommen den Auftrag und gehen hin.
+    issue(world, { type: 'build', player: ME, building: placing, x: s2wx(mx) | 0, y: s2wy(my) | 0, ids: erbauer() });
     if (!e.shiftKey) placing = null;
     return;
   }
@@ -202,6 +201,28 @@ mini.addEventListener('mousedown', (e) => {
   cam.x = (e.offsetX / mini.clientWidth) * MAP;
   cam.y = (e.offsetY / mini.clientHeight) * MAP;
 });
+
+/** Ausgewaehlte eigene Einheiten, die bauen koennen. */
+function erbauer() {
+  return sel.filter((id) => {
+    const e = byId(world, id);
+    return e && e.kind === 'unit' && UNITS[e.type].build;
+  });
+}
+
+/**
+ * Rechtsklick: auf eine eigene Baustelle -- Erbauer helfen mit, die anderen
+ * gehen hin. Sonst: alle bewegen sich dorthin.
+ */
+function befehl(x, y) {
+  const site = world.entities.find(
+    (b) => b.kind === 'building' && b.player === ME && !b.done && (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 60) ** 2
+  );
+  const bauer = site ? erbauer() : [];
+  const rest = sel.filter((id) => !bauer.includes(id));
+  if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id });
+  if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y });
+}
 
 function bauListe() {
   return meFaction === 'mensch'
@@ -437,8 +458,8 @@ function drawEntities() {
     } else {
       const def = UNITS[e.type];
       const r = Math.max(def.commander ? 6 : 2.5, def.radius * cam.z);
-      if (def.commander) {
-        // Baulinie zur Baustelle, an der er gerade erschafft
+      if (def.build) {
+        // Baulinie zur Baustelle, an der er gerade baut
         const site = e.baut ? byId(world, e.baut) : null;
         if (site) {
           ctx.strokeStyle = col;

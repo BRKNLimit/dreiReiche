@@ -413,9 +413,8 @@ const UNITS = {
     cost: { fron: 40 },
     buildTime: 100,
     worker: true,
-    // Baut wie der Kommandant, nur schwaecher: die naechste eigene Baustelle
-    // in Reichweite waechst mit seiner Kraft, auch ausserhalb der Domaene.
-    build: { range: 400, power: 400 },
+    // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
+    build: { power: 400 },
     weapon: { range: 300, damage: 4, cooldown: 8 },
   },
   soldat: {
@@ -456,9 +455,9 @@ const UNITS = {
   // Jeder Spieler hat genau einen, einmalig: Faellt er, ist die Partie
   // verloren. Sonst gibt die Regel nichts vor -- ob er hinten baut oder
   // vorn kaempft, entscheidet der Spieler.
-  //   build: die naechste eigene Baustelle in Reichweite waechst mit seiner
-  //          Kraft (Promille je Tick, wie volle Gegenwart), auch ausserhalb
-  //          der Domaene -- so entstehen Aussenposten.
+  //   build: Baukraft (Promille je Tick, wie volle Gegenwart). Gebaut wird
+  //          nur der eigene Bauauftrag, und nur direkt daneben -- auch
+  //          ausserhalb der Domaene, so entstehen Aussenposten.
   held: {
     name: 'Held',
     faction: 'mensch',
@@ -469,7 +468,7 @@ const UNITS = {
     buildTime: 0,
     weapon: { range: 480, damage: 45, cooldown: 6 },
     commander: true,
-    build: { range: 500, power: 1000 },
+    build: { power: 1000 },
   },
 
   // ------------------------------------------------------------- Gott
@@ -484,7 +483,7 @@ const UNITS = {
     buildTime: 0,
     weapon: { range: 440, damage: 42, cooldown: 6 },
     commander: true,
-    build: { range: 500, power: 1000 },
+    build: { power: 1000 },
   },
   dryade: {
     name: 'Dryade',
@@ -495,7 +494,7 @@ const UNITS = {
     cost: { fron: 90 },
     buildTime: 220,
     worker: true,
-    build: { range: 400, power: 700 },
+    build: { power: 700 },
     weapon: { range: 380, damage: 8, cooldown: 7 },
   },
   wolf: {
@@ -614,6 +613,7 @@ function createWorld(opts = {}) {
     cleared: [], // gerodete Flaechen: { x, y, r }
     regions: [],
     pending: [],
+    befehlsRunde: 0, // zaehlt Ticks mit Befehlen mehrerer Spieler, siehe applyCommands
     events: [],
     over: false,
     winner: -1,
@@ -697,6 +697,7 @@ function spawnUnit(world, player, type, x, y) {
     tx: x | 0,
     ty: y | 0,
     arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
+    auftrag: 0, // Baustelle, die dieser Erbauer bauen soll (0 = keine)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
     cooldown: 0,
     dead: false,
@@ -728,6 +729,22 @@ function spawnKommandant(world, player) {
   return u;
 }
 
+/**
+ * Bauauftrag: Jeder genannte eigene Erbauer (UNITS[...].build) geht zur
+ * Baustelle und baut sie. Ein Auftrag je Einheit -- der neue ersetzt den alten.
+ */
+function beauftrage(world, player, ids, site) {
+  for (let k = 0; k < ids.length; k++) {
+    const e = byId(world, ids[k]);
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !UNITS[e.type].build) continue;
+    e.auftrag = site.id;
+    e.tx = site.x;
+    e.ty = site.y;
+    e.arrived = false;
+    e.aggro = false;
+  }
+}
+
 /** Der lebende Kommandant eines Spielers, oder null. */
 function kommandantVon(world, player) {
   for (let i = 0; i < world.entities.length; i++) {
@@ -756,14 +773,22 @@ function issue(world, cmd) {
 }
 
 /**
- * Befehle reihum: in jedem Tick beginnt ein anderer Spieler. Wollen zwei
- * dieselbe Ader im selben Tick, gewinnt nicht immer derselbe Sitzplatz.
+ * Befehle reihum: Geben in einem Tick mehrere Spieler Befehle, beginnt jedes
+ * Mal ein anderer. Wollen zwei dieselbe Ader im selben Tick, gewinnt nicht
+ * immer derselbe Sitzplatz. Ein eigener Zaehler statt der Tick-Paritaet --
+ * die KI handelt alle 22 Ticks, also immer in geraden Ticks, und haette so
+ * jeden Gleichstand Spieler 0 zugeschlagen.
  * Innerhalb eines Spielers bleibt die Reihenfolge seiner Befehle erhalten.
  */
 function applyCommands(world) {
   const n = world.players.length;
+  let mehrere = false;
+  for (let i = 1; i < world.pending.length && !mehrere; i++) {
+    if (world.pending[i].player !== world.pending[0].player) mehrere = true;
+  }
+  if (mehrere) world.befehlsRunde++;
   for (let k = 0; k < n; k++) {
-    const player = (world.tick + k) % n;
+    const player = (world.befehlsRunde + k) % n;
     for (let i = 0; i < world.pending.length; i++) {
       if (world.pending[i].player === player) applyCommand(world, world.pending[i]);
     }
@@ -781,10 +806,17 @@ function applyCommand(world, c) {
           e.ty = c.y | 0;
           e.arrived = false;
           e.aggro = c.type === 'attack';
+          e.auftrag = 0; // ein neuer Befehl ersetzt den Bauauftrag
         }
       }
     } else if (c.type === 'build') {
-      tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
+      // Mit ids: die genannten Erbauer bekommen den Auftrag fuer die neue Baustelle.
+      const b = tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
+      if (b && c.ids) beauftrage(world, c.player, c.ids, b);
+    } else if (c.type === 'bauen') {
+      // An einer bestehenden eigenen Baustelle mitbauen.
+      const b = byId(world, c.id);
+      if (b && b.kind === 'building' && b.player === c.player && !b.done && !b.dead) beauftrage(world, c.player, c.ids, b);
     } else if (c.type === 'demolish') {
       demolish(world, c.player, c.id);
     } else if (c.type === 'produce') {
@@ -1156,33 +1188,31 @@ function step(world) {
   return world;
 }
 
+// Wie nah ein Erbauer an seiner Baustelle stehen muss: Spielraum zwischen
+// dem Rand der Baustelle und seinem eigenen Rand, in Dezimetern.
+const BAU_NAH = 60;
+
 /**
- * Erschaffen: Jeder Kommandant gibt der naechsten eigenen Baustelle in
- * seiner Reichweite seine Baukraft -- zusaetzlich zur Gegenwart und auch
- * ausserhalb der Domaene. Lagen vom Tickbeginn, also reihenfolgefrei.
+ * Erschaffen: Jeder Erbauer gibt seinem Bauauftrag seine Baukraft --
+ * zusaetzlich zur Gegenwart und auch ausserhalb der Domaene, aber nur,
+ * solange er direkt daneben steht. Fertig oder zerstoert: Auftrag erledigt.
+ * Lagen vom Tickbeginn, also reihenfolgefrei.
  */
 function erschaffen(world) {
   for (let i = 0; i < world.entities.length; i++) {
     const u = world.entities[i];
-    if (u.dead || u.kind !== 'unit') continue;
+    if (u.dead || u.kind !== 'unit' || !u.auftrag) continue;
     const b = UNITS[u.type].build;
-    if (!b) continue;
     u.baut = 0;
-    let best = null;
-    let bestD = b.range * b.range;
-    for (let k = 0; k < world.entities.length; k++) {
-      const e = world.entities[k];
-      if (e.dead || e.kind !== 'building' || e.done || e.player !== u.player) continue;
-      const dd = dist2(u.x, u.y, e.x, e.y);
-      if (dd < bestD) {
-        bestD = dd;
-        best = e;
-      }
+    const site = byId(world, u.auftrag);
+    if (!b || !site || site.dead || site.done) {
+      u.auftrag = 0;
+      continue;
     }
-    if (best) {
-      best.hilfe += b.power;
-      u.baut = best.id;
-    }
+    const nah = BUILDINGS[site.type].radius + UNITS[u.type].radius + BAU_NAH;
+    if (dist2(u.x, u.y, site.x, site.y) > nah * nah) continue;
+    site.hilfe += b.power;
+    u.baut = site.id;
   }
 }
 
@@ -1230,7 +1260,7 @@ function moveUnits(world) {
     gx[i] = e.tx;
     gy[i] = e.ty;
     const w = UNITS[e.type].weapon;
-    if (!w || !(e.arrived || e.aggro)) continue;
+    if (!w || !(e.arrived || e.aggro) || e.auftrag) continue; // wer baut, jagt nicht
     const leine = e.arrived ? LEASH + w.range : MAP * 2;
     const o = chaseTarget(world, e, w.range + CHASE, leine);
     if (!o) continue;
@@ -1492,6 +1522,7 @@ function hash(world) {
       mix(e.ty);
       mix(e.arrived ? 1 : 0);
       mix(e.aggro ? 1 : 0);
+      mix(e.auftrag || 0);
     } else {
       mix(e.progress);
       mix(e.queueProgress);
@@ -1507,6 +1538,7 @@ function hash(world) {
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   mix(world.cleared.length);
+  mix(world.befehlsRunde);
   mix(world.seed);
   return h >>> 0;
 }
@@ -1840,10 +1872,10 @@ function stepAI(ai, world) {
       if (b.done || dist2(b.x, b.y, haupt.x, haupt.y) > innen * innen) continue;
       if (!site || b.powered < site.powered) site = b;
     }
-    const hin = site || haupt;
-    const nah = site ? UNITS[kdt.type].build.range - 150 : innen;
-    if (dist2(kdt.x, kdt.y, hin.x, hin.y) > nah * nah && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
-      issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
+    if (site) {
+      if (kdt.auftrag !== site.id) issue(world, { type: 'bauen', player: ai.player, ids: [kdt.id], id: site.id });
+    } else if (!kdt.auftrag && dist2(kdt.x, kdt.y, haupt.x, haupt.y) > innen * innen && (kdt.tx !== haupt.x || kdt.ty !== haupt.y)) {
+      issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: haupt.x, y: haupt.y });
     }
   } else if (kdt && !bedrohung) {
     let site = null;
@@ -1857,12 +1889,14 @@ function stepAI(ai, world) {
         site = b;
       }
     }
-    const reichweite = UNITS[kdt.type].build.range - 150;
     const vorn = ziel ? vordersterAnker(world, bauten, ziel) : null;
-    const hin = site || (vene && !veneBereit && sicher(vene, 2000) ? vene : vorn);
-    const nah = site ? reichweite : 700;
-    if (hin && dist2(kdt.x, kdt.y, hin.x, hin.y) > nah * nah && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
-      issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
+    if (site) {
+      if (kdt.auftrag !== site.id) issue(world, { type: 'bauen', player: ai.player, ids: [kdt.id], id: site.id });
+    } else {
+      const hin = vene && !veneBereit && sicher(vene, 2000) ? vene : vorn;
+      if (hin && !kdt.auftrag && dist2(kdt.x, kdt.y, hin.x, hin.y) > 700 * 700 && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
+        issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
+      }
     }
   }
 
@@ -1875,10 +1909,13 @@ function stepAI(ai, world) {
     const reihe = arbeiter.slice().sort((a, b) => a.id - b.id);
     for (let i = 0; i < reihe.length; i++) {
       const u = reihe[i];
-      const hin = baustellen.length ? baustellen[i % baustellen.length] : haupt;
-      const nah = baustellen.length ? UNITS[u.type].build.range - 100 : 900;
-      if (dist2(u.x, u.y, hin.x, hin.y) > nah * nah && (u.tx !== hin.x || u.ty !== hin.y)) {
-        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: hin.x, y: hin.y });
+      if (baustellen.length) {
+        // Wer noch einen Auftrag hat, bleibt dabei; sonst reihum zuteilen.
+        if (u.auftrag && baustellen.some((b) => b.id === u.auftrag)) continue;
+        const site = baustellen[i % baustellen.length];
+        issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
+      } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
+        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
       }
     }
   }
@@ -2100,14 +2137,25 @@ function naechsteVersorgte(world, bauten, zu) {
   return best;
 }
 
+/**
+ * Naechste freie Ader. Gleich weite Adern (die seitlichen Goetterblut-Adern
+ * liegen fuer beide Basen gleich weit) entscheidet die Seite, relativ zur
+ * Richtung zur Kartenmitte -- punktsymmetrisch, nicht die Listenreihenfolge,
+ * die beide Sitzplaetze verschieden behandeln wuerde.
+ */
 function freieAder(world, von, kind) {
   let best = null;
   let bestD = Infinity;
+  let bestSeite = Infinity;
+  const mx = (MAP >> 1) - von.x;
+  const my = (MAP >> 1) - von.y;
   for (const d of world.deposits) {
     if (d.kind !== kind || d.takenBy !== 0) continue;
     const dd = dist2(von.x, von.y, d.x, d.y);
-    if (dd < bestD) {
+    const seite = mx * (d.y - von.y) - my * (d.x - von.x);
+    if (dd < bestD || (dd === bestD && seite < bestSeite)) {
       bestD = dd;
+      bestSeite = seite;
       best = d;
     }
   }
@@ -2220,9 +2268,7 @@ cv.addEventListener('mousedown', (e) => {
   if (e.button === 2) {
     placing = null;
     angriff = false;
-    if (sel.length) {
-      issue(world, { type: 'move', player: ME, ids: sel.slice(), x: s2wx(mx) | 0, y: s2wy(my) | 0 });
-    }
+    if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0);
     return;
   }
   if (e.button === 1) {
@@ -2230,7 +2276,8 @@ cv.addEventListener('mousedown', (e) => {
     return;
   }
   if (placing) {
-    issue(world, { type: 'build', player: ME, building: placing, x: s2wx(mx) | 0, y: s2wy(my) | 0 });
+    // Ausgewaehlte Erbauer bekommen den Auftrag und gehen hin.
+    issue(world, { type: 'build', player: ME, building: placing, x: s2wx(mx) | 0, y: s2wy(my) | 0, ids: erbauer() });
     if (!e.shiftKey) placing = null;
     return;
   }
@@ -2347,6 +2394,28 @@ mini.addEventListener('mousedown', (e) => {
   cam.x = (e.offsetX / mini.clientWidth) * MAP;
   cam.y = (e.offsetY / mini.clientHeight) * MAP;
 });
+
+/** Ausgewaehlte eigene Einheiten, die bauen koennen. */
+function erbauer() {
+  return sel.filter((id) => {
+    const e = byId(world, id);
+    return e && e.kind === 'unit' && UNITS[e.type].build;
+  });
+}
+
+/**
+ * Rechtsklick: auf eine eigene Baustelle -- Erbauer helfen mit, die anderen
+ * gehen hin. Sonst: alle bewegen sich dorthin.
+ */
+function befehl(x, y) {
+  const site = world.entities.find(
+    (b) => b.kind === 'building' && b.player === ME && !b.done && (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 60) ** 2
+  );
+  const bauer = site ? erbauer() : [];
+  const rest = sel.filter((id) => !bauer.includes(id));
+  if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id });
+  if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y });
+}
 
 function bauListe() {
   return meFaction === 'mensch'
@@ -2582,8 +2651,8 @@ function drawEntities() {
     } else {
       const def = UNITS[e.type];
       const r = Math.max(def.commander ? 6 : 2.5, def.radius * cam.z);
-      if (def.commander) {
-        // Baulinie zur Baustelle, an der er gerade erschafft
+      if (def.build) {
+        // Baulinie zur Baustelle, an der er gerade baut
         const site = e.baut ? byId(world, e.baut) : null;
         if (site) {
           ctx.strokeStyle = col;

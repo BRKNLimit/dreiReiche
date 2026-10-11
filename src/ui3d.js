@@ -733,6 +733,25 @@ function neu(f, zuschauen = false) {
   renderBar();
 }
 
+/** Ausgewaehlte eigene Einheiten, die bauen koennen. */
+function erbauer3() {
+  return sel.filter((id) => {
+    const e = byId(world, id);
+    return e && e.kind === 'unit' && UNITS[e.type].build;
+  });
+}
+
+/** Rechtsklick: auf eigene Baustelle -- Erbauer helfen mit, sonst bewegen. */
+function befehl3(x, y) {
+  const site = world.entities.find(
+    (b) => b.kind === 'building' && b.player === ME && !b.done && (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 80) ** 2
+  );
+  const bauer = site ? erbauer3() : [];
+  const rest = sel.filter((id) => !bauer.includes(id));
+  if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id });
+  if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y });
+}
+
 function bauListe() {
   return meFaction === 'mensch'
     ? ['schmiede', 'saege', 'turm', 'kaserne', 'schacht', 'banner', 'kapelle']
@@ -754,7 +773,10 @@ cv3.addEventListener('mousedown', (e) => {
   const p = aufBoden(mx, my);
   if (e.button === 2) {
     placing = null;
-    if (sel.length) issue(world, { type: angriff ? 'attack' : 'move', player: ME, ids: sel.slice(), x: p.x, y: p.y });
+    if (sel.length) {
+      if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y });
+      else befehl3(p.x, p.y);
+    }
     angriff = false;
     return;
   }
@@ -764,7 +786,8 @@ cv3.addEventListener('mousedown', (e) => {
     return;
   }
   if (placing) {
-    issue(world, { type: 'build', player: ME, building: placing, x: p.x, y: p.y });
+    // Ausgewaehlte Erbauer bekommen den Auftrag und gehen hin.
+    issue(world, { type: 'build', player: ME, building: placing, x: p.x, y: p.y, ids: erbauer3() });
     if (!e.shiftKey) placing = null;
     return;
   }
@@ -1163,7 +1186,6 @@ function zeichneDomaenen() {
 
 function zeichneSchuesse(dt) {
   schuesse = schuesse.filter((s) => (s.t -= dt / 1000) > 0);
-  if (!schuesse.length) return;
   const v = [];
   for (const s of schuesse) {
     const a = byId(world, s.a);
@@ -1187,6 +1209,16 @@ function zeichneSchuesse(dt) {
   }
   zeichneInstanzen(MODELLE.pfeil);
   zeichneInstanzen(MODELLE.kugel);
+  // Baulinien: Erbauer zu ihrer Baustelle
+  for (const e of world.entities) {
+    if (e.kind !== 'unit' || !e.baut) continue;
+    const site = byId(world, e.baut);
+    if (!site) continue;
+    const [ux, uy] = lage(e);
+    const f = teamFarbe(e.player);
+    v.push(ux * DM, 2, uy * DM, f[0], f[1], f[2], 0.7);
+    v.push(site.x * DM, 1, site.y * DM, f[0], f[1], f[2], 0.15);
+  }
   if (!v.length) return;
   gl.useProgram(PROG_L);
   gl.uniformMatrix4fv(gl.getUniformLocation(PROG_L, 'uVP'), false, VP);
@@ -1268,7 +1300,7 @@ function zeichneUeberlagerung(now) {
     octx.font = '12px ui-sans-serif, system-ui, sans-serif';
     octx.textAlign = 'center';
     const drin = inDomain(world, ME, hover.x, hover.y);
-    octx.fillText(BUILDINGS[placing].name + (drin ? '' : ' — außerhalb der Domäne: nur Kommandant und Arbeiter bauen hier'), maus.x, maus.y - 24);
+    octx.fillText(BUILDINGS[placing].name + (drin ? '' : ' — außerhalb der Domäne: nur Erbauer bauen hier (vorher auswählen)'), maus.x, maus.y - 24);
   }
 }
 

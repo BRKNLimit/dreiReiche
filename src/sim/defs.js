@@ -279,9 +279,8 @@ export const UNITS = {
     cost: { fron: 40 },
     buildTime: 100,
     worker: true,
-    // Baut wie der Kommandant, nur schwaecher: die naechste eigene Baustelle
-    // in Reichweite waechst mit seiner Kraft, auch ausserhalb der Domaene.
-    build: { range: 400, power: 400 },
+    // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
+    build: { power: 400 },
     weapon: { range: 300, damage: 4, cooldown: 8 },
   },
   soldat: {
@@ -322,9 +321,9 @@ export const UNITS = {
   // Jeder Spieler hat genau einen, einmalig: Faellt er, ist die Partie
   // verloren. Sonst gibt die Regel nichts vor -- ob er hinten baut oder
   // vorn kaempft, entscheidet der Spieler.
-  //   build: die naechste eigene Baustelle in Reichweite waechst mit seiner
-  //          Kraft (Promille je Tick, wie volle Gegenwart), auch ausserhalb
-  //          der Domaene -- so entstehen Aussenposten.
+  //   build: Baukraft (Promille je Tick, wie volle Gegenwart). Gebaut wird
+  //          nur der eigene Bauauftrag, und nur direkt daneben -- auch
+  //          ausserhalb der Domaene, so entstehen Aussenposten.
   held: {
     name: 'Held',
     faction: 'mensch',
@@ -335,7 +334,7 @@ export const UNITS = {
     buildTime: 0,
     weapon: { range: 480, damage: 45, cooldown: 6 },
     commander: true,
-    build: { range: 500, power: 1000 },
+    build: { power: 1000 },
   },
 
   // ------------------------------------------------------------- Gott
@@ -350,7 +349,7 @@ export const UNITS = {
     buildTime: 0,
     weapon: { range: 440, damage: 42, cooldown: 6 },
     commander: true,
-    build: { range: 500, power: 1000 },
+    build: { power: 1000 },
   },
   dryade: {
     name: 'Dryade',
@@ -361,7 +360,7 @@ export const UNITS = {
     cost: { fron: 90 },
     buildTime: 220,
     worker: true,
-    build: { range: 400, power: 700 },
+    build: { power: 700 },
     weapon: { range: 380, damage: 8, cooldown: 7 },
   },
   wolf: {

@@ -72,6 +72,7 @@ export function createWorld(opts = {}) {
     cleared: [], // gerodete Flaechen: { x, y, r }
     regions: [],
     pending: [],
+    befehlsRunde: 0, // zaehlt Ticks mit Befehlen mehrerer Spieler, siehe applyCommands
     events: [],
     over: false,
     winner: -1,
@@ -157,6 +158,7 @@ export function spawnUnit(world, player, type, x, y) {
     tx: x | 0,
     ty: y | 0,
     arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
+    auftrag: 0, // Baustelle, die dieser Erbauer bauen soll (0 = keine)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
     cooldown: 0,
     dead: false,
@@ -186,6 +188,22 @@ export function spawnKommandant(world, player) {
   const u = spawnUnit(world, player, type, x, y);
   world.events.push({ t: 'spawned', id: u.id });
   return u;
+}
+
+/**
+ * Bauauftrag: Jeder genannte eigene Erbauer (UNITS[...].build) geht zur
+ * Baustelle und baut sie. Ein Auftrag je Einheit -- der neue ersetzt den alten.
+ */
+function beauftrage(world, player, ids, site) {
+  for (let k = 0; k < ids.length; k++) {
+    const e = byId(world, ids[k]);
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !UNITS[e.type].build) continue;
+    e.auftrag = site.id;
+    e.tx = site.x;
+    e.ty = site.y;
+    e.arrived = false;
+    e.aggro = false;
+  }
 }
 
 /** Der lebende Kommandant eines Spielers, oder null. */
@@ -218,14 +236,22 @@ export function issue(world, cmd) {
 }
 
 /**
- * Befehle reihum: in jedem Tick beginnt ein anderer Spieler. Wollen zwei
- * dieselbe Ader im selben Tick, gewinnt nicht immer derselbe Sitzplatz.
+ * Befehle reihum: Geben in einem Tick mehrere Spieler Befehle, beginnt jedes
+ * Mal ein anderer. Wollen zwei dieselbe Ader im selben Tick, gewinnt nicht
+ * immer derselbe Sitzplatz. Ein eigener Zaehler statt der Tick-Paritaet --
+ * die KI handelt alle 22 Ticks, also immer in geraden Ticks, und haette so
+ * jeden Gleichstand Spieler 0 zugeschlagen.
  * Innerhalb eines Spielers bleibt die Reihenfolge seiner Befehle erhalten.
  */
 function applyCommands(world) {
   const n = world.players.length;
+  let mehrere = false;
+  for (let i = 1; i < world.pending.length && !mehrere; i++) {
+    if (world.pending[i].player !== world.pending[0].player) mehrere = true;
+  }
+  if (mehrere) world.befehlsRunde++;
   for (let k = 0; k < n; k++) {
-    const player = (world.tick + k) % n;
+    const player = (world.befehlsRunde + k) % n;
     for (let i = 0; i < world.pending.length; i++) {
       if (world.pending[i].player === player) applyCommand(world, world.pending[i]);
     }
@@ -243,10 +269,17 @@ function applyCommand(world, c) {
           e.ty = c.y | 0;
           e.arrived = false;
           e.aggro = c.type === 'attack';
+          e.auftrag = 0; // ein neuer Befehl ersetzt den Bauauftrag
         }
       }
     } else if (c.type === 'build') {
-      tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
+      // Mit ids: die genannten Erbauer bekommen den Auftrag fuer die neue Baustelle.
+      const b = tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
+      if (b && c.ids) beauftrage(world, c.player, c.ids, b);
+    } else if (c.type === 'bauen') {
+      // An einer bestehenden eigenen Baustelle mitbauen.
+      const b = byId(world, c.id);
+      if (b && b.kind === 'building' && b.player === c.player && !b.done && !b.dead) beauftrage(world, c.player, c.ids, b);
     } else if (c.type === 'demolish') {
       demolish(world, c.player, c.id);
     } else if (c.type === 'produce') {
@@ -622,33 +655,31 @@ export function step(world) {
   return world;
 }
 
+// Wie nah ein Erbauer an seiner Baustelle stehen muss: Spielraum zwischen
+// dem Rand der Baustelle und seinem eigenen Rand, in Dezimetern.
+const BAU_NAH = 60;
+
 /**
- * Erschaffen: Jeder Kommandant gibt der naechsten eigenen Baustelle in
- * seiner Reichweite seine Baukraft -- zusaetzlich zur Gegenwart und auch
- * ausserhalb der Domaene. Lagen vom Tickbeginn, also reihenfolgefrei.
+ * Erschaffen: Jeder Erbauer gibt seinem Bauauftrag seine Baukraft --
+ * zusaetzlich zur Gegenwart und auch ausserhalb der Domaene, aber nur,
+ * solange er direkt daneben steht. Fertig oder zerstoert: Auftrag erledigt.
+ * Lagen vom Tickbeginn, also reihenfolgefrei.
  */
 function erschaffen(world) {
   for (let i = 0; i < world.entities.length; i++) {
     const u = world.entities[i];
-    if (u.dead || u.kind !== 'unit') continue;
+    if (u.dead || u.kind !== 'unit' || !u.auftrag) continue;
     const b = UNITS[u.type].build;
-    if (!b) continue;
     u.baut = 0;
-    let best = null;
-    let bestD = b.range * b.range;
-    for (let k = 0; k < world.entities.length; k++) {
-      const e = world.entities[k];
-      if (e.dead || e.kind !== 'building' || e.done || e.player !== u.player) continue;
-      const dd = dist2(u.x, u.y, e.x, e.y);
-      if (dd < bestD) {
-        bestD = dd;
-        best = e;
-      }
+    const site = byId(world, u.auftrag);
+    if (!b || !site || site.dead || site.done) {
+      u.auftrag = 0;
+      continue;
     }
-    if (best) {
-      best.hilfe += b.power;
-      u.baut = best.id;
-    }
+    const nah = BUILDINGS[site.type].radius + UNITS[u.type].radius + BAU_NAH;
+    if (dist2(u.x, u.y, site.x, site.y) > nah * nah) continue;
+    site.hilfe += b.power;
+    u.baut = site.id;
   }
 }
 
@@ -696,7 +727,7 @@ function moveUnits(world) {
     gx[i] = e.tx;
     gy[i] = e.ty;
     const w = UNITS[e.type].weapon;
-    if (!w || !(e.arrived || e.aggro)) continue;
+    if (!w || !(e.arrived || e.aggro) || e.auftrag) continue; // wer baut, jagt nicht
     const leine = e.arrived ? LEASH + w.range : MAP * 2;
     const o = chaseTarget(world, e, w.range + CHASE, leine);
     if (!o) continue;
@@ -960,6 +991,7 @@ export function hash(world) {
       mix(e.ty);
       mix(e.arrived ? 1 : 0);
       mix(e.aggro ? 1 : 0);
+      mix(e.auftrag || 0);
     } else {
       mix(e.progress);
       mix(e.queueProgress);
@@ -975,6 +1007,7 @@ export function hash(world) {
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   mix(world.cleared.length);
+  mix(world.befehlsRunde);
   mix(world.seed);
   return h >>> 0;
 }

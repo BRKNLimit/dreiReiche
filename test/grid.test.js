@@ -492,19 +492,20 @@ test('Kampf ist gleichzeitig: kein Erstschlag durch Listenplatz', () => {
   assert.equal(b.dead, true, 'beide treffen im selben Tick');
 });
 
-test('Befehle reihum: dieselbe Ader geht nicht immer an Spieler 0', () => {
+test('Befehle reihum: umkaempfte Adern gehen abwechselnd an beide Sitzplaetze', () => {
+  // Zwei Gleichstaende in derselben Partie, beide in geraden Ticks -- so wie
+  // die KI handelt. Der Vorrang muss trotzdem wechseln.
+  const w = bare('mensch', 'mensch');
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  spawnBuilding(w, 1, 'halle', 15000, 15000, true);
+  w.deposits.push({ x: 9000, y: 9000, kind: 'fron', takenBy: 0 }, { x: 11000, y: 11000, kind: 'fron', takenBy: 0 });
   const sieger = [];
-  for (let t = 0; t < 2; t++) {
-    const w = bare('mensch', 'mensch');
-    spawnBuilding(w, 0, 'halle', 5000, 5000, true);
-    spawnBuilding(w, 1, 'halle', 15000, 15000, true);
-    w.deposits.push({ x: 10000, y: 10000, kind: 'fron', takenBy: 0 });
-    w.tick = t;
-    issue(w, { type: 'build', player: 0, building: 'saege', x: 10000, y: 10000 });
-    issue(w, { type: 'build', player: 1, building: 'saege', x: 10000, y: 10000 });
+  for (const [x, y] of [[9000, 9000], [11000, 11000]]) {
+    while (w.tick % 2) step(w);
+    issue(w, { type: 'build', player: 0, building: 'saege', x, y });
+    issue(w, { type: 'build', player: 1, building: 'saege', x, y });
     step(w);
-    const s = w.entities.find((e) => e.type === 'saege');
-    sieger.push(s.player);
+    sieger.push(w.entities.find((e) => e.type === 'saege' && e.x === x).player);
   }
   assert.deepEqual(sieger.sort(), [0, 1]);
 });
@@ -656,23 +657,79 @@ test('jeder Spieler beginnt mit genau einem Kommandanten seiner Fraktion', () =>
   ]);
 });
 
-test('der Kommandant baut auch außerhalb der Domäne', () => {
+test('der Kommandant baut seinen Auftrag auch außerhalb der Domäne', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 3000, 3000, true);
   const turm = tryPlace(w, 0, 'turm', 12000, 12000);
   const k = spawnUnit(w, 0, 'held', 12200, 12000);
-  for (let i = 0; i < BUILDINGS.turm.buildTime + 2; i++) step(w);
+  issue(w, { type: 'bauen', player: 0, ids: [k.id], id: turm.id });
+  for (let i = 0; i < BUILDINGS.turm.buildTime + 10; i++) step(w);
   assert.equal(turm.done, true, 'fertig ohne Gegenwart, allein durch den Kommandanten');
-  assert.equal(k.dead, false);
+  assert.equal(k.auftrag, 0, 'Auftrag erledigt');
 });
 
-test('ohne Kommandant in der Nähe steht dieselbe Baustelle still', () => {
+test('ohne Auftrag baut ein Erbauer nichts, auch direkt daneben', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 3000, 3000, true);
   const turm = tryPlace(w, 0, 'turm', 12000, 12000);
-  spawnUnit(w, 0, 'held', 14000, 14000); // zu weit weg
-  for (let i = 0; i < BUILDINGS.turm.buildTime + 2; i++) step(w);
+  spawnUnit(w, 0, 'held', 12100, 12000);
+  for (let i = 0; i < 100; i++) step(w);
   assert.equal(turm.progress, 0);
+});
+
+test('ein Erbauer baut nur direkt daneben: erst hinlaufen, dann bauen', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  const turm = tryPlace(w, 0, 'turm', 12000, 12000);
+  const b = spawnUnit(w, 0, 'bauer', 9000, 12000); // 300 m entfernt
+  issue(w, { type: 'bauen', player: 0, ids: [b.id], id: turm.id });
+  for (let i = 0; i < 20; i++) step(w);
+  assert.equal(turm.progress, 0, 'unterwegs wird nicht gebaut');
+  for (let i = 0; i < 200; i++) step(w);
+  assert.ok(turm.progress > 0, 'angekommen: es geht voran');
+  const nah = BUILDINGS.turm.radius + UNITS.bauer.radius + 60;
+  assert.ok((b.x - turm.x) ** 2 + (b.y - turm.y) ** 2 <= nah * nah, 'steht daneben');
+});
+
+test('ein Auftrag je Einheit: der neue ersetzt den alten', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  const a = tryPlace(w, 0, 'turm', 12000, 12000);
+  const c = tryPlace(w, 0, 'turm', 12000, 12600);
+  const k = spawnUnit(w, 0, 'held', 12000, 12300); // zwischen beiden
+  issue(w, { type: 'bauen', player: 0, ids: [k.id], id: a.id });
+  issue(w, { type: 'bauen', player: 0, ids: [k.id], id: c.id });
+  for (let i = 0; i < 60; i++) step(w);
+  assert.equal(k.auftrag, c.id);
+  assert.equal(a.progress, 0, 'der alte Auftrag bekommt nichts');
+  assert.ok(c.progress > 0);
+});
+
+test('ein Bewegungsbefehl beendet den Bauauftrag', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  const turm = tryPlace(w, 0, 'turm', 12000, 12000);
+  const k = spawnUnit(w, 0, 'held', 12100, 12000);
+  issue(w, { type: 'bauen', player: 0, ids: [k.id], id: turm.id });
+  for (let i = 0; i < 10; i++) step(w);
+  const stand = turm.progress;
+  assert.ok(stand > 0);
+  issue(w, { type: 'move', player: 0, ids: [k.id], x: 12150, y: 12000 });
+  for (let i = 0; i < 30; i++) step(w);
+  assert.equal(k.auftrag, 0);
+  assert.equal(turm.progress, stand, 'steht noch daneben, baut aber nicht mehr');
+});
+
+test('beim Platzieren bekommen ausgewaehlte Erbauer den Auftrag', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 3000, 3000, true);
+  const b = spawnUnit(w, 0, 'bauer', 11800, 12000);
+  const s = spawnUnit(w, 0, 'soldat', 11800, 12100);
+  issue(w, { type: 'build', player: 0, building: 'turm', x: 12000, y: 12000, ids: [b.id, s.id] });
+  step(w);
+  const turm = w.entities.find((e) => e.type === 'turm');
+  assert.equal(b.auftrag, turm.id, 'der Bauer baut');
+  assert.equal(s.auftrag || 0, 0, 'der Soldat kann nicht bauen');
 });
 
 test('in der Domäne baut der Kommandant zusätzlich zur Gegenwart', () => {
@@ -681,7 +738,10 @@ test('in der Domäne baut der Kommandant zusätzlich zur Gegenwart', () => {
     spawnBuilding(w, 0, 'turm', 5000, 5000, true);
     spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
     const b = spawnBuilding(w, 0, 'kaserne', 6000, 5800, false);
-    if (mitKdt) spawnUnit(w, 0, 'held', 6200, 5800);
+    if (mitKdt) {
+      const k = spawnUnit(w, 0, 'held', 6200, 5800);
+      issue(w, { type: 'bauen', player: 0, ids: [k.id], id: b.id });
+    }
     let t = 0;
     while (!b.done && t < 5000) {
       step(w);

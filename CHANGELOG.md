@@ -3,6 +3,17 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.11 — Bauaufträge
+
+- Erbauer (Bauer, Dryade, Kommandant) bauen nur ihren Auftrag und nur direkt
+  daneben; ein Auftrag je Einheit, ein neuer Befehl ersetzt ihn. Aufträge
+  beim Platzieren mit ausgewählten Erbauern oder per Rechtsklick auf eine
+  eigene Baustelle. Baulinien in beiden Ansichten.
+- Sitzvorteil beseitigt: Der Vorrang bei gleichzeitigen Befehlen wechselt
+  jetzt per Zähler statt nach Tick-Parität (die KI handelt immer in geraden
+  Ticks), und gleich weite Adern wählt die KI punktsymmetrisch.
+- Messung (160 Partien): Menschen 74 : Gott 77, Sitz 0 gewinnt 84 von 151.
+
 ## 0.10 — Viele gegen wenige, Schreine, 3D-Ansicht
 
 - Neue Einheiten nach Vorgabe des Nutzers: Menschen viele günstige (Bauer,

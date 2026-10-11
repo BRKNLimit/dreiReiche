@@ -328,10 +328,10 @@ export function stepAI(ai, world) {
       if (b.done || dist2(b.x, b.y, haupt.x, haupt.y) > innen * innen) continue;
       if (!site || b.powered < site.powered) site = b;
     }
-    const hin = site || haupt;
-    const nah = site ? UNITS[kdt.type].build.range - 150 : innen;
-    if (dist2(kdt.x, kdt.y, hin.x, hin.y) > nah * nah && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
-      issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
+    if (site) {
+      if (kdt.auftrag !== site.id) issue(world, { type: 'bauen', player: ai.player, ids: [kdt.id], id: site.id });
+    } else if (!kdt.auftrag && dist2(kdt.x, kdt.y, haupt.x, haupt.y) > innen * innen && (kdt.tx !== haupt.x || kdt.ty !== haupt.y)) {
+      issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: haupt.x, y: haupt.y });
     }
   } else if (kdt && !bedrohung) {
     let site = null;
@@ -345,12 +345,14 @@ export function stepAI(ai, world) {
         site = b;
       }
     }
-    const reichweite = UNITS[kdt.type].build.range - 150;
     const vorn = ziel ? vordersterAnker(world, bauten, ziel) : null;
-    const hin = site || (vene && !veneBereit && sicher(vene, 2000) ? vene : vorn);
-    const nah = site ? reichweite : 700;
-    if (hin && dist2(kdt.x, kdt.y, hin.x, hin.y) > nah * nah && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
-      issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
+    if (site) {
+      if (kdt.auftrag !== site.id) issue(world, { type: 'bauen', player: ai.player, ids: [kdt.id], id: site.id });
+    } else {
+      const hin = vene && !veneBereit && sicher(vene, 2000) ? vene : vorn;
+      if (hin && !kdt.auftrag && dist2(kdt.x, kdt.y, hin.x, hin.y) > 700 * 700 && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
+        issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
+      }
     }
   }
 
@@ -363,10 +365,13 @@ export function stepAI(ai, world) {
     const reihe = arbeiter.slice().sort((a, b) => a.id - b.id);
     for (let i = 0; i < reihe.length; i++) {
       const u = reihe[i];
-      const hin = baustellen.length ? baustellen[i % baustellen.length] : haupt;
-      const nah = baustellen.length ? UNITS[u.type].build.range - 100 : 900;
-      if (dist2(u.x, u.y, hin.x, hin.y) > nah * nah && (u.tx !== hin.x || u.ty !== hin.y)) {
-        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: hin.x, y: hin.y });
+      if (baustellen.length) {
+        // Wer noch einen Auftrag hat, bleibt dabei; sonst reihum zuteilen.
+        if (u.auftrag && baustellen.some((b) => b.id === u.auftrag)) continue;
+        const site = baustellen[i % baustellen.length];
+        issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
+      } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
+        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
       }
     }
   }
@@ -588,14 +593,25 @@ function naechsteVersorgte(world, bauten, zu) {
   return best;
 }
 
+/**
+ * Naechste freie Ader. Gleich weite Adern (die seitlichen Goetterblut-Adern
+ * liegen fuer beide Basen gleich weit) entscheidet die Seite, relativ zur
+ * Richtung zur Kartenmitte -- punktsymmetrisch, nicht die Listenreihenfolge,
+ * die beide Sitzplaetze verschieden behandeln wuerde.
+ */
 function freieAder(world, von, kind) {
   let best = null;
   let bestD = Infinity;
+  let bestSeite = Infinity;
+  const mx = (MAP >> 1) - von.x;
+  const my = (MAP >> 1) - von.y;
   for (const d of world.deposits) {
     if (d.kind !== kind || d.takenBy !== 0) continue;
     const dd = dist2(von.x, von.y, d.x, d.y);
-    if (dd < bestD) {
+    const seite = mx * (d.y - von.y) - my * (d.x - von.x);
+    if (dd < bestD || (dd === bestD && seite < bestSeite)) {
       bestD = dd;
+      bestSeite = seite;
       best = d;
     }
   }

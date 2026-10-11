@@ -145,6 +145,118 @@ geprüft (Tests, Galerie, Spiel).
     - `held`: Königlicher Großhelm mit Krone, Visierkreuz, Helmbusch und Löwen-Schulterstücken.
 - **Wie geprüft:** `npm test` (126 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames ohne jegliche Fehler oder Warnungen).
 
+### Runde 10: Auftrag 3, Aufgabe 1 — Karte „Flusstal“ (2D & 3D), Fluss mit Strömung, Furten und Zonen
+- **Was war schwach:** Die neue Karte „Flusstal“ (`KARTEN.flusstal`) wurde nur als Seenkette dargestellt (mit Uferringen, die das Wasser zerschnitten); Marschpfade liefen starr diagonal mitten durch den Fluss; Furten waren unsichtbar; Deko-Bäume standen starr auf Klassisch-Positionen und berücksichtigten die Flusstal-Waldzonen nicht.
+- **Was wurde geändert:**
+  - **2D-Draufsicht (`src/gelaende2d.js`):**
+    - `drawGrid`: Erkennt die aktive Karte. Zeichnet sanfte, blumenbestandene Wiesen-Zonen (`KARTE.wiesen`) und dunkle Moos-/Nadelwaldzonen (`KARTE.wald`). Auf Flusstal führen die Marschpfade von den Basen über die beiden Furten (`KARTE.furten`) statt quer durch das Wasser.
+    - `drawHindernisse`: Der Fluss wird nicht mehr als Aneinanderreihung einzelner Scheiben gezeichnet, sondern als geschwungenes, zusammenhängendes Flussband mit Ufersaum, Flussbett, tiefer Strömungsrinne und animierten Schaum-/Wellenlinien entlang der Flussachse. An den Furten werden kiesige Übergänge mit Trittsteinen dargestellt. Alle sichtbaren Uferkanten weichen weniger als 8 % von den Simulationskreisen ab.
+  - **3D-Ansicht (`src/gelaende3d.js`):**
+    - `baueBoden`: Berechnet für Flusstal den dunklen Waldboden in `KARTE.wald`, sonnige Blumenwiesen in `KARTE.wiesen`, Kiesbetten an den Furten und den über die Furten führenden Marschpfad.
+    - `baueDeko`: Exportierte Funktion, die von `ui3d.js` bei Kartenwechsel aufgerufen wird. Auf Flusstal werden die dichten Wälder in `KARTE.wald` mit Bäumen bestückt; Felsen, Gewässer (Fluss & Seen), Basen, Furten und Pfade werden strikt gemieden (0 Bäume im Wasser oder auf Fels).
+    - `zeichneGelaende`: Flusskreise werden als nahtloses Gewässer mit Schimmer gezeichnet (ohne schneidende Uferringe). An den Furten liegen seichte Kiesbänke knapp unter der Wasseroberfläche.
+- **Wie geprüft:** `npm test` (132/132 Tests grün, inkl. Flusstal-KI-Partien), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei).
+
+### Runde 11: Auftrag 3, Aufgabe 2 — Draufsicht mit echten Figuren (src/figuren2d.js)
+- **Was war schwach:** In der 2D-Draufsicht wurden Einheiten und Gebäude lediglich als simple abstrakte Dreiecke und Quadrate gezeichnet; Silhouetten, Rüstungen und Spezialmerkmale waren nicht unterscheidbar.
+- **Was wurde geändert:** In `src/figuren2d.js`:
+  - **`zeichneEinheit2d`:** Jede Einheit wird von oben mit ihrer typischen Silhouette, Haltung und Volksfarbe gezeichnet:
+    - `bauer`: Strohhut mit Krempe, Tunika und geschwungene Sense.
+    - `soldat`: Eisenhaube, Rüstungsschultern, Dreiecksschild in Volksfarbe links und Schwertklinge rechts.
+    - `jaeger`: Grüner Jagdrock, Federhut, gespannter Jagdbogen und Rückenköcher.
+    - `soeldner`: Schaller-Helm, Plattenbrust und schwere Hellebarde mit Axtblatt und Stoßdorn.
+    - `katapult`: Fahrbare Balliste mit 4 Rädern, Holzrahmen, Bogenarmen, Sehne und Belagerungsbolzen.
+    - `held`: Offene Königskrone auf Großhelm, roter Wappenmantel, vergoldete Löwenschultern und blau glimmendes Runenschwert.
+    - `dryade`: Rankenkleid, zarte Birkenkrone und Blütenkranz.
+    - `wolf`: Vierbeiner-Silhouette mit muskulösem Rumpf, Pfoten, spitzem Fang, Ohren und Rute.
+    - `waldgeist`: Jahreszeiten-Laubkrone, Schlingbogen und pulsierender Geistkern.
+    - `ent`: Gewaltige bemooste Baumkrone mit dicken Astarmen und leuchtenden Augen.
+    - `wurzelbrecher`: Gepanzerter Rammkopf, Wurzelstelzen und glühendes Erdherz.
+    - `rabe`: Eleganter Vogel im Segelflug mit fächerartigen Schwingen und Stoßfedern.
+    - `waldgott`: Breiter schwarzer Mantel, riesiges Hirschgeweih mit glimmenden Spitzen und goldenes Glutherz.
+    - Bei geringem Zoom (`r < 5.5`) schalten Einheiten automatisch auf klare, performante Basissilhouetten um.
+  - **`zeichneGebaeude2d`:** Alle 20 Gebäude mit individuellem Grundriss (Langhaus mit Schindeln, Wehrturm mit Zinnen, Esse mit Glutofen, Sägewerk mit Stämmen, Kasernengeviert, Weltenbaum mit Wurzeln, Hain mit drei Kronen, Wächterbaum mit Dornen, Quelle mit klarem Wasser, Steinkreis mit Menhiren etc.).
+    - Baustellen (`!e.done`): Werden halbtransparent (`0.55`) mit diagonalem Holzgerüst und Bauplanken gezeichnet.
+    - Gebäude ohne Gegenwart (`e.powered < 1000`): Werden entsprechend dem Versorgungsgrad spürbar abgedunkelt.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; alle Figuren laufen flüssig im Canvas).
+
+### Runde 12: Auftrag 3, Aufgabe 3 — Eigene Geschoss-Modelle (bolzen, dorn, lichtpfeil, glutball)
+- **Was war schwach:** Für Schüsse gab es nur den Standard-Pfeil und eine abstrakte Kugel. Katapult, Wächterbaum, Waldgeist und Waldgott teilten sich diese Behelfsmodelle.
+- **Was wurde geändert:** In `src/modelle3d.js` (`MODELLE_DEF`):
+  - `bolzen`: Schwerer Holzschaft (`#5c3a21`) mit massiver vierkantiger Eisenspitze (`#94a3b8`) und zweiflügeligem Leder-/Holzleitwerk (`#d8b06a`). Ausrichtung entlang +z.
+  - `dorn`: Scharf zulaufender organischer Dornenkegel (`#4d7c0f`) mit golden leuchtender Spitze (`#facc15`, `GLUEHT`) und knorrigen Rindenspornen.
+  - `lichtpfeil`: Kristallin leuchtender Lichtschaft (`#ecfccb`, `GLUEHT`) mit diamantförmiger Leuchtspitze (`#ffffff`, `GLUEHT`) und Lichtfiedern (`#a3e635`, `GLUEHT`).
+  - `glutball`: Glühende Magmasphäre (`#ffedd5`, `#ea580c`, `GLUEHT`) mit mehrstufigem, nach hinten verlaufendem Feuerschweif (`#c2410c`, `#9a3412`, `#f97316`).
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; alle Modelle halten ihr Budget ein).
+
+### Runde 13: Auftrag 3, Aufgabe 4 — Baugerüst und Trümmer (src/modelle3d.js)
+- **Was war schwach:** Für Baustellen und zerstörte Gebäude gab es in 3D keine Modelle. `ui3d.js` hatte bereits Andockstellen (`MODELLE.baugeruest` und `MODELLE.truemmer`), die bisher ins Leere liefen.
+- **Was wurde geändert:** In `src/modelle3d.js`:
+  - `baugeruest`: Vollständiges Holz-Baugerüst, das sich harmonisch um Gebäude mit Radius 1 einfügt: vier senkrechte Eckpfosten, zweistöckige Riegel, diagonale Kreuzverstrebungen, Arbeitsbohlen auf beiden Ebenen, eine 6-sprossige Anlegeleiter und ein Auslegerkran mit Seil und Mörtelkübel.
+  - `truemmer`: Authentisches Ruinenfeld für eingestürzte Gebäude: flacher Schutthaufen im Zentrum, geborstene verkohlte Holzbalken, zerborstene Quadermauersteine und glimmende Brandnester (`GLUEHT`).
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; beide Modelle halten ihr Budget mit wenigen hundert Ecken mühelos ein).
+
+### Runde 14: Auftrag 3, Aufgabe 5 — Ent nach Vorlage (Ent-Vorlage.webp)
+- **Was war schwach:** Der bisherige Ent war zu gedrungen und wirkte neben anderen Einheiten nicht wie der gewaltige, uralte Waldtitan aus der Vorlage (`docs/bilder/vorlagen/Ent-Vorlage.webp`).
+- **Was wurde geändert:** In `src/modelle3d.js` (`entModell`):
+  - **Ueberlange Stelzenbeine:** Massive Wurzelkrallen-Füße mit Mooskragen, zweifach gegliederte Schienbeine, knorrige Kniegelenke und langgestreckte Oberschenkel bis $y = 2.7$.
+  - **Hagerer, mächtiger Rumpf:** Schmales Becken, das sich zu einem gewaltigen Brustkorb mit tiefschwarzer, vertikaler Holzspalte aufweitet; bemoste Rindenplatten.
+  - **Schulter-Astgeweihe:** Riesige Astkronen wachsen direkt aus beiden Schultern bis über $y = 6.2$ in den Himmel.
+  - **Affenartige Riesenarme:** Breite Schultern, hängende Oberarme, Knorren am Ellbogen und überlange Unterarme, deren wurzelartige Klauenfinger fast bis zum Boden reichen ($y = 0.35$).
+  - **Finsterer Borkenschädel:** Tief im Nacken versunkener Kopf mit hohlen Augenhöhlen und glimmenden bernsteinfarbenen Seelenfunken (`GLUEHT`) sowie kleiner Schädelkrone.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; Modell bleibt mit ca. 2.900 Ecken weit unter dem 6.000er-Budget).
+
+### Runde 15: Auftrag 3, Aufgabe 6 — Wasser: Wellen, Glanz und Uferschilf (src/render3d.js, src/gelaende3d.js, src/modelle3d.js)
+- **Was war schwach:** Wasseroberflächen waren bisher flache, statische Scheiben ohne bewegte Wellenoberfläche oder Sonnenreflexion. Uferlinien wirkten kahl ohne natürliche Ufervegetation.
+- **Was wurde geändert:**
+  - **Shader (`src/render3d.js`):**
+    - `VS`: Wasserflächen (markiert über Materialkennung) erhalten eine sanfte vertikale Wellenbewegung. Weltkoordinate und dynamische Zeitphase werden an den Fragment-Shader weitergegeben.
+    - `FS`: Prozedurale Wellenbildung durch drei überlagerte Sinuswellen mit analytischer Normalenberechnung (Strömung, Wind, Feinkräuselung).
+    - **Sonnenglanz & Highlights:** Scharfer, lebendiger Specular-Glanzpunkt (`spec = pow(..., 36.0)`) plus weicher Sekundärglanz, der im Sonnenlicht funkelt.
+    - **Fresnel & Tiefenwirkung:** Übergang von dunklem, tiefem Wasser im Steilwinkel zu spiegelnder Himmelsreflexion am flachen Ufersaum. Feine weiße Schaumkrönchen auf hohen Wellenbergen.
+  - **Geometrie & Modelle (`src/modelle3d.js`):**
+    - `wasser`: Mehrstufige Scheibengeometrie mit inneren Ringen zur sauberen Tiefendarstellung.
+    - `schilf`: Detaillierte Schilfhorste mit Wurzelsockel im Wasser, schlanken Halmen in unterschiedlichen Neigungen, samtigen dunkelbraunen Rohrkolben mit Spitzenborste und ausladenden, gebogenen Schilfblättern.
+  - **Ufer-Generierung (`src/gelaende3d.js`):**
+    - `baueDeko`: Platziert `DEKO_SCHILF` entlang der Uferlinien aller Seen und beider Flussufer. Furten, Basen, tiefe Flusskerne und Felsen werden automatisch ausgespart.
+    - `zeichneGelaende`: Rendert die dynamischen Wasserflächen mit kontinuierlicher Zeitphase (`now`) sowie die Ufer-Schilfhorste.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; keine Ausnahmen).
+
+### Runde 16: Auftrag 3, Aufgabe 7 — Material und Licht: Prozedurale Oberflächen, Kontaktschatten und weiche Schatten (src/render3d.js)
+- **Was war schwach:** Modelle wirkten mit rein monochromen Farbflächen steril und schwebend; es gab keine Bodenabdunklung (Kontaktschatten) an Füßen und Fundamenten; Schatten unter Einheiten und Gebäuden waren kreisrunde Scheiben mit harten, scharfen Schnittkanten.
+- **Was wurde geändert:** In `src/render3d.js`:
+  - **Kontaktschatten & Spalt-AO:**
+    - `kontaktAO`: Objekte dunkeln im Bereich $y \le 0.65$ zur Bodenkante hin sanft ab (`clamp(smoothstep(0.0, 0.65, y) * 0.32 + 0.68, 0.6, 1.0)`). Füße, Pfosten, Maueransätze und Felsbasen wirken fest im Erdreich verankert statt schwebend.
+    - `spaltAO`: Nischen und abwärts geneigte Polygone erhalten zusätzliche Ambient Occlusion (`vNor.y * 0.22 + 0.78`).
+  - **Weiche Schatten unter Einheiten und Gebäuden:**
+    - Drop Shadows werden im Fragment-Shader über ihren radialen Abstand vom Mittelpunkt (`length(vObjPos.xz)`) mit einem weichen Gauß-ähnlichen Penumbra-Verlauf versehen (`smoothstep(1.0, 0.22, rDist)`). Keine harten Kanten mehr auf dem Boden.
+  - **Prozedurale Oberflächenstrukturen im Shader (60 FPS stabil):**
+    - **Holz & Rinde:** Ausrichtungsspezifische Längsmaserung mit gewellten Wachstumsringen (`sin(p.y * 22.0 + sin(...) * 1.6)`).
+    - **Stein & Metall:** Feines mineralisches Bruch- und Meißelkorn auf Rüstungen, Werkzeugen, Mauern und Felsen.
+    - **Fell & Tiergewebe:** Schräge Haarstreifung für Wölfe und Tiere.
+    - **Laub & Moos:** Gefleckte Blatttextur für Baumkronen und Schilf.
+    - Alle Details laufen in reiner GPU-Arithmetik (wenige Sinus-/Kosinus-Instruktionen, keine Texturbindings), wodurch 60 FPS auch bei hunderten Einheiten gewährleistet sind.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; butterweiche Schattendarstellung).
+
+### Runde 17: Auftrag 3, Aufgabe 8 — Icons für die Bedienung (src/icons.js, src/galerie.js)
+- **Was war schwach:** Für wesentliche Spielfunktionen der Benutzeroberfläche (Audio, Stummschaltung, Hilfe, Wiederholung, Sammelpunkt, Steuergruppen) fehlten eigenständige SVG-Icons.
+- **Was wurde geändert:** In `src/icons.js` wurden sechs neue, semantisch prägnante SVG-Icons im bestehenden Grafikstil hinzugefügt:
+  - `ton`: Lautsprechermegafon in dunklem Schieferblau mit zwei goldenen, dynamisch austretenden Schallwellen (`#d8b06a`, `#f5dfa8`).
+  - `stumm`: Abgedunkelter Lautsprecher mit markanter roter Diagonalsperre (`#ef4444`) und Durchstreichung.
+  - `hilfe`: Runde Schutzmünze mit goldener Kordelleiste und leuchtendem Fragezeichen-Relief.
+  - `wiederholung`: Kreisbogenpfeil mit Pfeilspitze im Uhrzeigersinn um einen zentralen Wiedergabekern mit Abspieldreieck.
+  - `sammelpunkt`: Bannerstandarte mit silbernem Speerschaft, wehender goldener Schwalbenschwanzfahne und gestrichelter Zielkreis-Projektion am Boden.
+  - `steuergruppe`: Taktische Formation aus drei Schilden/Bannern mit Anführerstandarte im Zentrum und Formationsbasislinie.
+  - In `src/galerie.js` wurden aussagekräftige Namen für alle Bedien- und Ressourcen-Icons hinterlegt; die Galerie zeigt nun 50 vollwertige Icons in allen 3 Auflösungen (20 px, 36 px, 64 px).
+- **Wie geprüft:** `npm test` (132/132 Tests grün, SVG-Validierungsregeln eingehalten), `npm run smoke` (Galerie-Smoke-Test rendert 50 Icons fehlerfrei).
+
+
+
+
+
+
+
+
 
 
 

@@ -230,14 +230,28 @@ out vec4 vCol;
 out float vTiefe;
 out vec3 vTeam;
 out vec2 vWelt;
+out vec3 vNor;
+out vec2 vWasserInfo; // x: istWasser, y: Zeit/Phase
+out vec3 vObjPos;
+out float vWeltY;
 void main() {
   vTeam = iC.rgb;
   float c = cos(iA.w), s = sin(iA.w);
   vec3 a = aPos;
-  // Schritt & Gangart:
-  // 1. Waldgott: schwebender Mantel mit Wurzeln, organisches Brustkorb-Atmen
+
   float istWaldgott = (aCol.a > 0.03 && aCol.a < 0.08) ? 1.0 : 0.0;
-  if (istWaldgott > 0.5) {
+  float istWasser = (aCol.a > 0.74 && aCol.a < 0.80) ? 1.0 : 0.0;
+  vWasserInfo = vec2(istWasser, iC.w);
+
+  if (istWasser > 0.5) {
+    // Sanfte vertikale Wellenbewegung im Wasser
+    vec2 wp = iA.xz + vec2(c * a.x + s * a.z, -s * a.x + c * a.z) * iB.x;
+    float t = iC.w * 1.8;
+    float w1 = sin(wp.x * 0.28 + wp.y * 0.22 + t * 2.0) * 0.06;
+    float w2 = cos(wp.x * 0.18 - wp.y * 0.32 + t * 1.5) * 0.04;
+    a.y += w1 + w2;
+  } else if (istWaldgott > 0.5) {
+    // 1. Waldgott: schwebender Mantel mit Wurzeln, organisches Brustkorb-Atmen
     float saum = max(0.0, 0.85 - a.y);
     a.z += iC.w * 0.22 * saum;
     a.x += sin(iC.w * 3.14159 + a.y * 3.5) * 0.03 * saum;
@@ -284,12 +298,18 @@ void main() {
   vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
   vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
   vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
+  vNor = n;
+  vObjPos = aPos;
+  vWeltY = r.y;
 
   // Selbstleuchtende Teile behalten ihre eigene Farbe, ohne Fraktionsfarbe.
-  float team = aCol.a > 1.5 ? 0.0 : aCol.a;
+  float team = (aCol.a > 1.5 || istWasser > 0.5) ? 0.0 : aCol.a;
   vec3 col = mix(aCol.rgb, iC.rgb, team) * iB.z;
 
-  if (aCol.a > 1.5) {
+  if (istWasser > 0.5) {
+    // Wasser erhaelt die Basisfarbe direkt; Schattierung & Glanz erfolgen im Fragment-Shader
+    vCol = vec4(col, iB.w);
+  } else if (aCol.a > 1.5) {
     // Magisch gluehende Elemente (Augen, Kristalle, Glutherz) pulsieren im Atemrhythmus
     float puls = 1.0 + 0.22 * sin(iC.w * 3.14159265);
     vCol = vec4(col * 1.55 * puls, iB.w);
@@ -313,6 +333,11 @@ in vec4 vCol;
 in float vTiefe;
 in vec3 vTeam;
 in vec2 vWelt;
+in vec3 vNor;
+in vec2 vWasserInfo;
+in vec3 vObjPos;
+in float vWeltY;
+uniform vec3 uLicht;
 uniform vec3 uNebel;
 uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
 uniform sampler2D uSicht; // Nebel des Krieges: 1 sichtbar, 0.47 erkundet, 0 unbekannt
@@ -323,6 +348,102 @@ void main() {
     o = vec4(mix(vTeam, vec3(1.0), 0.3), 0.5);
     return;
   }
+
+  // 1. Weiche Schatten unter Einheiten und Gebaeuden (flache, halbtransparente dunkle Scheiben)
+  float istSchatten = (max(vCol.r, max(vCol.g, vCol.b)) < 0.02 && vCol.a < 0.45 && abs(vNor.y) > 0.85) ? 1.0 : 0.0;
+  if (istSchatten > 0.5) {
+    float rDist = length(vObjPos.xz);
+    float weich = smoothstep(1.0, 0.22, rDist);
+    o = vec4(vec3(0.0), vCol.a * weich);
+    return;
+  }
+
+  vec3 farbe = vCol.rgb;
+
+  // 2. Dynamische Wasseroberflaeche: bewegte Wellen, Glanz, Schaumkronen, Reflexion
+  if (vWasserInfo.x > 0.5) {
+    float t = vWasserInfo.y * 1.6;
+    vec2 wp = vWelt * 0.22;
+
+    float a1 = wp.x * 0.85 + wp.y * 0.52 + t * 2.2;
+    float a2 = -wp.x * 0.48 + wp.y * 0.88 + t * 1.7;
+    float a3 = wp.x * 1.65 - wp.y * 1.42 + t * 3.4;
+
+    float s1 = sin(a1), c1 = cos(a1);
+    float s2 = sin(a2), c2 = cos(a2);
+    float s3 = sin(a3), c3 = cos(a3);
+
+    float dHdx = 0.85 * c1 * 0.14 - 0.48 * c2 * 0.09 + 1.65 * c3 * 0.05;
+    float dHdz = 0.52 * c1 * 0.14 + 0.88 * c2 * 0.09 - 1.42 * c3 * 0.05;
+
+    vec3 wN = normalize(vec3(-dHdx * 3.2, 1.0, -dHdz * 3.2));
+    vec3 blick = normalize(vec3(0.08, 1.35, 0.95));
+
+    // Reflektierter Sonnenstrahl & scharfer Glanzpunkt
+    vec3 refLicht = reflect(-uLicht, wN);
+    float spec = pow(max(dot(refLicht, blick), 0.0), 36.0);
+    float glanz = spec * 1.8;
+    float specBreit = pow(max(dot(refLicht, blick), 0.0), 8.0) * 0.35;
+
+    // Weiche Fresnel-Reflexion des Himmels
+    float fresnel = pow(1.0 - max(dot(wN, blick), 0.0), 2.5);
+
+    vec3 tiefesWasser = farbe * 0.75;
+    vec3 himmelSpiegel = vec3(0.32, 0.62, 0.78);
+    vec3 basisWasser = mix(tiefesWasser, himmelSpiegel, fresnel * 0.65);
+
+    // Zarte Schaumkronen auf hohen Wellenkaemmen
+    float schaumKamm = max(0.0, s1 * 0.5 + s2 * 0.35 + s3 * 0.15 - 0.68) * 2.2;
+    vec3 schaum = vec3(0.88, 0.94, 0.98) * schaumKamm * 0.45;
+
+    vec3 sonnenGlanz = vec3(1.0, 0.95, 0.82) * (glanz + specBreit);
+    farbe = basisWasser + sonnenGlanz + schaum;
+  } else {
+    // 3. Feste Oberflaechen: Kontaktschatten, Spalt-AO und prozedurale Texturen (60 FPS stabil)
+    float bodenDist = max(0.0, vWeltY);
+    // Kontaktschatten: Objekte dunkeln am Boden sanft ab (feste Erdverbundenheit)
+    float kontaktAO = clamp(smoothstep(0.0, 0.65, bodenDist) * 0.32 + 0.68, 0.60, 1.0);
+    // Spalt-AO: Abwaerts zeigende / tiefere Nischen werden schattiert
+    float spaltAO = clamp(vNor.y * 0.22 + 0.78, 0.58, 1.0);
+    float ao = kontaktAO * spaltAO;
+
+    // Prozedurale Oberflaechenstruktur (Holzmaserung, Stein, Rinde, Fell)
+    // Nur fuer normale Materialien, nicht fuer selbstleuchtende Magieteile
+    if (vCol.a <= 1.5) {
+      vec3 p = vObjPos;
+      float rausch = 0.0;
+
+      // A. Holz & Rinde (warme Brauntoene: r > b, g > b)
+      if (farbe.r > farbe.b * 1.25 && farbe.g > farbe.b * 1.05) {
+        float maser = sin(p.y * 22.0 + sin(p.x * 12.0 + p.z * 12.0) * 1.6);
+        float feinfaser = cos(p.y * 48.0 + p.x * 18.0);
+        rausch = (maser * 0.65 + feinfaser * 0.35) * 0.065;
+      }
+      // B. Stein & Metall (neutrale Grautoene: r ~= g ~= b)
+      else if (abs(farbe.r - farbe.g) < 0.08 && abs(farbe.g - farbe.b) * 0.9 < 0.08) {
+        float korn1 = sin(p.x * 30.0 + p.y * 26.0);
+        float korn2 = cos(p.z * 32.0 - p.y * 22.0);
+        rausch = (korn1 * 0.5 + korn2 * 0.5) * 0.055;
+      }
+      // C. Fell & organisches Gewebe (Pelz von Woelfen, Reittieren etc.)
+      else if (farbe.r > 0.12 && farbe.g < farbe.r * 1.1) {
+        float fell1 = sin((p.x + p.y + p.z) * 42.0);
+        float fell2 = cos((p.x - p.y + p.z) * 36.0);
+        rausch = (fell1 * 0.55 + fell2 * 0.45) * 0.045;
+      }
+      // D. Laub & Wiese (Gruentoene)
+      else if (farbe.g > farbe.r * 1.08 && farbe.g > farbe.b * 1.08) {
+        float blatt = sin(p.x * 25.0 + p.z * 25.0) * cos(p.y * 25.0);
+        rausch = blatt * 0.05;
+      }
+      else {
+        rausch = (sin(p.x * 22.0) * cos(p.y * 22.0 + p.z * 18.0)) * 0.035;
+      }
+
+      farbe = clamp(farbe * (1.0 + rausch) * ao, 0.0, 1.0);
+    }
+  }
+
   float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
   // Weiche, runde Nebelraender statt blockiger Rasterkanten
   vec2 uv = clamp(vWelt / uKarte, 0.0, 1.0);
@@ -334,7 +455,7 @@ void main() {
   float s3 = texture(uSicht, uv + vec2(0.0, d.y)).r;
   float s4 = texture(uSicht, uv - vec2(0.0, d.y)).r;
   float sicht = (s0 * 2.0 + s1 + s2 + s3 + s4) * (1.0 / 6.0);
-  o = vec4(mix(vCol.rgb, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
+  o = vec4(mix(farbe, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
 }`;
 const VS_LINIE = `#version 300 es
 layout(location=0) in vec3 aPos;

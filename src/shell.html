@@ -116,6 +116,13 @@
   #chat { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); width: min(480px, calc(100% - 32px)); z-index: 18; background: rgba(16, 18, 13, .95); color: var(--text); border: 1px solid var(--accent); border-radius: 4px; padding: 8px 10px; font: inherit; }
   #intro details.regeln { margin-top: 12px; }
   #intro details.regeln summary { cursor: pointer; color: var(--accent); }
+  #zeitleiste { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); z-index: 17; width: min(860px, calc(100% - 24px)); box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: rgba(16, 18, 13, .92); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; font-size: 12px; }
+  #zeitleiste[hidden] { display: none; }
+  #zeitleiste input[type="range"] { flex: 1; min-width: 140px; accent-color: var(--accent); }
+  #zeitleiste #wdhZeit { color: var(--text); min-width: 120px; font-variant-numeric: tabular-nums; }
+  #zeitleiste .gruppe { display: inline-flex; gap: 2px; }
+  #zeitleiste button { padding: 3px 7px; font-size: 12px; }
+  #zeitleiste button.an { border-color: var(--accent); color: var(--accent); }
   #intro .fortsetzen { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--dim); }
   #intro .fortsetzen button { font-weight: 600; color: var(--accent); }
   #intro .kampagne.gott b, #intro .vorwort.gott h1 { color: #7fb069; }
@@ -284,6 +291,7 @@
     </span>
   </div>
   <div id="funk"></div>
+  <div id="zeitleiste" hidden></div>
   <input id="chat" type="text" maxlength="200" hidden placeholder="Nachricht an den Mitspieler — Enter sendet, Esc schließt">
   <div id="hilfe" hidden><dl>
   <dt>Linksklick, Ziehen</dt><dd>wählen</dd>

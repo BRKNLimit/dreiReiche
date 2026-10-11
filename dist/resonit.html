@@ -116,6 +116,13 @@
   #chat { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); width: min(480px, calc(100% - 32px)); z-index: 18; background: rgba(16, 18, 13, .95); color: var(--text); border: 1px solid var(--accent); border-radius: 4px; padding: 8px 10px; font: inherit; }
   #intro details.regeln { margin-top: 12px; }
   #intro details.regeln summary { cursor: pointer; color: var(--accent); }
+  #zeitleiste { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); z-index: 17; width: min(860px, calc(100% - 24px)); box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: rgba(16, 18, 13, .92); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; font-size: 12px; }
+  #zeitleiste[hidden] { display: none; }
+  #zeitleiste input[type="range"] { flex: 1; min-width: 140px; accent-color: var(--accent); }
+  #zeitleiste #wdhZeit { color: var(--text); min-width: 120px; font-variant-numeric: tabular-nums; }
+  #zeitleiste .gruppe { display: inline-flex; gap: 2px; }
+  #zeitleiste button { padding: 3px 7px; font-size: 12px; }
+  #zeitleiste button.an { border-color: var(--accent); color: var(--accent); }
   #intro .fortsetzen { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--dim); }
   #intro .fortsetzen button { font-weight: 600; color: var(--accent); }
   #intro .kampagne.gott b, #intro .vorwort.gott h1 { color: #7fb069; }
@@ -284,6 +291,7 @@
     </span>
   </div>
   <div id="funk"></div>
+  <div id="zeitleiste" hidden></div>
   <input id="chat" type="text" maxlength="200" hidden placeholder="Nachricht an den Mitspieler — Enter sendet, Esc schließt">
   <div id="hilfe" hidden><dl>
   <dt>Linksklick, Ziehen</dt><dd>wählen</dd>
@@ -9158,6 +9166,9 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   wiederholungsHinweis = '';
   aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null, online: !!online });
   netz = online ? { kanal: online.kanal, gs: neuerGleichschritt(online.ich), zu: '', wartetSeit: 0 } : null;
+  wdhStaende = [];
+  spulenBis = -1;
+  wdhSicht = 'alle';
   verlauf = stand ? stand.extra.verlauf : neuerVerlauf();
   if (stand) aufnahme = stand.extra.aufnahme;
   endeGezeigt = false;
@@ -9183,6 +9194,7 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
     cam.y = MAP - 3000;
   }
   renderBar();
+  zeitleisteZeigen();
 }
 
 function resize() {
@@ -9630,46 +9642,59 @@ function renderBar() {
 }
 
 // ------------------------------------------------------------ Schleife
+/** Ein Tick der Simulation; false, solange online der Mitspieler fehlt. still: ohne Effekte (Spulen). */
+function tick2d(still = false) {
+  let netzOffen = null; // online: eigene Befehle, die erst mit dem naechsten Tick gehen
+  if (netz) {
+    if (netz.zu) return false;
+    gsSenden(netz.gs, world, netzPost);
+    if (!gsBereit(netz.gs, world.tick)) {
+      if (!netz.wartetSeit) netz.wartetSeit = performance.now();
+      return false;
+    }
+    netz.wartetSeit = 0;
+    netzOffen = gsEinsetzen(netz.gs, world);
+  }
+  wdhStandMerken();
+  if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
+  else if (aufnahme) aufnehmen(aufnahme, world);
+  if (aiMe) stepAI(aiMe, world);
+  if (ai) stepAI(ai, world);
+  if (mission && mission.takt) mission.takt(world); // Missionsereignisse, auch beim Abspielen
+  step(world);
+  if (netz) gsNachSchritt(netz.gs, world, netzOffen, netzPost);
+  verlaufFortschreiben(verlauf, world);
+  if (wiederholung && world.tick >= wiederholung.ende && !world.over) paused = true;
+  if (!still) {
+    for (const ev of world.events) if (ev.t === 'faehigkeit') wirkungen.push({ ...ev, bis: world.tick + 12 });
+    effekteAusEreignissen(fx, world, ME, sichtbarFx, hoerer2d(), imBild2d);
+    musikEreignisse(musik, world);
+  }
+  zaehle();
+  sel = sel.filter((id) => byId(world, id));
+  return true;
+}
+
 function frame(now) {
   const dt = Math.max(0, Math.min(250, now - last)); // nie rueckwaerts, nie mehr als eine Viertelsekunde
   last = now;
-  if (!paused && !world.over && !missionGewonnen) {
+  wdhSpulen(tick2d);
+  if (spulenBis < 0 && !paused && !world.over && !missionGewonnen) {
     acc += dt * speed;
     let guard = 0;
     while (acc >= TICK_MS && guard++ < 12) {
-      let netzOffen = null; // online: eigene Befehle, die erst mit dem naechsten Tick gehen
-      if (netz) {
-        if (netz.zu) break;
-        gsSenden(netz.gs, world, netzPost);
-        if (!gsBereit(netz.gs, world.tick)) {
-          if (!netz.wartetSeit) netz.wartetSeit = performance.now();
-          acc = Math.min(acc, TICK_MS);
-          break;
-        }
-        netz.wartetSeit = 0;
-        netzOffen = gsEinsetzen(netz.gs, world);
+      if (tick2d() === false) {
+        acc = Math.min(acc, TICK_MS); // online: auf den Mitspieler warten
+        break;
       }
-      if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
-      else if (aufnahme) aufnehmen(aufnahme, world);
-      if (aiMe) stepAI(aiMe, world);
-      if (ai) stepAI(ai, world);
-      if (mission && mission.takt) mission.takt(world); // Missionsereignisse, auch beim Abspielen
-      step(world);
-      if (netz) gsNachSchritt(netz.gs, world, netzOffen, netzPost);
-      verlaufFortschreiben(verlauf, world);
-      if (wiederholung && world.tick >= wiederholung.ende && !world.over) paused = true;
-      for (const ev of world.events) if (ev.t === 'faehigkeit') wirkungen.push({ ...ev, bis: world.tick + 12 });
-      effekteAusEreignissen(fx, world, ME, sichtbarFx, hoerer2d(), imBild2d);
-      musikEreignisse(musik, world);
-      zaehle();
       acc -= TICK_MS;
-      sel = sel.filter((id) => byId(world, id));
     }
   }
   effekteFortschreiben(fx, paused ? 0 : (dt * speed) / 1000, world, hoerer2d());
   musikFortschreiben(musik, fx, meFaction, dt / 1000);
   missionFortschritt();
   missionFunk();
+  zeitleisteAktualisieren();
   if ((world.over || missionGewonnen) && !endeGezeigt) zeigeEnde();
   draw();
   requestAnimationFrame(frame);
@@ -10613,6 +10638,112 @@ addEventListener('pagehide', autoSpeichern);
 addEventListener('visibilitychange', () => {
   if (document.hidden) autoSpeichern();
 });
+
+// ------------------------------------------------------------ Wiederholung: Zeitleiste, Springen, Sicht
+let wdhStaende = []; // jede Minute ein Stand: { tick, zustand, zeiger, verlauf } -- zum Zurueckspringen
+let spulenBis = -1; // Ziel beim Spulen (Tick), sonst -1
+let wdhSicht = 'alle'; // 'alle' oder der Sitzplatz, durch dessen Augen man sieht
+let reglerZieht = false;
+const wdhZeit = (t) => {
+  const s = Math.max(0, Math.round(t / 10));
+  return ((s / 60) | 0) + ':' + String(s % 60).padStart(2, '0');
+};
+function wdhStandMerken() {
+  if (!wiederholung || world.tick % 600 !== 0 || wdhStaende.some((s) => s.tick === world.tick)) return;
+  wdhStaende.push({ tick: world.tick, zustand: zustandSichern(world, [aiMe, ai]), zeiger: wdhZeiger, verlauf: JSON.parse(JSON.stringify(verlauf)) });
+}
+/** Zu einem Tick springen: zurueck ueber den letzten Stand davor, dann vorspulen. */
+function wdhSpringen(ziel) {
+  if (!wiederholung) return;
+  ziel = Math.max(0, Math.min(wiederholung.ende, ziel | 0));
+  let bester = null;
+  for (const s of wdhStaende) if (s.tick <= ziel && (!bester || s.tick > bester.tick)) bester = s;
+  if (bester && (ziel < world.tick || bester.tick > world.tick)) {
+    const g = zustandLaden(bester.zustand);
+    world = g.world;
+    aiMe = g.ais[0];
+    ai = g.ais[1];
+    wdhZeiger = bester.zeiger;
+    verlauf = JSON.parse(JSON.stringify(bester.verlauf));
+    endeGezeigt = false;
+    sel = [];
+    effekteLeeren(fx);
+    nebel = neuerNebel(wdhSicht !== 'alle', ME);
+    wirkungen.length = 0;
+    stats = neueStats();
+  }
+  spulenBis = ziel;
+}
+/** Je Bild: beim Spulen so viele Ticks wie in 30 ms passen, ohne Effekte. */
+function wdhSpulen(tickFn) {
+  if (spulenBis < 0) return;
+  const bis = performance.now() + 30;
+  while (world.tick < spulenBis && !world.over && performance.now() < bis) tickFn(true);
+  if (world.tick >= spulenBis || world.over) spulenBis = -1;
+}
+/** Sicht in der Wiederholung: alles, oder mit Nebel durch die Augen eines Spielers. */
+function wdhSichtSetzen(v) {
+  wdhSicht = v;
+  if (v !== 'alle') {
+    ME = v;
+    meFaction = world.players[v].faction;
+    // Kamera zur Basis dieses Spielers
+    const heim = world.entities.find((e) => e.player === v && e.kind === 'building' && BUILDINGS[e.type].vital);
+    if (heim) {
+      cam.x = heim.x;
+      cam.y = heim.y;
+    }
+  }
+  nebel = neuerNebel(v !== 'alle', ME);
+  sel = [];
+  leistenSig = '';
+  zeitleisteZeigen();
+}
+function zeitleisteZeigen() {
+  const el = document.getElementById('zeitleiste');
+  if (!wiederholung) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  const name = (p) => (world.players[p].faction === 'mensch' ? 'Menschen' : 'Gott');
+  const knopf = (wert, text, an) => `<button data-${wert}${an ? ' class="an"' : ''}>${text}</button>`;
+  el.innerHTML = `<button id="wdhSpiel" title="Abspielen / Anhalten (Leertaste)">⏯</button>
+    <button data-sprung="-300" title="30 s zurück">−30 s</button><button data-sprung="300" title="30 s vor">+30 s</button>
+    <input id="wdhRegler" type="range" min="0" max="${wiederholung.ende}" step="10" value="${world.tick}">
+    <span id="wdhZeit"></span>
+    <span class="gruppe">${[1, 2, 4, 8, 16].map((t) => knopf('tempo="' + t + '"', '×' + t, speed === t)).join('')}</span>
+    <span class="gruppe">${knopf('sicht="alle"', 'Alles', wdhSicht === 'alle')}${knopf('sicht="0"', name(0), wdhSicht === 0)}${knopf('sicht="1"', name(1), wdhSicht === 1)}</span>`;
+  el.hidden = false;
+  el.onclick = (e) => {
+    const b = e.target.closest ? e.target.closest('button') : null;
+    if (!b) return;
+    if (b.id === 'wdhSpiel') paused = !paused;
+    else if (b.dataset.sprung) wdhSpringen(world.tick + Number(b.dataset.sprung));
+    else if (b.dataset.tempo) {
+      speed = Number(b.dataset.tempo);
+      zeitleisteZeigen();
+    } else if (b.dataset.sicht) wdhSichtSetzen(b.dataset.sicht === 'alle' ? 'alle' : Number(b.dataset.sicht));
+  };
+  const regler = document.getElementById('wdhRegler');
+  regler.onpointerdown = () => (reglerZieht = true);
+  regler.onpointerup = () => (reglerZieht = false);
+  regler.oninput = () => (document.getElementById('wdhZeit').textContent = `→ ${wdhZeit(Number(regler.value))} / ${wdhZeit(wiederholung.ende)}`);
+  regler.onchange = () => {
+    reglerZieht = false;
+    wdhSpringen(Number(regler.value));
+  };
+}
+/** Je Bild: Regler und Zeit nachfuehren (nicht, waehrend man zieht). */
+function zeitleisteAktualisieren() {
+  if (!wiederholung || reglerZieht) return;
+  const regler = document.getElementById('wdhRegler');
+  if (!regler) return;
+  regler.value = world.tick;
+  const text = `${wdhZeit(world.tick)} / ${wdhZeit(wiederholung.ende)}${spulenBis >= 0 ? ' · spule …' : paused ? ' · angehalten' : ''}`;
+  const z = document.getElementById('wdhZeit');
+  if (z.textContent !== text) z.textContent = text;
+}
 
 // ------------------------------------------------------------ Online (src/netz.js)
 function netzPost(msg) {

@@ -3,7 +3,15 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
-## 0.36 — Musik
+## 0.36 — Musik und Zeitleiste für Wiederholungen
+
+- **Wiederholungen mit Zeitleiste:** Regler zum Springen (vor und zurück),
+  −30 s / +30 s, Tempo ×1 bis ×16, Abspielen/Anhalten — und die **Sicht**:
+  alles, oder mit Nebel durch die Augen der Menschen oder des Gottes
+  (Ressourcen und HUD dieses Spielers, Kamera an seiner Basis).
+  Zurückspringen geht über einen Stand je Minute (`src/spielstand.js`)
+  und spult von dort ohne Effekte vor — danach geht die Partie bitgenau
+  so weiter wie vorher (im Browser geprüft, 2D und 3D).
 
 - **Erzeugte Musik** (`src/musik.js`): keine Dateien, alles WebAudio nach
   einfachen Regeln — Flächen, Bass und eine Melodie, die als Zufallsweg über

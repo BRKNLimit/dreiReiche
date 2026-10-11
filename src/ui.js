@@ -281,6 +281,7 @@ cv.addEventListener(
 
 addEventListener('keydown', (e) => {
   if (!world) return;
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return; // Tippen in Feldern ist kein Befehl
   if (e.key === 'F10' || (e.key === 'Escape' && menueOffen)) {
     e.preventDefault();
     menueZeigen();
@@ -288,6 +289,12 @@ addEventListener('keydown', (e) => {
   }
   if (menueOffen) return;
   if (netz && (e.key === ' ' || e.key === '+' || e.key === '-')) return; // online laeuft die Zeit fuer beide gleich
+  if (netz && e.key === 'Enter') {
+    e.preventDefault();
+    chatFeld.hidden = false;
+    chatFeld.focus();
+    return;
+  }
   const g = steuergruppe(e, gruppen, sel, world, ME);
   if (g) {
     sel = g.sel;
@@ -1406,6 +1413,7 @@ function introHtml() {
     ${fortsetzenHtml()}
     ${kampagneHtml()}
     ${onlineHtml()}
+    <details class="regeln"><summary>Spielregeln in Kürze</summary>
     <div class="cols">
       <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
         <p>Viele günstige Einheiten: Bauern, Soldaten, Jäger, Söldner.
@@ -1433,6 +1441,7 @@ function introHtml() {
     <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,
     sammelt ein wenig Erfahrung.</p>
     <p class="achten">Die Domäne ist das Werkzeug, nicht das Ziel: Wann fordert sie eine Entscheidung — und wann nervt sie?</p>
+    </details>
     <div class="stil">Gegner:
       ${Object.keys(STILE)
         .map((s) => `<label><input type="radio" name="stil" value="${s}"${s === gegnerStil ? ' checked' : ''}> ${STIL_NAMEN[s]}</label>`)
@@ -1599,7 +1608,8 @@ function onlineRueckrufe() {
       neu(config.factions[0], false, null, null, null, { config, ich, kanal });
     },
     nachricht: (msg) => {
-      if (netz) gsEmpfangen(netz.gs, msg);
+      if (msg.t === 'chat') chatZeigen(FACTIONS[world.players[1 - ME].faction].name, msg.text);
+      else if (netz) gsEmpfangen(netz.gs, msg);
     },
     zu: (grund) => {
       if (netz) netz.zu = grund || 'Verbindung zum Mitspieler getrennt';
@@ -1607,6 +1617,29 @@ function onlineRueckrufe() {
     zurueck: startbildschirm,
   };
 }
+
+// Chat (nur online): Enter oeffnet das Feld, Enter sendet, Esc schliesst
+const chatFeld = document.getElementById('chat');
+function chatZeigen(wer, text) {
+  funkText = funkHtml({ wer, text: textSicher(text) });
+  funkBis = performance.now() + 8000;
+  meldungsKlang(fx);
+}
+function chatSchliessen() {
+  chatFeld.value = '';
+  chatFeld.hidden = true;
+  chatFeld.blur();
+}
+chatFeld.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const text = chatFeld.value.trim().slice(0, 200);
+    if (text && netz) {
+      netzPost({ t: 'chat', text });
+      chatZeigen('Du', text);
+    }
+    chatSchliessen();
+  } else if (e.key === 'Escape') chatSchliessen();
+});
 
 // ------------------------------------------------------------ Pausenmenue (F10)
 let menueOffen = false;

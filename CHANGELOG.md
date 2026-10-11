@@ -19,6 +19,11 @@ Tabellen in `docs/scope.md`.
 - Online gibt es keine Pause, kein Tempo und keine Spielstände; Aufgeben
   geht über das Menü (F10) und ist ein Befehl wie jeder andere. Die
   Wiederholung einer Online-Partie enthält die Befehle beider.
+- **Chat:** Online öffnet Enter ein Eingabefeld, Enter sendet. Nachrichten
+  erscheinen oben mit dem Namen des Volks (sicher als Text, kein HTML).
+- Tippen in Textfeldern (Codes, Chat) löst keine Tastenkürzel mehr aus.
+- Die Spielregeln im Startbildschirm lassen sich aufklappen — die Knöpfe
+  stehen ohne Scrollen im Bild.
 - Der Gast spielt Sitzplatz 1: Kamera an der eigenen Basis, im 3D von der
   eigenen Seite aus.
 - Tests mit einem simulierten, wackeligen Netz (zufällige Verzögerung):

@@ -52,6 +52,8 @@ function makeEl(id) {
   const el = {
     id,
     innerHTML: '',
+    focus() {},
+    blur() {},
     onclick: null,
     style: {},
     dataset: {},

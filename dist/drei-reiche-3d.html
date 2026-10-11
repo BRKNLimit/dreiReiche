@@ -86,6 +86,9 @@
   #intro .online-dialog textarea { width: 100%; box-sizing: border-box; font: 11px/1.4 ui-monospace, Consolas, monospace; background: #0d0f0b; color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 6px; resize: vertical; }
   #intro .online-dialog .status { color: var(--accent); min-height: 1.4em; }
   #intro .online-dialog p { margin: 10px 0 4px; }
+  #chat { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); width: min(480px, calc(100% - 32px)); z-index: 18; background: rgba(16, 18, 13, .95); color: var(--text); border: 1px solid var(--accent); border-radius: 4px; padding: 8px 10px; font: inherit; }
+  #intro details.regeln { margin-top: 12px; }
+  #intro details.regeln summary { cursor: pointer; color: var(--accent); }
   #intro .fortsetzen { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--dim); }
   #intro .fortsetzen button { font-weight: 600; color: var(--accent); }
   #intro .kampagne.gott b, #intro .vorwort.gott h1 { color: #7fb069; }
@@ -237,6 +240,7 @@
   </span>
 </div>
 <div id="funk"></div>
+  <input id="chat" type="text" maxlength="200" hidden placeholder="Nachricht an den Mitspieler — Enter sendet, Esc schließt">
 <div id="hilfe" hidden><dl>
   <dt>Linksklick, Ziehen</dt><dd>wählen</dd>
   <dt>Icon unten</dt><dd>nur diesen Typ aus der Auswahl behalten</dd>
@@ -258,6 +262,7 @@
   <dt>Pfeiltasten, mittlere Taste, Mausrad</dt><dd>Kamera schieben, zoomen</dd>
   <dt>Leertaste, + −</dt><dd>Pause, Tempo</dd>
   <dt>F5, F9</dt><dd>Spielstand speichern, laden (beim Schließen speichert das Spiel von selbst)</dd>
+  <dt>Enter</dt><dd>online: Nachricht an den Mitspieler</dd>
   <dt>F10</dt><dd>Menü: speichern, laden, aufgeben, Hauptmenü</dd>
   <dt>M</dt><dd>Ton an/aus</dd>
   <dt>H</dt><dd>diese Hilfe</dd>
@@ -7256,6 +7261,11 @@ async function netzGast(angebot, bei) {
   await adressenSammeln(pc);
   return { pc, code: await packen(pc.localDescription) };
 }
+
+/** Fremden Text sicher in HTML einsetzen (Chat des Mitspielers). */
+function textSicher(s) {
+  return String(s).replace(/[&<>"']/g, (z) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[z]);
+}
 function netzSenden(kanal, msg) {
   if (kanal && kanal.readyState === 'open') kanal.send(JSON.stringify(msg));
 }
@@ -12294,6 +12304,7 @@ cv3.addEventListener(
   { passive: false }
 );
 addEventListener('keydown', (e) => {
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return; // Tippen in Feldern ist kein Befehl
   if (e.key === 'F10' || (e.key === 'Escape' && menueOffen)) {
     e.preventDefault();
     menueZeigen();
@@ -12301,6 +12312,12 @@ addEventListener('keydown', (e) => {
   }
   if (menueOffen) return;
   if (netz && (e.key === ' ' || e.key === '+' || e.key === '-')) return; // online laeuft die Zeit fuer beide gleich
+  if (netz && e.key === 'Enter') {
+    e.preventDefault();
+    chatFeld.hidden = false;
+    chatFeld.focus();
+    return;
+  }
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
     tastenGehalten.add(e.key);
     e.preventDefault();
@@ -13141,6 +13158,7 @@ function introHtml3() {
     ${fortsetzenHtml()}
     ${kampagneHtml()}
     ${onlineHtml()}
+    <details class="regeln"><summary>Spielregeln in Kürze</summary>
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
     (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
     ist die Partie verloren.</p>
@@ -13152,6 +13170,7 @@ function introHtml3() {
     Schreine, Verbesserungen und drei Fähigkeiten des Kommandanten frei — Kommandant wählen, dann
     <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,
     sammelt ein wenig Erfahrung.</p>
+    </details>
     <p style="color:var(--dim)">Dieselbe Simulation wie die 2D-Ansicht — Spielstände, Kampagnen und Wiederholungen passen in beide.</p>
     <div class="stil">Gegner:
       ${Object.keys(STILE)
@@ -13319,7 +13338,8 @@ function onlineRueckrufe() {
       neu(config.factions[0], false, null, null, null, { config, ich, kanal });
     },
     nachricht: (msg) => {
-      if (netz) gsEmpfangen(netz.gs, msg);
+      if (msg.t === 'chat') chatZeigen(FACTIONS[world.players[1 - ME].faction].name, msg.text);
+      else if (netz) gsEmpfangen(netz.gs, msg);
     },
     zu: (grund) => {
       if (netz) netz.zu = grund || 'Verbindung zum Mitspieler getrennt';
@@ -13327,6 +13347,29 @@ function onlineRueckrufe() {
     zurueck: startbildschirm,
   };
 }
+
+// Chat (nur online): Enter oeffnet das Feld, Enter sendet, Esc schliesst
+const chatFeld = document.getElementById('chat');
+function chatZeigen(wer, text) {
+  funkText = funkHtml({ wer, text: textSicher(text) });
+  funkBis = performance.now() + 8000;
+  meldungsKlang(fx);
+}
+function chatSchliessen() {
+  chatFeld.value = '';
+  chatFeld.hidden = true;
+  chatFeld.blur();
+}
+chatFeld.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const text = chatFeld.value.trim().slice(0, 200);
+    if (text && netz) {
+      netzPost({ t: 'chat', text });
+      chatZeigen('Du', text);
+    }
+    chatSchliessen();
+  } else if (e.key === 'Escape') chatSchliessen();
+});
 
 // ------------------------------------------------------------ Pausenmenue (F10)
 let menueOffen = false;

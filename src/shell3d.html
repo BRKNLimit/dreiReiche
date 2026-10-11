@@ -86,6 +86,9 @@
   #intro .online-dialog textarea { width: 100%; box-sizing: border-box; font: 11px/1.4 ui-monospace, Consolas, monospace; background: #0d0f0b; color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 6px; resize: vertical; }
   #intro .online-dialog .status { color: var(--accent); min-height: 1.4em; }
   #intro .online-dialog p { margin: 10px 0 4px; }
+  #chat { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); width: min(480px, calc(100% - 32px)); z-index: 18; background: rgba(16, 18, 13, .95); color: var(--text); border: 1px solid var(--accent); border-radius: 4px; padding: 8px 10px; font: inherit; }
+  #intro details.regeln { margin-top: 12px; }
+  #intro details.regeln summary { cursor: pointer; color: var(--accent); }
   #intro .fortsetzen { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--dim); }
   #intro .fortsetzen button { font-weight: 600; color: var(--accent); }
   #intro .kampagne.gott b, #intro .vorwort.gott h1 { color: #7fb069; }
@@ -237,6 +240,7 @@
   </span>
 </div>
 <div id="funk"></div>
+  <input id="chat" type="text" maxlength="200" hidden placeholder="Nachricht an den Mitspieler — Enter sendet, Esc schließt">
 <div id="hilfe" hidden><dl>
   <dt>Linksklick, Ziehen</dt><dd>wählen</dd>
   <dt>Icon unten</dt><dd>nur diesen Typ aus der Auswahl behalten</dd>
@@ -258,6 +262,7 @@
   <dt>Pfeiltasten, mittlere Taste, Mausrad</dt><dd>Kamera schieben, zoomen</dd>
   <dt>Leertaste, + −</dt><dd>Pause, Tempo</dd>
   <dt>F5, F9</dt><dd>Spielstand speichern, laden (beim Schließen speichert das Spiel von selbst)</dd>
+  <dt>Enter</dt><dd>online: Nachricht an den Mitspieler</dd>
   <dt>F10</dt><dd>Menü: speichern, laden, aufgeben, Hauptmenü</dd>
   <dt>M</dt><dd>Ton an/aus</dd>
   <dt>H</dt><dd>diese Hilfe</dd>

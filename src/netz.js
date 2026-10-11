@@ -170,6 +170,11 @@ export async function netzGast(angebot, bei) {
   return { pc, code: await packen(pc.localDescription) };
 }
 
+/** Fremden Text sicher in HTML einsetzen (Chat des Mitspielers). */
+export function textSicher(s) {
+  return String(s).replace(/[&<>"']/g, (z) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[z]);
+}
+
 export function netzSenden(kanal, msg) {
   if (kanal && kanal.readyState === 'open') kanal.send(JSON.stringify(msg));
 }

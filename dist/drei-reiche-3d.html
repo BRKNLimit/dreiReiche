@@ -2829,6 +2829,10 @@ function neueKunde(player) {
     gebaeude: [],
     // Zuletzt gesehene gegnerische Einheiten: { id, type, player, x, y, tick }
     gesehen: [],
+    // Wie oft man den Platz eines bekannten Gebaeudes leer gesehen hat (zerstoert)
+    zerstoert: 0,
+    // Je Ader (Index in world.deposits) der Tick, an dem man sie zuletzt gesehen hat; -1 nie
+    adern: [],
   };
 }
 
@@ -2892,7 +2896,13 @@ function aufklaeren(k, world) {
   }
   k.jetzt = jetzt;
   k.einheiten = einheiten;
+  const vorher = k.gebaeude.length;
   k.gebaeude = k.gebaeude.filter((b) => jetzt.has(b.id) || !inSicht(q, b.x, b.y, BUILDINGS[b.type].radius));
+  k.zerstoert += vorher - k.gebaeude.length;
+  for (let i = 0; i < world.deposits.length; i++) {
+    if (k.adern.length <= i) k.adern.push(-1);
+    if (inSicht(q, world.deposits[i].x, world.deposits[i].y)) k.adern[i] = world.tick;
+  }
   k.gesehen = k.gesehen.filter((u) => jetzt.has(u.id) || (world.tick - u.tick <= VERGESSEN && !inSicht(q, u.x, u.y)));
   return k;
 }
@@ -3013,6 +3023,9 @@ function createAI(player = 1, seed = 1, stil = 'standard', stufe = 'mittel') {
     stufe: STUFEN[stufe], letzterBau: null, gesperrt: [],
     // Ziel der laufenden Welle: Gebaeude-Id (0 = vermutetes Hauptgebaeude), Ort, und ob es das Hauptgebaeude ist
     welleX: 0, welleY: 0, welleAufHaupt: false,
+    // Aus Wellen lernen: Zerschellt eine, ohne etwas zu zerstoeren, muss die
+    // naechste groesser sein. welleWert: Wert der laufenden Wellen beim Aufbruch.
+    welleWert: 0, welleZerstoert: 0, mindestWelle: 0,
     kunde: neueKunde(player),
   };
 }
@@ -3396,6 +3409,11 @@ function stepAI(ai, world) {
   //    Foerderbau fuer Goetterblut -- die Mitte entscheidet --, sonst das
   //    Hauptgebaeude. Faellt das Ziel, zieht die Welle zum naechsten weiter.
   ai.unterwegs = ai.unterwegs.filter((id) => einheiten.some((u) => u.id === id));
+  // Alle Wellen gefallen: Hat sie nichts zerstoert, braucht die naechste mehr.
+  if (!ai.unterwegs.length && ai.welleWert) {
+    ai.mindestWelle = kunde.zerstoert > ai.welleZerstoert ? 0 : Math.max(ai.mindestWelle, (ai.welleWert * 3) >> 1);
+    ai.welleWert = 0;
+  }
   // Leibwache: Wer seinen Kommandanten verliert, verliert die Partie. Die ihm
   // naechsten Einheiten bleiben bei ihm, nur der Rest geht mit Wellen.
   const daheimAlle = kaempfer.filter((u) => !ai.unterwegs.includes(u.id));
@@ -3409,7 +3427,7 @@ function stepAI(ai, world) {
   for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
-  const angriff = angriffsziel(kunde, haupt) || ziel;
+  const angriff = angriffsziel(kunde, haupt) || vermuteteFoerderung(world, kunde, haupt, ziel, haupt) || ziel;
   const welleAuf = (z) => {
     ai.welleZiel = z.id;
     ai.welleX = z.x;
@@ -3428,7 +3446,7 @@ function stepAI(ai, world) {
       y: (welle.reduce((s, u) => s + u.y, 0) / welle.length) | 0,
     };
     const bekannt = kunde.gebaeude.some((b) => b.id === ai.welleZiel);
-    const besser = angriffsziel(kunde, mitte);
+    const besser = angriffsziel(kunde, mitte) || vermuteteFoerderung(world, kunde, mitte, ziel, haupt);
     if (!bekannt || (ai.welleAufHaupt && besser)) {
       const weiter = besser || ziel;
       if (weiter.id !== ai.welleZiel || weiter.x !== ai.welleX || weiter.y !== ai.welleY) {
@@ -3445,11 +3463,13 @@ function stepAI(ai, world) {
   const satt = minute >= 8 && unterhaltProMin(world, ai.player) * 1000 >= foerderungProMin(world, ai.player) * ai.stufe.satt;
   const genug = satt
     ? wellenWert
-    : Math.max(wellenWert, ((gegnerDaheim * 12) / 10) | 0);
+    : Math.max(wellenWert, ai.mindestWelle, ((gegnerDaheim * 12) / 10) | 0);
   if (!bedrohung && wert(daheimStehend) >= genug && angriff) {
     ai.welle++;
     welleAuf(angriff);
     const ids = daheimStehend.map((u) => u.id);
+    if (!ai.welleWert) ai.welleZerstoert = kunde.zerstoert;
+    ai.welleWert += wert(daheimStehend);
     ai.unterwegs.push(...ids);
     issue(world, { type: 'attack', player: ai.player, ids, x: angriff.x, y: angriff.y });
     return;
@@ -3701,6 +3721,35 @@ function naechsterEindringling(world, kunde, bauten) {
     }
   }
   return best || drin;
+}
+
+/**
+ * Wer keinen gegnerischen Foerderbau kennt, sucht ihn dort, wo er stehen
+ * muss: an den Adern auf der gegnerischen Seite (naeher an dessen
+ * Hauptgebaeude als am eigenen), die man seit drei Minuten nicht gesehen hat --
+ * die naechste vom Punkt von aus. Sonst null.
+ */
+function vermuteteFoerderung(world, kunde, von, gegner, haupt) {
+  let best = null;
+  let bestD = Infinity;
+  let bestSeite = Infinity;
+  // Gleich weite Adern entscheidet die Seite, wie in freieAder() -- punktsymmetrisch.
+  const mx = (MAP >> 1) - von.x;
+  const my = (MAP >> 1) - von.y;
+  for (let i = 0; i < world.deposits.length; i++) {
+    const d = world.deposits[i];
+    if (dist2(d.x, d.y, gegner.x, gegner.y) >= dist2(d.x, d.y, haupt.x, haupt.y)) continue;
+    const zuletzt = kunde.adern[i] ?? -1;
+    if (zuletzt >= 0 && kunde.tick - zuletzt < 1800) continue;
+    const dd = dist2(d.x, d.y, von.x, von.y);
+    const seite = mx * (d.y - von.y) - my * (d.x - von.x);
+    if (dd < bestD || (dd === bestD && seite < bestSeite)) {
+      bestD = dd;
+      bestSeite = seite;
+      best = { id: 0, x: d.x, y: d.y, vermutet: true, ader: true };
+    }
+  }
+  return best;
 }
 
 /**

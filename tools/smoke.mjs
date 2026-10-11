@@ -61,12 +61,21 @@ function makeEl(id) {
     style: {},
     addEventListener: (t, f) => handlers.push([t, f]),
     // Baut aus dem gesetzten innerHTML die data-b-Knoepfe nach,
-    // damit renderBar() denselben Weg geht wie im Browser.
-    querySelectorAll: () =>
-      [...String(el.innerHTML).matchAll(/data-b="([^"]+)"/g)].map((m) => ({
+    // damit renderBar() denselben Weg geht wie im Browser; ebenso die
+    // Missionsknoepfe (gemerkt, damit der Test sie druecken kann).
+    querySelectorAll: (wahl = '') => {
+      if (wahl.includes('data-mission')) {
+        el.missionKnoepfe = [...String(el.innerHTML).matchAll(/data-mission="([^"]+)"/g)].map((m) => ({ dataset: { mission: m[1] }, onclick: null }));
+        return el.missionKnoepfe;
+      }
+      return [...String(el.innerHTML).matchAll(/data-b="([^"]+)"/g)].map((m) => ({
         dataset: { b: m[1] },
         onclick: null,
-      })),
+      }));
+    },
+    insertAdjacentHTML(wo, html) {
+      el.innerHTML += html;
+    },
   };
   return el;
 }
@@ -182,11 +191,39 @@ for (let i = 0; i < 400 && frameFn; i++) {
   }
 }
 
+// Mission 2 der Kampagne: Vorwort, Los, mit Tempo x8 bis nach der ersten Welle
+const wut = (nodes.intro.missionKnoepfe || []).find((b) => b.dataset.mission === 'wut-des-waldes');
+if (!wut || !wut.onclick) errors.push(new Error('Kampagnen-Knopf fehlt im Startbildschirm'));
+else {
+  try {
+    missionSpielen();
+  } catch (e) {
+    errors.push(e);
+  }
+}
+function missionSpielen() {
+  // Knopf aus dem Startbildschirm: Mission waehlen, Vorwort bestaetigen
+  wut.onclick();
+  if (!nodes.missionLos || !nodes.missionLos.onclick) throw new Error('Vorwort ohne Los-Knopf');
+  nodes.missionLos.onclick();
+  for (let i = 0; i < 3; i++) fire('keydown', { ...base, key: '+' });
+  let funk = false;
+  for (let i = 0; i < 160 && frameFn; i++) {
+    const f = frameFn;
+    frameFn = null;
+    clock += 100;
+    f(clock);
+    if (nodes.funk && nodes.funk.innerHTML.includes('funkspruch')) funk = true;
+  }
+  if (!nodes.hud.innerHTML.includes('Halte zehn Minuten stand')) throw new Error('Missionsziel fehlt im HUD');
+  if (!funk) throw new Error('kein Funkspruch in der Mission');
+}
+
 if (errors.length) {
   console.log('FEHLER:');
   for (const e of errors.slice(0, 5)) console.log(' ', e.message, '\n   ', (e.stack || '').split('\n')[1]);
   process.exit(1);
 }
-console.log('Smoke-Test ok — 1000 Frames, Eingaben verarbeitet, keine Ausnahmen.');
+console.log('Smoke-Test ok — 1000 Frames, Eingaben, Spielstand, Online-Dialog, Mission mit Welle — keine Ausnahmen.');
 console.log('Canvas-Aufrufe:', [...calls].sort().join(', '));
 console.log('HUD-Ausgabe vorhanden:', nodes.hud.innerHTML.length > 0);

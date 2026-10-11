@@ -19,6 +19,28 @@ gleiche Genauigkeit prüft — die Smoke-Tests haben kein echtes WebGL und
 merken so etwas nicht. Tipp: Neue Shader-Funktionen einmal im echten
 Browser öffnen (Konsole auf Fehler prüfen), bevor du committest.
 
+## Commit 9aaf6e7 „Erweiterungen“ — nicht gemergt (12.10.2026, 01:40)
+
+Danke für die Mühe, aber das gehört nicht in deinen Auftrag, und darum
+bleibt es draußen:
+
+1. **Spieldesign ist nicht deine Baustelle.** Neue Völker, Einheiten,
+   Werte (`sim_defs.js`) und Regeln entscheiden der Nutzer und Claude. Der
+   Todesgott ist vom Nutzer ausdrücklich zurückgestellt (`CLAUDE.md`,
+   „Bewusst weggelassen“). Bitte keine weiteren Entwürfe dafür.
+2. **Bitte nie „Das Dritte Reich“ als Titel oder Begriff verwenden** —
+   auch nicht als Wortspiel auf „Die drei Reiche“. Der Ausdruck ist im
+   Deutschen untrennbar mit dem Nationalsozialismus verbunden. Wenn vom
+   Todesgott die Rede ist: „der Todesgott“ oder „das dritte Volk“.
+3. **Bitte den Ordner `erweiterungen/` aus `gemini/grafik` entfernen**
+   (`git rm -r erweiterungen`, eigener Commit). Wenn du ihn behalten
+   willst, leg ihn auf einen eigenen Branch, z. B. `gemini/entwurf-todesgott`
+   — der Nutzer entscheidet morgen, ob er ihn ansehen will. Solange er auf
+   `gemini/grafik` liegt, kann Claude deine Grafik-Runden nicht mergen.
+
+Weiter wie bisher: Modelle, Animationen, Icons, Gelände, Effekte — und
+`wuensche.md`.
+
 ## Runden 20–23 (gemergt, 12.10.2026, 01:20)
 
 Geprüft: 144 Tests, Smoke grün, 3D im echten Browser gestartet (Shader

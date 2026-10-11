@@ -36,7 +36,6 @@
     font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
     color: var(--accent); margin-bottom: 8px;
   }
-  #builds { display: contents; }
   .res { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; font-variant-numeric: tabular-nums; }
   .res b { font-weight: 500; color: var(--dim); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
   .res span { text-align: right; font-family: ui-monospace, monospace; }
@@ -130,6 +129,29 @@
   #ressourcen .frei { color: #f7b55a; }
   #ressourcen svg { width: 24px; height: 24px; flex: none; }
   #ressourcen .knapp { color: #ff8a6a; }
+  /* Untere Leiste: Auswahl je Typ, Bauleiste (nur mit Erbauern), rechts Menue */
+  #gruppen, #builds { display: flex; gap: 4px; align-items: center; }
+  #gruppen:empty, #builds:empty { display: none; }
+  #gruppen:not(:empty) + #builds:not(:empty) { border-left: 1px solid var(--line); padding-left: 8px; }
+  .rechts { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .ikon { position: relative; width: 44px; height: 44px; padding: 5px; display: grid; place-items: center; }
+  .ikon svg { width: 28px; height: 28px; }
+  .ikon .zahl { position: absolute; right: 3px; bottom: 1px; font-size: 12px; font-weight: 600; color: #fff; text-shadow: 0 0 3px #000; }
+  .ikon .kosten { position: absolute; left: 3px; bottom: 1px; font-size: 9px; color: var(--dim); }
+  .ikon kbd { position: absolute; right: 3px; top: 1px; margin: 0; font-size: 9px; }
+  .ikon.zu { opacity: .4; }
+  .warn { display: flex; align-items: center; gap: 6px; }
+  #hud .warn { margin-top: 8px; font-size: 11px; }
+  #hud .warn svg { width: 14px; height: 14px; flex: none; }
+  #hilfe {
+    position: absolute; right: 12px; bottom: 64px; z-index: 16; width: min(420px, calc(100% - 24px));
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+    border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; font-size: 12px;
+  }
+  #hilfe[hidden] { display: none; }
+  #hilfe dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
+  #hilfe dt { color: var(--accent); white-space: nowrap; }
+  #hilfe dd { margin: 0; color: var(--text); }
   /* Info-Karten */
   #karte {
     position: absolute; left: 12px; bottom: 58px; z-index: 15; width: min(340px, calc(100% - 24px));
@@ -198,17 +220,31 @@
   <div id="karte" hidden></div>
   <div id="faehigkeiten" hidden></div>
   <div id="bar">
+    <span id="gruppen"></span>
     <span id="builds"></span>
-    <div class="sep"></div>
-    <button id="asMensch">Als Menschen</button>
-    <button id="asGott">Als Gott</button>
-    <a class="btn" href="drei-reiche-3d.html" title="Dieselbe Simulation in 3D">3D-Ansicht</a>
-    <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
-    <span class="hint">
-      Bauleiste überfahren zeigt Kosten und Werte · Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Mausrad zoomt · Mittlere Taste schiebt ·
-      <b>1</b>–<b>9</b> bauen · Gebäude anklicken: <b>Q</b>–<b>R</b> Einheiten, <b>Entf</b> abreißen · <b>K</b> Kommandant · <b>T</b> Skillbaum · Kommandant gewählt: <b>Q</b>–<b>E</b> Fähigkeiten · <b>I</b> Auswertung · Leertaste pausiert · +/− Tempo
+    <span class="rechts">
+      <button id="asMensch">Als Menschen</button>
+      <button id="asGott">Als Gott</button>
+      <a class="btn" href="drei-reiche-3d.html" title="Dieselbe Simulation in 3D">3D</a>
+      <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
+      <button id="hilfeKnopf" title="Steuerung (H)">?</button>
     </span>
   </div>
+  <div id="hilfe" hidden><dl>
+  <dt>Linksklick, Ziehen</dt><dd>wählen</dd>
+  <dt>Icon unten</dt><dd>nur diesen Typ aus der Auswahl behalten</dd>
+  <dt>Rechtsklick</dt><dd>bewegen · mit Erbauern auf Plan/Baustelle: bauen, reparieren</dd>
+  <dt>A, Klick</dt><dd>Angriffsbewegung</dd>
+  <dt>1–9</dt><dd>bauen (nur mit Erbauern) · mit Shift: weitere in die Reihe</dd>
+  <dt>Q–R</dt><dd>Gebäude gewählt: ausbilden · Kommandant gewählt: Fähigkeiten</dd>
+  <dt>Entf</dt><dd>Gebäude abreißen, Bauplan verwerfen</dd>
+  <dt>K</dt><dd>Kommandant</dd>
+  <dt>T</dt><dd>Skillbaum</dd>
+  <dt>Mausrad, mittlere Taste</dt><dd>zoomen, schieben</dd>
+  <dt>I</dt><dd>Auswertung</dd>
+  <dt>Leertaste, + −</dt><dd>Pause, Tempo</dd>
+  <dt>H</dt><dd>diese Hilfe</dd>
+</dl></div>
 </div>
 <script>
 /*__SIM__*/

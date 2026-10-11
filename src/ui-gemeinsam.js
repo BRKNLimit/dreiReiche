@@ -1,10 +1,10 @@
 // Gemeinsame Texte fuer beide Oberflaechen (2D und 3D). Liest den Zustand,
 // aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
 
-import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP } from './sim/defs.js';
+import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PRIO_NAMES } from './sim/defs.js';
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
-  gridReport, foerderungProMin, unterhaltProMin, sichtGitter,
+  gridReport, foerderungProMin, unterhaltProMin, sichtGitter, byId, canAfford,
 } from './sim/sim.js';
 import { ZELLE } from './sim/weg.js';
 import { ICONS } from './icons.js';
@@ -71,11 +71,68 @@ export function ressourcenHtml(world, player) {
   const eintrag = (icon, wert, titel, klasse = '') =>
     `<div class="ri" title="${titel}">${icon}<span class="${klasse}">${wert}</span></div>`;
   return (
-    eintrag(ICONS.skillpunkte, skillFrei(world, player), 'Skillpunkte, die du ausgeben kannst (T)', skillFrei(world, player) > 0 ? 'frei' : '') +
+    eintrag(ICONS.skillpunkte, skillFrei(world, player), `Skillpunkte, die du ausgeben kannst (T) — nächster in ${naechsterPunkt(world, player)}`, skillFrei(world, player) > 0 ? 'frei' : '') +
     eintrag(ICONS.gegenwart, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
     eintrag(ICONS.goetterblut, p.goetterblut, 'Götterblut') +
     eintrag(ICONS.fron, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
   );
+}
+
+// ------------------------------------------------------------ Untere Leiste
+
+/** Je Einheitentyp der Auswahl ein Knopf mit Icon und Anzahl; ein Klick behaelt nur diesen Typ. */
+export function gruppenHtml(world, auswahl) {
+  const zahl = {};
+  for (const id of auswahl) {
+    const e = byId(world, id);
+    if (e && e.kind === 'unit') zahl[e.type] = (zahl[e.type] || 0) + 1;
+  }
+  return Object.keys(UNITS)
+    .filter((t) => zahl[t])
+    .map((t) => `<button class="ikon" data-gruppe="${t}" title="${UNITS[t].name} — nur diese auswählen">${ICONS[t]}<span class="zahl">${zahl[t]}</span></button>`)
+    .join('');
+}
+
+/** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+export function bauleisteHtml(world, player, liste) {
+  return liste
+    .map((t, i) => {
+      const zu = gesperrt(world, player, t);
+      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span><kbd>${i + 1}</kbd></button>`;
+    })
+    .join('');
+}
+
+/** Statt einer Liste aller Netze: nur Warnungen, wo Gegenwart fehlt. */
+export function warnungenHtml(world, player) {
+  const out = [];
+  for (const r of gridReport(world, player)) {
+    if (!r.throttled) continue;
+    let stufe = '';
+    for (let i = 3; i >= 0 && !stufe; i--) if (r.satPrio[i] < 1000) stufe = PRIO_NAMES[i];
+    out.push(`<div class="warn">${ICONS.gegenwart}<span>Gegenwart knapp ${r.supply}/${r.demand} — ${stufe} gedrosselt</span></div>`);
+  }
+  return out.join('');
+}
+
+/** Auswahl eines eigenen Bauplans: was ihm fehlt. */
+export function planHtml(world, plan) {
+  const d = BUILDINGS[plan.type];
+  let unterwegs = 0;
+  let inReihe = 0;
+  for (const u of world.entities) {
+    if (u.dead || u.kind !== 'unit' || u.player !== plan.player) continue;
+    if (u.auftrag === plan.id) unterwegs++;
+    else if (u.reihe.includes(plan.id)) inReihe++;
+  }
+  const zustand = unterwegs
+    ? canAfford(world.players[plan.player], d.cost)
+      ? `${unterwegs} Erbauer unterwegs`
+      : `<span class="warn">wartet auf Fron (${kostenText(d.cost)})</span>`
+    : inReihe
+      ? `${inReihe} Erbauer ${inReihe === 1 ? 'hat' : 'haben'} ihn in der Reihe`
+      : '<span class="warn">wartet auf Erbauer — Erbauer wählen, Rechtsklick</span>';
+  return `<div class="sel"><b>Bauplan: ${d.name}</b> — ${zustand}<div class="keys"><kbd>Entf</kbd> verwerfen</div></div>`;
 }
 
 // ------------------------------------------------------------ Info-Karten
@@ -307,13 +364,10 @@ export function skillBaumHtml(world, player) {
     <div class="aeste">${spalten}</div>`;
 }
 
-/** HUD-Zeile: freie Skillpunkte und Zeit bis zum naechsten. */
-export function skillZeile(world, player) {
-  if (!RULES.skills) return '';
-  const frei = skillFrei(world, player);
+/** Zeit bis zum naechsten Skillpunkt, als Text. */
+function naechsterPunkt(world, player) {
   const je = RULES.skillTakt * 1000;
-  const bis = sekunden(Math.ceil((je - (world.players[player].forschung % je)) / forschungProTick(world, player)));
-  return `<b>Skillpunkte <kbd>T</kbd></b><span${frei > 0 ? ' class="hell"' : ''}>${frei} frei · nächster in ${bis}</span>`;
+  return sekunden(Math.ceil((je - (world.players[player].forschung % je)) / forschungProTick(world, player)));
 }
 
 /** Farbe einer Faehigkeit fuer Ringe und Markierungen. */

@@ -3,6 +3,34 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.26 — Baupläne, Baureihen, Auswahlleiste
+
+- **Baupläne:** Ein gesetztes Gebäude ist erst ein Plan — kein Gebäude,
+  keine Kosten, keine Sicht, für den Gegner unsichtbar. Erst wenn ein
+  Erbauer daneben ankommt, wird bezahlt und die Baustelle entsteht. Fehlt
+  Fron, wartet er. Wer einen Plan in die gegnerische Basis setzt, sieht
+  dort nichts mehr. Ein Plan auf inzwischen belegtem Platz verfällt.
+  Gleichzeitige Baubeginne werden reihum vergeben (`baubeginnRunde`), wie
+  Befehle.
+- **Baureihen:** Mit `Shift` gesetzte Pläne (oder Shift-Rechtsklick auf
+  Plan/Baustelle) kommen hinten in die Reihe der Erbauer; nach dem ersten
+  Gebäude geht es direkt zum nächsten. Ohne Shift ersetzt ein neuer Auftrag
+  die Reihe, ebenso jeder Bewegungsbefehl.
+- **Auswahlleiste unten:** je Einheitentyp der Auswahl ein Icon mit Anzahl;
+  ein Klick behält nur diesen Typ aus der Auswahl.
+- **Bauleiste nur mit Erbauern**, als Icons mit Kosten und Taste.
+- **Weniger Text:** Das HUD zeigt nur Kommandant und Zeit, dazu Auswahl und
+  Warnungen, wenn Gegenwart knapp ist. Netze, Fläche, Fron/min und die
+  lange Tastenzeile sind weg — Steuerung über `H` oder `?`, Flächen in der
+  Auswertung (`I`).
+- **Pulk:** Dicht stehende Gruppen kommen zur Ruhe. Wer am Ziel eine schon
+  angekommene Einheit desselben Befehls berührt, ist auch angekommen; wer
+  angekommen ist und nur leicht geschoben wird, bleibt stehen. Vorher
+  drängelten alle um denselben Punkt. In 3D drehen sich Einheiten nicht mehr
+  beim Rempeln.
+- KI rechnet ihre Pläne wie Baustellen mit (Kosten zurückgelegt, kein
+  Doppelplan).
+
 ## 0.25 — Vorbereitung für Gemini, Ressourcenleiste
 
 - **Grafik in eigenen Dateien**, damit Gemini parallel daran arbeiten kann:

@@ -26,6 +26,7 @@ import {
   spawnKommandant,
   sichtGitter,
   sichtweite,
+  planVon,
 } from '../src/sim/sim.js';
 import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN, KARTE } from '../src/sim/defs.js';
 import { wegGitter, ZELLE } from '../src/sim/weg.js';
@@ -181,12 +182,90 @@ test('in der Domaene: erst wenn der Erbauer ankommt, geht es los', () => {
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   const bauer = spawnUnit(w, 0, 'bauer', 5000, 7500); // 250 m entfernt, in der Domaene
   issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 7500, y: 5000, ids: [bauer.id] });
-  step(w);
-  const turm = w.entities.find((e) => e.type === 'grenzstein');
   for (let i = 0; i < 20; i++) step(w);
-  assert.equal(turm.progress, 0, 'unterwegs wird nicht gebaut, Gegenwart hin oder her');
+  assert.ok(!w.entities.some((e) => e.type === 'grenzstein'), 'unterwegs nur ein Bauplan, Gegenwart hin oder her');
   for (let i = 0; i < 200; i++) step(w);
-  assert.ok(turm.progress > 0, 'angekommen: es geht voran');
+  const turm = w.entities.find((e) => e.type === 'grenzstein');
+  assert.ok(turm && turm.progress > 0, 'angekommen: es geht voran');
+});
+
+// ---------------------------------------------------- Bauplaene
+
+test('Bauplan: kein Gebaeude, keine Kosten, keine Sicht -- bis ein Erbauer anfaengt', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const fron = w.players[0].fron;
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 14000, y: 14000 });
+  step(w);
+  assert.equal(w.plaene.length, 1);
+  assert.ok(!w.entities.some((e) => e.type === 'grenzstein'), 'noch kein Gebaeude');
+  assert.equal(w.players[0].fron, fron, 'noch nichts bezahlt');
+  const zelle = ((14000 / ZELLE) | 0) * (MAP / ZELLE) + ((14000 / ZELLE) | 0);
+  assert.equal(sichtGitter(w, 0)[zelle], 0, 'ein Plan sieht nichts');
+  const bauer = spawnUnit(w, 0, 'bauer', 14000 + 90, 14000);
+  issue(w, { type: 'bauen', player: 0, ids: [bauer.id], id: w.plaene[0].id });
+  step(w);
+  const b = w.entities.find((e) => e.type === 'grenzstein');
+  assert.ok(b, 'jetzt eine Baustelle');
+  assert.equal(w.players[0].fron, fron - BUILDINGS.grenzstein.cost.fron, 'bezahlt beim Baubeginn');
+  assert.equal(bauer.auftrag, b.id, 'der Auftrag zeigt auf die Baustelle');
+  assert.equal(w.plaene.length, 0);
+});
+
+test('Bauplan: ohne Fron wartet der Erbauer, mit Fron geht es los', () => {
+  const w = bare();
+  w.players[0].fron = 10;
+  const bauer = spawnUnit(w, 0, 'bauer', 9000, 9000);
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9100, y: 9000, ids: [bauer.id] });
+  for (let i = 0; i < 30; i++) step(w);
+  assert.equal(w.plaene.length, 1, 'wartet');
+  assert.ok(planVon(w, bauer.auftrag), 'der Auftrag bleibt');
+  w.players[0].fron = 1000;
+  step(w);
+  assert.ok(w.entities.some((e) => e.type === 'grenzstein'));
+});
+
+test('Baureihe: mit Shift angehaengte Plaene baut der Erbauer nacheinander', () => {
+  const w = bare();
+  w.players[0].fron = 2000;
+  const k = spawnUnit(w, 0, 'held', 9000, 9000);
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9200, y: 9000, ids: [k.id] });
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9200, y: 9600, ids: [k.id], anhaengen: true });
+  step(w);
+  assert.equal(k.reihe.length, 1, 'der zweite wartet in der Reihe');
+  for (let i = 0; i < BUILDINGS.grenzstein.buildTime * 2 + 200; i++) step(w);
+  const fertig = w.entities.filter((e) => e.type === 'grenzstein' && e.done);
+  assert.equal(fertig.length, 2, 'beide nacheinander fertig');
+  assert.equal(k.auftrag, 0);
+});
+
+test('Bauplan: ohne Shift ersetzt ein neuer Auftrag die ganze Reihe', () => {
+  const w = bare();
+  const k = spawnUnit(w, 0, 'held', 9000, 9000);
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9200, y: 9000, ids: [k.id] });
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9200, y: 9600, ids: [k.id], anhaengen: true });
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 8000, y: 9000, ids: [k.id] });
+  step(w);
+  assert.equal(k.reihe.length, 0);
+  assert.equal(planVon(w, k.auftrag).x, 8000);
+});
+
+test('Bauplan: auf inzwischen belegtem Platz verfaellt er, entfernen geht auch', () => {
+  const w = bare();
+  w.players[0].fron = 2000;
+  const bauer = spawnUnit(w, 0, 'bauer', 6000, 6000);
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9000, y: 9000, ids: [bauer.id] });
+  step(w);
+  spawnBuilding(w, 1, 'hain', 9050, 9000, true); // der Gegner war schneller
+  for (let i = 0; i < 300; i++) step(w);
+  assert.equal(w.plaene.length, 0, 'verfallen');
+  assert.equal(bauer.auftrag, 0);
+  issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 12000, y: 12000, ids: [bauer.id] });
+  step(w);
+  issue(w, { type: 'planWeg', player: 0, id: w.plaene[0].id });
+  step(w);
+  assert.equal(w.plaene.length, 0, 'entfernt');
+  assert.equal(bauer.auftrag, 0);
 });
 
 test('in der Domaene: wer weggeht, baut nicht weiter -- die Baustelle steht', () => {
@@ -1144,18 +1223,20 @@ test('Kampf ist gleichzeitig: kein Erstschlag durch Listenplatz', () => {
   assert.equal(b.dead, true, 'beide treffen im selben Tick');
 });
 
-test('Befehle reihum: umkaempfte Adern gehen abwechselnd an beide Sitzplaetze', () => {
-  // Zwei Gleichstaende in derselben Partie, beide in geraden Ticks -- so wie
-  // die KI handelt. Der Vorrang muss trotzdem wechseln.
+test('Baubeginn reihum: umkaempfte Adern gehen abwechselnd an beide Sitzplaetze', () => {
+  // Beide planen dieselbe Ader und haben einen Erbauer daneben -- zweimal in
+  // derselben Partie. Der Vorrang beim Baubeginn muss wechseln.
   const w = bare('mensch', 'mensch');
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   spawnBuilding(w, 1, 'halle', 15000, 15000, true);
   w.deposits.push({ x: 9000, y: 9000, kind: 'fron', takenBy: 0 }, { x: 11000, y: 11000, kind: 'fron', takenBy: 0 });
   const sieger = [];
   for (const [x, y] of [[9000, 9000], [11000, 11000]]) {
+    const a = spawnUnit(w, 0, 'held', x - 100, y);
+    const b = spawnUnit(w, 1, 'held', x + 100, y);
     while (w.tick % 2) step(w);
-    issue(w, { type: 'build', player: 0, building: 'saege', x, y });
-    issue(w, { type: 'build', player: 1, building: 'saege', x, y });
+    issue(w, { type: 'build', player: 0, building: 'saege', x, y, ids: [a.id] });
+    issue(w, { type: 'build', player: 1, building: 'saege', x, y, ids: [b.id] });
     step(w);
     sieger.push(w.entities.find((e) => e.type === 'saege' && e.x === x).player);
   }
@@ -1262,6 +1343,22 @@ test('Wegfindung: durch das Tor im Grat zur Mitte', () => {
   let t = 0;
   for (; t < 2000 && !u.arrived; t++) step(w);
   assert.ok(u.arrived, 'kommt an: ' + u.x + ',' + u.y);
+});
+
+test('Pulk: eine Gruppe mit demselben Ziel kommt zur Ruhe, statt zu draengeln', () => {
+  const w = bare();
+  const ids = [];
+  for (let i = 0; i < 20; i++) ids.push(spawnUnit(w, 0, 'soldat', 4000 + (i % 5) * 70, 4000 + ((i / 5) | 0) * 70).id);
+  issue(w, { type: 'move', player: 0, ids, x: 8000, y: 8000 });
+  for (let i = 0; i < 400; i++) step(w);
+  const us = w.entities.filter((e) => e.kind === 'unit');
+  assert.ok(us.every((e) => e.arrived), 'alle angekommen');
+  const vorher = us.map((e) => [e.x, e.y]);
+  for (let i = 0; i < 60; i++) step(w);
+  const bewegt = us.reduce((s, e, k) => s + Math.abs(e.x - vorher[k][0]) + Math.abs(e.y - vorher[k][1]), 0);
+  assert.ok(bewegt < 20, 'steht still, kein Zittern: ' + bewegt + ' dm in 6 s');
+  const naechster = Math.min(...us.map((e) => Math.hypot(e.x - 8000, e.y - 8000)));
+  assert.ok(naechster < 100, 'am Ziel');
 });
 
 // ---------------------------------------------------- Nebel des Krieges
@@ -1474,8 +1571,8 @@ test('beim Platzieren bekommen ausgewaehlte Erbauer den Auftrag', () => {
   const s = spawnUnit(w, 0, 'soldat', 11800, 12100);
   issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 12000, y: 12000, ids: [b.id, s.id] });
   step(w);
-  const turm = w.entities.find((e) => e.type === 'grenzstein');
-  assert.equal(b.auftrag, turm.id, 'der Bauer baut');
+  const plan = w.plaene.find((q) => q.type === 'grenzstein');
+  assert.equal(b.auftrag, plan.id, 'der Bauer baut');
   assert.equal(s.auftrag || 0, 0, 'der Soldat kann nicht bauen');
 });
 

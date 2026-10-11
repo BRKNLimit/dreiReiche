@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.25
+# Die drei Reiche — Prototyp 0.26
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -32,21 +32,25 @@ bewusst rudimentär. Einheiten drehen sich in Laufrichtung und wippen beim
 Gehen, Schüsse sind Linien, Domänen eine Fläche mit Außenkante.
 Pfeiltasten oder mittlere Maustaste schieben, Mausrad zoomt. Einheiten
 hinter Gebäuden bleiben als Umriss sichtbar. Sonst dieselbe Steuerung wie in
-der Draufsicht. Oben links die Ressourcenleiste: Gegenwart-Überschuss,
-Götterblut, Fron.
+der Draufsicht. Oben links die Ressourcenleiste: freie Skillpunkte,
+Gegenwart-Überschuss, Götterblut, Fron.
 
 ## Steuerung
 
 | Eingabe | Wirkung |
 | --- | --- |
-| Bauleiste überfahren | Info-Karte: Kosten, Bauzeit, Gegenwart, Wirkung, Sperre |
+| `H` oder `?` unten rechts | Steuerung einblenden |
 | Linksklick / Ziehen | Einheiten wählen (Auswahl zeigt Werte, Fabriken ihre Ausbildungsliste) |
+| Icon in der Leiste unten | Je Einheitentyp der Auswahl ein Icon mit Anzahl; ein Klick behält nur diesen Typ |
+| Bauleiste überfahren | Info-Karte: Kosten, Bauzeit, Gegenwart, Wirkung, Sperre. Die Bauleiste erscheint nur, wenn ein Erbauer gewählt ist |
 | Rechtsklick | Bewegen (Einheiten stellen Feinde erst am Ziel) |
 | `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |
 | Mittlere Maustaste | Karte schieben · Mausrad zoomen |
-| `1`–`9` | Gebäude wählen, dann Linksklick setzen (`3` Anker, `5` Förderbau auf Götterblut, `6` `7` Schreine, `8` Verteidigung, `9` Forschung) |
-| Erbauer gewählt + Gebäude setzen | Bauer, Dryade oder Kommandant bekommen den Bauauftrag, gehen hin und bauen direkt daneben — ein Auftrag je Einheit. **Ohne Erbauer wächst keine Baustelle**, auch nicht in der Domäne; wer weggeht, baut nicht weiter |
-| Erbauer gewählt + Rechtsklick auf eigene Baustelle | Mitbauen |
+| Erbauer gewählt, `1`–`9` | Gebäude wählen, dann Linksklick setzen (`3` Anker, `5` Förderbau auf Götterblut, `6` `7` Schreine, `8` Verteidigung, `9` Forschung) |
+| Gebäude setzen | Erst ein **Bauplan**: kostet nichts, sieht nichts, nur für einen selbst sichtbar. Bezahlt und begonnen wird, sobald ein Erbauer daneben ankommt — fehlt Fron, wartet er. **Ohne Erbauer wächst keine Baustelle**; wer weggeht, baut nicht weiter |
+| `Shift` + Gebäude setzen | Baureihe: der Plan kommt hinten in die Reihe der Erbauer, danach geht es direkt zum nächsten |
+| Bauplan anklicken, `Entf` | Plan verwerfen |
+| Erbauer gewählt + Rechtsklick auf eigenen Plan / eigene Baustelle | Mitbauen (mit `Shift` in die Reihe) |
 | Erbauer gewählt + Rechtsklick auf beschädigtes eigenes Gebäude | Reparieren (kostet etwas Fron) |
 | Gebäude anklicken, `Q` / `W` | Einheiten bauen (schwere kosten Götterblut) |
 | Gebäude anklicken, `Entf` | Abreißen: Baustelle ¾, fertig ½ der Kosten zurück |

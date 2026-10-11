@@ -72,6 +72,8 @@ export function createWorld(opts = {}) {
       { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 },
     ],
     deposits: [],
+    plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
+    baubeginnRunde: 0, // Vorrang beim gleichzeitigen Baubeginn, siehe erschaffen()
     hindernisse: opts.empty ? [] : KARTE.hindernisse, // Felsen und Seen, unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
     regions: [],
@@ -147,8 +149,11 @@ export function spawnUnit(world, player, type, x, y) {
     tx: x | 0,
     ty: y | 0,
     arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
-    auftrag: 0, // Baustelle, die dieser Erbauer bauen soll (0 = keine)
+    auftrag: 0, // Bauplan oder Baustelle, an dem dieser Erbauer arbeiten soll (0 = keiner)
+    reihe: [], // weitere Auftraege, der Reihe nach (Shift beim Setzen)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
+    befX: x | 0, // Ziel des letzten Bewegungsbefehls -- wer dasselbe hat, gehoert zur Gruppe
+    befY: y | 0,
     seit: world.tick, // fuer die Erfahrung
     rufBis: 0, // Schlachtruf wirkt bis zu diesem Tick
     rufWert: 0,
@@ -193,15 +198,112 @@ export function spawnKommandant(world, player) {
  * Bauauftrag: Jeder genannte eigene Erbauer (UNITS[...].build) geht zur
  * Baustelle und baut sie. Ein Auftrag je Einheit -- der neue ersetzt den alten.
  */
-function beauftrage(world, player, ids, site) {
+function beauftrage(world, player, ids, site, anhaengen = false) {
   for (let k = 0; k < ids.length; k++) {
     const e = byId(world, ids[k]);
     if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !UNITS[e.type].build) continue;
+    // Shift: hinten anhaengen, wenn der Erbauer schon etwas zu tun hat.
+    if (anhaengen && e.auftrag) {
+      if (e.auftrag !== site.id && !e.reihe.includes(site.id)) e.reihe.push(site.id);
+      continue;
+    }
     e.auftrag = site.id;
+    e.reihe = [];
     e.tx = site.x;
     e.ty = site.y;
     e.arrived = false;
     e.aggro = false;
+  }
+}
+
+/** Ein Bauplan des Spielers mit dieser id, sonst null. */
+export function planVon(world, id) {
+  for (let i = 0; i < world.plaene.length; i++) if (world.plaene[i].id === id) return world.plaene[i];
+  return null;
+}
+
+/**
+ * Bauplan setzen: nur ein Plan auf der Karte, fuer den Gegner unsichtbar --
+ * keine Kosten, keine Sicht, kein Leben, kein Hindernis. Gebaut wird er erst,
+ * wenn ein Erbauer daneben anfaengt (erschaffen). Geprueft wird nur, ob der
+ * Platz jetzt frei ist; beim Baubeginn noch einmal.
+ */
+export function planen(world, player, type, x, y) {
+  const def = BUILDINGS[type];
+  const p = world.players[player];
+  if (!def || def.vital || def.faction !== p.faction || gesperrt(world, player, type)) return null;
+  if (x < 200 || y < 200 || x > MAP - 200 || y > MAP - 200) return null;
+  if (def.needs) {
+    const dep = findDeposit(world, x, y, def.needs);
+    if (!dep || dep.takenBy !== 0) return null;
+    x = dep.x;
+    y = dep.y;
+  }
+  if (def.needsGrowth && isCleared(world, x, y)) return null;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'building') continue;
+    const min = def.radius + BUILDINGS[e.type].radius;
+    if (dist2(x, y, e.x, e.y) < min * min) return null;
+  }
+  if (aufHindernis(world, x, y, def.radius)) return null;
+  for (let i = 0; i < world.plaene.length; i++) {
+    const q = world.plaene[i];
+    const min = def.radius + BUILDINGS[q.type].radius;
+    if (q.player === player && dist2(x, y, q.x, q.y) < min * min) return null;
+  }
+  const plan = { id: world.nextId++, kind: 'plan', player, type, x, y };
+  world.plaene.push(plan);
+  return plan;
+}
+
+/** Plan entfernen; wer ihn bauen sollte, geht zum naechsten Auftrag. */
+function planEntfernen(world, plan) {
+  world.plaene = world.plaene.filter((q) => q !== plan);
+  for (let i = 0; i < world.entities.length; i++) {
+    const u = world.entities[i];
+    if (u.kind !== 'unit' || u.player !== plan.player) continue;
+    u.reihe = u.reihe.filter((id) => id !== plan.id);
+    if (u.auftrag === plan.id) naechsterAuftrag(world, u);
+  }
+}
+
+/**
+ * Baubeginn: Aus dem Plan wird eine Baustelle, jetzt wird bezahlt. Fehlt die
+ * Fron, wartet der Plan (null). Ist der Platz inzwischen belegt, verfaellt er.
+ */
+function baubeginn(world, plan) {
+  if (!canAfford(world.players[plan.player], BUILDINGS[plan.type].cost)) return null;
+  world.plaene = world.plaene.filter((q) => q !== plan);
+  const b = tryPlace(world, plan.player, plan.type, plan.x, plan.y);
+  if (!b) {
+    world.plaene.push(plan);
+    planEntfernen(world, plan);
+    return null;
+  }
+  // Alle Auftraege auf den Plan zeigen jetzt auf die Baustelle.
+  for (let i = 0; i < world.entities.length; i++) {
+    const u = world.entities[i];
+    if (u.kind !== 'unit' || u.player !== plan.player) continue;
+    if (u.auftrag === plan.id) u.auftrag = b.id;
+    for (let k = 0; k < u.reihe.length; k++) if (u.reihe[k] === plan.id) u.reihe[k] = b.id;
+  }
+  return b;
+}
+
+/** Der naechste Auftrag aus der Reihe, sonst keiner. */
+function naechsterAuftrag(world, u) {
+  u.auftrag = 0;
+  while (u.reihe.length) {
+    const id = u.reihe.shift();
+    const z = byId(world, id) || planVon(world, id);
+    if (!z || z.dead || (z.kind === 'building' && z.done && z.hp >= z.maxHp)) continue;
+    u.auftrag = id;
+    u.tx = z.x;
+    u.ty = z.y;
+    u.arrived = false;
+    u.aggro = false;
+    return;
   }
 }
 
@@ -266,21 +368,30 @@ function applyCommand(world, c) {
         if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
           e.tx = c.x | 0;
           e.ty = c.y | 0;
+          e.befX = e.tx;
+          e.befY = e.ty;
           e.arrived = false;
           e.aggro = c.type === 'attack';
           e.auftrag = 0; // ein neuer Befehl ersetzt den Bauauftrag
+          e.reihe = [];
         }
       }
     } else if (c.type === 'build') {
-      // Mit ids: die genannten Erbauer bekommen den Auftrag fuer die neue Baustelle.
-      const b = tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
-      if (b && c.ids) beauftrage(world, c.player, c.ids, b);
+      // Ein Bauplan; mit ids bekommen die genannten Erbauer den Auftrag dafuer
+      // (anhaengen: hinten in ihre Reihe).
+      const plan = planen(world, c.player, c.building, c.x | 0, c.y | 0);
+      if (plan && c.ids) beauftrage(world, c.player, c.ids, plan, !!c.anhaengen);
     } else if (c.type === 'bauen') {
-      // An einer eigenen Baustelle mitbauen oder ein beschaedigtes Gebaeude reparieren.
-      const b = byId(world, c.id);
-      if (b && b.kind === 'building' && b.player === c.player && !b.dead && (!b.done || b.hp < b.maxHp)) {
-        beauftrage(world, c.player, c.ids, b);
-      }
+      // An einem eigenen Plan oder einer Baustelle bauen, ein beschaedigtes Gebaeude reparieren.
+      const plan = planVon(world, c.id);
+      const b = plan || byId(world, c.id);
+      const geht = plan
+        ? plan.player === c.player
+        : b && b.kind === 'building' && b.player === c.player && !b.dead && (!b.done || b.hp < b.maxHp);
+      if (geht) beauftrage(world, c.player, c.ids, b, !!c.anhaengen);
+    } else if (c.type === 'planWeg') {
+      const plan = planVon(world, c.id);
+      if (plan && plan.player === c.player) planEntfernen(world, plan);
     } else if (c.type === 'demolish') {
       demolish(world, c.player, c.id);
     } else if (c.type === 'lernen') {
@@ -907,15 +1018,37 @@ const BAU_NAH = 60;
  * reihenfolgefrei.
  */
 function erschaffen(world) {
+  const n = world.players.length;
+  // 1. Baubeginn: Plaene, neben denen ein Erbauer steht, werden Baustellen.
+  //    Reihum nach Spielern -- wollen zwei im selben Tick dieselbe Ader,
+  //    entscheidet nicht der Listenplatz (wie bei den Befehlen).
+  const start = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const u = world.entities[i];
+    if (u.dead || u.kind !== 'unit' || !u.auftrag || !UNITS[u.type].build) continue;
+    const plan = planVon(world, u.auftrag);
+    if (!plan) continue;
+    const nah = BUILDINGS[plan.type].radius + UNITS[u.type].radius + BAU_NAH;
+    if (dist2(u.x, u.y, plan.x, plan.y) <= nah * nah && !start.includes(plan)) start.push(plan);
+  }
+  let mehrere = false;
+  for (let i = 1; i < start.length && !mehrere; i++) if (start[i].player !== start[0].player) mehrere = true;
+  if (mehrere) world.baubeginnRunde++;
+  for (let k = 0; k < n; k++) {
+    const player = (world.baubeginnRunde + k) % n;
+    for (const plan of start) if (plan.player === player && planVon(world, plan.id)) baubeginn(world, plan);
+  }
+  // 2. Bauen und Reparieren.
   for (let i = 0; i < world.entities.length; i++) {
     const u = world.entities[i];
     if (u.dead || u.kind !== 'unit' || !u.auftrag) continue;
     const b = UNITS[u.type].build;
     u.baut = 0;
+    if (b && planVon(world, u.auftrag)) continue; // unterwegs zum Plan oder wartet auf Fron
     const site = byId(world, u.auftrag);
-    // Fertig gebaut und heil: Auftrag erledigt. Beschaedigt: reparieren.
+    // Fertig gebaut und heil: Auftrag erledigt, weiter mit dem naechsten. Beschaedigt: reparieren.
     if (!b || !site || site.dead || (site.done && site.hp >= site.maxHp)) {
-      u.auftrag = 0;
+      naechsterAuftrag(world, u);
       continue;
     }
     const nah = BUILDINGS[site.type].radius + UNITS[u.type].radius + BAU_NAH;
@@ -982,6 +1115,41 @@ function moveUnits(world) {
       gy[i] = e.y;
     }
   }
+  // Ankunft im Pulk -- aus den Lagen vom Tickbeginn, also reihenfolgefrei:
+  // (1) Wer eine angekommene Einheit derselben Gruppe beruehrt, ist auch da.
+  //     Sonst draengeln alle um denselben Punkt, den nur einer erreicht.
+  // (2) Wer angekommen ist und nur ein wenig weggeschoben wurde, bleibt, wo
+  //     er ist -- statt zurueckzulaufen und die Nachbarn wieder zu schieben.
+  const da = new Uint8Array(us.length);
+  for (let i = 0; i < us.length; i++) {
+    const e = us[i];
+    if (gx[i] !== e.tx || gy[i] !== e.ty) continue; // jagt gerade
+    const r = UNITS[e.type].radius;
+    if (e.arrived) {
+      if (dist2(e.x, e.y, e.tx, e.ty) <= 4 * r * r) da[i] = 2;
+      continue;
+    }
+    if (e.auftrag) continue;
+    for (let j = 0; j < us.length; j++) {
+      const o = us[j];
+      if (j === i || !o.arrived || o.player !== e.player || o.befX !== e.befX || o.befY !== e.befY) continue;
+      const min = r + UNITS[o.type].radius + 8;
+      if (dist2(e.x, e.y, o.x, o.y) <= min * min) {
+        da[i] = 1;
+        break;
+      }
+    }
+  }
+  for (let i = 0; i < us.length; i++) {
+    if (!da[i]) continue;
+    const e = us[i];
+    e.arrived = true;
+    e.tx = e.x;
+    e.ty = e.y;
+    gx[i] = e.x;
+    gy[i] = e.y;
+  }
+
   for (let i = 0; i < us.length; i++) {
     const e = us[i];
     if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
@@ -1098,7 +1266,8 @@ function umgehen(world, u) {
     if (dd >= min * min) continue;
     let d = isqrt(dd);
     if (d === 0) {
-      ox = 1;
+      // genau in der Mitte: punktsymmetrisch hinausschieben
+      ox = h.x + h.y < MAP ? 1 : -1;
       oy = 0;
       d = 1;
     }
@@ -1115,7 +1284,8 @@ function umgehen(world, u) {
     if (dd >= min * min) continue;
     let d = isqrt(dd);
     if (d === 0) {
-      ox = 1;
+      // genau in der Mitte (Baustelle entsteht auf ihrem Erbauer): punktsymmetrisch hinausschieben
+      ox = b.x + b.y < MAP ? 1 : -1;
       oy = 0;
       d = 1;
     }
@@ -1354,7 +1524,11 @@ export function hash(world) {
       mix(e.arrived ? 1 : 0);
       mix(e.aggro ? 1 : 0);
       mix(e.auftrag || 0);
+      mix(e.reihe.length);
+      for (const id of e.reihe) mix(id);
       mix(e.seit);
+      mix(e.befX);
+      mix(e.befY);
       mix(e.rufBis);
       mix(e.gebundenBis);
       mix(e.wehrBis);
@@ -1381,6 +1555,12 @@ export function hash(world) {
     for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
+  for (const p of world.plaene) {
+    mix(p.id);
+    mix(p.x);
+    mix(p.y);
+  }
+  mix(world.baubeginnRunde);
   mix(world.cleared.length);
   mix(world.befehlsRunde);
   mix(world.seed);

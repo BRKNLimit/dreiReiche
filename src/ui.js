@@ -24,6 +24,7 @@ let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
 let nebel = neuerNebel(true); // Nebel des Krieges; beim Zuschauen aus
 const verborgen = (e) => e.player !== ME && !sieht(nebel, e.x, e.y);
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
+let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
 let sel = [];
@@ -61,6 +62,8 @@ function neu(f, zuschauen = false) {
   placing = null;
   skillsOffen = false;
   skillSig = '';
+  selPlan = null;
+  leistenSig = '';
   zielen = null;
   wirkungen.length = 0;
   flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
@@ -91,7 +94,7 @@ cv.addEventListener('mousedown', (e) => {
     placing = null;
     angriff = false;
     zielen = null;
-    if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0);
+    if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0, e.shiftKey);
     return;
   }
   if (e.button === 1) {
@@ -105,7 +108,8 @@ cv.addEventListener('mousedown', (e) => {
   }
   if (placing) {
     // Ausgewaehlte Erbauer bekommen den Auftrag und gehen hin.
-    issue(world, { type: 'build', player: ME, building: placing, x: s2wx(mx) | 0, y: s2wy(my) | 0, ids: erbauer() });
+    // Shift: in die Reihe der Erbauer, und weiter setzen
+    issue(world, { type: 'build', player: ME, building: placing, x: s2wx(mx) | 0, y: s2wy(my) | 0, ids: erbauer(), anhaengen: e.shiftKey });
     if (!e.shiftKey) placing = null;
     return;
   }
@@ -148,11 +152,21 @@ addEventListener('mouseup', () => {
         if (sx >= x1 && sx <= x2 && sy >= y1 && sy <= y2) picked.push(e.id);
       } else if (Math.hypot(sx - x1, sy - y1) < 16) picked.push(e.id);
     }
+    selPlan = null;
     if (!box && picked.length === 0) {
       for (const e of world.entities) {
         if (e.player !== ME || e.kind !== 'building') continue;
         if (Math.hypot(w2sx(e.x) - x1, w2sy(e.y) - y1) < BUILDINGS[e.type].radius * cam.z + 12) {
           sel = [e.id];
+          drag = null;
+          return;
+        }
+      }
+      for (const q of world.plaene) {
+        if (q.player !== ME) continue;
+        if (Math.hypot(w2sx(q.x) - x1, w2sy(q.y) - y1) < BUILDINGS[q.type].radius * cam.z + 12) {
+          selPlan = q.id;
+          sel = [];
           drag = null;
           return;
         }
@@ -179,13 +193,16 @@ cv.addEventListener(
 addEventListener('keydown', (e) => {
   const liste = bauListe();
   const i = '123456789'.indexOf(e.key);
-  if (i >= 0 && liste[i] && !gesperrt(world, ME, liste[i])) placing = liste[i];
+  if (i >= 0 && liste[i] && erbauer().length && !gesperrt(world, ME, liste[i])) placing = liste[i];
+  if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
   if (e.key === 'Escape') {
     placing = null;
     angriff = false;
     zielen = null;
     skillsOffen = false;
     sel = [];
+    selPlan = null;
+    document.getElementById('hilfe').hidden = true;
   }
   if (e.key === 't') skillsOffen = !skillsOffen;
   // Kommandant gewaehlt: Q, W, E loesen seine Faehigkeiten aus.
@@ -214,6 +231,10 @@ addEventListener('keydown', (e) => {
   }
   if (e.key === '+') speed = Math.min(8, speed * 2);
   if (e.key === '-') speed = Math.max(0.5, speed / 2);
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selPlan) {
+    issue(world, { type: 'planWeg', player: ME, id: selPlan });
+    selPlan = null;
+  }
   if ((e.key === 'Delete' || e.key === 'Backspace') && sel.length === 1) {
     const b = byId(world, sel[0]);
     if (b && b.kind === 'building') issue(world, { type: 'demolish', player: ME, id: b.id });
@@ -264,6 +285,26 @@ document.getElementById('skills').onclick = (ev) => {
   if (b && world) issue(world, { type: 'lernen', player: ME, skill: b.dataset.skill });
 };
 
+
+// Untere Leiste: Auswahl je Typ (Klick behaelt nur diesen Typ), Bauleiste nur mit Erbauern.
+let leistenSig = '';
+document.getElementById('gruppen').onclick = (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-gruppe]') : null;
+  if (b && world) sel = sel.filter((id) => byId(world, id)?.type === b.dataset.gruppe);
+};
+document.getElementById('hilfeKnopf').onclick = () => {
+  const h = document.getElementById('hilfe');
+  h.hidden = !h.hidden;
+};
+
+/** Leisten neu zeichnen, sobald sich Auswahl oder Skills aendern. */
+function leisten() {
+  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME);
+  if (sig === leistenSig) return;
+  leistenSig = sig;
+  renderBar();
+}
+
 /** Skillbaum und Sperren neu zeichnen, sobald sich daran etwas aendert. */
 function skillPanel() {
   const el = document.getElementById('skills');
@@ -292,18 +333,19 @@ function erbauer() {
  * Rechtsklick: auf eine eigene Baustelle -- Erbauer helfen mit, die anderen
  * gehen hin. Sonst: alle bewegen sich dorthin.
  */
-function befehl(x, y) {
-  const site = world.entities.find(
-    (b) =>
-      b.kind === 'building' &&
-      b.player === ME &&
-      !b.dead &&
-      (!b.done || b.hp < b.maxHp) &&
-      (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 60) ** 2
-  );
+function befehl(x, y, anhaengen = false) {
+  const site =
+    world.entities.find(
+      (b) =>
+        b.kind === 'building' &&
+        b.player === ME &&
+        !b.dead &&
+        (!b.done || b.hp < b.maxHp) &&
+        (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 60) ** 2
+    ) || world.plaene.find((q) => q.player === ME && (q.x - x) ** 2 + (q.y - y) ** 2 <= (BUILDINGS[q.type].radius + 60) ** 2);
   const bauer = site ? erbauer() : [];
   const rest = sel.filter((id) => !bauer.includes(id));
-  if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id });
+  if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id, anhaengen });
   if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y });
 }
 
@@ -315,12 +357,9 @@ function bauListe() {
 
 function renderBar() {
   const bar = document.getElementById('builds');
-  bar.innerHTML = bauListe()
-    .map((t, i) => {
-      const zu = gesperrt(world, ME, t);
-      return `<button data-b="${t}"${zu ? ' class="zu"' : ''}>${BUILDINGS[t].name}<small>${BUILDINGS[t].cost.fron}</small><kbd>${i + 1}</kbd></button>`;
-    })
-    .join('');
+  bar.innerHTML = erbauer().length ? bauleisteHtml(world, ME, bauListe()) : '';
+  document.getElementById('gruppen').innerHTML = gruppenHtml(world, sel);
+  if (!erbauer().length) karteTyp = placing = null;
   for (const b of bar.querySelectorAll('[data-b]')) {
     b.onclick = () => {
       if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
@@ -366,12 +405,14 @@ function draw() {
   drawDeposits();
   drawSchreine();
   drawEntities();
+  drawPlaene();
   drawWirkungen();
   drawNebel();
   drawSelection();
   if (placing) drawGhost();
   drawHud();
   skillPanel();
+  leisten();
   faehPanel();
   infoKarte();
   drawMini();
@@ -414,6 +455,32 @@ function infoKarte() {
   const el = document.getElementById('karte');
   el.innerHTML = html;
   el.hidden = !html;
+}
+
+/** Eigene Bauplaene: gestrichelte Umrisse; Erbauer auf dem Weg dorthin mit gepunkteter Linie. */
+function drawPlaene() {
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = FACTIONS[meFaction].color;
+  for (const q of world.plaene) {
+    if (q.player !== ME) continue;
+    const r = Math.max(4, BUILDINGS[q.type].radius * cam.z);
+    ctx.globalAlpha = q.id === selPlan ? 1 : 0.6;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(w2sx(q.x) - r, w2sy(q.y) - r, r * 2, r * 2);
+  }
+  ctx.globalAlpha = 0.5;
+  ctx.setLineDash([2, 5]);
+  ctx.beginPath();
+  for (const u of world.entities) {
+    if (u.player !== ME || u.kind !== 'unit' || !u.auftrag) continue;
+    const q = planVon(world, u.auftrag);
+    if (!q) continue;
+    ctx.moveTo(w2sx(u.x), w2sy(u.y));
+    ctx.lineTo(w2sx(q.x), w2sy(q.y));
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
 }
 
 /** Wirkungskreise fertiger Schreine, gestrichelt in der Farbe ihres Volkes. */
@@ -817,42 +884,17 @@ function drawGhost() {
 
 // ------------------------------------------------------------ HUD
 function drawHud() {
-  const p = world.players[ME];
-  const regionen = gridReport(world, ME);
-  let rows = '';
-  for (const r of regionen) {
-    const pct = r.demand === 0 ? 100 : Math.min(100, Math.round((r.supply / r.demand) * 100));
-    rows += `<div class="reg ${r.throttled ? 'bad' : 'ok'}">
-      <span class="rn">Domäne ${r.index + 1}</span><span class="rb">${r.supply}/${r.demand}</span>
-      <div class="bar"><i style="width:${pct}%"></i></div>
-      <span class="rs">${r.throttled ? drossel(r) : 'stabil'}</span></div>`;
-  }
-  if (!rows) rows = '<div class="reg"><span class="rn">keine Domäne</span></div>';
-
+  // Wenig Text: Kommandant und Zeit; Rest nur bei Bedarf (Auswahl, Warnungen, Auswertung).
   document.getElementById('ressourcen').innerHTML = ressourcenHtml(world, ME);
   document.getElementById('hud').innerHTML = `
-    <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}, ${gegnerStufe}</div>
     <div class="res">
-      ${fronBilanz()}
-      ${skillZeile(world, ME)}
-      <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>
       ${kommandantZeile()}
-      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''} ×${speed}</span>
+      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${aiMe ? ' · Zuschauen' : ''}</span>
     </div>
-    ${flaecheHtml()}
+    ${warnungenHtml(world, ME)}
     ${auswahlHtml()}
-    <div class="regs">${rows}</div>
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
-    ${world.over || zeigeAuswertung ? auswertungHtml() : ''}`;
-}
-
-/** Fron pro Minute: Foerderung minus Unterhalt des Heeres. */
-function fronBilanz() {
-  const plus = foerderungProMin(world, ME);
-  const minus = unterhaltProMin(world, ME);
-  const netto = plus - minus;
-  const farbe = netto < 0 ? COL.bad : COL.text;
-  return `<b title="Förderung minus Unterhalt der Einheiten">Fron/min</b><span style="color:${farbe}">+${plus} −${minus} = ${netto >= 0 ? '+' : ''}${netto}</span>`;
+    ${world.over || zeigeAuswertung ? flaecheHtml() + auswertungHtml() : ''}`;
 }
 
 function kommandantZeile() {
@@ -994,6 +1036,11 @@ function flaecheHtml() {
 }
 
 function auswahlHtml() {
+  if (selPlan) {
+    const q = planVon(world, selPlan);
+    if (q) return planHtml(world, q);
+    selPlan = null;
+  }
   if (sel.length !== 1) return '';
   const e = byId(world, sel[0]);
   if (!e) return '';
@@ -1009,11 +1056,6 @@ function auswahlHtml() {
   const abriss = def.vital ? '' : '<kbd>Entf</kbd> abreißen';
   return `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${reparatur}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
     ${tasten}<div class="keys">${abriss}</div></div>`;
-}
-
-function drossel(r) {
-  for (let i = 3; i >= 0; i--) if (r.satPrio[i] < 1000) return PRIO_NAMES[i] + ' gedrosselt';
-  return 'stabil';
 }
 
 function drawMini() {
@@ -1086,8 +1128,9 @@ function introHtml() {
         Wenige starke Einheiten: Dryaden, Wölfe, Waldgeister, Ents.
         Schreine: Dornenschrein +${pz('dornenschrein')} Schaden, Steinkreis −${pw('steinkreis')} Schaden.</p></div>
     </div>
-    <p>Für beide gilt: Gebäude entstehen nur, solange <b>Erbauer</b> (Arbeiter oder Kommandant) mit
-    Auftrag daneben stehen — wer weggeht, baut nicht weiter. Gegenwart fließt nur in der Domäne —
+    <p>Für beide gilt: Ein gesetztes Gebäude ist erst ein <b>Bauplan</b> — ohne Kosten, ohne Sicht.
+    Gebaut und bezahlt wird, sobald ein <b>Erbauer</b> (Arbeiter oder Kommandant) daneben steht; wer
+    weggeht, baut nicht weiter. Mit <kbd>Shift</kbd> reiht man mehrere Pläne hintereinander. Gegenwart fließt nur in der Domäne —
     Fabriken, Förderung und Schreine brauchen sie. Schreine wirken auf eigene Einheiten in ihrem Umkreis (${meter(BUILDINGS.banner.buff.radius)}), solange die in der eigenen Domäne stehen. Götterblut liegt in der
     Kartenmitte; schwere Einheiten brauchen es.</p>
     <p>Jede Seite hat einen <b>Kommandanten</b> — ${UNITS[FACTIONS.mensch.kommandant].name} bzw.

@@ -84,6 +84,9 @@ const nodes = {
   karte: makeEl('karte'),
   ressourcen: makeEl('ressourcen'),
   faehigkeiten: makeEl('faehigkeiten'),
+  gruppen: makeEl('gruppen'),
+  hilfe: makeEl('hilfe'),
+  hilfeKnopf: makeEl('hilfeKnopf'),
 };
 
 globalThis.document = {

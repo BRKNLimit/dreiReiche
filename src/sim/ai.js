@@ -111,7 +111,15 @@ export function stepAI(ai, world) {
   const haupt = mine.find((e) => e.kind === 'building' && BUILDINGS[e.type].vital);
   if (!haupt) return;
 
-  const bauten = mine.filter((e) => e.kind === 'building');
+  // Eigene Bauplaene zaehlen wie Baustellen: Sie werden bezahlt, sobald ein
+  // Arbeiter anfaengt, und sollen nicht doppelt gesetzt werden.
+  const plaene = world.plaene
+    .filter((q) => q.player === ai.player)
+    .map((q) => ({
+      id: q.id, kind: 'building', type: q.type, player: q.player, x: q.x, y: q.y,
+      done: false, plan: true, powered: 1000, hp: 1, maxHp: 1, queue: [], progress: 0, region: -1,
+    }));
+  const bauten = mine.filter((e) => e.kind === 'building').concat(plaene);
   const einheiten = mine.filter((e) => e.kind === 'unit');
   // Der Kommandant kaempft mit, baut aber vor allem: er geht nicht mit Wellen.
   const kdt = einheiten.find((u) => UNITS[u.type].commander) || null;
@@ -358,7 +366,8 @@ export function stepAI(ai, world) {
         : vene
           ? kosten(plan.anker) + 100
           : 0;
-  let rest = fron;
+  // Was die eigenen Plaene beim Baubeginn kosten, bleibt liegen.
+  let rest = fron - plaene.reduce((s, q) => s + kosten(q.type), 0);
   let blutRest = p.goetterblut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
@@ -646,8 +655,8 @@ function nahePlatz(world, um, haupt, abstand, radius, typ, drehung = 0) {
 /** Steht hier schon ein Gebaeude, Fels oder See im Weg? Dieselbe Regel wie tryPlace(). */
 function blockiert(world, x, y, radius) {
   if (aufHindernis(world, x, y, radius)) return true;
-  for (const e of world.entities) {
-    if (e.dead || e.kind !== 'building') continue;
+  for (const e of world.entities.concat(world.plaene)) {
+    if (e.dead || (e.kind !== 'building' && e.kind !== 'plan')) continue;
     const min = radius + BUILDINGS[e.type].radius + 20;
     if (dist2(x, y, e.x, e.y) < min * min) return true;
   }

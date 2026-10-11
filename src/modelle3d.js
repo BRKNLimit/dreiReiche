@@ -1189,23 +1189,58 @@ function halleModell() {
 /** Grenzstein: Monolithischer Anker mit Runengravuren, Eisenklammern und Fahnenstandarte. */
 function grenzsteinModell() {
   const t = [];
-  const STEIN_D = '#4e544d';
-  const STEIN_M = '#687067';
-  const STEIN_H = '#828a80';
+  const STEIN_D = '#3a3f39';
+  const STEIN_M = '#586157';
+  const STEIN_H = '#768075';
+  const KETTEN = '#2b3036';
+  const GOLD = '#ffd23a';
 
+  // 1. Getrepptes Achteck-Fundament mit Pflasterung
   t.push(
-    ['z', [0.85, 1.05, 0.25, 8], [0, 0.125, 0], STEIN_D],
-    ['z', [0.68, 0.85, 0.20, 8], [0, 0.32, 0], STEIN_M],
-    ['z', [0.35, 0.55, 1.85, 6], [0, 1.30, 0], STEIN_H],
-    ['z', [0, 0.35, 0.45, 6], [0, 2.38, 0], STEIN_D],
-    ['z', [0.48, 0.48, 0.08, 6], [0, 0.90, 0], EISEN],
-    ['z', [0.40, 0.40, 0.08, 6], [0, 1.70, 0], EISEN],
-    ['q', [0.06, 0.45, 0.03], [0, 1.35, 0.45], '#ffd23a', GLUEHT],
-    ['q', [0.18, 0.06, 0.03], [0, 1.45, 0.45], '#ffd23a', GLUEHT],
-    ['q', [0.14, 0.05, 0.03], [0, 1.25, 0.45], '#ffd23a', GLUEHT],
-    stab([0.35, 1.80, 0], [0.35, 2.95, 0], 0.045, HOLZ),
-    ['k', [0.065, 5], [0.35, 2.98, 0], GOLD, GLUEHT],
-    ['q', [0.55, 0.42, 0.03], [0.65, 2.65, 0], '#d8b06a', 0.95]
+    ['z', [0.95, 1.15, 0.20, 8], [0, 0.10, 0], STEIN_D],
+    ['z', [0.75, 0.95, 0.22, 8], [0, 0.31, 0], STEIN_M],
+    ['z', [0.58, 0.72, 0.18, 8], [0, 0.51, 0], STEIN_H]
+  );
+
+  // 2. 4 Grenzpfosten an den Ecken mit Kettenverbindung
+  const pfosten = [
+    [0.72, 0.72], [-0.72, 0.72], [-0.72, -0.72], [0.72, -0.72]
+  ];
+  for (let i = 0; i < 4; i++) {
+    const [px, pz] = pfosten[i];
+    const [nx, nz] = pfosten[(i + 1) % 4];
+    t.push(
+      ['z', [0.10, 0.14, 0.55, 6], [px, 0.38, pz], STEIN_D],
+      ['k', [0.11, 5], [px, 0.68, pz], EISEN],
+      stab([px, 0.62, pz], [(px + nx) * 0.5, 0.45, (pz + nz) * 0.5], 0.035, KETTEN),
+      stab([(px + nx) * 0.5, 0.45, (pz + nz) * 0.5], [nx, 0.62, nz], 0.035, KETTEN)
+    );
+  }
+
+  // 3. Gewaltiger, facettierter Obelisk / Grenzmonolith
+  t.push(
+    ['z', [0.38, 0.52, 1.75, 6], [0, 1.48, 0], STEIN_H],
+    ['z', [0, 0.38, 0.55, 6], [0, 2.63, 0], STEIN_D],
+    ['z', [0.49, 0.49, 0.08, 6], [0, 1.05, 0], EISEN],
+    ['z', [0.42, 0.42, 0.08, 6], [0, 1.85, 0], EISEN]
+  );
+
+  // 4. Tief gemeisselte, golden glimmende Herrschafts- und Schutzrunen
+  t.push(
+    ['q', [0.06, 0.55, 0.04], [0, 1.45, 0.46], GOLD, GLUEHT],
+    ['q', [0.22, 0.06, 0.04], [0, 1.58, 0.46], GOLD, GLUEHT],
+    ['q', [0.16, 0.05, 0.04], [0, 1.32, 0.46], GOLD, GLUEHT],
+    ['k', [0.07, 4], [0, 1.78, 0.46], GOLD, GLUEHT],
+    ['q', [0.06, 0.55, 0.04], [0, 1.45, -0.46], GOLD, GLUEHT],
+    ['q', [0.22, 0.06, 0.04], [0, 1.58, -0.46], GOLD, GLUEHT]
+  );
+
+  // 5. Gusseiserner Standartenausleger mit wehendem Reichswimpel
+  t.push(
+    stab([0.38, 1.85, 0], [0.38, 3.25, 0], 0.045, HOLZ),
+    ['k', [0.07, 5], [0.38, 3.28, 0], GOLD, GLUEHT],
+    ['q', [0.65, 0.48, 0.03], [0.72, 2.92, 0], '#d8b06a', 0.95],
+    ['q', [0.35, 0.15, 0.04], [0.57, 2.92, 0], '#ffffff', 0.2]
   );
 
   return t;
@@ -1436,73 +1471,174 @@ function schachtModell() {
   return t;
 }
 
-/** Kriegsbanner: Achteckiges Steinpodest mit prachtvoll herabwallender Standarte. */
+/** Kriegsbanner: Achteckiges Steinpodest mit Feuerkoerben, angelehnten Waffen und prachtvollem Banner. */
 function bannerModell() {
   const t = [];
-  const STEIN_S = '#585e56';
+  const STEIN_D = '#464c44';
+  const STEIN_M = '#626b60';
+  const STEIN_H = '#7e877c';
+  const FEUER = '#ff9800';
 
+  // 1. Getrepptes Fundament mit abgeschraegten Stufen
   t.push(
-    ['z', [0.75, 0.95, 0.25, 8], [0, 0.125, 0], STEIN_S],
-    ['z', [0.55, 0.70, 0.20, 8], [0, 0.32, 0], '#727970'],
-    ['z', [0.35, 0.42, 0.15, 8], [0, 0.48, 0], '#8a9288'],
-    stab([0, 0.45, 0], [0, 3.10, 0], 0.065, HOLZ),
-    ['k', [0.11, 6], [0, 3.16, 0], GOLD, GLUEHT],
-    ['z', [0, 0.12, 0.25, 4], [0, 3.32, 0], GOLD, GLUEHT],
-    ['q', [0.12, 0.06, 1.25], [0, 2.95, 0.58], HOLZ],
-    ['q', [0.04, 1.45, 1.15], [0, 2.15, 0.58], '#d8b06a', 0.95],
-    ['q', [0.05, 1.25, 0.22], [0, 2.22, 0.58], '#ffffff', 0.1],
-    ['q', [0.05, 0.06, 1.15], [0, 1.40, 0.58], GOLD, GLUEHT]
+    ['z', [0.85, 1.08, 0.24, 8], [0, 0.12, 0], STEIN_D],
+    ['z', [0.65, 0.82, 0.20, 8], [0, 0.34, 0], STEIN_M],
+    ['z', [0.42, 0.55, 0.18, 8], [0, 0.53, 0], STEIN_H]
+  );
+
+  // 2. Zwei eiserne Feuerkoerbe links und rechts
+  for (const s of [1, -1]) {
+    t.push(
+      stab([s * 0.72, 0.24, 0], [s * 0.72, 0.75, 0], 0.045, EISEN),
+      ['z', [0.18, 0.12, 0.20, 6], [s * 0.72, 0.85, 0], EISEN],
+      ['k', [0.12, 5], [s * 0.72, 0.96, 0], FEUER, GLUEHT],
+      ['k', [0.06, 4], [s * 0.72, 1.05, 0], '#ffeb3b', GLUEHT]
+    );
+  }
+
+  // 3. Trophaeen-Waffengestell am Sockel (angelehnter Schild & Breitschwert)
+  t.push(
+    ['q', [0.08, 0.75, 0.48], [-0.38, 0.55, 0.38], '#243b53', 0.85, [-0.25, 0.45, 0]],
+    ['q', [0.09, 0.70, 0.14], [-0.38, 0.55, 0.38], '#d8b06a', 0.95, [-0.25, 0.45, 0]],
+    stab([-0.18, 0.24, 0.45], [-0.18, 1.10, 0.22], 0.032, EISEN),
+    ['q', [0.14, 0.03, 0.03], [-0.18, 0.95, 0.26], '#d8b06a', 0.9]
+  );
+
+  // 4. Majestaetischer Bannerbaum (Eichenschaft, Bronzebeschlaege)
+  t.push(
+    stab([0, 0.53, 0], [0, 3.45, 0], 0.075, HOLZ),
+    ['k', [0.12, 6], [0, 3.48, 0], GOLD, GLUEHT],
+    ['z', [0, 0.14, 0.32, 4], [0, 3.66, 0], GOLD, GLUEHT],
+    ['q', [0.10, 0.08, 1.35], [0, 3.25, 0.62], HOLZ],
+    ['z', [0.06, 0.06, 0.08, 6], [0, 3.25, 0.05], '#d4a236', GLUEHT, [0, 0, Math.PI / 2]],
+    ['z', [0.06, 0.06, 0.08, 6], [0, 3.25, 1.25], '#d4a236', GLUEHT, [0, 0, Math.PI / 2]]
+  );
+
+  // 5. Prunkvolles Kriegsbanner mit Fransen und Wappen
+  t.push(
+    ['q', [0.04, 1.85, 1.22], [0, 2.25, 0.62], '#d8b06a', 0.95],
+    ['q', [0.05, 1.65, 0.24], [0, 2.30, 0.62], '#ffffff', 0.15],
+    ['q', [0.05, 0.24, 1.05], [0, 2.45, 0.62], '#ffffff', 0.15],
+    ['q', [0.06, 0.12, 1.22], [0, 1.28, 0.62], GOLD, GLUEHT]
   );
 
   return t;
 }
 
-/** Kapelle: Gotisches Gotteshaus mit Strebepfeilern, Schieferdach, Glockentuermchen und Rosette. */
+/** Kapelle: Gotisches Gotteshaus mit Strebepfeilern, Schieferdach, Glockenturm, Fenstern und Rosette. */
 function kapelleModell() {
   const t = [];
-  const STEIN_K = '#ded8cc';
-  const STEIN_D = '#756f64';
-  const DACH = '#4a505b';
+  const STEIN_K = '#e2dcce';
+  const STEIN_D = '#6e675b';
+  const DACH = '#3e4450';
+  const DACH_H = '#545b6a';
+  const GLAS = '#60a5fa';
 
+  // 1. Fundamentsockel & Kirchenschiff
   t.push(
-    ['q', [1.4, 0.22, 1.8], [0, 0.11, 0], STEIN_D],
-    ['q', [1.2, 0.95, 1.6], [0, 0.68, 0], STEIN_K],
-    ['q', [0.18, 0.95, 0.18], [0.65, 0.68, 0.8], STEIN_D],
-    ['q', [0.18, 0.95, 0.18], [-0.65, 0.68, 0.8], STEIN_D],
-    ['q', [0.18, 0.95, 0.18], [0.65, 0.68, -0.8], STEIN_D],
-    ['q', [0.18, 0.95, 0.18], [-0.65, 0.68, -0.8], STEIN_D],
-    ['z', [0.12, 0.95, 0.72, 4], [0, 1.48, 0], DACH, 0.5, [0, Math.PI / 4, 0]],
-    ['q', [0.10, 0.08, 1.75], [0, 1.84, 0], STEIN_D],
-    ['q', [0.38, 0.55, 0.38], [0, 1.95, 0.45], STEIN_K],
-    ['z', [0, 0.32, 0.55, 4], [0, 2.45, 0.45], DACH, 0.5, [0, Math.PI / 4, 0]],
-    ['k', [0.08, 5], [0, 1.95, 0.45], GOLD, GLUEHT],
-    stab([0, 2.70, 0.45], [0, 3.05, 0.45], 0.03, GOLD, GLUEHT),
-    ['q', [0.22, 0.03, 0.03], [0, 2.95, 0.45], GOLD, GLUEHT],
-    ['q', [0.42, 0.65, 0.04], [0, 0.55, 0.81], '#382214'],
-    ['k', [0.18, 6], [0, 1.05, 0.81], '#d8b06a', 0.8]
+    ['q', [1.55, 0.24, 2.05], [0, 0.12, 0], STEIN_D],
+    ['q', [1.32, 1.15, 1.80], [0, 0.79, 0], STEIN_K]
+  );
+
+  // 2. 6 Strebepfeiler an den Waenden
+  const streben = [
+    [0.72, 0.79, 0.75], [-0.72, 0.79, 0.75],
+    [0.72, 0.79, 0.00], [-0.72, 0.79, 0.00],
+    [0.72, 0.79, -0.75], [-0.72, 0.79, -0.75]
+  ];
+  for (const [sx, sy, sz] of streben) {
+    t.push(
+      ['q', [0.20, 1.15, 0.20], [sx, sy, sz], STEIN_D],
+      ['z', [0, 0.12, 0.25, 4], [sx, 1.48, sz], STEIN_D]
+    );
+  }
+
+  // 3. Spitzbogiges Portal mit Eichentor & Beschlaegen
+  t.push(
+    ['q', [0.55, 0.85, 0.06], [0, 0.54, 0.92], '#3a2415'],
+    ['z', [0, 0.28, 0.32, 4], [0, 1.05, 0.92], '#3a2415'],
+    ['q', [0.12, 0.04, 0.08], [0, 0.55, 0.94], EISEN],
+    ['k', [0.22, 8], [0, 1.42, 0.92], '#f59e0b', GLUEHT],
+    ['k', [0.12, 6], [0, 1.42, 0.94], '#ffffff', GLUEHT]
+  );
+
+  // 4. Seitliche gotische Lanzettfenster (leuchtend)
+  for (const z of [0.38, -0.38]) {
+    t.push(
+      ['q', [0.05, 0.52, 0.18], [0.68, 0.85, z], GLAS, GLUEHT],
+      ['q', [0.05, 0.52, 0.18], [-0.68, 0.85, z], GLAS, GLUEHT]
+    );
+  }
+
+  // 5. Steiles Schieferdach mit Firstbalken
+  t.push(
+    ['z', [0.14, 1.05, 0.85, 4], [0, 1.78, 0], DACH, 0.5, [0, Math.PI / 4, 0]],
+    ['q', [0.12, 0.10, 1.95], [0, 2.22, 0], DACH_H]
+  );
+
+  // 6. Gotischer Glockenturm (Dachreiter) mit Glocke und Kreuz
+  t.push(
+    ['q', [0.42, 0.65, 0.42], [0, 2.35, 0.45], STEIN_K],
+    ['q', [0.24, 0.35, 0.44], [0, 2.35, 0.45], '#1e293b'],
+    ['q', [0.44, 0.35, 0.24], [0, 2.35, 0.45], '#1e293b'],
+    ['z', [0.09, 0.05, 0.15, 6], [0, 2.35, 0.45], '#d4af37', GLUEHT],
+    ['z', [0, 0.36, 0.68, 4], [0, 2.95, 0.45], DACH, 0.5, [0, Math.PI / 4, 0]],
+    stab([0, 3.25, 0.45], [0, 3.75, 0.45], 0.032, GOLD, GLUEHT),
+    ['q', [0.28, 0.032, 0.032], [0, 3.58, 0.45], GOLD, GLUEHT]
   );
 
   return t;
 }
 
-/** Skriptorium: Kloeoesterliche Schreibstube mit Erker-Lesefenster, Pergamentpult und Bibliotheksturm. */
+/** Skriptorium: Kloesterliche Schreibstube mit Erker-Lesefenster, Pergamentpult und Bibliotheksturm. */
 function skriptoriumModell() {
   const t = [];
-  const STEIN_S = '#c8beae';
-  const BALKEN = '#4e3825';
-  const DACH = '#5c4535';
+  const STEIN_S = '#cfc5b6';
+  const STEIN_D = '#5c5448';
+  const BALKEN = '#4a331c';
+  const DACH = '#6a432d';
+  const DACH_H = '#85563a';
+  const GLAS = '#fde047';
 
+  // 1. Achteckiges Sockelmauerwerk
   t.push(
-    ['q', [1.6, 0.22, 1.3], [0, 0.11, 0], '#63594d'],
-    ['q', [1.4, 0.95, 1.1], [0, 0.68, 0], STEIN_S],
-    ['z', [0.12, 1.05, 0.65, 4], [0, 1.45, 0], DACH, 0.4, [0, Math.PI / 4, 0]],
-    ['q', [0.55, 0.55, 0.22], [0, 0.75, 0.62], BALKEN],
-    ['q', [0.45, 0.45, 0.04], [0, 0.75, 0.74], '#ffd23a', GLUEHT],
-    ['q', [0.42, 0.04, 0.18], [0, 0.60, 0.62], '#3a2617'],
-    ['k', [0.045, 5], [0.12, 0.66, 0.62], '#ffd54f', GLUEHT],
-    ['z', [0.32, 0.36, 1.65, 7], [0.65, 0.95, -0.35], STEIN_S],
-    ['z', [0, 0.42, 0.55, 7], [0.65, 2.05, -0.35], DACH, 0.4],
-    ['k', [0.06, 5], [0.65, 2.35, -0.35], GOLD, GLUEHT]
+    ['q', [1.75, 0.24, 1.45], [0, 0.12, 0], STEIN_D],
+    ['q', [1.52, 1.05, 1.25], [0, 0.74, 0], STEIN_S]
+  );
+
+  // 2. Fachwerk-Erker mit Schreibfenster (Lesepult)
+  t.push(
+    ['q', [0.65, 0.65, 0.32], [0, 0.82, 0.68], BALKEN],
+    ['q', [0.52, 0.52, 0.05], [0, 0.82, 0.84], GLAS, GLUEHT],
+    ['q', [0.03, 0.52, 0.06], [0, 0.82, 0.84], BALKEN],
+    ['q', [0.52, 0.03, 0.06], [0, 0.82, 0.84], BALKEN],
+    ['q', [0.45, 0.04, 0.22], [0, 0.64, 0.68], '#5a3d24'],
+    ['q', [0.38, 0.03, 0.18], [0, 0.67, 0.68], '#f8fafc', 0.2],
+    ['k', [0.045, 5], [0.15, 0.72, 0.68], '#ffd54f', GLUEHT]
+  );
+
+  // 3. Walmdach mit Kragdachueberstand
+  t.push(
+    ['z', [0.14, 1.15, 0.75, 4], [0, 1.62, 0], DACH, 0.45, [0, Math.PI / 4, 0]],
+    ['q', [0.12, 0.08, 1.55], [0, 2.00, 0], DACH_H]
+  );
+
+  // 4. Runder Bibliotheksturm an der Flanke
+  t.push(
+    ['z', [0.36, 0.42, 1.95, 8], [0.72, 1.05, -0.38], STEIN_S],
+    ['z', [0.44, 0.44, 0.10, 8], [0.72, 2.05, -0.38], BALKEN],
+    ['z', [0, 0.48, 0.75, 8], [0.72, 2.45, -0.38], DACH_H, 0.45],
+    stab([0.72, 2.80, -0.38], [0.72, 3.25, -0.38], 0.025, EISEN),
+    ['k', [0.06, 5], [0.72, 3.25, -0.38], GOLD, GLUEHT],
+    ['q', [0.28, 0.14, 0.02], [0.84, 3.15, -0.38], GOLD, GLUEHT, [0, 0, 0.25]]
+  );
+
+  // 5. Buecherregal-Nische an der Seitenwand (gebundene Folianten)
+  t.push(
+    ['q', [0.08, 0.45, 0.35], [-0.78, 0.75, -0.15], BALKEN],
+    ['q', [0.09, 0.18, 0.08], [-0.78, 0.65, -0.22], '#7f1d1d'],
+    ['q', [0.09, 0.20, 0.08], [-0.78, 0.66, -0.14], '#1e3a8a'],
+    ['q', [0.09, 0.16, 0.08], [-0.78, 0.64, -0.06], '#065f46']
   );
 
   return t;
@@ -1583,32 +1719,53 @@ function herzbaumModell() {
   return t;
 }
 
-/** Hain: Heiliger Dreier-Baumhain mit gewundenen Staemmen, Trauerweiden-Kronen und Quellkristall. */
+/** Hain: Heiliger Dreier-Baumhain mit geschwungenen Staemmen, Quelle, Seerosen und Quellkristall. */
 function hainModell() {
   const t = [];
-  const BARK = '#453020';
-  const LAUB1 = '#326826';
-  const LAUB2 = '#529638';
+  const BARK = '#3d2b1c';
+  const BARK_D = '#26190e';
+  const LAUB1 = '#285820';
+  const LAUB2 = '#448530';
+  const LAUB3 = '#5ca842';
+  const QUELLE = '#38bdf8';
+  const KRISTALL = '#a7f3d0';
 
+  // 1. Dreier-Baumhain mit geschwungenen Ur-Staemmen
   const baeume = [
-    [0.45, 0, 0.95],
-    [-0.45, 0.35, 0.85],
-    [0, -0.45, 0.90]
+    [0.55, 0.05, 1.05],
+    [-0.55, 0.40, 0.95],
+    [0.05, -0.55, 1.00]
   ];
   for (let b = 0; b < baeume.length; b++) {
     const [bx, bz, hScale] = baeume[b];
     t.push(
-      stab([bx * 1.3, 0.05, bz * 1.3], [bx, 0.8 * hScale, bz], 0.16, BARK, 0, 5, 0.75),
-      stab([bx, 0.8 * hScale, bz], [bx * 0.7, 1.7 * hScale, bz * 0.7], 0.13, BARK, 0, 5, 0.65),
-      ['k', [0.65 * hScale, 7], [bx * 0.7, 1.9 * hScale, bz * 0.7], b % 2 ? LAUB1 : LAUB2, 0.35],
-      ['k', [0.45 * hScale, 6], [bx * 0.9, 1.6 * hScale, bz * 0.9], LAUB2, 0.35],
-      ['k', [0.08, 4], [bx * 0.8, 1.4 * hScale, bz * 0.8], '#c2f099', GLUEHT]
+      stab([bx * 1.35, 0.02, bz * 1.35], [bx, 0.85 * hScale, bz], 0.18, BARK_D, 0, 5, 0.75),
+      stab([bx, 0.85 * hScale, bz], [bx * 0.75, 1.85 * hScale, bz * 0.75], 0.14, BARK, 0, 5, 0.65),
+      stab([bx * 0.75, 1.85 * hScale, bz * 0.75], [bx * 0.45, 2.55 * hScale, bz * 0.45], 0.10, BARK, 0, 4, 0.4),
+      ['k', [0.72 * hScale, 7], [bx * 0.75, 2.15 * hScale, bz * 0.75], b % 2 ? LAUB1 : LAUB2, 0.35],
+      ['k', [0.55 * hScale, 6], [bx * 1.05, 1.80 * hScale, bz * 1.05], LAUB2, 0.35],
+      ['k', [0.48 * hScale, 6], [bx * 0.55, 2.65 * hScale, bz * 0.55], LAUB3, 0.4],
+      ['k', [0.08, 4], [bx * 0.92, 1.55 * hScale, bz * 0.92], '#fef08a', GLUEHT],
+      ['k', [0.07, 4], [bx * 0.65, 2.35 * hScale, bz * 0.65], '#fef08a', GLUEHT]
     );
   }
 
+  // 2. Heiliger Quellteich im Zentrum
   t.push(
-    ['k', [0.85, 7], [0, 0.18, 0], '#3a5824', 0.25],
-    ['k', [0.14, 5], [0.25, 0.32, 0.15], '#7be4ff', GLUEHT]
+    ['z', [0.95, 1.25, 0.18, 10], [0, 0.09, 0], '#2c3e24', 0.25],
+    ['z', [0.72, 0.72, 0.08, 10], [0, 0.18, 0], '#18382b'],
+    ['z', [0.65, 0.65, 0.05, 10], [0, 0.20, 0], QUELLE, 0.7],
+    ['k', [0.09, 4], [0.25, 0.22, 0.15], '#22c55e'],
+    ['k', [0.05, 4], [0.25, 0.24, 0.15], '#f472b6', GLUEHT],
+    ['k', [0.08, 4], [-0.18, 0.22, -0.22], '#22c55e'],
+    ['k', [0.04, 4], [-0.18, 0.24, -0.22], '#ffffff', GLUEHT]
+  );
+
+  // 3. Schwebender Naturkristall ueber der Quelle
+  t.push(
+    ['z', [0.02, 0.15, 0.42, 6], [0, 0.68, 0], KRISTALL, GLUEHT],
+    ['z', [0.15, 0.02, 0.42, 6], [0, 0.68, 0], KRISTALL, GLUEHT],
+    ['k', [0.08, 5], [0, 0.68, 0], '#ffffff', GLUEHT]
   );
 
   return t;

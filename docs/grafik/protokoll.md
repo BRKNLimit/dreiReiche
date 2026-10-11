@@ -335,6 +335,17 @@ geprüft (Tests, Galerie, Spiel).
     - In der Ansicht „Effekte“ wird dem Modell nun die dynamische Zeitphase übergeben, sodass die Wasseroberfläche lebendig wellt und schimmert und Magieeffekte sanft pulsieren.
 - **Wie geprüft:** `npm test` (137/137 Tests grün, alle Modelle innerhalb des Budgets), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
 
+### Runde 22: High-Res Upgrade der Schreine, Anker und Kultbauten (src/modelle3d.js)
+- **Was war schwach:** Die Kult- und Ankerbauten (`grenzstein`, `banner`, `kapelle`, `skriptorium`, `hain`) waren mit 450–1.100 Ecken im Vergleich zu den Hauptgebäuden noch relativ sparsam modelliert.
+- **Was wurde geändert:**
+  - `grenzsteinModell` (1.752 Ecken, vorher 684): Getrepptes Achteck-Fundament mit Pflasterung, 4 markante Grenzpfosten mit durchhängenden schweren Eisenketten, wuchtiger Obelisk mit geschmiedeten Nietklammern, beidseitig gemeißelte und golden glimmende Schutzrunen sowie gusseiserner Standartenausleger mit wehendem Reichswimpel.
+  - `bannerModell` (1.320 Ecken, vorher 564): Dreistufiges Werksteinfundament mit zwei lodernden Kohlen-Feuerkörben auf Schmiedeeisenständern, trophäenartiges Waffengestell am Sockel (Normannenschild und Breitschwert), massiver Bannerbaum mit Messingbeschlägen und prächtiges, herabwallendes Kriegsbanner mit goldenen Saumquasten und weißem Kreuzwappen.
+  - `kapelleModell` (1.248 Ecken, vorher 600): Gotisches Gotteshaus mit 6 abgetreppten Strebepfeilern, spitzbogigem Portal mit eisenbeschlagener Eichentür, leuchtender Fensterrose, 4 seitlichen Lanzettfenstern, steilem Schieferdach und offenem gotischen Glockenturm mit Bronzeglocke und Turmkreuz.
+  - `skriptoriumModell` (948 Ecken, vorher 474): Achteckiges Quadermauerwerk mit Fachwerk-Erker, Butzenscheibenfenster, beleuchtetem Lesepult mit aufgeschlagenem Folianten, Walmdach und angebautem rundem Bibliotheksturm mit eiserner Schreibfeder-Wetterfahne sowie Bücherregalnische mit ledergebundenen Büchern.
+  - `hainModell` (2.232 Ecken, vorher 1.116): Drei knorrige, miteinander verwobene Urweiden mit mächtigen Stützwurzeln, Astgabeln und kaskadierenden Kronen mit Feen-Glanzlichtern; im Zentrum ein steingefasster Quellsee mit blühenden Seerosengruppen und einem schwebenden, grün-weiß leuchtenden Lebenskristall.
+- **Wie geprüft:** `npm test` (137/137 Tests grün, Eckenbudgets strikt eingehalten), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
+
+
 
 
 

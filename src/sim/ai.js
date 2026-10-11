@@ -97,6 +97,27 @@ export function stepAI(ai, world) {
   const minute = (world.tick / 600) | 0;
   const frei = (t) => !gesperrt(world, ai.player, t);
 
+  const sicher = (pt, r) => feindeBei(world, ai.player, pt, r) === 0;
+  // Erbauer je Baustelle -- Baustellen wachsen nur, solange jemand daran arbeitet.
+  const helfer = {};
+  for (const u of einheiten) if (u.auftrag) helfer[u.auftrag] = (helfer[u.auftrag] || 0) + 1;
+  const offen = bauten.filter((b) => !b.done);
+
+  // 0a. Arbeiter: Wer einen Auftrag hat, bleibt dabei. Freie gehen zur
+  //     sicheren Baustelle mit den wenigsten Erbauern, bei Gleichstand zur
+  //     naechsten; ohne Baustelle zurueck zum Hauptgebaeude.
+  const baustellen = offen.filter((b) => sicher(b, 1200)).sort((a, b) => a.id - b.id);
+  for (const u of arbeiter.slice().sort((a, b) => a.id - b.id)) {
+    if (u.auftrag && baustellen.some((b) => b.id === u.auftrag)) continue;
+    if (baustellen.length) {
+      const site = wenigsteHelfer(baustellen, helfer, u);
+      helfer[site.id] = (helfer[site.id] || 0) + 1;
+      issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
+    } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
+      issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
+    }
+  }
+
   // 0. Skillbaum: der naechste Skill der festen Reihenfolge, sobald die
   //    Punkte reichen -- wird gespart, nicht uebersprungen.
   const naechsterSkill = LERNEN[p.faction].find((id) => !p.gelernt.includes(id));
@@ -128,7 +149,11 @@ export function stepAI(ai, world) {
     ai.letzterBau = null;
   }
   ai.gesperrt = ai.gesperrt.filter((g) => g.bis > world.tick);
+  // Nicht mehr offene Baustellen als Erbauer: Eine Baustelle ohne Erbauer
+  // bindet nur Fron.
+  const erbauerZahl = arbeiter.length + (kdt ? 1 : 0);
   const bau = (building, x, y) => {
+    if (offen.length >= Math.max(1, erbauerZahl)) return false;
     if (ai.gesperrt.some((g) => g.building === building && dist2(g.x, g.y, x, y) < 200 * 200)) return false;
     issue(world, { type: 'build', player: ai.player, building, x, y });
     ai.letzterBau = { building, x, y };
@@ -270,7 +295,9 @@ export function stepAI(ai, world) {
   let blutRest = p.goetterblut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
-  const arbeiterZiel = 2 + (minute >= 6 ? 1 : 0) + (minute >= 12 ? 1 : 0);
+  // Arbeiter nach Baukraft: Bauern bauen schwaecher als Dryaden, also mehr davon.
+  const zielKraft = 1200 + (minute >= 6 ? 800 : 0) + (minute >= 12 ? 800 : 0);
+  const arbeiterZiel = Math.ceil(zielKraft / UNITS[plan.bauer].build.power);
   let arbeiterBestellt = arbeiter.length;
   for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
   for (const f of bauten) {
@@ -303,7 +330,6 @@ export function stepAI(ai, world) {
 
   // Der Kommandant ist vital: Wer ihn verliert, verliert die Partie.
   // Rueckzug bei halbem Leben oder wenn er draussen auf Feinde trifft.
-  const sicher = (pt, r) => feindeBei(world, ai.player, pt, r) === 0;
   // Rueckzug unter halbem Leben oder wenn er draussen auf Feinde trifft.
   // Eine KI-Entscheidung, keine Regel: Heilung gibt es nicht.
   const rueckzug =
@@ -395,9 +421,9 @@ export function stepAI(ai, world) {
     return;
   }
 
-  // 9a. Kommandant: bei Gefahr heim. Sonst zur sicheren Baustelle, die ihn am
-  //     noetigsten braucht (ohne Gegenwart zuerst), sonst zu einer sicheren
-  //     Ader, sonst an die Front.
+  // 9a. Kommandant: bei Gefahr heim. Sonst bleibt er bei seinem Bauauftrag
+  //     oder geht zur sicheren Baustelle mit den wenigsten Erbauern, sonst zu
+  //     einer sicheren Ader, sonst an die Front.
   if (kdt && rueckzug) {
     if (kdt.tx !== haupt.x || kdt.ty !== haupt.y) {
       issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: haupt.x, y: haupt.y });
@@ -405,28 +431,16 @@ export function stepAI(ai, world) {
   } else if (kdt && !bedrohung && !ai.stil.kdtVorn) {
     // Hinten: in der Naehe des Hauptgebaeudes bleiben, dort beim Bauen helfen.
     const innen = HINTEN - 400;
-    let site = null;
-    for (const b of bauten) {
-      if (b.done || dist2(b.x, b.y, haupt.x, haupt.y) > innen * innen) continue;
-      if (!site || b.powered < site.powered) site = b;
-    }
+    const nahe = offen.filter((b) => dist2(b.x, b.y, haupt.x, haupt.y) <= innen * innen);
+    const site = nahe.find((b) => b.id === kdt.auftrag) || (nahe.length ? wenigsteHelfer(nahe, helfer, kdt) : null);
     if (site) {
       if (kdt.auftrag !== site.id) issue(world, { type: 'bauen', player: ai.player, ids: [kdt.id], id: site.id });
     } else if (!kdt.auftrag && dist2(kdt.x, kdt.y, haupt.x, haupt.y) > innen * innen && (kdt.tx !== haupt.x || kdt.ty !== haupt.y)) {
       issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: haupt.x, y: haupt.y });
     }
   } else if (kdt && !bedrohung) {
-    let site = null;
-    for (const b of bauten) {
-      if (b.done || !sicher(b, 1500)) continue;
-      if (
-        !site ||
-        b.powered < site.powered ||
-        (b.powered === site.powered && dist2(b.x, b.y, kdt.x, kdt.y) < dist2(site.x, site.y, kdt.x, kdt.y))
-      ) {
-        site = b;
-      }
-    }
+    const sichere = offen.filter((b) => sicher(b, 1500));
+    const site = sichere.find((b) => b.id === kdt.auftrag) || (sichere.length ? wenigsteHelfer(sichere, helfer, kdt) : null);
     const vorn = ziel ? vordersterAnker(world, bauten, ziel) : null;
     if (site) {
       if (kdt.auftrag !== site.id) issue(world, { type: 'bauen', player: ai.player, ids: [kdt.id], id: site.id });
@@ -434,26 +448,6 @@ export function stepAI(ai, world) {
       const hin = vene && !veneBereit && sicher(vene, 2000) ? vene : vorn;
       if (hin && !kdt.auftrag && dist2(kdt.x, kdt.y, hin.x, hin.y) > 700 * 700 && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
         issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
-      }
-    }
-  }
-
-  // 9c. Arbeiter: reihum auf die Baustellen, die am wenigsten Gegenwart haben;
-  //     ohne Baustelle zurueck zum Hauptgebaeude.
-  if (arbeiter.length) {
-    const baustellen = bauten
-      .filter((b) => !b.done && sicher(b, 1200))
-      .sort((a, b) => a.powered - b.powered || a.id - b.id);
-    const reihe = arbeiter.slice().sort((a, b) => a.id - b.id);
-    for (let i = 0; i < reihe.length; i++) {
-      const u = reihe[i];
-      if (baustellen.length) {
-        // Wer noch einen Auftrag hat, bleibt dabei; sonst reihum zuteilen.
-        if (u.auftrag && baustellen.some((b) => b.id === u.auftrag)) continue;
-        const site = baustellen[i % baustellen.length];
-        issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
-      } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
-        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
       }
     }
   }
@@ -597,6 +591,26 @@ function feindeBei(world, me, pt, r) {
     if (dist2(o.x, o.y, pt.x, pt.y) <= r * r) n++;
   }
   return n;
+}
+
+/**
+ * Baustelle mit den wenigsten Erbauern (ohne den Fragenden selbst), bei
+ * Gleichstand die naechste, dann die aeltere.
+ */
+function wenigsteHelfer(baustellen, helfer, u) {
+  let best = null;
+  let bestN = Infinity;
+  let bestD = Infinity;
+  for (const b of baustellen) {
+    const n = (helfer[b.id] || 0) - (u.auftrag === b.id ? 1 : 0);
+    const d = dist2(b.x, b.y, u.x, u.y);
+    if (n < bestN || (n === bestN && d < bestD)) {
+      bestN = n;
+      bestD = d;
+      best = b;
+    }
+  }
+  return best;
 }
 
 /** Fertiger Anker, der dem Ziel am naechsten steht. */

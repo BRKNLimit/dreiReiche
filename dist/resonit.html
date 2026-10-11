@@ -131,6 +131,7 @@
   .sel .karte b { display: none; }
   .zeile { font-size: 11px; margin-top: 2px; }
   .zeile.zu { color: var(--dim); }
+  .warn { color: var(--bad); }
   #builds button small { color: var(--dim); font-size: 10px; margin-left: 4px; }
   /* Skillbaum */
   #skills {
@@ -201,10 +202,11 @@ const PRIO_NAMES = ['Zorn', 'Wehr', 'Segen', 'Werk'];
 // Regeln, die fuer alle Fraktionen gleich gelten. Ein Objekt, damit Messungen
 // (tools/match.mjs) sie umschalten koennen, ohne die Datei zu aendern.
 const RULES = {
-  // Mindestfluss fuer Werk, in Promille der Versorgung einer Domaene.
-  // Ohne ihn kann Segen die gesamte Gegenwart binden, und die Baustelle der
-  // Quelle, die das aendern wuerde, steht fuer immer still. Werk faellt weiter
-  // zuerst -- aber nie ganz auf null, solange ueberhaupt Gegenwart fliesst.
+  // Mindestfluss fuer Werk (Fabriken), in Promille der Versorgung einer
+  // Domaene. Werk faellt weiter zuerst -- aber nie ganz auf null, solange
+  // ueberhaupt Gegenwart fliesst. Eingefuehrt fuer Baustellen, die frueher
+  // Gegenwart brauchten; seit 0.16 bauen nur Erbauer, und Baustellen ziehen
+  // keine Gegenwart mehr.
   werkFloor: 125,
 
   // Schaden in fremder Domaene, in Promille. 1000 = kein Malus.
@@ -587,7 +589,7 @@ const UNITS = {
     unterhalt: 12, // Fron pro Minute, solange sie lebt
     buildTime: 180,
     worker: true,
-    build: { power: 700 },
+    build: { power: 600 },
     weapon: { range: 380, damage: 8, cooldown: 7 },
   },
   wolf: {
@@ -1387,8 +1389,8 @@ function distributeGegenwart(world) {
     reg.demand = demand[0] + demand[1] + demand[2] + demand[3];
     reg.byPrio = demand;
 
-    // Mindestfluss: ein kleiner Teil bleibt fuer Werk reserviert, damit eine
-    // ueberbuchte Domaene sich selbst aus dem Loch bauen kann.
+    // Mindestfluss: ein kleiner Teil bleibt fuer Werk (Fabriken) reserviert,
+    // damit sie in einer ueberbuchten Domaene nie ganz stillstehen.
     const reserve = Math.min(demand[PRIO.werk], ((supply * RULES.werkFloor) / 1000) | 0);
     let left = supply - reserve;
     for (let p = 0; p < 4; p++) {
@@ -1415,7 +1417,7 @@ function distributeGegenwart(world) {
 
 function demandOf(e) {
   const def = BUILDINGS[e.type];
-  if (!e.done) return Math.max(8, (def.gegenwartIn || 20) >> 1);
+  if (!e.done) return 0; // Baustellen baut der Erbauer, nicht die Gegenwart
   if (!def.gegenwartIn) return 0;
   if (def.buildList && e.queue.length === 0) return 0;
   return def.gegenwartIn;
@@ -1444,9 +1446,11 @@ function step(world) {
     if (!e.done) {
       // Leben waechst mit dem Fortschritt, Schaden bleibt aber stehen:
       // es kommt nur der Zuwachs dazu, nicht der Sollwert.
+      // Fortschritt gibt es nur, solange Erbauer mit Auftrag daneben stehen
+      // und daran arbeiten -- Gegenwart allein baut nichts.
       const need = def.buildTime * 1000;
       const before = siteHp(def, e.progress, need);
-      e.progress += e.powered + e.hilfe;
+      e.progress += e.hilfe;
       e.hilfe = 0;
       e.hp = Math.min(def.hp, e.hp + siteHp(def, e.progress, need) - before);
       if (e.progress >= need) {
@@ -1537,10 +1541,11 @@ function step(world) {
 const BAU_NAH = 60;
 
 /**
- * Erschaffen: Jeder Erbauer gibt seinem Bauauftrag seine Baukraft --
- * zusaetzlich zur Gegenwart und auch ausserhalb der Domaene, aber nur,
- * solange er direkt daneben steht. Fertig oder zerstoert: Auftrag erledigt.
- * Lagen vom Tickbeginn, also reihenfolgefrei.
+ * Erschaffen: Jeder Erbauer gibt seinem Bauauftrag seine Baukraft, in und
+ * ausserhalb der Domaene, aber nur, solange er direkt daneben steht. Das ist
+ * der einzige Baufortschritt: Wer nicht daneben steht oder weggeht, baut
+ * nicht. Fertig oder zerstoert: Auftrag erledigt. Lagen vom Tickbeginn, also
+ * reihenfolgefrei.
  */
 function erschaffen(world) {
   for (let i = 0; i < world.entities.length; i++) {
@@ -2031,6 +2036,27 @@ function stepAI(ai, world) {
   const minute = (world.tick / 600) | 0;
   const frei = (t) => !gesperrt(world, ai.player, t);
 
+  const sicher = (pt, r) => feindeBei(world, ai.player, pt, r) === 0;
+  // Erbauer je Baustelle -- Baustellen wachsen nur, solange jemand daran arbeitet.
+  const helfer = {};
+  for (const u of einheiten) if (u.auftrag) helfer[u.auftrag] = (helfer[u.auftrag] || 0) + 1;
+  const offen = bauten.filter((b) => !b.done);
+
+  // 0a. Arbeiter: Wer einen Auftrag hat, bleibt dabei. Freie gehen zur
+  //     sicheren Baustelle mit den wenigsten Erbauern, bei Gleichstand zur
+  //     naechsten; ohne Baustelle zurueck zum Hauptgebaeude.
+  const baustellen = offen.filter((b) => sicher(b, 1200)).sort((a, b) => a.id - b.id);
+  for (const u of arbeiter.slice().sort((a, b) => a.id - b.id)) {
+    if (u.auftrag && baustellen.some((b) => b.id === u.auftrag)) continue;
+    if (baustellen.length) {
+      const site = wenigsteHelfer(baustellen, helfer, u);
+      helfer[site.id] = (helfer[site.id] || 0) + 1;
+      issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
+    } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
+      issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
+    }
+  }
+
   // 0. Skillbaum: der naechste Skill der festen Reihenfolge, sobald die
   //    Punkte reichen -- wird gespart, nicht uebersprungen.
   const naechsterSkill = LERNEN[p.faction].find((id) => !p.gelernt.includes(id));
@@ -2062,7 +2088,11 @@ function stepAI(ai, world) {
     ai.letzterBau = null;
   }
   ai.gesperrt = ai.gesperrt.filter((g) => g.bis > world.tick);
+  // Nicht mehr offene Baustellen als Erbauer: Eine Baustelle ohne Erbauer
+  // bindet nur Fron.
+  const erbauerZahl = arbeiter.length + (kdt ? 1 : 0);
   const bau = (building, x, y) => {
+    if (offen.length >= Math.max(1, erbauerZahl)) return false;
     if (ai.gesperrt.some((g) => g.building === building && dist2(g.x, g.y, x, y) < 200 * 200)) return false;
     issue(world, { type: 'build', player: ai.player, building, x, y });
     ai.letzterBau = { building, x, y };
@@ -2204,7 +2234,9 @@ function stepAI(ai, world) {
   let blutRest = p.goetterblut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
-  const arbeiterZiel = 2 + (minute >= 6 ? 1 : 0) + (minute >= 12 ? 1 : 0);
+  // Arbeiter nach Baukraft: Bauern bauen schwaecher als Dryaden, also mehr davon.
+  const zielKraft = 1200 + (minute >= 6 ? 800 : 0) + (minute >= 12 ? 800 : 0);
+  const arbeiterZiel = Math.ceil(zielKraft / UNITS[plan.bauer].build.power);
   let arbeiterBestellt = arbeiter.length;
   for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
   for (const f of bauten) {
@@ -2237,7 +2269,6 @@ function stepAI(ai, world) {
 
   // Der Kommandant ist vital: Wer ihn verliert, verliert die Partie.
   // Rueckzug bei halbem Leben oder wenn er draussen auf Feinde trifft.
-  const sicher = (pt, r) => feindeBei(world, ai.player, pt, r) === 0;
   // Rueckzug unter halbem Leben oder wenn er draussen auf Feinde trifft.
   // Eine KI-Entscheidung, keine Regel: Heilung gibt es nicht.
   const rueckzug =
@@ -2329,9 +2360,9 @@ function stepAI(ai, world) {
     return;
   }
 
-  // 9a. Kommandant: bei Gefahr heim. Sonst zur sicheren Baustelle, die ihn am
-  //     noetigsten braucht (ohne Gegenwart zuerst), sonst zu einer sicheren
-  //     Ader, sonst an die Front.
+  // 9a. Kommandant: bei Gefahr heim. Sonst bleibt er bei seinem Bauauftrag
+  //     oder geht zur sicheren Baustelle mit den wenigsten Erbauern, sonst zu
+  //     einer sicheren Ader, sonst an die Front.
   if (kdt && rueckzug) {
     if (kdt.tx !== haupt.x || kdt.ty !== haupt.y) {
       issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: haupt.x, y: haupt.y });
@@ -2339,28 +2370,16 @@ function stepAI(ai, world) {
   } else if (kdt && !bedrohung && !ai.stil.kdtVorn) {
     // Hinten: in der Naehe des Hauptgebaeudes bleiben, dort beim Bauen helfen.
     const innen = HINTEN - 400;
-    let site = null;
-    for (const b of bauten) {
-      if (b.done || dist2(b.x, b.y, haupt.x, haupt.y) > innen * innen) continue;
-      if (!site || b.powered < site.powered) site = b;
-    }
+    const nahe = offen.filter((b) => dist2(b.x, b.y, haupt.x, haupt.y) <= innen * innen);
+    const site = nahe.find((b) => b.id === kdt.auftrag) || (nahe.length ? wenigsteHelfer(nahe, helfer, kdt) : null);
     if (site) {
       if (kdt.auftrag !== site.id) issue(world, { type: 'bauen', player: ai.player, ids: [kdt.id], id: site.id });
     } else if (!kdt.auftrag && dist2(kdt.x, kdt.y, haupt.x, haupt.y) > innen * innen && (kdt.tx !== haupt.x || kdt.ty !== haupt.y)) {
       issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: haupt.x, y: haupt.y });
     }
   } else if (kdt && !bedrohung) {
-    let site = null;
-    for (const b of bauten) {
-      if (b.done || !sicher(b, 1500)) continue;
-      if (
-        !site ||
-        b.powered < site.powered ||
-        (b.powered === site.powered && dist2(b.x, b.y, kdt.x, kdt.y) < dist2(site.x, site.y, kdt.x, kdt.y))
-      ) {
-        site = b;
-      }
-    }
+    const sichere = offen.filter((b) => sicher(b, 1500));
+    const site = sichere.find((b) => b.id === kdt.auftrag) || (sichere.length ? wenigsteHelfer(sichere, helfer, kdt) : null);
     const vorn = ziel ? vordersterAnker(world, bauten, ziel) : null;
     if (site) {
       if (kdt.auftrag !== site.id) issue(world, { type: 'bauen', player: ai.player, ids: [kdt.id], id: site.id });
@@ -2368,26 +2387,6 @@ function stepAI(ai, world) {
       const hin = vene && !veneBereit && sicher(vene, 2000) ? vene : vorn;
       if (hin && !kdt.auftrag && dist2(kdt.x, kdt.y, hin.x, hin.y) > 700 * 700 && (kdt.tx !== hin.x || kdt.ty !== hin.y)) {
         issue(world, { type: 'move', player: ai.player, ids: [kdt.id], x: hin.x, y: hin.y });
-      }
-    }
-  }
-
-  // 9c. Arbeiter: reihum auf die Baustellen, die am wenigsten Gegenwart haben;
-  //     ohne Baustelle zurueck zum Hauptgebaeude.
-  if (arbeiter.length) {
-    const baustellen = bauten
-      .filter((b) => !b.done && sicher(b, 1200))
-      .sort((a, b) => a.powered - b.powered || a.id - b.id);
-    const reihe = arbeiter.slice().sort((a, b) => a.id - b.id);
-    for (let i = 0; i < reihe.length; i++) {
-      const u = reihe[i];
-      if (baustellen.length) {
-        // Wer noch einen Auftrag hat, bleibt dabei; sonst reihum zuteilen.
-        if (u.auftrag && baustellen.some((b) => b.id === u.auftrag)) continue;
-        const site = baustellen[i % baustellen.length];
-        issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
-      } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
-        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
       }
     }
   }
@@ -2531,6 +2530,26 @@ function feindeBei(world, me, pt, r) {
     if (dist2(o.x, o.y, pt.x, pt.y) <= r * r) n++;
   }
   return n;
+}
+
+/**
+ * Baustelle mit den wenigsten Erbauern (ohne den Fragenden selbst), bei
+ * Gleichstand die naechste, dann die aeltere.
+ */
+function wenigsteHelfer(baustellen, helfer, u) {
+  let best = null;
+  let bestN = Infinity;
+  let bestD = Infinity;
+  for (const b of baustellen) {
+    const n = (helfer[b.id] || 0) - (u.auftrag === b.id ? 1 : 0);
+    const d = dist2(b.x, b.y, u.x, u.y);
+    if (n < bestN || (n === bestN && d < bestD)) {
+      bestN = n;
+      bestD = d;
+      best = b;
+    }
+  }
+  return best;
 }
 
 /** Fertiger Anker, der dem Ziel am naechsten steht. */
@@ -2716,7 +2735,13 @@ function karte(titel, desc, zeilen, sperre) {
 function gebaeudeKarte(world, player, typ) {
   const d = BUILDINGS[typ];
   const z = [];
-  if (!d.vital) z.push(['Kosten', kostenText(d.cost)], ['Bauzeit', sekunden(d.buildTime)]);
+  if (!d.vital) {
+    // Gebaut wird nur von Erbauern: Bauzeit fuer den Kommandanten und einen Arbeiter allein.
+    const kdt = UNITS[FACTIONS[d.faction].kommandant];
+    const arb = Object.values(UNITS).find((u) => u.faction === d.faction && u.worker);
+    const dauer = (u) => `${u.name} ${sekunden(Math.ceil((d.buildTime * 1000) / u.build.power))}`;
+    z.push(['Kosten', kostenText(d.cost)], ['Bauzeit', `${dauer(kdt)} · ${dauer(arb)} (allein)`]);
+  }
   z.push(['Leben', d.hp + ' LP']);
   if (d.gegenwartIn) z.push(['Gegenwart', 'braucht ' + d.gegenwartIn]);
   if (d.gegenwartOut) z.push(['Gegenwart', 'liefert ' + d.gegenwartOut]);
@@ -2753,6 +2778,27 @@ function einheitKarte(world, player, typ) {
   z.push(['Tempo', tempo(d.speed)]);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
+}
+
+/**
+ * Zustand einer Baustelle: Fortschritt und wer daran arbeitet. Ohne Erbauer
+ * geht nichts voran -- dann der Hinweis, wie man einen schickt.
+ */
+function baustelleText(world, e) {
+  const pct = Math.min(100, Math.floor(e.progress / (BUILDINGS[e.type].buildTime * 10)));
+  let am = 0;
+  let weg = 0;
+  for (const u of world.entities) {
+    if (u.dead || u.kind !== 'unit' || u.auftrag !== e.id) continue;
+    if (u.baut === e.id) am++;
+    else weg++;
+  }
+  const wer = am
+    ? `${am} Erbauer ${am === 1 ? 'baut' : 'bauen'}${weg ? `, ${weg} unterwegs` : ''}`
+    : weg
+      ? `${weg} Erbauer unterwegs`
+      : '<span class="warn">wartet auf Erbauer — Erbauer wählen, Rechtsklick auf die Baustelle</span>';
+  return `Baustelle ${pct} % · ${wer}`;
 }
 
 /** Ausbildungsliste einer Fabrik: Taste, Name, Kosten, Zeit, Unterhalt. */
@@ -3607,9 +3653,9 @@ function drawGhost() {
     ? def.name + ' — braucht eine freie ' + ader
     : gerodet
     ? def.name + ' — gerodeter Boden trägt nicht'
-    : drin
-      ? def.name
-      : def.name + ' — außerhalb der Domäne: nur der Kommandant baut hier';
+    : def.name +
+      (drin || !def.gegenwartIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
+      (erbauer().length ? '' : ' — keine Erbauer gewählt: die Baustelle wartet');
   ctx.fillText(txt, x, y - r - 8);
 }
 
@@ -3800,7 +3846,7 @@ function auswahlHtml() {
   if (e.kind === 'unit') return `<div class="sel">${auswahlKopf(world, e)}${einheitKarte(world, ME, e.type)}</div>`;
   const def = BUILDINGS[e.type];
   const zustand = !e.done
-    ? `Baustelle ${Math.min(100, Math.floor(e.progress / (def.buildTime * 10)))} %`
+    ? baustelleText(world, e)
     : e.powered < 1000
       ? `gedrosselt ${Math.round(e.powered / 10)} %`
       : 'versorgt';
@@ -3877,12 +3923,13 @@ function introHtml() {
         Wenige starke Einheiten: Dryaden, Wölfe, Waldgeister, Ents.
         Schreine: Dornenschrein +${pz('dornenschrein')} Schaden, Steinkreis −${pw('steinkreis')} Schaden.</p></div>
     </div>
-    <p>Für beide gilt: Gegenwart fließt nur in der Domäne — Fabriken, Förderung und Schreine brauchen
-    sie. Schreine wirken auf eigene Einheiten in ihrem Umkreis (${meter(BUILDINGS.banner.buff.radius)}), solange die in der eigenen Domäne stehen. Götterblut liegt in der
+    <p>Für beide gilt: Gebäude entstehen nur, solange <b>Erbauer</b> (Arbeiter oder Kommandant) mit
+    Auftrag daneben stehen — wer weggeht, baut nicht weiter. Gegenwart fließt nur in der Domäne —
+    Fabriken, Förderung und Schreine brauchen sie. Schreine wirken auf eigene Einheiten in ihrem Umkreis (${meter(BUILDINGS.banner.buff.radius)}), solange die in der eigenen Domäne stehen. Götterblut liegt in der
     Kartenmitte; schwere Einheiten brauchen es.</p>
     <p>Jede Seite hat einen <b>Kommandanten</b> — ${UNITS[FACTIONS.mensch.kommandant].name} bzw.
-    ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut, was in seiner Nähe steht,
-    auch außerhalb der Domäne. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
+    ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut mit voller Kraft, wo
+    immer er steht. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
     vorn kämpft, entscheidest du.</p>
     <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
     Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,

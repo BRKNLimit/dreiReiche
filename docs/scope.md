@@ -411,6 +411,30 @@ angreift, hat sie genauso wie der Verteidiger. Die Fähigkeiten setzt die KI
 selten ein, denn ihr Kommandant bleibt im Stil „Standard“ daheim; sie kommen
 erst um Minute 8 bis 10.
 
+### 13. Gebaut wird nur von Erbauern (Stand 0.16)
+
+> **Vorgabe des Nutzers:** Ein Bauauftrag beginnt erst, wenn Dryade oder
+> Kommandant da sind. Ohne dass sie aktiv daran arbeiten, gibt es keinen
+> Baufortschritt — auch nicht, wenn man anfängt und dann wegzieht.
+
+Baufortschritt kommt nur noch aus der Kraft der Erbauer daneben; Baustellen
+ziehen keine Gegenwart. Die KI musste lernen, jede Baustelle zu besetzen.
+KI gegen KI, 32 Seeds × 2 Sitzplätze:
+
+| Stand | Menschen : Gott | Sitz 0 | Ø Dauer |
+| --- | --- | --- | --- |
+| nur die Regel, KI unverändert (16 Seeds) | 3 : 29 | 15 | 16,9 min |
+| KI verteilt Erbauer, Arbeiter nach Baukraft | 20 : 44 | 34 | 16,6 min |
+| Bauer 500 statt 400 | 30 : 34 | 36 | 16,2 min |
+| Bauer 600 | 21 : 43 | 35 | 16,3 min |
+| **Dryade 600 statt 700 — Ausgang** | **33 : 31** | 31 | 16,5 min |
+
+Die Menschen bauen mit vielen schwachen Bauern, der Gott mit wenigen
+starken Dryaden. Die Ergebnisse schwanken stark mit kleinen Änderungen
+(Bauer 500 und 600 liegen 9 Siege auseinander) — die Zahl ist eine
+Designzahl, die Messung nur ein Anhalt. Die Stil-Paarungen bleiben wie in
+Abschnitt 10: „Sturm“ gewinnt fast immer.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

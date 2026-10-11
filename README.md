@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.15
+# Die drei Reiche — Prototyp 0.16
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -13,7 +13,7 @@ Verbesserungen und eine Fähigkeit des Kommandanten frei.
 ## Loslegen
 
 ```bash
-npm test          # 74 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
+npm test          # 77 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -43,7 +43,7 @@ der Draufsicht.
 | `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |
 | Mittlere Maustaste | Karte schieben · Mausrad zoomen |
 | `1`–`7` | Gebäude wählen, dann Linksklick setzen (`5` Förderbau auf Götterblut, `6` `7` Schreine) |
-| Erbauer gewählt + Gebäude setzen | Bauer, Dryade oder Kommandant bekommen den Bauauftrag, gehen hin und bauen direkt daneben — ein Auftrag je Einheit |
+| Erbauer gewählt + Gebäude setzen | Bauer, Dryade oder Kommandant bekommen den Bauauftrag, gehen hin und bauen direkt daneben — ein Auftrag je Einheit. **Ohne Erbauer wächst keine Baustelle**, auch nicht in der Domäne; wer weggeht, baut nicht weiter |
 | Erbauer gewählt + Rechtsklick auf eigene Baustelle | Mitbauen |
 | Gebäude anklicken, `Q` / `W` | Einheiten bauen (schwere kosten Götterblut) |
 | Gebäude anklicken, `Entf` | Abreißen: Baustelle ¾, fertig ½ der Kosten zurück |
@@ -71,12 +71,14 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 - Deterministische Simulation, fester Zeitschritt (10 Hz), nur Integer
 - Domäne als Vereinigung von Ankerkreisen, getrennte Teile sind getrennte Netze
 - Drosselleiter Werk → Segen → Wehr → Zorn, anteilig statt binär, mit
-  Mindestfluss für Baustellen
+  Mindestfluss für Fabriken
+- Gebaut wird nur von Erbauern (Arbeiter, Kommandant), die mit Auftrag
+  daneben stehen
 - Fron, Roden sperrt Haine aus, Heimvorteil für den Gott
 - Götterblut: Adern auf der Mittelachse, Förderbau braucht versorgte Domäne,
   schwere Einheiten kosten Götterblut
 - Kommandanten nach Vorbild der ACU: Held und Waldgott, extrem stark, bauen
-  auch außerhalb der Domäne; fällt er, ist die Partie verloren
+  mit voller Kraft; fällt er, ist die Partie verloren
 - Menschen: viele günstige Einheiten (Bauer, Soldat, Jäger, Söldner); Gott:
   wenige starke (Dryade, Wolf, Waldgeist, Ent). Arbeiter bauen wie der
   Kommandant, nur schwächer

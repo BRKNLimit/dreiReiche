@@ -632,8 +632,8 @@ export function distributeGegenwart(world) {
     reg.demand = demand[0] + demand[1] + demand[2] + demand[3];
     reg.byPrio = demand;
 
-    // Mindestfluss: ein kleiner Teil bleibt fuer Werk reserviert, damit eine
-    // ueberbuchte Domaene sich selbst aus dem Loch bauen kann.
+    // Mindestfluss: ein kleiner Teil bleibt fuer Werk (Fabriken) reserviert,
+    // damit sie in einer ueberbuchten Domaene nie ganz stillstehen.
     const reserve = Math.min(demand[PRIO.werk], ((supply * RULES.werkFloor) / 1000) | 0);
     let left = supply - reserve;
     for (let p = 0; p < 4; p++) {
@@ -660,7 +660,7 @@ export function distributeGegenwart(world) {
 
 function demandOf(e) {
   const def = BUILDINGS[e.type];
-  if (!e.done) return Math.max(8, (def.gegenwartIn || 20) >> 1);
+  if (!e.done) return 0; // Baustellen baut der Erbauer, nicht die Gegenwart
   if (!def.gegenwartIn) return 0;
   if (def.buildList && e.queue.length === 0) return 0;
   return def.gegenwartIn;
@@ -690,9 +690,11 @@ export function step(world) {
     if (!e.done) {
       // Leben waechst mit dem Fortschritt, Schaden bleibt aber stehen:
       // es kommt nur der Zuwachs dazu, nicht der Sollwert.
+      // Fortschritt gibt es nur, solange Erbauer mit Auftrag daneben stehen
+      // und daran arbeiten -- Gegenwart allein baut nichts.
       const need = def.buildTime * 1000;
       const before = siteHp(def, e.progress, need);
-      e.progress += e.powered + e.hilfe;
+      e.progress += e.hilfe;
       e.hilfe = 0;
       e.hp = Math.min(def.hp, e.hp + siteHp(def, e.progress, need) - before);
       if (e.progress >= need) {
@@ -783,10 +785,11 @@ export function step(world) {
 const BAU_NAH = 60;
 
 /**
- * Erschaffen: Jeder Erbauer gibt seinem Bauauftrag seine Baukraft --
- * zusaetzlich zur Gegenwart und auch ausserhalb der Domaene, aber nur,
- * solange er direkt daneben steht. Fertig oder zerstoert: Auftrag erledigt.
- * Lagen vom Tickbeginn, also reihenfolgefrei.
+ * Erschaffen: Jeder Erbauer gibt seinem Bauauftrag seine Baukraft, in und
+ * ausserhalb der Domaene, aber nur, solange er direkt daneben steht. Das ist
+ * der einzige Baufortschritt: Wer nicht daneben steht oder weggeht, baut
+ * nicht. Fertig oder zerstoert: Auftrag erledigt. Lagen vom Tickbeginn, also
+ * reihenfolgefrei.
  */
 function erschaffen(world) {
   for (let i = 0; i < world.entities.length; i++) {

@@ -3,6 +3,24 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.16 — Gebaut wird nur von Erbauern
+
+- **Baufortschritt gibt es nur, solange Erbauer mit Auftrag direkt daneben
+  stehen** (Arbeiter oder Kommandant) — in und außerhalb der Domäne.
+  Gegenwart allein baut nichts mehr. Die Baustelle beginnt, wenn der
+  Erbauer ankommt; geht er weg, steht sie still.
+- Baustellen ziehen keine Gegenwart mehr. Der Mindestfluss
+  (`RULES.werkFloor`) hält nur noch Fabriken am Laufen.
+- Dryade baut mit 60 statt 70 % Kraft (Designzahl, nach Messung).
+- Oberfläche: Eine gewählte Baustelle zeigt, wie viele Erbauer bauen oder
+  unterwegs sind — oder warnt, dass sie wartet. Die Info-Karte nennt die
+  Bauzeit mit Kommandant und mit einem Arbeiter. Beim Setzen ohne gewählte
+  Erbauer erscheint ein Hinweis.
+- KI: Arbeiterzahl nach Baukraft (mehr Bauern als Dryaden), Verteilung auf
+  die Baustelle mit den wenigsten Erbauern, nicht mehr offene Baustellen als
+  Erbauer.
+- Messung (64 Partien): Menschen 33 : Gott 31, Sitz 0 gewinnt 31, Ø 16,5 min.
+
 ## 0.15 — Info-Karten: wissen, was man baut
 
 - Jede Einheit und jedes Gebäude hat eine Beschreibung (`desc` in

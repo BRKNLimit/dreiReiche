@@ -43,6 +43,10 @@ export const CONFIGS = {
   'lang + max 7000': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 7000 } },
   'malus 800': { rules: { fremdMalus: 800 } },
   'malus 650': { rules: { fremdMalus: 650 } },
+  // Baukraft der Arbeiter (0.16): seit nur noch Erbauer bauen
+  'Bauer 500': { units: { bauer: { build: { power: 500 } } } },
+  'Bauer 600': { units: { bauer: { build: { power: 600 } } } },
+  'Dryade 700': { units: { dryade: { build: { power: 700 } } } },
   // Skillbaum (0.14): aus = alles frei, keine Verbesserungen
   'ohne Skills': { rules: { skills: false } },
   // Erfahrung (0.13): aus, doppelt

@@ -36,7 +36,13 @@ function karte(titel, desc, zeilen, sperre) {
 export function gebaeudeKarte(world, player, typ) {
   const d = BUILDINGS[typ];
   const z = [];
-  if (!d.vital) z.push(['Kosten', kostenText(d.cost)], ['Bauzeit', sekunden(d.buildTime)]);
+  if (!d.vital) {
+    // Gebaut wird nur von Erbauern: Bauzeit fuer den Kommandanten und einen Arbeiter allein.
+    const kdt = UNITS[FACTIONS[d.faction].kommandant];
+    const arb = Object.values(UNITS).find((u) => u.faction === d.faction && u.worker);
+    const dauer = (u) => `${u.name} ${sekunden(Math.ceil((d.buildTime * 1000) / u.build.power))}`;
+    z.push(['Kosten', kostenText(d.cost)], ['Bauzeit', `${dauer(kdt)} · ${dauer(arb)} (allein)`]);
+  }
   z.push(['Leben', d.hp + ' LP']);
   if (d.gegenwartIn) z.push(['Gegenwart', 'braucht ' + d.gegenwartIn]);
   if (d.gegenwartOut) z.push(['Gegenwart', 'liefert ' + d.gegenwartOut]);
@@ -73,6 +79,27 @@ export function einheitKarte(world, player, typ) {
   z.push(['Tempo', tempo(d.speed)]);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
+}
+
+/**
+ * Zustand einer Baustelle: Fortschritt und wer daran arbeitet. Ohne Erbauer
+ * geht nichts voran -- dann der Hinweis, wie man einen schickt.
+ */
+export function baustelleText(world, e) {
+  const pct = Math.min(100, Math.floor(e.progress / (BUILDINGS[e.type].buildTime * 10)));
+  let am = 0;
+  let weg = 0;
+  for (const u of world.entities) {
+    if (u.dead || u.kind !== 'unit' || u.auftrag !== e.id) continue;
+    if (u.baut === e.id) am++;
+    else weg++;
+  }
+  const wer = am
+    ? `${am} Erbauer ${am === 1 ? 'baut' : 'bauen'}${weg ? `, ${weg} unterwegs` : ''}`
+    : weg
+      ? `${weg} Erbauer unterwegs`
+      : '<span class="warn">wartet auf Erbauer — Erbauer wählen, Rechtsklick auf die Baustelle</span>';
+  return `Baustelle ${pct} % · ${wer}`;
 }
 
 /** Ausbildungsliste einer Fabrik: Taste, Name, Kosten, Zeit, Unterhalt. */

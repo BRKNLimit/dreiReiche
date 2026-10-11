@@ -1504,7 +1504,12 @@ function zeichneUeberlagerung(now) {
     octx.font = '12px ui-sans-serif, system-ui, sans-serif';
     octx.textAlign = 'center';
     const drin = inDomain(world, ME, hover.x, hover.y);
-    octx.fillText(BUILDINGS[placing].name + (drin ? '' : ' — außerhalb der Domäne: nur Erbauer bauen hier (vorher auswählen)'), maus.x, maus.y - 24);
+    const def = BUILDINGS[placing];
+    const text =
+      def.name +
+      (drin || !def.gegenwartIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
+      (erbauer3().length ? '' : ' — keine Erbauer gewählt: die Baustelle wartet');
+    octx.fillText(text, maus.x, maus.y - 24);
   }
 }
 
@@ -1518,7 +1523,7 @@ function zeichneHud() {
     if (e && e.kind === 'building') {
       const def = BUILDINGS[e.type];
       const zustand = !e.done
-        ? `Baustelle ${Math.min(100, Math.floor(e.progress / (def.buildTime * 10)))} %`
+        ? baustelleText(world, e)
         : e.powered < 1000
           ? `gedrosselt ${Math.round(e.powered / 10)} %`
           : 'versorgt';
@@ -1592,6 +1597,8 @@ function introHtml3() {
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
     (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
     ist die Partie verloren.</p>
+    <p>Gebäude entstehen nur, solange <b>Erbauer</b> (Arbeiter oder Kommandant) mit Auftrag daneben
+    stehen: Erbauer wählen, dann Gebäude setzen oder Rechtsklick auf eine Baustelle.</p>
     <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
     Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
     Schreine, Verbesserungen und eine Fähigkeit des Kommandanten frei (<kbd>F</kbd>). Wer lange lebt,

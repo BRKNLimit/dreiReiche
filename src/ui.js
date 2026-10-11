@@ -743,9 +743,9 @@ function drawGhost() {
     ? def.name + ' — braucht eine freie ' + ader
     : gerodet
     ? def.name + ' — gerodeter Boden trägt nicht'
-    : drin
-      ? def.name
-      : def.name + ' — außerhalb der Domäne: nur der Kommandant baut hier';
+    : def.name +
+      (drin || !def.gegenwartIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
+      (erbauer().length ? '' : ' — keine Erbauer gewählt: die Baustelle wartet');
   ctx.fillText(txt, x, y - r - 8);
 }
 
@@ -936,7 +936,7 @@ function auswahlHtml() {
   if (e.kind === 'unit') return `<div class="sel">${auswahlKopf(world, e)}${einheitKarte(world, ME, e.type)}</div>`;
   const def = BUILDINGS[e.type];
   const zustand = !e.done
-    ? `Baustelle ${Math.min(100, Math.floor(e.progress / (def.buildTime * 10)))} %`
+    ? baustelleText(world, e)
     : e.powered < 1000
       ? `gedrosselt ${Math.round(e.powered / 10)} %`
       : 'versorgt';
@@ -1013,12 +1013,13 @@ function introHtml() {
         Wenige starke Einheiten: Dryaden, Wölfe, Waldgeister, Ents.
         Schreine: Dornenschrein +${pz('dornenschrein')} Schaden, Steinkreis −${pw('steinkreis')} Schaden.</p></div>
     </div>
-    <p>Für beide gilt: Gegenwart fließt nur in der Domäne — Fabriken, Förderung und Schreine brauchen
-    sie. Schreine wirken auf eigene Einheiten in ihrem Umkreis (${meter(BUILDINGS.banner.buff.radius)}), solange die in der eigenen Domäne stehen. Götterblut liegt in der
+    <p>Für beide gilt: Gebäude entstehen nur, solange <b>Erbauer</b> (Arbeiter oder Kommandant) mit
+    Auftrag daneben stehen — wer weggeht, baut nicht weiter. Gegenwart fließt nur in der Domäne —
+    Fabriken, Förderung und Schreine brauchen sie. Schreine wirken auf eigene Einheiten in ihrem Umkreis (${meter(BUILDINGS.banner.buff.radius)}), solange die in der eigenen Domäne stehen. Götterblut liegt in der
     Kartenmitte; schwere Einheiten brauchen es.</p>
     <p>Jede Seite hat einen <b>Kommandanten</b> — ${UNITS[FACTIONS.mensch.kommandant].name} bzw.
-    ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut, was in seiner Nähe steht,
-    auch außerhalb der Domäne. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
+    ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut mit voller Kraft, wo
+    immer er steht. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
     vorn kämpft, entscheidest du.</p>
     <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
     Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,

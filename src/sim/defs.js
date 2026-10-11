@@ -22,10 +22,11 @@ export const PRIO_NAMES = ['Zorn', 'Wehr', 'Segen', 'Werk'];
 // Regeln, die fuer alle Fraktionen gleich gelten. Ein Objekt, damit Messungen
 // (tools/match.mjs) sie umschalten koennen, ohne die Datei zu aendern.
 export const RULES = {
-  // Mindestfluss fuer Werk, in Promille der Versorgung einer Domaene.
-  // Ohne ihn kann Segen die gesamte Gegenwart binden, und die Baustelle der
-  // Quelle, die das aendern wuerde, steht fuer immer still. Werk faellt weiter
-  // zuerst -- aber nie ganz auf null, solange ueberhaupt Gegenwart fliesst.
+  // Mindestfluss fuer Werk (Fabriken), in Promille der Versorgung einer
+  // Domaene. Werk faellt weiter zuerst -- aber nie ganz auf null, solange
+  // ueberhaupt Gegenwart fliesst. Eingefuehrt fuer Baustellen, die frueher
+  // Gegenwart brauchten; seit 0.16 bauen nur Erbauer, und Baustellen ziehen
+  // keine Gegenwart mehr.
   werkFloor: 125,
 
   // Schaden in fremder Domaene, in Promille. 1000 = kein Malus.
@@ -409,7 +410,7 @@ export const UNITS = {
     unterhalt: 12, // Fron pro Minute, solange sie lebt
     buildTime: 180,
     worker: true,
-    build: { power: 700 },
+    build: { power: 600 },
     weapon: { range: 380, damage: 8, cooldown: 7 },
   },
   wolf: {

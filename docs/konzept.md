@@ -53,7 +53,7 @@ Vorwärtsstellung ohne Verbindung hat ihre eigene, meist leere Versorgung.
 Reicht die Gegenwart in einem Domänenteil nicht für alles, versiegt sie in
 fester Reihenfolge:
 
-1. **Werk** — Baustellen und Fabriken stocken zuerst
+1. **Werk** — Fabriken stocken zuerst
 2. **Segen** — Produktion, Förderung, Heilung
 3. **Wehr** — Schutzzauber und Schilde (Schreine wie Kapelle, Steinkreis)
 4. **Zorn** — Waffen zuletzt (Schreine wie Kriegsbanner, Dornenschrein)
@@ -88,17 +88,24 @@ Wirtschaft, nicht als Selbstzweck.
 ### Kommandanten
 
 Jede Seite hat einen Kommandanten nach Vorbild der ACU aus Supreme
-Commander: extrem stark, er baut (auch außerhalb der Domäne), und sein
+Commander: extrem stark, er baut mit voller Kraft, und sein
 Verlust bedeutet die Niederlage. Ob er hinten baut oder vorn kämpft,
 entscheidet der Spieler.
 
 Ein Gott lässt seine Waffen als Letztes fallen.
 
+### Gebaut wird von Erbauern
+
+Gebäude entstehen nur, solange Erbauer — Arbeiter oder der Kommandant — mit
+Auftrag direkt daneben stehen und daran arbeiten. Die Domäne baut nicht von
+selbst: Wer eine Baustelle setzt und seine Erbauer abzieht, hat nur Fron
+vergraben. Gegenwart braucht ein Gebäude erst, wenn es fertig ist und
+arbeiten soll.
+
 **Mindestfluss.** Ein Achtel der Gegenwart eines Domänenteils erreicht immer
-die Baustellen, solange es welche gibt. Ohne diese Reserve kann eine
-überbuchte Domäne sich nicht mehr selbst retten: Die Förderung bindet alles,
-und die Baustelle der neuen Quelle steht für immer still. Werk fällt weiter
-zuerst — nur nicht ganz auf null.
+die Fabriken. Werk fällt weiter zuerst — nur nicht ganz auf null.
+Eingeführt wurde er für Baustellen, die früher Gegenwart brauchten; seit
+Erbauer allein bauen, ist das sein einziger Zweck.
 
 ### Skillbaum statt Zeitalter
 

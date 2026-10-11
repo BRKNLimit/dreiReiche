@@ -32,6 +32,13 @@ function bare(f0 = 'mensch', f1 = 'gott') {
   return createWorld({ empty: true, factions: [f0, f1] });
 }
 
+/** Ein Erbauer direkt neben der Baustelle, mit Auftrag. */
+function erbauerDaneben(w, site, typ = 'held') {
+  const u = spawnUnit(w, site.player, typ, site.x + BUILDINGS[site.type].radius + UNITS[typ].radius + 20, site.y);
+  issue(w, { type: 'bauen', player: site.player, ids: [u.id], id: site.id });
+  return u;
+}
+
 test('isqrt liefert exakte Integer-Wurzeln', () => {
   assert.equal(isqrt(144), 12);
   assert.equal(isqrt(145), 12);
@@ -143,21 +150,74 @@ test('Drosselleiter: Werk fällt vor Segen', () => {
   assert.equal(kaserne.powered, Math.floor(((40 - 14) * 1000) / 55));
 });
 
-test('eine Baustelle ohne Gegenwart macht keinen Fortschritt', () => {
+test('ohne Erbauer kein Baufortschritt -- auch nicht in versorgter Domaene', () => {
   const w = bare();
-  const b = spawnBuilding(w, 0, 'kaserne', 15000, 15000, false);
+  spawnBuilding(w, 0, 'turm', 15000, 15000, true);
+  spawnBuilding(w, 0, 'schmiede', 15800, 15000, true);
+  const b = spawnBuilding(w, 0, 'kaserne', 16600, 15600, false);
   for (let i = 0; i < BUILDINGS.kaserne.buildTime * 3; i++) step(w);
   assert.equal(b.done, false);
   assert.equal(b.progress, 0);
 });
 
-test('dieselbe Baustelle mit Gegenwart wird fertig', () => {
+test('mit einem Erbauer daneben wird sie fertig: buildTime bei voller Kraft', () => {
   const w = bare();
   spawnBuilding(w, 0, 'turm', 15000, 15000, true);
   spawnBuilding(w, 0, 'schmiede', 15800, 15000, true);
   const b = spawnBuilding(w, 0, 'kaserne', 16600, 15600, false);
-  for (let i = 0; i < BUILDINGS.kaserne.buildTime + 1; i++) step(w);
+  erbauerDaneben(w, b, 'held');
+  for (let i = 0; i < BUILDINGS.kaserne.buildTime - 1; i++) step(w);
+  assert.equal(b.done, false, 'nicht schneller als buildTime');
+  step(w);
+  step(w);
   assert.equal(b.done, true);
+});
+
+test('in der Domaene: erst wenn der Erbauer ankommt, geht es los', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const bauer = spawnUnit(w, 0, 'bauer', 5000, 7500); // 250 m entfernt, in der Domaene
+  issue(w, { type: 'build', player: 0, building: 'turm', x: 7500, y: 5000, ids: [bauer.id] });
+  step(w);
+  const turm = w.entities.find((e) => e.type === 'turm');
+  for (let i = 0; i < 20; i++) step(w);
+  assert.equal(turm.progress, 0, 'unterwegs wird nicht gebaut, Gegenwart hin oder her');
+  for (let i = 0; i < 200; i++) step(w);
+  assert.ok(turm.progress > 0, 'angekommen: es geht voran');
+});
+
+test('in der Domaene: wer weggeht, baut nicht weiter -- die Baustelle steht', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const turm = tryPlace(w, 0, 'turm', 7000, 5000);
+  const k = erbauerDaneben(w, turm, 'held');
+  for (let i = 0; i < 20; i++) step(w);
+  const stand = turm.progress;
+  assert.ok(stand > 0, 'angefangen');
+  issue(w, { type: 'move', player: 0, ids: [k.id], x: 3000, y: 5000 });
+  for (let i = 0; i < BUILDINGS.turm.buildTime * 3; i++) step(w);
+  assert.equal(turm.progress, stand, 'kein Fortschritt ohne Erbauer');
+  assert.equal(turm.done, false, 'und nicht trotzdem fertig');
+});
+
+test('mehrere Erbauer bauen zusammen schneller als einer', () => {
+  const zeit = (zweiter) => {
+    const w = bare();
+    spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+    const b = tryPlace(w, 0, 'turm', 7000, 5000);
+    erbauerDaneben(w, b, 'bauer');
+    if (zweiter) {
+      const u = spawnUnit(w, 0, 'bauer', b.x - 100, b.y);
+      issue(w, { type: 'bauen', player: 0, ids: [u.id], id: b.id });
+    }
+    let t = 0;
+    while (!b.done && t < 5000) {
+      step(w);
+      t++;
+    }
+    return t;
+  };
+  assert.ok(zeit(true) * 3 < zeit(false) * 2, 'deutlich schneller zu zweit');
 });
 
 // ---------------------------------------------------- Roden
@@ -170,6 +230,7 @@ test('ein Sägewerk rodet den Boden und sperrt Haine aus', () => {
   const s = tryPlace(w, 0, 'saege', 5000, 6200);
   assert.ok(s, 'Sägewerk steht');
   assert.equal(isCleared(w, 5000, 6200), false, 'erst nach Fertigstellung');
+  erbauerDaneben(w, s);
 
   for (let i = 0; i < BUILDINGS.saege.buildTime + 1; i++) step(w);
   assert.equal(s.done, true);
@@ -289,20 +350,35 @@ test('Startkarte stellt beide Fraktionen auf', () => {
 
 // ---------------------------------------------------- Mindestfluss
 
-test('überbuchte Domäne: Baustellen bekommen trotzdem den Mindestfluss', () => {
+test('überbuchte Domäne: Fabriken bekommen trotzdem den Mindestfluss', () => {
   // Thingstätte liefert 24, zwei Sägewerke wollen 28 Segen -- ohne
-  // Mindestfluss bliebe für die Schmiede-Baustelle nichts.
+  // Mindestfluss bliebe für die arbeitende Kaserne nichts.
   const w = bare();
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   spawnBuilding(w, 0, 'saege', 5000, 6000, true);
   spawnBuilding(w, 0, 'saege', 6000, 5000, true);
+  const kas = spawnBuilding(w, 0, 'kaserne', 4000, 5000, true);
+  kas.queue.push('soldat');
+  computeRegions(w);
+  distributeGegenwart(w);
+  assert.ok(kas.powered > 0, 'Werk steht nicht still');
+});
+
+test('Baustellen ziehen keine Gegenwart -- auch eine Quelle entsteht in überbuchter Domäne', () => {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const s1 = spawnBuilding(w, 0, 'saege', 5000, 6000, true);
+  spawnBuilding(w, 0, 'saege', 6000, 5000, true);
+  computeRegions(w);
+  distributeGegenwart(w);
+  const vorher = s1.powered;
   const schmiede = spawnBuilding(w, 0, 'schmiede', 4000, 5000, false);
   computeRegions(w);
   distributeGegenwart(w);
-  assert.ok(schmiede.powered > 0, 'Werk steht nicht still');
-
-  for (let i = 0; i < BUILDINGS.schmiede.buildTime * 40 && !schmiede.done; i++) step(w);
-  assert.equal(schmiede.done, true, 'die Quelle wird fertig und löst die Überbuchung');
+  assert.equal(s1.powered, vorher, 'die Baustelle nimmt niemandem etwas');
+  erbauerDaneben(w, schmiede);
+  for (let i = 0; i < BUILDINGS.schmiede.buildTime + 2; i++) step(w);
+  assert.equal(schmiede.done, true, 'der Erbauer baut sie fertig');
 });
 
 test('ohne Überbuchung ändert der Mindestfluss nichts an der Leiter', () => {
@@ -322,6 +398,7 @@ test('Schaden an einer Baustelle bleibt bestehen', () => {
   spawnBuilding(w, 0, 'turm', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
   const b = spawnBuilding(w, 0, 'kaserne', 6000, 5800, false);
+  erbauerDaneben(w, b);
   for (let i = 0; i < 20; i++) step(w);
   const vorher = b.hp;
   b.hp -= 100;
@@ -334,7 +411,8 @@ test('eine unbeschädigte Baustelle ist bei Fertigstellung voll', () => {
   spawnBuilding(w, 0, 'turm', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
   const b = spawnBuilding(w, 0, 'kaserne', 6000, 5800, false);
-  for (let i = 0; i < BUILDINGS.kaserne.buildTime + 1; i++) step(w);
+  erbauerDaneben(w, b);
+  for (let i = 0; i < BUILDINGS.kaserne.buildTime + 2; i++) step(w);
   assert.equal(b.done, true);
   assert.equal(b.hp, BUILDINGS.kaserne.hp);
 });
@@ -961,26 +1039,6 @@ test('beim Platzieren bekommen ausgewaehlte Erbauer den Auftrag', () => {
   const turm = w.entities.find((e) => e.type === 'turm');
   assert.equal(b.auftrag, turm.id, 'der Bauer baut');
   assert.equal(s.auftrag || 0, 0, 'der Soldat kann nicht bauen');
-});
-
-test('in der Domäne baut der Kommandant zusätzlich zur Gegenwart', () => {
-  const zeit = (mitKdt) => {
-    const w = bare();
-    spawnBuilding(w, 0, 'turm', 5000, 5000, true);
-    spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
-    const b = spawnBuilding(w, 0, 'kaserne', 6000, 5800, false);
-    if (mitKdt) {
-      const k = spawnUnit(w, 0, 'held', 6200, 5800);
-      issue(w, { type: 'bauen', player: 0, ids: [k.id], id: b.id });
-    }
-    let t = 0;
-    while (!b.done && t < 5000) {
-      step(w);
-      t++;
-    }
-    return t;
-  };
-  assert.ok(zeit(true) * 3 < zeit(false) * 2, 'deutlich schneller mit Kommandant');
 });
 
 test('fällt der Kommandant, ist die Partie verloren', () => {

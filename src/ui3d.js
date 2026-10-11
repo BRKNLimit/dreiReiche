@@ -1382,11 +1382,10 @@ function zeichneHud() {
       const tasten = def.buildList
         ? def.buildList.map((u, i) => `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}`).join(' · ')
         : '';
-      auswahl = `<div class="sel"><b>${def.name}</b> — ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
+      auswahl = `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
         <div class="keys">${tasten}${def.vital ? '' : ' · <kbd>Entf</kbd> abreißen'}</div></div>`;
     } else if (e) {
-      const def = UNITS[e.type];
-      auswahl = `<div class="sel"><b>${def.name}</b> — ${e.hp}/${e.maxHp}</div>`;
+      auswahl = `<div class="sel">${auswahlKopf(world, e)}</div>`;
     }
   } else if (sel.length > 1) {
     const zahl = {};

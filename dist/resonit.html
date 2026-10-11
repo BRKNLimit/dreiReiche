@@ -179,6 +179,12 @@ const RULES = {
   // Jeder Spieler beginnt mit seinem Kommandanten (UNITS mit commander).
   // Aus nur fuer Vergleichsmessungen.
   kommandanten: true,
+
+  // Erfahrung: Wer lange lebt, wird ein wenig staerker -- teilt mehr Schaden
+  // aus und nimmt weniger. Promille je voller Minute seit Entstehung (Einheit)
+  // bzw. Bauende (Gebaeude), gedeckelt. Bewusst klein. 0 = aus.
+  erfahrungProMin: 10,
+  erfahrungMax: 100,
 };
 const FACTIONS = {
   mensch: {
@@ -716,6 +722,7 @@ function spawnUnit(world, player, type, x, y) {
     arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
     auftrag: 0, // Baustelle, die dieser Erbauer bauen soll (0 = keine)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
+    seit: world.tick, // fuer die Erfahrung
     cooldown: 0,
     dead: false,
   };
@@ -948,6 +955,17 @@ function byId(world, id) {
 /** Gegenwart, die ein Anker mit diesem Radius spendet (RULES.ankerKraft). */
 function ankerGegenwart(r) {
   return ((r * RULES.ankerKraft) / 1000) | 0;
+}
+
+/**
+ * Erfahrung in Promille: je volle Minute seit Entstehung (Einheit) bzw.
+ * Bauende (Gebaeude) RULES.erfahrungProMin, hoechstens RULES.erfahrungMax.
+ * Baustellen haben keine.
+ */
+function erfahrung(world, e) {
+  const seit = e.kind === 'unit' ? e.seit : e.done ? e.doneAt : -1;
+  if (seit < 0) return 0;
+  return Math.min(RULES.erfahrungMax, (((world.tick - seit) / 600) | 0) * RULES.erfahrungProMin);
 }
 
 /** Liegt der Punkt in der Domäne dieses Spielers? */
@@ -1427,6 +1445,9 @@ function combat(world) {
     // Zorn: ein versorgter Schrein im Netz, in dem der Schuetze steht.
     const zorn = buffAt(world, e.player, e.x, e.y).zorn;
     if (zorn) dmg = ((dmg * (1000 + zorn)) / 1000) | 0;
+    // Erfahrung: wer lange lebt, trifft ein wenig haerter.
+    const erf = erfahrung(world, e);
+    if (erf) dmg = ((dmg * (1000 + erf)) / 1000) | 0;
     // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
     // schwaecher zu. Gilt fuer alle Fraktionen gleich.
     if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
@@ -1441,7 +1462,11 @@ function combat(world) {
   for (let i = 0; i < shots.length; i += 2) {
     const t = shots[i];
     const wehr = buffAt(world, t.player, t.x, t.y).wehr;
-    t.hp -= wehr ? ((shots[i + 1] * (1000 - wehr)) / 1000) | 0 : shots[i + 1];
+    let dmg = wehr ? ((shots[i + 1] * (1000 - wehr)) / 1000) | 0 : shots[i + 1];
+    // ... und steckt ein wenig mehr weg.
+    const erf = erfahrung(world, t);
+    if (erf) dmg = ((dmg * (1000 - erf)) / 1000) | 0;
+    t.hp -= dmg;
   }
   for (let i = 0; i < shots.length; i += 2) {
     const target = shots[i];
@@ -1566,7 +1591,9 @@ function hash(world) {
       mix(e.arrived ? 1 : 0);
       mix(e.aggro ? 1 : 0);
       mix(e.auftrag || 0);
+      mix(e.seit);
     } else {
+      mix(e.doneAt);
       mix(e.progress);
       mix(e.queueProgress);
       mix(e.queue.length);
@@ -2277,6 +2304,28 @@ function winkel(a, b) {
     }
   }
   return best;
+}
+
+
+/* ---------------------------------- */
+
+// Gemeinsame Texte fuer beide Oberflaechen (2D und 3D). Liest den Zustand,
+// aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
+
+
+/** Erfahrung als kurzer Text, leer ohne Erfahrung. */
+function erfahrungText(world, e) {
+  const erf = erfahrung(world, e);
+  return erf ? `Erfahrung +${Math.round(erf / 10)} %` : '';
+}
+
+/** Kopfzeile einer einzelnen Auswahl: Name, Leben, Erfahrung. */
+function auswahlKopf(world, e) {
+  const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
+  const teile = [`${e.hp}/${e.maxHp} LP`];
+  const erf = erfahrungText(world, e);
+  if (erf) teile.push(erf);
+  return `<b>${def.name}</b> — ${teile.join(' · ')}`;
 }
 
 
@@ -3076,7 +3125,8 @@ function flaecheHtml() {
 function auswahlHtml() {
   if (sel.length !== 1) return '';
   const e = byId(world, sel[0]);
-  if (!e || e.kind !== 'building') return '';
+  if (!e) return '';
+  if (e.kind === 'unit') return `<div class="sel">${auswahlKopf(world, e)}</div>`;
   const def = BUILDINGS[e.type];
   const zustand = !e.done
     ? `Baustelle ${Math.min(100, Math.floor(e.progress / (def.buildTime * 10)))} %`
@@ -3089,7 +3139,7 @@ function auswahlHtml() {
         .join(' · ')
     : '';
   const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';
-  return `<div class="sel"><b>${def.name}</b> — ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
+  return `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
     <div class="keys">${tasten}${abriss}</div></div>`;
 }
 

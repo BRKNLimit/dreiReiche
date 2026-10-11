@@ -43,6 +43,9 @@ export const CONFIGS = {
   'lang + max 7000': { buildings: { halle: { hp: 20000 }, herzbaum: { hp: 20000 } }, g: { max: 7000 } },
   'malus 800': { rules: { fremdMalus: 800 } },
   'malus 650': { rules: { fremdMalus: 650 } },
+  // Erfahrung (0.13): aus, doppelt
+  'ohne Erfahrung': { rules: { erfahrungProMin: 0 } },
+  'Erfahrung doppelt': { rules: { erfahrungProMin: 20, erfahrungMax: 200 } },
   // Schrein-Umkreis (0.12): klein, gross, ganze Domaene
   'Schreine 2000': { buildings: schreinRadius(2000) },
   'Schreine 4500': { buildings: schreinRadius(4500) },

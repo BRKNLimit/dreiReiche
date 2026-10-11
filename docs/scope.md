@@ -371,6 +371,25 @@ Früher Angriff dominiert wie in Abschnitt 7, mit schnellerer Wirtschaft
 noch deutlicher. **Offen für dich:** Ist das ein Problem der KI-Stile oder
 des Spiels? Gegen einen Menschen am Steuer zeigt das nur Spielen.
 
+### 11. Erfahrung (Stand 0.13)
+
+> **Vorgabe des Nutzers:** Erfahrung für Gebäude und Einheiten — je länger
+> am Leben, umso stärker, aber nur minimal.
+
+Je volle Minute 1 % mehr ausgeteilter und 1 % weniger genommener Schaden,
+höchstens 10 % (*Designzahlen*, `RULES.erfahrungProMin` und
+`erfahrungMax`). KI gegen KI, 32 Seeds × 2 Sitzplätze:
+
+| Einstellung | Menschen : Gott | Sitz 0 | Ø Dauer |
+| --- | --- | --- | --- |
+| ohne Erfahrung | 29 : 35 | 29 | 17,0 min |
+| 1 % je Minute, höchstens 10 % (Ausgang) | 29 : 35 | 27 | 17,3 min |
+| doppelt (2 %, höchstens 20 %) | 29 : 35 | 29 | 17,1 min |
+
+Die Erfahrung entscheidet keine KI-Partie. Die Heere der KI leben selten
+lange; ob sie Spielern, die ihr Heer schonen, etwas bringt, zeigt nur
+Spielen.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

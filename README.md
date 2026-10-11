@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.12
+# Die drei Reiche — Prototyp 0.13
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -11,7 +11,7 @@ Einheit kostet laufend Unterhalt — große Heere fressen die Wirtschaft.
 ## Loslegen
 
 ```bash
-npm test          # 63 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, KI, Fairness
+npm test          # 66 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -80,6 +80,7 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 - Unterhalt: Jede Einheit kostet Fron pro Minute; das HUD zeigt Förderung,
   Unterhalt und Saldo
 - Hauptgebäude tragen eine Grunddomäne von 400 m für die ganze Startbasis
+- Erfahrung: Wer lange lebt, wird ein wenig stärker (1 % je Minute, höchstens 10 %)
 - Abriss mit Teilerstattung
 - Gebäude sind Hindernisse: Einheiten gleiten seitlich herum (kein Pathfinding)
 - Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine),

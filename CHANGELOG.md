@@ -3,6 +3,16 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.13 — Erfahrung
+
+- Einheiten und fertige Gebäude sammeln Erfahrung: je volle Minute am
+  Leben 1 %, höchstens 10 % (`RULES.erfahrungProMin`, `erfahrungMax`).
+  Erfahrung erhöht den ausgeteilten und senkt den genommenen Schaden.
+- Auswahl zeigt Lebenspunkte und Erfahrung, jetzt auch für einzelne
+  Einheiten. Gemeinsame Texte beider Ansichten in `src/ui-gemeinsam.js`.
+- Messung (64 Partien): Menschen 29 : Gott 35 mit, ohne und mit doppelter
+  Erfahrung — in KI-Partien wirkt sie nicht spürbar.
+
 ## 0.12 — Mehr RTS: Unterhalt, schnellere Wirtschaft, Schreine im Umkreis
 
 - **Unterhalt:** Jede Einheit kostet laufend Fron pro Minute (Bauer 4,

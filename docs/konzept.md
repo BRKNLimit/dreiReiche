@@ -70,6 +70,13 @@ Heimvorteil. Beide Fraktionen haben beide Schreine; beim Gott wirken sie
 stärker. Der Umkreis macht die Basis stark und lässt Außenposten
 angreifbar — gekämpft wird um die Karte, nicht nur vor der Haustür.
 
+### Erfahrung
+
+Einheiten und Gebäude, die lange leben, werden ein wenig stärker: Sie teilen
+mehr Schaden aus und stecken mehr weg, je Minute ein Prozent, höchstens
+zehn. Bewusst klein — ein altes Heer ist etwas wert, aber kein Grund, nie
+anzugreifen.
+
 ### Unterhalt statt Obergrenze
 
 Jede Einheit kostet laufend Fron. Es gibt keine harte Obergrenze für das

@@ -18,6 +18,7 @@ import {
   inForeignDomain,
   dist2,
   unterhaltProMin,
+  erfahrung,
 } from '../src/sim/sim.js';
 import { FACTIONS, BUILDINGS, UNITS, RULES, MAP } from '../src/sim/defs.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
@@ -395,6 +396,53 @@ test('Unterhalt: jede Einheit hat einen, Kommandanten ausgenommen', () => {
     if (d.commander) assert.ok(!d.unterhalt, typ + ' kostet keinen Unterhalt');
     else assert.ok(d.unterhalt > 0, typ + ' hat Unterhalt');
   }
+});
+
+// ---------------------------------------------------- Erfahrung
+
+test('Erfahrung waechst je volle Minute und ist gedeckelt', () => {
+  const w = bare();
+  const u = spawnUnit(w, 0, 'soldat', 3000, 3000);
+  assert.equal(erfahrung(w, u), 0);
+  w.tick += 599;
+  assert.equal(erfahrung(w, u), 0, 'erst nach einer vollen Minute');
+  w.tick += 1;
+  assert.equal(erfahrung(w, u), RULES.erfahrungProMin);
+  w.tick += 600 * 1000;
+  assert.equal(erfahrung(w, u), RULES.erfahrungMax);
+});
+
+test('Erfahrung: Baustellen haben keine, Gebaeude zaehlen ab Bauende', () => {
+  const w = bare();
+  const b = spawnBuilding(w, 0, 'turm', 3000, 3000, false);
+  w.tick += 6000;
+  assert.equal(erfahrung(w, b), 0);
+  b.done = true;
+  b.doneAt = w.tick;
+  w.tick += 1200;
+  assert.equal(erfahrung(w, b), 2 * RULES.erfahrungProMin);
+});
+
+// Ein Schlag: Wolf gegen Soldat, beide wahlweise erfahren.
+function erfahrenesGefecht(wolfAlt, soldatAlt) {
+  const w = bare('gott', 'mensch');
+  w.tick = 600 * 50;
+  const wolf = spawnUnit(w, 0, 'wolf', 5000, 5000);
+  const soldat = spawnUnit(w, 1, 'soldat', 5200, 5000);
+  soldat.cooldown = 1e9; // schlaegt nicht zurueck
+  if (wolfAlt) wolf.seit = 0;
+  if (soldatAlt) soldat.seit = 0;
+  const hp = soldat.hp;
+  step(w);
+  return hp - soldat.hp;
+}
+
+test('Erfahrung: ein alter Wolf trifft haerter, ein alter Soldat steckt mehr weg', () => {
+  const d = UNITS.wolf.weapon.damage;
+  const m = RULES.erfahrungMax;
+  assert.equal(erfahrenesGefecht(false, false), d);
+  assert.equal(erfahrenesGefecht(true, false), ((d * (1000 + m)) / 1000) | 0);
+  assert.equal(erfahrenesGefecht(false, true), ((d * (1000 - m)) / 1000) | 0);
 });
 
 // ---------------------------------------------------- Abriss

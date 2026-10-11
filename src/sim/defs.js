@@ -42,6 +42,12 @@ export const RULES = {
   // Jeder Spieler beginnt mit seinem Kommandanten (UNITS mit commander).
   // Aus nur fuer Vergleichsmessungen.
   kommandanten: true,
+
+  // Erfahrung: Wer lange lebt, wird ein wenig staerker -- teilt mehr Schaden
+  // aus und nimmt weniger. Promille je voller Minute seit Entstehung (Einheit)
+  // bzw. Bauende (Gebaeude), gedeckelt. Bewusst klein. 0 = aus.
+  erfahrungProMin: 10,
+  erfahrungMax: 100,
 };
 
 export const FACTIONS = {

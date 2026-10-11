@@ -792,7 +792,8 @@ function flaecheHtml() {
 function auswahlHtml() {
   if (sel.length !== 1) return '';
   const e = byId(world, sel[0]);
-  if (!e || e.kind !== 'building') return '';
+  if (!e) return '';
+  if (e.kind === 'unit') return `<div class="sel">${auswahlKopf(world, e)}</div>`;
   const def = BUILDINGS[e.type];
   const zustand = !e.done
     ? `Baustelle ${Math.min(100, Math.floor(e.progress / (def.buildTime * 10)))} %`
@@ -805,7 +806,7 @@ function auswahlHtml() {
         .join(' · ')
     : '';
   const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';
-  return `<div class="sel"><b>${def.name}</b> — ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
+  return `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
     <div class="keys">${tasten}${abriss}</div></div>`;
 }
 

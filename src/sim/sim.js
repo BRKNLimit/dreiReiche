@@ -162,6 +162,7 @@ export function spawnUnit(world, player, type, x, y) {
     arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
     auftrag: 0, // Baustelle, die dieser Erbauer bauen soll (0 = keine)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
+    seit: world.tick, // fuer die Erfahrung
     cooldown: 0,
     dead: false,
   };
@@ -398,6 +399,17 @@ export function byId(world, id) {
 /** Gegenwart, die ein Anker mit diesem Radius spendet (RULES.ankerKraft). */
 export function ankerGegenwart(r) {
   return ((r * RULES.ankerKraft) / 1000) | 0;
+}
+
+/**
+ * Erfahrung in Promille: je volle Minute seit Entstehung (Einheit) bzw.
+ * Bauende (Gebaeude) RULES.erfahrungProMin, hoechstens RULES.erfahrungMax.
+ * Baustellen haben keine.
+ */
+export function erfahrung(world, e) {
+  const seit = e.kind === 'unit' ? e.seit : e.done ? e.doneAt : -1;
+  if (seit < 0) return 0;
+  return Math.min(RULES.erfahrungMax, (((world.tick - seit) / 600) | 0) * RULES.erfahrungProMin);
 }
 
 /** Liegt der Punkt in der Domäne dieses Spielers? */
@@ -879,6 +891,9 @@ function combat(world) {
     // Zorn: ein versorgter Schrein im Netz, in dem der Schuetze steht.
     const zorn = buffAt(world, e.player, e.x, e.y).zorn;
     if (zorn) dmg = ((dmg * (1000 + zorn)) / 1000) | 0;
+    // Erfahrung: wer lange lebt, trifft ein wenig haerter.
+    const erf = erfahrung(world, e);
+    if (erf) dmg = ((dmg * (1000 + erf)) / 1000) | 0;
     // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
     // schwaecher zu. Gilt fuer alle Fraktionen gleich.
     if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
@@ -893,7 +908,11 @@ function combat(world) {
   for (let i = 0; i < shots.length; i += 2) {
     const t = shots[i];
     const wehr = buffAt(world, t.player, t.x, t.y).wehr;
-    t.hp -= wehr ? ((shots[i + 1] * (1000 - wehr)) / 1000) | 0 : shots[i + 1];
+    let dmg = wehr ? ((shots[i + 1] * (1000 - wehr)) / 1000) | 0 : shots[i + 1];
+    // ... und steckt ein wenig mehr weg.
+    const erf = erfahrung(world, t);
+    if (erf) dmg = ((dmg * (1000 - erf)) / 1000) | 0;
+    t.hp -= dmg;
   }
   for (let i = 0; i < shots.length; i += 2) {
     const target = shots[i];
@@ -1020,7 +1039,9 @@ export function hash(world) {
       mix(e.arrived ? 1 : 0);
       mix(e.aggro ? 1 : 0);
       mix(e.auftrag || 0);
+      mix(e.seit);
     } else {
+      mix(e.doneAt);
       mix(e.progress);
       mix(e.queueProgress);
       mix(e.queue.length);

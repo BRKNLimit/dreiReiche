@@ -87,6 +87,7 @@ const nodes = {
   gruppen: makeEl('gruppen'),
   hilfe: makeEl('hilfe'),
   hilfeKnopf: makeEl('hilfeKnopf'),
+  untaetig: makeEl('untaetig'),
 };
 
 globalThis.document = {

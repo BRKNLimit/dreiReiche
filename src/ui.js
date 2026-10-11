@@ -271,6 +271,7 @@ addEventListener('keydown', (e) => {
   }
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
   if (e.key === 'm') stummSchalten(fx);
+  if (e.key === '.') naechsterUntaetiger();
   if (e.key === 'k') {
     const k = kommandantVon(world, ME);
     if (k) {
@@ -375,10 +376,45 @@ function skillPanel() {
   if (skillsOffen) el.innerHTML = skillBaumHtml(world, ME);
 }
 
+mini.addEventListener('contextmenu', (e) => e.preventDefault());
 mini.addEventListener('mousedown', (e) => {
-  cam.x = (e.offsetX / mini.clientWidth) * MAP;
-  cam.y = (e.offsetY / mini.clientHeight) * MAP;
+  const x = ((e.offsetX / mini.clientWidth) * MAP) | 0;
+  const y = ((e.offsetY / mini.clientHeight) * MAP) | 0;
+  // Rechtsklick: die Auswahl dorthin schicken (mit A scharf: Angriffsbewegung)
+  if (e.button === 2) {
+    if (angriff && sel.length) {
+      issue(world, { type: 'attack', player: ME, ids: sel.slice(), x, y });
+      angriff = false;
+    } else if (sel.length) befehl(x, y, e.shiftKey);
+    return;
+  }
+  cam.x = x;
+  cam.y = y;
 });
+
+// Untaetige Arbeiter: Knopf mit Anzahl, Taste . waehlt reihum den naechsten.
+let untaetigSig = '';
+let untaetigZeiger = 0;
+function untaetigAnzeigen() {
+  const n = untaetigeArbeiter(world, ME).length;
+  const sig = n + '|' + meFaction;
+  if (sig === untaetigSig) return;
+  untaetigSig = sig;
+  const b = document.getElementById('untaetig');
+  b.hidden = n === 0;
+  b.innerHTML = n ? untaetigHtml(world, ME, n) : '';
+}
+function naechsterUntaetiger() {
+  const liste = untaetigeArbeiter(world, ME);
+  if (!liste.length) return;
+  const u = liste[untaetigZeiger++ % liste.length];
+  sel = [u.id];
+  selPlan = null;
+  cam.x = u.x;
+  cam.y = u.y;
+}
+document.getElementById('untaetig').onclick = () => naechsterUntaetiger();
+
 
 /** Ausgewaehlte eigene Einheiten, die bauen koennen. */
 function erbauer() {
@@ -507,6 +543,7 @@ function draw() {
   drawHud();
   skillPanel();
   leisten();
+  untaetigAnzeigen();
   faehPanel();
   infoKarte();
   drawMini();

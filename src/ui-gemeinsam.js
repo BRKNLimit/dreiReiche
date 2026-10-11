@@ -217,6 +217,19 @@ export function auswahlMitte(world, sel) {
   return n ? { x: x / n, y: y / n } : null;
 }
 
+/** Eigene Arbeiter, die nichts tun: kein Auftrag, keine Reihe, angekommen. */
+export function untaetigeArbeiter(world, ich) {
+  return world.entities.filter(
+    (e) => !e.dead && e.kind === 'unit' && e.player === ich && UNITS[e.type].worker && !e.auftrag && !e.reihe.length && e.arrived
+  );
+}
+
+/** Knopf fuer untaetige Arbeiter: Icon des Arbeiters und Anzahl. */
+export function untaetigHtml(world, ich, n) {
+  const typ = Object.keys(UNITS).find((k) => UNITS[k].worker && UNITS[k].faction === world.players[ich].faction);
+  return `${ICONS[typ] || ''}<span class="zahl">${n}</span>`;
+}
+
 /** Gewaehlte eigene Fabriken -- ein Rechtsklick setzt ihren Sammelpunkt. */
 export function gewaehlteFabriken(world, sel, ich) {
   return sel.filter((id) => {

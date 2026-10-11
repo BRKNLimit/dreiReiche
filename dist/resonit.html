@@ -235,6 +235,7 @@
       <button id="asGott">Als Gott</button>
       <a class="btn" href="drei-reiche-3d.html" title="Dieselbe Simulation in 3D">3D</a>
       <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
+      <button id="untaetig" class="ikon" hidden title="Untätige Arbeiter (.)"></button>
       <button id="hilfeKnopf" title="Steuerung (H)">?</button>
     </span>
   </div>
@@ -249,6 +250,8 @@
   <dt>Q–R</dt><dd>Gebäude gewählt: ausbilden · Kommandant gewählt: Fähigkeiten</dd>
   <dt>Entf</dt><dd>Gebäude abreißen, Bauplan verwerfen</dd>
   <dt>K</dt><dd>Kommandant</dd>
+  <dt>.</dt><dd>nächster untätiger Arbeiter</dd>
+  <dt>Rechtsklick Minikarte</dt><dd>Auswahl dorthin schicken</dd>
   <dt>T</dt><dd>Skillbaum</dd>
   <dt>Mausrad, mittlere Taste</dt><dd>zoomen, schieben</dd>
   <dt>I</dt><dd>Auswertung</dd>
@@ -4921,6 +4924,19 @@ function auswahlMitte(world, sel) {
   return n ? { x: x / n, y: y / n } : null;
 }
 
+/** Eigene Arbeiter, die nichts tun: kein Auftrag, keine Reihe, angekommen. */
+function untaetigeArbeiter(world, ich) {
+  return world.entities.filter(
+    (e) => !e.dead && e.kind === 'unit' && e.player === ich && UNITS[e.type].worker && !e.auftrag && !e.reihe.length && e.arrived
+  );
+}
+
+/** Knopf fuer untaetige Arbeiter: Icon des Arbeiters und Anzahl. */
+function untaetigHtml(world, ich, n) {
+  const typ = Object.keys(UNITS).find((k) => UNITS[k].worker && UNITS[k].faction === world.players[ich].faction);
+  return `${ICONS[typ] || ''}<span class="zahl">${n}</span>`;
+}
+
 /** Gewaehlte eigene Fabriken -- ein Rechtsklick setzt ihren Sammelpunkt. */
 function gewaehlteFabriken(world, sel, ich) {
   return sel.filter((id) => {
@@ -6392,6 +6408,7 @@ addEventListener('keydown', (e) => {
   }
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
   if (e.key === 'm') stummSchalten(fx);
+  if (e.key === '.') naechsterUntaetiger();
   if (e.key === 'k') {
     const k = kommandantVon(world, ME);
     if (k) {
@@ -6496,10 +6513,45 @@ function skillPanel() {
   if (skillsOffen) el.innerHTML = skillBaumHtml(world, ME);
 }
 
+mini.addEventListener('contextmenu', (e) => e.preventDefault());
 mini.addEventListener('mousedown', (e) => {
-  cam.x = (e.offsetX / mini.clientWidth) * MAP;
-  cam.y = (e.offsetY / mini.clientHeight) * MAP;
+  const x = ((e.offsetX / mini.clientWidth) * MAP) | 0;
+  const y = ((e.offsetY / mini.clientHeight) * MAP) | 0;
+  // Rechtsklick: die Auswahl dorthin schicken (mit A scharf: Angriffsbewegung)
+  if (e.button === 2) {
+    if (angriff && sel.length) {
+      issue(world, { type: 'attack', player: ME, ids: sel.slice(), x, y });
+      angriff = false;
+    } else if (sel.length) befehl(x, y, e.shiftKey);
+    return;
+  }
+  cam.x = x;
+  cam.y = y;
 });
+
+// Untaetige Arbeiter: Knopf mit Anzahl, Taste . waehlt reihum den naechsten.
+let untaetigSig = '';
+let untaetigZeiger = 0;
+function untaetigAnzeigen() {
+  const n = untaetigeArbeiter(world, ME).length;
+  const sig = n + '|' + meFaction;
+  if (sig === untaetigSig) return;
+  untaetigSig = sig;
+  const b = document.getElementById('untaetig');
+  b.hidden = n === 0;
+  b.innerHTML = n ? untaetigHtml(world, ME, n) : '';
+}
+function naechsterUntaetiger() {
+  const liste = untaetigeArbeiter(world, ME);
+  if (!liste.length) return;
+  const u = liste[untaetigZeiger++ % liste.length];
+  sel = [u.id];
+  selPlan = null;
+  cam.x = u.x;
+  cam.y = u.y;
+}
+document.getElementById('untaetig').onclick = () => naechsterUntaetiger();
+
 
 /** Ausgewaehlte eigene Einheiten, die bauen koennen. */
 function erbauer() {
@@ -6628,6 +6680,7 @@ function draw() {
   drawHud();
   skillPanel();
   leisten();
+  untaetigAnzeigen();
   faehPanel();
   infoKarte();
   drawMini();

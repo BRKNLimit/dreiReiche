@@ -463,6 +463,7 @@ addEventListener('keydown', (e) => {
   if (i >= 0 && bauListe()[i] && erbauer3().length && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
   if (e.key === 'm') stummSchalten(fx);
+  if (e.key === '.') naechsterUntaetiger();
   if (e.key === 'Escape') {
     placing = null;
     angriff = false;
@@ -516,10 +517,45 @@ addEventListener('keydown', (e) => {
   }
 });
 addEventListener('keyup', (e) => tastenGehalten.delete(e.key));
+mini3.addEventListener('contextmenu', (e) => e.preventDefault());
 mini3.addEventListener('mousedown', (e) => {
-  kam.x = (e.offsetX / mini3.clientWidth) * MAP * DM;
-  kam.z = (e.offsetY / mini3.clientHeight) * MAP * DM;
+  const x = ((e.offsetX / mini3.clientWidth) * MAP) | 0;
+  const y = ((e.offsetY / mini3.clientHeight) * MAP) | 0;
+  // Rechtsklick: die Auswahl dorthin schicken (mit A scharf: Angriffsbewegung)
+  if (e.button === 2) {
+    if (angriff && sel.length) {
+      issue(world, { type: 'attack', player: ME, ids: sel.slice(), x, y });
+      angriff = false;
+    } else if (sel.length) befehl3(x, y, e.shiftKey);
+    return;
+  }
+  kam.x = x * DM;
+  kam.z = y * DM;
 });
+
+// Untaetige Arbeiter: Knopf mit Anzahl, Taste . waehlt reihum den naechsten.
+let untaetigSig = '';
+let untaetigZeiger = 0;
+function untaetigAnzeigen() {
+  const n = untaetigeArbeiter(world, ME).length;
+  const sig = n + '|' + meFaction;
+  if (sig === untaetigSig) return;
+  untaetigSig = sig;
+  const b = document.getElementById('untaetig');
+  b.hidden = n === 0;
+  b.innerHTML = n ? untaetigHtml(world, ME, n) : '';
+}
+function naechsterUntaetiger() {
+  const liste = untaetigeArbeiter(world, ME);
+  if (!liste.length) return;
+  const u = liste[untaetigZeiger++ % liste.length];
+  sel = [u.id];
+  selPlan = null;
+  kam.x = u.x * DM;
+  kam.z = u.y * DM;
+}
+document.getElementById('untaetig').onclick = () => naechsterUntaetiger();
+
 
 function kameraTasten(dt) {
   const v = (kam.dist / 300) * 0.35 * dt;
@@ -612,6 +648,7 @@ function frame(now) {
     zeichneHud();
     skillPanel3();
     leisten3();
+    untaetigAnzeigen();
     faehPanel3();
     infoKarte3();
     zeichneMini();

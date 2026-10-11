@@ -188,7 +188,7 @@ function befehl3(x, y, anhaengen = false) {
   const bauer = site ? erbauer3() : [];
   const rest = sel.filter((id) => !bauer.includes(id));
   if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id, anhaengen });
-  if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y });
+  if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y, anhaengen });
   // Gewaehlte Fabriken: Sammelpunkt fuer neue Einheiten
   const fabs = gewaehlteFabriken(world, sel, ME);
   if (fabs.length) issue(world, { type: 'sammelpunkt', player: ME, ids: fabs, x, y });
@@ -331,7 +331,7 @@ cv3.addEventListener('mousedown', (e) => {
     placing = null;
     zielen = null;
     if (sel.length) {
-      if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y });
+      if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y, anhaengen: e.shiftKey });
       else befehl3(p.x, p.y, e.shiftKey);
     }
     angriff = false;
@@ -355,8 +355,8 @@ cv3.addEventListener('mousedown', (e) => {
     return;
   }
   if (angriff && sel.length) {
-    issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y });
-    angriff = false;
+    issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y, anhaengen: e.shiftKey });
+    if (!e.shiftKey) angriff = false;
     return;
   }
   drag = { sx: mx, sy: my, x: mx, y: my, add: e.shiftKey };
@@ -958,6 +958,21 @@ function bodenKreis(x, y, r) {
 
 /** Schrein-Umkreise, Faehigkeits-Einsaetze, gerufene und festgehaltene Einheiten, Zielkreis. */
 function zeichneWirkungen() {
+  // Wegpunkte gewaehlter Einheiten: Linie von Ziel zu Ziel
+  octx.strokeStyle = '#e8dcc0';
+  octx.lineWidth = 1;
+  octx.setLineDash([2, 4]);
+  for (const id of sel) {
+    const u = byId(world, id);
+    if (!u || u.kind !== 'unit' || !u.wege.length) continue;
+    const punkte = [[u.tx, u.ty], ...u.wege].map(([x, y]) => aufSchirm(x * DM, 0.3, y * DM));
+    if (punkte.some((p) => !p)) continue;
+    octx.beginPath();
+    octx.moveTo(punkte[0][0], punkte[0][1]);
+    for (const p of punkte.slice(1)) octx.lineTo(p[0], p[1]);
+    octx.stroke();
+  }
+  octx.setLineDash([]);
   // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
   octx.strokeStyle = FACTIONS[meFaction].color;
   octx.fillStyle = FACTIONS[meFaction].color;

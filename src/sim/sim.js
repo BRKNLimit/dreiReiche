@@ -155,6 +155,7 @@ export function spawnUnit(world, player, type, x, y) {
     arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
     auftrag: 0, // Bauplan oder Baustelle, an dem dieser Erbauer arbeiten soll (0 = keiner)
     reihe: [], // weitere Auftraege, der Reihe nach (Shift beim Setzen)
+    wege: [], // weitere Wegpunkte [x, y, angriff], der Reihe nach (Shift beim Bewegen)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
     befX: x | 0, // Ziel des letzten Bewegungsbefehls -- wer dasselbe hat, gehoert zur Gruppe
     befY: y | 0,
@@ -213,6 +214,7 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
     }
     e.auftrag = site.id;
     e.reihe = [];
+    e.wege = [];
     e.tx = site.x;
     e.ty = site.y;
     e.arrived = false;
@@ -374,6 +376,12 @@ function applyCommand(world, c) {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
         if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
+          // Shift: hinten anhaengen, solange die Einheit noch unterwegs ist
+          if (c.anhaengen && !e.auftrag && (!e.arrived || e.wege.length)) {
+            if (e.wege.length < 8) e.wege.push([c.x | 0, c.y | 0, c.type === 'attack' ? 1 : 0]);
+            continue;
+          }
+          e.wege = [];
           e.tx = c.x | 0;
           e.ty = c.y | 0;
           e.befX = e.tx;
@@ -1244,6 +1252,16 @@ function moveUnits(world) {
     }
     if (e.x === e.tx && e.y === e.ty) e.arrived = true;
   }
+  // Angekommen und weitere Wegpunkte: zum naechsten
+  for (let i = 0; i < us.length; i++) {
+    const e = us[i];
+    if (!e.arrived || !e.wege.length || e.auftrag) continue;
+    const [x, y, angriff] = e.wege.shift();
+    e.tx = e.befX = x;
+    e.ty = e.befY = y;
+    e.arrived = false;
+    e.aggro = angriff === 1;
+  }
   separate(world);
 }
 
@@ -1612,6 +1630,8 @@ export function hash(world) {
       for (const id of e.reihe) mix(id);
       mix(e.seit);
       mix(e.befX);
+      mix(e.wege.length);
+      for (let k = 0; k < e.wege.length; k++) mix(e.wege[k][0] * 3 + e.wege[k][1] * 7 + e.wege[k][2]);
       mix(e.befY);
       mix(e.rufBis);
       mix(e.gebundenBis);

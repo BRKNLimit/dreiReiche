@@ -150,8 +150,8 @@ cv.addEventListener('mousedown', (e) => {
     return;
   }
   if (angriff && sel.length) {
-    issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: s2wx(mx) | 0, y: s2wy(my) | 0 });
-    angriff = false;
+    issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: s2wx(mx) | 0, y: s2wy(my) | 0, anhaengen: e.shiftKey });
+    if (!e.shiftKey) angriff = false;
     return;
   }
   drag = { sx: mx, sy: my, x: mx, y: my, add: e.shiftKey };
@@ -446,7 +446,7 @@ function befehl(x, y, anhaengen = false) {
   const bauer = site ? erbauer() : [];
   const rest = sel.filter((id) => !bauer.includes(id));
   if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id, anhaengen });
-  if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y });
+  if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y, anhaengen });
   // Gewaehlte Fabriken: Sammelpunkt fuer neue Einheiten
   const fabs = gewaehlteFabriken(world, sel, ME);
   if (fabs.length) issue(world, { type: 'sammelpunkt', player: ME, ids: fabs, x, y });
@@ -894,6 +894,21 @@ function drawEntities() {
 }
 
 function drawSelection() {
+  // Wegpunkte gewaehlter Einheiten: Linie von Ziel zu Ziel
+  ctx.strokeStyle = '#e8dcc0';
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.6;
+  ctx.setLineDash([2, 4]);
+  for (const id of sel) {
+    const u = byId(world, id);
+    if (!u || u.kind !== 'unit' || !u.wege.length) continue;
+    ctx.beginPath();
+    ctx.moveTo(w2sx(u.tx), w2sy(u.ty));
+    for (const [x, y] of u.wege) ctx.lineTo(w2sx(x), w2sy(y));
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
   // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
   ctx.strokeStyle = FACTIONS[meFaction].color;
   ctx.fillStyle = FACTIONS[meFaction].color;

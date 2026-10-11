@@ -1895,3 +1895,32 @@ test('Wiederholung: Aufnahme abspielen ergibt dieselbe Partie', async () => {
   assert.equal(spielen(gelesen.a).h, erst.h, 'gleicher Endzustand');
   assert.ok(aufnahmeLesen('{"x":1}').fehler, 'Fremdes wird abgelehnt');
 });
+
+// ---------------------------------------------------- Wegpunkte
+
+test('Wegpunkte: mit Shift angehaengte Ziele laeuft die Einheit der Reihe nach ab', () => {
+  const w = bare();
+  const s = spawnUnit(w, 0, 'soldat', 5000, 5000);
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: 6000, y: 5000 });
+  step(w);
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: 6000, y: 6000, anhaengen: true });
+  issue(w, { type: 'attack', player: 0, ids: [s.id], x: 5000, y: 6000, anhaengen: true });
+  step(w);
+  assert.equal(s.wege.length, 2);
+  const besucht = [];
+  for (let i = 0; i < 600 && (s.wege.length || !s.arrived); i++) {
+    step(w);
+    const p = s.tx + ',' + s.ty;
+    if (besucht[besucht.length - 1] !== p) besucht.push(p);
+  }
+  assert.deepEqual(besucht, ['6000,5000', '6000,6000', '5000,6000']);
+  assert.ok(s.aggro, 'der letzte war eine Angriffsbewegung');
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: 7000, y: 7000, anhaengen: true });
+  step(w);
+  assert.equal(s.wege.length, 0, 'angekommen: Shift startet sofort');
+  assert.deepEqual([s.tx, s.ty], [7000, 7000]);
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: 7000, y: 9000, anhaengen: true });
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: 4000, y: 4000 });
+  step(w);
+  assert.equal(s.wege.length, 0, 'ohne Shift: neue Wege ersetzen die alten');
+});

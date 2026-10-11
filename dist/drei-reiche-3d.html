@@ -200,6 +200,7 @@
   <dt>Icon unten</dt><dd>nur diesen Typ aus der Auswahl behalten</dd>
   <dt>Rechtsklick</dt><dd>bewegen · mit Erbauern auf Plan/Baustelle: bauen, reparieren</dd>
   <dt>A, Klick</dt><dd>Angriffsbewegung</dd>
+  <dt>Shift+Rechtsklick</dt><dd>Wegpunkt anhängen (auch mit A)</dd>
   <dt>Strg+1–0, 1–0</dt><dd>Steuergruppe setzen, abrufen (zweimal: hinspringen)</dd>
   <dt>1–0</dt><dd>bauen (Erbauer gewählt, Gruppe leer) · mit Shift: weitere in die Reihe</dd>
   <dt>Fabrik gewählt, Rechtsklick</dt><dd>Sammelpunkt für neue Einheiten</dd>
@@ -222,7 +223,7 @@
 <div id="nogl"><p>Dieser Browser kann kein WebGL 2 — die 2D-Ansicht läuft trotzdem:
   <a class="btn" href="resonit.html">2D-Ansicht öffnen</a></p></div>
 <script>
-const SPIEL_STAND = '371fede299';
+const SPIEL_STAND = '1fe4762ac3';
 
 /* ---------------------------------- */
 
@@ -1546,6 +1547,7 @@ function spawnUnit(world, player, type, x, y) {
     arrived: true, // hat den Befehlspunkt erreicht -- erst dann wird verfolgt
     auftrag: 0, // Bauplan oder Baustelle, an dem dieser Erbauer arbeiten soll (0 = keiner)
     reihe: [], // weitere Auftraege, der Reihe nach (Shift beim Setzen)
+    wege: [], // weitere Wegpunkte [x, y, angriff], der Reihe nach (Shift beim Bewegen)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
     befX: x | 0, // Ziel des letzten Bewegungsbefehls -- wer dasselbe hat, gehoert zur Gruppe
     befY: y | 0,
@@ -1604,6 +1606,7 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
     }
     e.auftrag = site.id;
     e.reihe = [];
+    e.wege = [];
     e.tx = site.x;
     e.ty = site.y;
     e.arrived = false;
@@ -1763,6 +1766,12 @@ function applyCommand(world, c) {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
         if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
+          // Shift: hinten anhaengen, solange die Einheit noch unterwegs ist
+          if (c.anhaengen && !e.auftrag && (!e.arrived || e.wege.length)) {
+            if (e.wege.length < 8) e.wege.push([c.x | 0, c.y | 0, c.type === 'attack' ? 1 : 0]);
+            continue;
+          }
+          e.wege = [];
           e.tx = c.x | 0;
           e.ty = c.y | 0;
           e.befX = e.tx;
@@ -2629,6 +2638,16 @@ function moveUnits(world) {
     }
     if (e.x === e.tx && e.y === e.ty) e.arrived = true;
   }
+  // Angekommen und weitere Wegpunkte: zum naechsten
+  for (let i = 0; i < us.length; i++) {
+    const e = us[i];
+    if (!e.arrived || !e.wege.length || e.auftrag) continue;
+    const [x, y, angriff] = e.wege.shift();
+    e.tx = e.befX = x;
+    e.ty = e.befY = y;
+    e.arrived = false;
+    e.aggro = angriff === 1;
+  }
   separate(world);
 }
 
@@ -2995,6 +3014,8 @@ function hash(world) {
       for (const id of e.reihe) mix(id);
       mix(e.seit);
       mix(e.befX);
+      mix(e.wege.length);
+      for (let k = 0; k < e.wege.length; k++) mix(e.wege[k][0] * 3 + e.wege[k][1] * 7 + e.wege[k][2]);
       mix(e.befY);
       mix(e.rufBis);
       mix(e.gebundenBis);
@@ -9143,7 +9164,7 @@ function befehl3(x, y, anhaengen = false) {
   const bauer = site ? erbauer3() : [];
   const rest = sel.filter((id) => !bauer.includes(id));
   if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id, anhaengen });
-  if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y });
+  if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y, anhaengen });
   // Gewaehlte Fabriken: Sammelpunkt fuer neue Einheiten
   const fabs = gewaehlteFabriken(world, sel, ME);
   if (fabs.length) issue(world, { type: 'sammelpunkt', player: ME, ids: fabs, x, y });
@@ -9286,7 +9307,7 @@ cv3.addEventListener('mousedown', (e) => {
     placing = null;
     zielen = null;
     if (sel.length) {
-      if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y });
+      if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y, anhaengen: e.shiftKey });
       else befehl3(p.x, p.y, e.shiftKey);
     }
     angriff = false;
@@ -9310,8 +9331,8 @@ cv3.addEventListener('mousedown', (e) => {
     return;
   }
   if (angriff && sel.length) {
-    issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y });
-    angriff = false;
+    issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y, anhaengen: e.shiftKey });
+    if (!e.shiftKey) angriff = false;
     return;
   }
   drag = { sx: mx, sy: my, x: mx, y: my, add: e.shiftKey };
@@ -9913,6 +9934,21 @@ function bodenKreis(x, y, r) {
 
 /** Schrein-Umkreise, Faehigkeits-Einsaetze, gerufene und festgehaltene Einheiten, Zielkreis. */
 function zeichneWirkungen() {
+  // Wegpunkte gewaehlter Einheiten: Linie von Ziel zu Ziel
+  octx.strokeStyle = '#e8dcc0';
+  octx.lineWidth = 1;
+  octx.setLineDash([2, 4]);
+  for (const id of sel) {
+    const u = byId(world, id);
+    if (!u || u.kind !== 'unit' || !u.wege.length) continue;
+    const punkte = [[u.tx, u.ty], ...u.wege].map(([x, y]) => aufSchirm(x * DM, 0.3, y * DM));
+    if (punkte.some((p) => !p)) continue;
+    octx.beginPath();
+    octx.moveTo(punkte[0][0], punkte[0][1]);
+    for (const p of punkte.slice(1)) octx.lineTo(p[0], p[1]);
+    octx.stroke();
+  }
+  octx.setLineDash([]);
   // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
   octx.strokeStyle = FACTIONS[meFaction].color;
   octx.fillStyle = FACTIONS[meFaction].color;

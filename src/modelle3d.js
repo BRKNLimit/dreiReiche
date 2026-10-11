@@ -1478,7 +1478,118 @@ function eicheModell() {
   return t;
 }
 
+/** Baugeruest: Holzgeruest mit Leitern, Plattformen und Kranarm um ein Gebaeude vom Radius 1. */
+function baugeruestModell() {
+  const t = [];
+  const HOLZ_P = '#6e4726';
+  const HOLZ_B = '#8a5c32';
+  const SEIL = '#d4c29a';
+
+  // 4 vertikale Eckpfosten um Radius ~0.9
+  const pfosten = [
+    [0.82, 0.82], [-0.82, 0.82], [-0.82, -0.82], [0.82, -0.82]
+  ];
+  for (const [px, pz] of pfosten) {
+    t.push(['z', [0.06, 0.07, 2.2, 5], [px, 1.1, pz], HOLZ_P]);
+  }
+
+  // Horizontale Riegel auf 2 Etagen (y=0.75 und y=1.5)
+  for (let k = 0; k < 4; k++) {
+    const p1 = pfosten[k];
+    const p2 = pfosten[(k + 1) % 4];
+    t.push(
+      stab([p1[0], 0.75, p1[1]], [p2[0], 0.75, p2[1]], 0.05, HOLZ_P, 0, 4),
+      stab([p1[0], 1.5, p1[1]], [p2[0], 1.5, p2[1]], 0.05, HOLZ_P, 0, 4)
+    );
+  }
+
+  // Diagonale Kreuzstreben an 3 Seiten
+  for (let k = 0; k < 3; k++) {
+    const p1 = pfosten[k];
+    const p2 = pfosten[(k + 1) % 4];
+    t.push(
+      stab([p1[0], 0.1, p1[1]], [p2[0], 1.45, p2[1]], 0.04, HOLZ_B, 0, 4),
+      stab([p1[0], 1.45, p1[1]], [p2[0], 0.1, p2[1]], 0.04, HOLZ_B, 0, 4)
+    );
+  }
+
+  // Arbeitsbohlen / Geruestbretter auf der 1. und 2. Ebene
+  t.push(
+    ['q', [1.75, 0.05, 0.35], [0, 0.77, 0.7], HOLZ_B],
+    ['q', [0.35, 0.05, 1.75], [-0.7, 0.77, 0], HOLZ_B],
+    ['q', [1.75, 0.05, 0.35], [0, 1.52, -0.7], HOLZ_B],
+    ['q', [0.35, 0.05, 1.75], [0.7, 1.52, 0], HOLZ_B]
+  );
+
+  // Anlege-Leiter an der 4. Seite (von Boden zu Ebene 1)
+  const lX = 0.88;
+  t.push(
+    stab([lX, 0, -0.2], [lX, 1.6, -0.1], 0.035, HOLZ_P, 0, 4),
+    stab([lX, 0, 0.2], [lX, 1.6, 0.3], 0.035, HOLZ_P, 0, 4)
+  );
+  for (let s = 1; s <= 6; s++) {
+    const hy = s * 0.23;
+    t.push(['q', [0.03, 0.03, 0.38], [lX, hy, 0.05], HOLZ_B]);
+  }
+
+  // Ausleger-Kranarm oben mit Seil und Moertelkuebel
+  t.push(
+    ['q', [0.06, 0.06, 0.7], [0.82, 2.22, 0.55], HOLZ_P],
+    ['q', [0.02, 0.55, 0.02], [0.82, 1.95, 0.85], SEIL],
+    ['z', [0.12, 0.09, 0.18, 5], [0.82, 1.65, 0.85], '#524538']
+  );
+
+  return t;
+}
+
+/** Truemmer: Schutt, gebrochene Balken, Mauerwerk und glimmende Brandnester (flach). */
+function truemmerModell() {
+  const t = [];
+  const SCHUTT = '#4d4842';
+  const STEIN_D = '#5e656b';
+  const STEIN_H = '#7e8790';
+  const BALKEN = '#3b281a';
+  const KOHLE = '#1c1510';
+  const GLUT = '#ff5722';
+
+  // Flacher Schutthaufen im Zentrum
+  t.push(
+    ['z', [0.72, 0.95, 0.16, 8], [0, 0.08, 0], SCHUTT],
+    ['z', [0.45, 0.65, 0.14, 7], [0.1, 0.18, -0.05], '#38332c']
+  );
+
+  // Gebrochene, verkohlte Holzbalken
+  t.push(
+    ['q', [0.14, 0.12, 1.3], [0.15, 0.18, 0.1], BALKEN, 0, [0.12, 0.65, 0.15]],
+    ['q', [0.12, 0.11, 1.1], [-0.2, 0.16, -0.15], KOHLE, 0, [-0.1, -0.85, 0.2]],
+    ['q', [0.12, 0.1, 0.85], [0.35, 0.12, -0.3], BALKEN, 0, [0.2, 0.3, -0.1]],
+    ['q', [0.1, 0.09, 0.75], [-0.35, 0.12, 0.35], KOHLE, 0, [-0.15, 1.2, 0.1]]
+  );
+
+  // Zerschlagene Mauerwerk-Quader
+  t.push(
+    ['q', [0.38, 0.28, 0.32], [-0.4, 0.18, -0.35], STEIN_D, 0, [0.1, 0.4, 0.1]],
+    ['q', [0.32, 0.24, 0.35], [0.45, 0.16, 0.35], STEIN_H, 0, [-0.15, 0.55, -0.1]],
+    ['q', [0.25, 0.22, 0.28], [0.55, 0.14, -0.15], STEIN_D, 0, [0.2, -0.3, 0.2]],
+    ['q', [0.28, 0.2, 0.25], [-0.5, 0.14, 0.2], STEIN_H, 0, [-0.2, 0.7, -0.1]],
+    ['k', [0.18, 5], [0.05, 0.24, -0.4], STEIN_D],
+    ['k', [0.15, 5], [-0.15, 0.22, 0.45], STEIN_H]
+  );
+
+  // Glimmende Brandnester / Glutnester
+  t.push(
+    ['k', [0.09, 4], [0.12, 0.22, 0.05], GLUT, GLUEHT],
+    ['k', [0.07, 4], [-0.18, 0.19, -0.1], GLUT, GLUEHT],
+    ['k', [0.06, 4], [0.28, 0.16, -0.22], GLUT, GLUEHT]
+  );
+
+  return t;
+}
+
 export const MODELLE_DEF = {
+  // Baustelle & Zerstoerung
+  baugeruest: baugeruestModell(),
+  truemmer: truemmerModell(),
   // ------------------------------------------------------------- Menschen
   bauer: bauerModell(),
   soldat: soldatModell(),

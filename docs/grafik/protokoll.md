@@ -189,6 +189,14 @@ geprüft (Tests, Galerie, Spiel).
   - `glutball`: Glühende Magmasphäre (`#ffedd5`, `#ea580c`, `GLUEHT`) mit mehrstufigem, nach hinten verlaufendem Feuerschweif (`#c2410c`, `#9a3412`, `#f97316`).
 - **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; alle Modelle halten ihr Budget ein).
 
+### Runde 13: Auftrag 3, Aufgabe 4 — Baugerüst und Trümmer (src/modelle3d.js)
+- **Was war schwach:** Für Baustellen und zerstörte Gebäude gab es in 3D keine Modelle. `ui3d.js` hatte bereits Andockstellen (`MODELLE.baugeruest` und `MODELLE.truemmer`), die bisher ins Leere liefen.
+- **Was wurde geändert:** In `src/modelle3d.js`:
+  - `baugeruest`: Vollständiges Holz-Baugerüst, das sich harmonisch um Gebäude mit Radius 1 einfügt: vier senkrechte Eckpfosten, zweistöckige Riegel, diagonale Kreuzverstrebungen, Arbeitsbohlen auf beiden Ebenen, eine 6-sprossige Anlegeleiter und ein Auslegerkran mit Seil und Mörtelkübel.
+  - `truemmer`: Authentisches Ruinenfeld für eingestürzte Gebäude: flacher Schutthaufen im Zentrum, geborstene verkohlte Holzbalken, zerborstene Quadermauersteine und glimmende Brandnester (`GLUEHT`).
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; beide Modelle halten ihr Budget mit wenigen hundert Ecken mühelos ein).
+
+
 
 
 

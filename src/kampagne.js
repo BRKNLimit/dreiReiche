@@ -68,6 +68,7 @@ const RODUNG = [
     ziele: [
       { text: 'Wähle deinen Helden (Taste <kbd>K</kbd>)', erfuellt: (w, ich, c) => c.sel.some((id) => w.entities.find((e) => e.id === id && e.type === 'held')) },
       { text: 'Baue ein Sägewerk auf eine Steinader (Held wählen, <kbd>2</kbd>, Klick auf eine Ader)', erfuellt: (w, ich) => kmZahl(w, ich, 'saege') >= 1 },
+      { text: 'Baue eine Schmiede (Taste <kbd>1</kbd>) — sie liefert Gegenwart, die Kraft für Fabriken und Förderung', erfuellt: (w, ich) => kmZahl(w, ich, 'schmiede') >= 1 },
       { text: 'Bilde zwei Bauern aus (Thingstätte anklicken, Bauer-Icon unten)', erfuellt: (w, ich) => kmZahl(w, ich, 'bauer') >= 2 },
       { text: 'Baue eine Kaserne (Taste <kbd>4</kbd>)', erfuellt: (w, ich) => kmZahl(w, ich, 'kaserne') >= 1 },
       { text: 'Bilde sechs Soldaten aus', erfuellt: (w, ich) => kmZahl(w, ich, 'soldat') >= 6 },
@@ -76,8 +77,9 @@ const RODUNG = [
     ],
     meldungen: [
       { wer: HEDWIG, text: 'Willkommen am Grat, Herr. Die Leute warten auf Eure Befehle — zuerst ein Sägewerk, ohne Holz keine Siedlung.', wann: (w) => w.tick >= 20 },
-      { wer: HEDWIG, text: 'Das Sägewerk läuft. Jetzt Hände: Die Thingstätte bildet Bauern aus.', wann: (w, ich, s) => s[1] },
-      { wer: GEROLD, text: 'Die Kaserne steht. Gebt mir ein halbes Dutzend Leute, und wir sehen nach, was hinter dem Grat heult.', wann: (w, ich, s) => s[3] },
+      { wer: HEDWIG, text: 'Das Sägewerk läuft. Aber ohne Gegenwart steht bald alles still — die Schmiede liefert sie, die Thingstätte allein reicht nicht.', wann: (w, ich, s) => s[1] },
+      { wer: HEDWIG, text: 'Die Esse glüht. Jetzt Hände: Die Thingstätte bildet Bauern aus, die bauen mit.', wann: (w, ich, s) => s[2] },
+      { wer: GEROLD, text: 'Die Kaserne steht. Gebt mir ein halbes Dutzend Leute, und wir sehen nach, was hinter dem Grat heult.', wann: (w, ich, s) => s[4] },
       { wer: GEROLD, text: 'Wölfe! Und dahinter ein Hain, der letzte Woche noch nicht da war. Das ist kein gewöhnlicher Wald.', wann: (w, ich) => kmNahe(w, ich, w.vorposten || [], 1400) },
     ],
     sieg: 'ziele',

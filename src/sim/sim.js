@@ -62,11 +62,15 @@ const PER_MIN = 600 * 1000;
 export function createWorld(opts = {}) {
   const f0 = opts.factions?.[0] ?? 'mensch';
   const f1 = opts.factions?.[1] ?? 'gott';
-  const karte = KARTEN[opts.karte] ? opts.karte : 'klassisch';
+  // Eine der festen Karten -- oder eigene Daten (Zufallskarte, Editor),
+  // gleiches Format wie KARTEN in defs.js, gepruefte mit kartenFehler().
+  const karte = opts.karteDaten ? opts.karte || 'eigen' : KARTEN[opts.karte] ? opts.karte : 'klassisch';
+  const daten = opts.karteDaten || KARTEN[karte];
   const world = {
     tick: 0,
     seed: opts.seed ?? 12345,
-    karte, // Schluessel in KARTEN
+    karte, // Schluessel in KARTEN, sonst 'zufall' oder 'eigen'
+    karteDaten: daten, // die Kartendaten selbst (unveraenderlich)
     nextId: 1,
     entities: [],
     players: [
@@ -76,7 +80,7 @@ export function createWorld(opts = {}) {
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
     baubeginnRunde: 0, // Vorrang beim gleichzeitigen Baubeginn, siehe erschaffen()
-    hindernisse: opts.empty ? [] : KARTEN[karte].hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
+    hindernisse: opts.empty ? [] : daten.hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
     regions: [],
     pending: [],
@@ -101,7 +105,7 @@ function setupMap(world) {
   }
   if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
 
-  for (const a of KARTEN[world.karte].adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
+  for (const a of world.karteDaten.adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
 }
 
 function clamp(v) {

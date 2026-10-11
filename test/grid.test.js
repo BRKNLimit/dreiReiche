@@ -1959,3 +1959,45 @@ test('Stopp: die Einheit bleibt stehen und vergisst Wege und Ziel', () => {
   assert.equal(s.x, x, 'steht');
   assert.equal(s.wege.length, 0);
 });
+
+// ---------------------------------------------------- Zufalls- und eigene Karten
+
+test('Zufallskarten: spielbar, symmetrisch, gleiche Zahl gleiche Karte', async () => {
+  const { zufallsKarte, kartenFehler } = await import('../src/sim/kartenbau.js');
+  for (let s = 1; s <= 40; s++) {
+    const k = zufallsKarte(s);
+    assert.deepEqual(kartenFehler(k), [], 'Karte ' + s);
+    assert.ok(k.hindernisse.length > 0, 'Karte ' + s + ' hat Gelaende');
+  }
+  assert.deepEqual(zufallsKarte(7), zufallsKarte(7));
+  assert.notDeepEqual(zufallsKarte(7).hindernisse, zufallsKarte(8).hindernisse);
+  for (const k of Object.values(KARTEN)) assert.deepEqual(kartenFehler(k), [], k.name);
+});
+
+test('Eigene Karte: Pruefung findet, was nicht stimmt', async () => {
+  const { leereKarte, kartenFehler, spiegelPaare } = await import('../src/sim/kartenbau.js');
+  const k = leereKarte();
+  assert.deepEqual(kartenFehler(k), []);
+  assert.ok(kartenFehler({ ...k, hindernisse: [{ x: 9000, y: 9000, r: 500, art: 'fels' }] }).some((f) => f.includes('Spiegelbild')));
+  assert.ok(kartenFehler({ ...k, hindernisse: spiegelPaare([{ x: 3200, y: 3000, r: 500, art: 'fels' }]) }).some((f) => f.includes('Startbasis')));
+  // Eine Mauer quer ueber die Karte: kein Weg
+  const mauer = [];
+  for (let i = 0; i <= 20; i++) mauer.push({ x: i * 1000, y: 20000 - i * 1000, r: 600, art: 'fels' });
+  assert.ok(kartenFehler({ ...k, hindernisse: mauer }).some((f) => f.includes('keinen Weg')));
+});
+
+test('Zufallskarte: eine KI-Partie laeuft und bleibt deterministisch', async () => {
+  const { zufallsKarte } = await import('../src/sim/kartenbau.js');
+  const lauf = () => {
+    const w = createWorld({ seed: 9, karte: 'zufall', karteDaten: zufallsKarte(1234) });
+    const ais = [createAI(0, 1), createAI(1, 2)];
+    for (let i = 0; i < 3000; i++) {
+      stepAI(ais[0], w);
+      stepAI(ais[1], w);
+      step(w);
+    }
+    assert.ok(w.entities.filter((e) => e.kind === 'building').length > 10, 'beide bauen');
+    return hash(w);
+  };
+  assert.equal(lauf(), lauf());
+});

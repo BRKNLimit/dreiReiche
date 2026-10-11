@@ -915,8 +915,8 @@ export const KARTEN = { klassisch: KLASSISCH, flusstal: FLUSSTAL };
  * waehlt sie hier mit karteWaehlen() dazu passend.
  */
 export const KARTE = { schluessel: 'klassisch', ...KLASSISCH };
-export function karteWaehlen(schluessel) {
-  Object.assign(KARTE, { schluessel }, KARTEN[schluessel] || KLASSISCH);
+export function karteWaehlen(schluessel, daten = null) {
+  Object.assign(KARTE, { schluessel, wald: [], wiesen: [], furten: [] }, daten || KARTEN[schluessel] || KLASSISCH);
   return KARTE;
 }
 

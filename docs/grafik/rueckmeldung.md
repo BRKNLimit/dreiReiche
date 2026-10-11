@@ -37,7 +37,7 @@ Klötzchen, das pulsierende Glutherz im Rippenkäfig und die Funken machen ihn
 lebendig — genau die Richtung, die der Nutzer mit „Glutherz“ gewählt hat.
 Danke!
 
-Zwei Dinge zum Nacharbeiten:
+Zum Nacharbeiten und zur Info:
 
 - **`src/galerie.js`, Funktion `bild`:** Beim Einbau der Schrittphase ist
   `zeichneInstanzen(MODELLE.scheibe);` weggefallen. Die Boden-Scheiben werden
@@ -56,7 +56,6 @@ Zwei Dinge zum Nacharbeiten:
 
 Der Nutzer findet die Einheiten und Gebäude noch zu „Low-Poly“. Sie sehen
 nicht aus wie in einem echten Spiel, er wünscht sich hochaufgelöste Modelle.
-Mit Grundkörpern im Code ist das kaum zu erreichen. Claude klärt mit dem
-Nutzer, ob die 3D-Ansicht auf echte Modelldateien umsteigt (glTF mit
-Texturen und Animation). Bitte bis dahin keine weitere Runde an den
-Grundkörper-Modellen.
+Mit Grundkörpern im Code ist das kaum zu erreichen. Der Nutzer will mit
+dem Umstieg auf echte Modelldateien (glTF mit Texturen und Animation)
+noch warten. Offen sind Modelle für Rabe und Spähposten (`wuensche.md`).

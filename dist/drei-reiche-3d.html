@@ -115,6 +115,14 @@
   #hilfe dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
   #hilfe dt { color: var(--accent); white-space: nowrap; }
   #hilfe dd { margin: 0; color: var(--text); }
+  /* Siegbildschirm */
+  #intro table.sieg { border-collapse: collapse; margin: 8px 0 12px; }
+  #intro table.sieg td, #intro table.sieg th { padding: 3px 14px; text-align: right; font-weight: 500; }
+  #intro table.sieg td:first-child { text-align: left; color: var(--dim); }
+  #intro .diagramme { display: flex; gap: 12px; flex-wrap: wrap; max-width: none; }
+  #intro .diagramm { display: grid; gap: 3px; font-size: 11px; }
+  #intro .diagramm svg { width: 260px; height: 90px; border: 1px solid var(--line); border-radius: 3px; }
+  #intro .diagramm span { color: var(--dim); }
   /* Info-Karten */
   #karte {
     position: absolute; left: 12px; bottom: 58px; z-index: 15; width: min(340px, calc(100% - 24px));
@@ -210,6 +218,10 @@
 <div id="nogl"><p>Dieser Browser kann kein WebGL 2 — die 2D-Ansicht läuft trotzdem:
   <a class="btn" href="resonit.html">2D-Ansicht öffnen</a></p></div>
 <script>
+const SPIEL_STAND = '14f9263948';
+
+/* ---------------------------------- */
+
 // Datenschicht. Keine Logik hier drin.
 // Alle Werte Integer. Entfernungen in Dezimetern, Zeiten in Ticks (10 Hz),
 // Gegenwart pro Tick, Foerderung (fronOut, blutOut) pro Minute.
@@ -5643,6 +5655,160 @@ const WAFFEN_TYPEN = Object.keys(WAFFEN).filter((k) => UNITS[k] || BUILDINGS[k])
 
 /* ---------------------------------- */
 
+// Wiederholungen und Spielverlauf -- fuer beide Oberflaechen.
+//
+// Die Simulation ist deterministisch, und die KI auch: Wer Startwerte (Seed,
+// Voelker, Karte, KI-Stil und -Stufe) und die Befehle des Spielers mit ihrem
+// Tick kennt, kann die ganze Partie nachspielen. Mehr steht in einer
+// Wiederholung nicht. Sie passt nur zum selben Stand der Simulation -- den
+// haelt SPIEL_STAND fest (Pruefsumme der Sim-Dateien, von tools/bundle.mjs).
+const STAND = typeof SPIEL_STAND !== 'undefined' ? SPIEL_STAND : 'dev';
+const FORMAT = 'drei-reiche-wiederholung';
+
+/** Eine neue Aufnahme; start: { seed, factions, karte, stil, stufe, zuschauen } */
+function neueAufnahme(start) {
+  return { format: FORMAT, stand: STAND, ...start, befehle: [], ende: 0, sieger: -1 };
+}
+
+/**
+ * Vor den KI-Zuegen eines Ticks: die Befehle des Spielers festhalten, die
+ * seit dem letzten Tick eingegangen sind (die der KI kommen erst danach dazu).
+ */
+function aufnehmen(a, world) {
+  for (const c of world.pending) a.befehle.push([world.tick, JSON.parse(JSON.stringify(c))]);
+}
+
+/** Beim Abspielen: die aufgenommenen Befehle dieses Ticks einreihen. Liefert den neuen Zeiger. */
+function abspielen(a, world, zeiger) {
+  world.pending.length = 0; // Eingaben waehrend der Wiederholung zaehlen nicht
+  while (zeiger < a.befehle.length && a.befehle[zeiger][0] <= world.tick) {
+    world.pending.push(JSON.parse(JSON.stringify(a.befehle[zeiger][1])));
+    zeiger++;
+  }
+  return zeiger;
+}
+function aufnahmeAbschliessen(a, world) {
+  a.ende = world.tick;
+  a.sieger = world.winner;
+}
+
+/** Als Datei herunterladen. */
+function aufnahmeSpeichern(a) {
+  if (typeof Blob === 'undefined' || typeof URL === 'undefined') return;
+  const blob = new Blob([JSON.stringify(a)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  const min = Math.round(a.ende / 600);
+  link.download = `drei-reiche-${a.factions.join('-gegen-')}-${KARTEN[a.karte]?.name || a.karte}-${min}min.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/** Text einer Datei pruefen; liefert { a } oder { fehler }, bei anderem Stand mit Warnung. */
+function aufnahmeLesen(text) {
+  let a;
+  try {
+    a = JSON.parse(text);
+  } catch {
+    return { fehler: 'Keine Wiederholung (kein JSON).' };
+  }
+  if (!a || a.format !== FORMAT || !Array.isArray(a.befehle) || !Array.isArray(a.factions)) {
+    return { fehler: 'Keine Wiederholung der drei Reiche.' };
+  }
+  const warnung =
+    a.stand !== STAND ? 'Aufgenommen mit einem anderen Stand des Spiels — die Partie kann anders verlaufen.' : '';
+  return { a, warnung };
+}
+
+// ------------------------------------------------------------ Verlauf fuer den Siegbildschirm
+function neuerVerlauf() {
+  return { minuten: [], verluste: [0, 0], getoetet: [0, 0], gebaeudeVerloren: [0, 0], ausgebildet: [0, 0] };
+}
+
+/** Nach jedem Tick: Verluste zaehlen, einmal je Minute Heer, Foerderung und Gebaeude festhalten. */
+function verlaufFortschreiben(v, world) {
+  for (const ev of world.events) {
+    if (ev.t === 'died') {
+      if (ev.kind === 'unit') {
+        v.verluste[ev.player]++;
+        v.getoetet[1 - ev.player]++;
+      } else v.gebaeudeVerloren[ev.player]++;
+    } else if (ev.t === 'spawned') {
+      const u = world.entities.find((e) => e.id === ev.id);
+      if (u && !UNITS[u.type].commander) v.ausgebildet[u.player]++;
+    }
+  }
+  if (world.tick % 600 === 0 || world.over) {
+    v.minuten.push(
+      [0, 1].map((p) => {
+        let heer = 0;
+        let gebaeude = 0;
+        for (const e of world.entities) {
+          if (e.dead || e.player !== p) continue;
+          if (e.kind === 'building') gebaeude++;
+          else if (UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander) heer += UNITS[e.type].cost.fron;
+        }
+        return { heer, foerderung: foerderungProMin(world, p), gebaeude };
+      })
+    );
+  }
+}
+
+/** Kleines Liniendiagramm beider Seiten als SVG. */
+function diagramm(titel, reihe0, reihe1, farbe0, farbe1) {
+  const B = 260;
+  const H = 90;
+  const n = Math.max(reihe0.length, 2);
+  const max = Math.max(1, ...reihe0, ...reihe1);
+  const pfad = (r) =>
+    r.map((w, i) => `${i ? 'L' : 'M'}${((i / (n - 1)) * B).toFixed(1)},${(H - (w / max) * (H - 6) - 3).toFixed(1)}`).join(' ');
+  return `<div class="diagramm"><b>${titel}</b>
+    <svg viewBox="0 0 ${B} ${H}" preserveAspectRatio="none">
+      <path d="${pfad(reihe0)}" fill="none" stroke="${farbe0}" stroke-width="2"/>
+      <path d="${pfad(reihe1)}" fill="none" stroke="${farbe1}" stroke-width="2"/>
+    </svg><span>höchstens ${Math.round(max)}</span></div>`;
+}
+
+/**
+ * Siegbildschirm: Ergebnis, Zahlen beider Seiten, Verlauf von Heer,
+ * Foerderung und Gebaeuden. Knoepfe: endeSpeichern, endeNochmal, endeKarte.
+ */
+function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
+  const f = world.players.map((p) => FACTIONS[p.faction]);
+  const min = (world.tick / 600).toFixed(1).replace('.', ',');
+  const titel = wiederholung ? `Wiederholung: ${f[world.winner]?.name || '—'} gewinnt` : world.winner === ich ? 'Sieg' : 'Niederlage';
+  const zeile = (name, a, b) => `<tr><td>${name}</td><td>${a}</td><td>${b}</td></tr>`;
+  const reihe = (k, p) => v.minuten.map((m) => m[p][k]);
+  return `<h1>${titel}</h1>
+    <p>nach ${min} Minuten auf der Karte ${KARTEN[world.karte]?.name || world.karte}</p>
+    <table class="sieg">
+      <tr><th></th><th style="color:${f[0].color}">${f[0].name}</th><th style="color:${f[1].color}">${f[1].name}</th></tr>
+      ${zeile('Ausgebildet', v.ausgebildet[0], v.ausgebildet[1])}
+      ${zeile('Getötet', v.getoetet[0], v.getoetet[1])}
+      ${zeile('Verloren', v.verluste[0], v.verluste[1])}
+      ${zeile('Gebäude verloren', v.gebaeudeVerloren[0], v.gebaeudeVerloren[1])}
+    </table>
+    <div class="diagramme">
+      ${diagramm('Heer (Fron)', reihe('heer', 0), reihe('heer', 1), f[0].color, f[1].color)}
+      ${diagramm('Förderung (Fron/min)', reihe('foerderung', 0), reihe('foerderung', 1), f[0].color, f[1].color)}
+      ${diagramm('Gebäude', reihe('gebaeude', 0), reihe('gebaeude', 1), f[0].color, f[1].color)}
+    </div>
+    <div class="go">
+      ${mitAufnahme ? '<button id="endeSpeichern">Wiederholung speichern</button>' : ''}
+      <button id="endeKarte">Karte ansehen</button>
+      <button id="endeNochmal">Neue Partie</button>
+    </div>`;
+}
+
+/** Datei-Auswahl fuer den Startbildschirm. */
+function wiederholungWahlHtml() {
+  return `<div class="stil">Wiederholung ansehen: <input type="file" id="wiederholungDatei" accept=".json,application/json"> <span id="wiederholungMeldung"></span></div>`;
+}
+
+
+/* ---------------------------------- */
+
 // Renderer der 3D-Ansicht: Mathematik, Geometrie aus Grundkoerpern, Shader, Instanzen.
 // Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
 // anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
@@ -7500,6 +7666,11 @@ let nebelTex = null;
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 let gruppen = {}; // Steuergruppen: Ziffer -> Ids
+let aufnahme = null; // laufende Aufnahme (src/aufnahme.js)
+let wiederholung = null; // abgespielte Wiederholung, sonst null
+let wdhZeiger = 0;
+let verlauf = neuerVerlauf(); // fuer den Siegbildschirm
+let endeGezeigt = false;
 let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
 let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
 const tastenGehalten = new Set();
@@ -7568,17 +7739,29 @@ function aufBoden(sx, sy) {
 }
 
 // ------------------------------------------------------------ Spielstart
-function neu(f, zuschauen = false) {
+function neu(f, zuschauen = false, wdh = null) {
+  // Wiederholung: dieselben Startwerte wie bei der Aufnahme
+  if (wdh) {
+    karteSchluessel = wdh.karte;
+    gegnerStil = wdh.stil;
+    gegnerStufe = wdh.stufe;
+  }
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
   if (KARTE.schluessel !== karteSchluessel) {
     karteWaehlen(karteSchluessel);
     if (typeof baueBoden === 'function') bodenModell = baueBoden(); // src/gelaende3d.js liest KARTE
   }
-  world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
+  world = createWorld({ seed: wdh ? wdh.seed : (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
-  nebel = neuerNebel(!zuschauen, ME);
+  nebel = neuerNebel(!zuschauen && !wdh, ME);
+  wiederholung = wdh;
+  wdhZeiger = 0;
+  wiederholungsHinweis = '';
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karteSchluessel, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
+  verlauf = neuerVerlauf();
+  endeGezeigt = false;
   sel = [];
   selPlan = null;
   gruppen = {};
@@ -7995,9 +8178,13 @@ function lage(e) {
 
 function tick() {
   for (const e of world.entities) if (e.kind === 'unit') vorher.set(e.id, [e.x, e.y]);
+  if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
+  else if (aufnahme) aufnehmen(aufnahme, world);
   if (aiMe) stepAI(aiMe, world);
   stepAI(ai, world);
   step(world);
+  verlaufFortschreiben(verlauf, world);
+  if (wiederholung && world.tick >= wiederholung.ende && !world.over) paused = true;
   for (const ev of world.events) {
     if (ev.t === 'shot') {
       const a = byId(world, ev.from);
@@ -8021,7 +8208,7 @@ function tick() {
 }
 
 function frame(now) {
-  const dt = Math.min(250, now - last);
+  const dt = Math.max(0, Math.min(250, now - last)); // nie rueckwaerts, nie mehr als eine Viertelsekunde
   last = now;
   if (!paused && !world.over) {
     acc += dt * speed;
@@ -8035,6 +8222,7 @@ function frame(now) {
   alphaTick = paused || world.over ? 1 : Math.min(1, acc / TICK_MS);
   kameraTasten(dt);
   effekteFortschreiben(fx, paused || world.over ? 0 : (dt * speed) / 1000, world, hoerer3d());
+  if (world.over && !endeGezeigt) zeigeEnde();
   if (!document.hidden) {
     zeichne(now, dt);
     zeichneUeberlagerung(now);
@@ -8514,9 +8702,9 @@ function zeichneHud() {
   document.getElementById('hud').innerHTML = `
     <div class="res">
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
-      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${aiMe ? ' · Zuschauen' : ''}</span>
+      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : ''}</span>
     </div>
-    ${warnungenHtml(world, ME)}
+    ${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahl}
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}`;
 }
@@ -8598,6 +8786,7 @@ function introHtml3() {
         .map((k) => `<label><input type="radio" name="karte" value="${k}"${k === karteSchluessel ? ' checked' : ''}> ${KARTEN[k].name}</label>`)
         .join('')}
     </div>
+${wiederholungWahlHtml()}
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
       <button id="introGott">Als Gott spielen</button>
@@ -8621,6 +8810,56 @@ function starte3(f, zuschauen) {
   neu(f, zuschauen);
 }
 
+
+// ------------------------------------------------------------ Spielende und Wiederholungen
+/** Siegbildschirm ueber dem Spielfeld. */
+function zeigeEnde() {
+  endeGezeigt = true;
+  if (aufnahme) aufnahmeAbschliessen(aufnahme, world);
+  const el = document.getElementById('intro');
+  el.innerHTML = siegHtml(world, verlauf, ME, !!aufnahme, !!wiederholung);
+  el.style.display = '';
+  const knopf = (id, f) => {
+    const b = document.getElementById(id);
+    if (b) b.onclick = f;
+  };
+  knopf('endeSpeichern', () => aufnahmeSpeichern(aufnahme));
+  knopf('endeKarte', () => (el.style.display = 'none'));
+  knopf('endeNochmal', () => startbildschirm());
+}
+
+/** Startbildschirm zeigen und verdrahten. */
+function startbildschirm() {
+  const el = document.getElementById('intro');
+  el.innerHTML = introHtml3();
+  el.style.display = '';
+  document.getElementById('introMensch').onclick = () => starte3('mensch', false);
+  document.getElementById('introGott').onclick = () => starte3('gott', false);
+  document.getElementById('introSchau').onclick = () => starte3('mensch', true);
+  const datei = document.getElementById('wiederholungDatei');
+  if (datei) datei.onchange = () => wiederholungLaden(datei);
+  paused = true;
+}
+
+/** Eine Wiederholung aus einer Datei laden und abspielen. */
+function wiederholungLaden(eingabe) {
+  const datei = eingabe.files && eingabe.files[0];
+  if (!datei) return;
+  const meldung = document.getElementById('wiederholungMeldung');
+  datei.text().then((text) => {
+    const r = aufnahmeLesen(text);
+    if (r.fehler) {
+      if (meldung) meldung.textContent = r.fehler;
+      return;
+    }
+    document.getElementById('intro').style.display = 'none';
+    paused = false;
+    neu(r.a.factions[0], !!r.a.zuschauen, r.a);
+    wiederholungsHinweis = r.warnung;
+  });
+}
+let wiederholungsHinweis = '';
+
 // ------------------------------------------------------------ Start
 if (!gl) {
   document.getElementById('nogl').style.display = 'grid';
@@ -8634,10 +8873,7 @@ if (!gl) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  document.getElementById('intro').innerHTML = introHtml3();
-  document.getElementById('introMensch').onclick = () => starte3('mensch', false);
-  document.getElementById('introGott').onclick = () => starte3('gott', false);
-  document.getElementById('introSchau').onclick = () => starte3('mensch', true);
+  startbildschirm();
   neu('mensch', true);
   paused = true;
   requestAnimationFrame(frame);

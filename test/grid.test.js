@@ -1862,3 +1862,36 @@ test('Flusstal: eine KI-Partie laeuft und bleibt deterministisch', () => {
   };
   assert.equal(lauf(), lauf());
 });
+
+// ---------------------------------------------------- Wiederholungen
+
+test('Wiederholung: Aufnahme abspielen ergibt dieselbe Partie', async () => {
+  const { neueAufnahme, aufnehmen, abspielen, aufnahmeLesen } = await import('../src/aufnahme.js');
+  const start = { seed: 77, factions: ['mensch', 'gott'], karte: 'flusstal', stil: 'sturm', stufe: 'schwer', zuschauen: false };
+  // Partie wie in der Oberflaeche: Spielerbefehle zwischen den Ticks, dann KI, dann Schritt
+  const spielen = (wdh) => {
+    const w = createWorld({ seed: start.seed, factions: start.factions, karte: start.karte });
+    const ai = createAI(1, w.seed, start.stil, start.stufe);
+    const a = neueAufnahme(start);
+    let zeiger = 0;
+    for (let i = 0; i < 2500; i++) {
+      if (!wdh && i % 300 === 50) {
+        // der "Spieler": Arbeiter zur naechsten Ader, Kommandant ein Stueck vor
+        const k = w.entities.find((e) => e.player === 0 && UNITS[e.type]?.commander);
+        if (k) issue(w, { type: 'move', player: 0, ids: [k.id], x: 4000 + i, y: 4500 });
+        issue(w, { type: 'build', player: 0, building: 'saege', x: 6200, y: 4500, ids: k ? [k.id] : [] });
+      }
+      if (wdh) zeiger = abspielen(wdh, w, zeiger);
+      else aufnehmen(a, w);
+      stepAI(ai, w);
+      step(w);
+    }
+    return { a, h: hash(w) };
+  };
+  const erst = spielen(null);
+  assert.ok(erst.a.befehle.length >= 10, 'Befehle aufgenommen');
+  const gelesen = aufnahmeLesen(JSON.stringify(erst.a));
+  assert.ok(gelesen.a && !gelesen.fehler);
+  assert.equal(spielen(gelesen.a).h, erst.h, 'gleicher Endzustand');
+  assert.ok(aufnahmeLesen('{"x":1}').fehler, 'Fremdes wird abgelehnt');
+});

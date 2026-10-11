@@ -9,6 +9,7 @@
 // Die Reihenfolge zaehlt: spaetere Dateien nutzen Bezeichner der frueheren.
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,19 +25,25 @@ function strip(src) {
 
 const SIM = ['src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/kunde.js', 'src/sim/ai.js'];
 const SEITEN = [
-  ['src/shell.html', [...SIM, 'src/icons.js', 'src/platzhalter.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/gelaende2d.js', 'src/ui.js'], 'dist/resonit.html'],
+  ['src/shell.html', [...SIM, 'src/icons.js', 'src/platzhalter.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/aufnahme.js', 'src/gelaende2d.js', 'src/ui.js'], 'dist/resonit.html'],
   [
     'src/shell3d.html',
-    [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/gelaende3d.js', 'src/ui3d.js'],
+    [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/aufnahme.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/gelaende3d.js', 'src/ui3d.js'],
     'dist/drei-reiche-3d.html',
   ],
   ['src/galerie.html', ['src/sim/defs.js', 'src/icons.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/galerie.js'], 'dist/galerie.html'],
 ];
 
 await mkdir(join(root, 'dist'), { recursive: true });
+// Stand der Simulation: Pruefsumme der Sim-Dateien. Eine Wiederholung passt
+// nur zum selben Stand (src/aufnahme.js).
+const pruef = createHash('sha1');
+for (const f of SIM) pruef.update(await readFile(join(root, f), 'utf8'));
+const STAND_ZEILE = `const SPIEL_STAND = '${pruef.digest('hex').slice(0, 10)}';`;
 for (const [shellPfad, dateien, ziel] of SEITEN) {
   const shell = await readFile(join(root, shellPfad), 'utf8');
   const teile = [];
+  if (dateien.includes('src/sim/sim.js')) teile.push(STAND_ZEILE);
   for (const f of dateien) teile.push(strip(await readFile(join(root, f), 'utf8')));
   const out = shell.replace('/*__SIM__*/', teile.join('\n\n/* ---------------------------------- */\n\n'));
   await writeFile(join(root, ziel), out);

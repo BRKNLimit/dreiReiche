@@ -152,6 +152,14 @@
   #hilfe dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
   #hilfe dt { color: var(--accent); white-space: nowrap; }
   #hilfe dd { margin: 0; color: var(--text); }
+  /* Siegbildschirm */
+  #intro table.sieg { border-collapse: collapse; margin: 8px 0 12px; }
+  #intro table.sieg td, #intro table.sieg th { padding: 3px 14px; text-align: right; font-weight: 500; }
+  #intro table.sieg td:first-child { text-align: left; color: var(--dim); }
+  #intro .diagramme { display: flex; gap: 12px; flex-wrap: wrap; max-width: none; }
+  #intro .diagramm { display: grid; gap: 3px; font-size: 11px; }
+  #intro .diagramm svg { width: 260px; height: 90px; border: 1px solid var(--line); border-radius: 3px; }
+  #intro .diagramm span { color: var(--dim); }
   /* Info-Karten */
   #karte {
     position: absolute; left: 12px; bottom: 58px; z-index: 15; width: min(340px, calc(100% - 24px));

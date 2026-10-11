@@ -28,6 +28,11 @@ const verborgen = (e) => imNebel(nebel, e, ME);
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 let gruppen = {}; // Steuergruppen: Ziffer -> Ids
+let aufnahme = null; // laufende Aufnahme (src/aufnahme.js)
+let wiederholung = null; // abgespielte Wiederholung, sonst null
+let wdhZeiger = 0;
+let verlauf = neuerVerlauf(); // fuer den Siegbildschirm
+let endeGezeigt = false;
 const fx = neueEffekte(); // Geschosse, Treffer, Klaenge (src/effekte.js)
 // Was der Spieler sehen darf -- Eigenes immer, sonst was im Nebel sichtbar ist.
 const sichtbarFx = (e) => !nebel.an || e.player === ME || sieht(nebel, e.x, e.y);
@@ -63,15 +68,27 @@ const COL = {
   blut: '#a86fb5',
 };
 
-function neu(f, zuschauen = false) {
+function neu(f, zuschauen = false, wdh = null) {
+  // Wiederholung: dieselben Startwerte wie bei der Aufnahme
+  if (wdh) {
+    karteSchluessel = wdh.karte;
+    gegnerStil = wdh.stil;
+    gegnerStufe = wdh.stufe;
+  }
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
   karteWaehlen(karteSchluessel);
-  world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
+  world = createWorld({ seed: wdh ? wdh.seed : (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
-  nebel = neuerNebel(!zuschauen, ME);
+  nebel = neuerNebel(!zuschauen && !wdh, ME);
+  wiederholung = wdh;
+  wdhZeiger = 0;
+  wiederholungsHinweis = '';
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karteSchluessel, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
+  verlauf = neuerVerlauf();
+  endeGezeigt = false;
   angriff = false;
   zeigeAuswertung = false;
   stats = neueStats();
@@ -435,15 +452,19 @@ function renderBar() {
 
 // ------------------------------------------------------------ Schleife
 function frame(now) {
-  const dt = Math.min(250, now - last);
+  const dt = Math.max(0, Math.min(250, now - last)); // nie rueckwaerts, nie mehr als eine Viertelsekunde
   last = now;
   if (!paused && !world.over) {
     acc += dt * speed;
     let guard = 0;
     while (acc >= TICK_MS && guard++ < 12) {
+      if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
+      else if (aufnahme) aufnehmen(aufnahme, world);
       if (aiMe) stepAI(aiMe, world);
       stepAI(ai, world);
       step(world);
+      verlaufFortschreiben(verlauf, world);
+      if (wiederholung && world.tick >= wiederholung.ende && !world.over) paused = true;
       for (const ev of world.events) if (ev.t === 'faehigkeit') wirkungen.push({ ...ev, bis: world.tick + 12 });
       effekteAusEreignissen(fx, world, ME, sichtbarFx, hoerer2d(), imBild2d);
       zaehle();
@@ -452,6 +473,7 @@ function frame(now) {
     }
   }
   effekteFortschreiben(fx, paused ? 0 : (dt * speed) / 1000, world, hoerer2d());
+  if (world.over && !endeGezeigt) zeigeEnde();
   draw();
   requestAnimationFrame(frame);
 }
@@ -973,9 +995,9 @@ function drawHud() {
   document.getElementById('hud').innerHTML = `
     <div class="res">
       ${kommandantZeile()}
-      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${aiMe ? ' · Zuschauen' : ''}</span>
+      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : ''}</span>
     </div>
-    ${warnungenHtml(world, ME)}
+    ${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahlHtml()}
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
     ${world.over || zeigeAuswertung ? flaecheHtml() + auswertungHtml() : ''}`;
@@ -1243,6 +1265,7 @@ function introHtml() {
         .map((k) => `<label><input type="radio" name="karte" value="${k}"${k === karteSchluessel ? ' checked' : ''}> ${KARTEN[k].name}</label>`)
         .join('')}
     </div>
+${wiederholungWahlHtml()}
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
       <button id="introGott">Als Gott spielen</button>
@@ -1266,12 +1289,56 @@ function starte(f, zuschauen) {
   paused = false;
   neu(f, zuschauen);
 }
-const intro = document.getElementById('intro');
-intro.innerHTML = introHtml();
-document.getElementById('introMensch').onclick = () => starte('mensch', false);
-document.getElementById('introGott').onclick = () => starte('gott', false);
-document.getElementById('introSchau').onclick = () => starte('mensch', true);
-paused = true;
+
+// ------------------------------------------------------------ Spielende und Wiederholungen
+/** Siegbildschirm ueber dem Spielfeld. */
+function zeigeEnde() {
+  endeGezeigt = true;
+  if (aufnahme) aufnahmeAbschliessen(aufnahme, world);
+  const el = document.getElementById('intro');
+  el.innerHTML = siegHtml(world, verlauf, ME, !!aufnahme, !!wiederholung);
+  el.style.display = '';
+  const knopf = (id, f) => {
+    const b = document.getElementById(id);
+    if (b) b.onclick = f;
+  };
+  knopf('endeSpeichern', () => aufnahmeSpeichern(aufnahme));
+  knopf('endeKarte', () => (el.style.display = 'none'));
+  knopf('endeNochmal', () => startbildschirm());
+}
+
+/** Startbildschirm zeigen und verdrahten. */
+function startbildschirm() {
+  const el = document.getElementById('intro');
+  el.innerHTML = introHtml();
+  el.style.display = '';
+  document.getElementById('introMensch').onclick = () => starte('mensch', false);
+  document.getElementById('introGott').onclick = () => starte('gott', false);
+  document.getElementById('introSchau').onclick = () => starte('mensch', true);
+  const datei = document.getElementById('wiederholungDatei');
+  if (datei) datei.onchange = () => wiederholungLaden(datei);
+  paused = true;
+}
+
+/** Eine Wiederholung aus einer Datei laden und abspielen. */
+function wiederholungLaden(eingabe) {
+  const datei = eingabe.files && eingabe.files[0];
+  if (!datei) return;
+  const meldung = document.getElementById('wiederholungMeldung');
+  datei.text().then((text) => {
+    const r = aufnahmeLesen(text);
+    if (r.fehler) {
+      if (meldung) meldung.textContent = r.fehler;
+      return;
+    }
+    document.getElementById('intro').style.display = 'none';
+    paused = false;
+    neu(r.a.factions[0], !!r.a.zuschauen, r.a);
+    wiederholungsHinweis = r.warnung;
+  });
+}
+let wiederholungsHinweis = '';
+startbildschirm();
 
 document.getElementById('asMensch').onclick = () => neu('mensch');
 document.getElementById('asGott').onclick = () => neu('gott');

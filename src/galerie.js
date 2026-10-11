@@ -11,6 +11,7 @@ const TEAMFARBE = { mensch: HEX('#d8b06a'), gott: HEX('#8fb86a') };
 const WEISS = [1, 1, 1];
 let ansicht = 'waldgott';
 let schilderSig = '';
+let festerWinkel = null; // aus dem Anker (#einheiten&winkel=0.5 oder #einheiten/winkel=0.5): stehendes Bild fuer Vergleiche
 const masse = {}; // Modell -> { hoehe, breite } fuer die Kamera
 
 /** Ein Modell laden und seine Ausdehnung merken. */
@@ -98,7 +99,7 @@ function bild(now) {
   gl.uniform1i(gl.getUniformLocation(PROG, 'uSicht'), 0);
   gl.uniform1f(gl.getUniformLocation(PROG, 'uKarte'), 1e6);
 
-  const drehung = (now / 1000) * 0.6;
+  const drehung = festerWinkel ?? (now / 1000) * 0.6;
   liste.forEach((e, i) => {
     if (!MODELLE[e.key]) return;
     const x = (i % r.spalten) * r.zw;
@@ -170,6 +171,10 @@ function start() {
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array([255]));
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  // Ansicht aus dem Anker der Adresse, z. B. galerie.html#icons
+  const [anker, ...optionen] = (typeof location !== 'undefined' ? location.hash.slice(1) : '').split(/[&/]/);
+  for (const o of optionen) if (o.startsWith('winkel=')) festerWinkel = parseFloat(o.slice(7)) || 0;
+  if (['waldgott', 'einheiten', 'gebaeude', 'karte', 'icons'].includes(anker)) wechsle(anker);
   requestAnimationFrame(bild);
 }
 start();

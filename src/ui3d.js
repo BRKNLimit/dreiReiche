@@ -262,6 +262,35 @@ const EISEN = '#a7adb3';
 const LAUB = '#3f7a35';
 const LAUB2 = '#5c9a43';
 const BLUT = '#a86fb5';
+const GLUEHT = 2; // als Teamanteil: Teil leuchtet selbst (siehe Shader)
+const MANTEL = '#17130f';
+const MANTEL2 = '#211a14';
+const GOLD = '#f5b23c';
+const GOLD2 = '#ffd36a';
+
+/** Lange Klauenfinger einer Hand, von der Handflaeche aus nach unten. */
+function klauen(x, y, z, seite) {
+  const t = [];
+  for (let i = 0; i < 4; i++) {
+    const dx = x + seite * (i - 1.5) * 0.075;
+    const laenge = 0.62 - Math.abs(i - 1.5) * 0.08;
+    t.push(['q', [0.035, laenge, 0.035], [dx, y - laenge / 2, z + 0.04 * i], GOLD2, GLUEHT, [0.25, 0, seite * (i - 1.5) * 0.06]]);
+  }
+  // Daumen
+  t.push(['q', [0.035, 0.32, 0.035], [x - seite * 0.17, y - 0.08, z + 0.05], GOLD2, GLUEHT, [0.4, 0, -seite * 0.7]]);
+  return t;
+}
+
+/** Zerfaserter Saum: Spitzen, die nach unten zeigen, rund um den Mantel. */
+function saum(r, y, n) {
+  const t = [];
+  for (let i = 0; i < n; i++) {
+    const w = (i / n) * Math.PI * 2;
+    const lang = 0.45 + ((i * 37) % 5) * 0.08;
+    t.push(['z', [0.16, 0, lang, 4], [Math.cos(w) * r, y - lang / 2, Math.sin(w) * r], i % 2 ? MANTEL : MANTEL2, 0.05]);
+  }
+  return t;
+}
 
 const MODELLE_DEF = {
   // ------------------------------------------------------------- Menschen
@@ -320,8 +349,8 @@ const MODELLE_DEF = {
   ],
   waldgeist: [
     ['k', [0.6, 8], [0, 1.4, 0], '#bfe8b0', 0.3],
-    ['k', [0.25, 6], [0.6, 1.9, 0.2], '#e2f7d4'],
-    ['k', [0.2, 6], [-0.55, 1.0, -0.2], '#e2f7d4'],
+    ['k', [0.25, 6], [0.6, 1.9, 0.2], '#e2f7d4', GLUEHT],
+    ['k', [0.2, 6], [-0.55, 1.0, -0.2], '#e2f7d4', GLUEHT],
     ['z', [0.35, 0, 0.9, 7], [0, 0.6, 0], '#9ccf8a', 0.3],
   ],
   ent: [
@@ -333,14 +362,41 @@ const MODELLE_DEF = {
     ['q', [0.3, 0.5, 0.5], [0.3, 0.25, 0], HOLZ],
     ['q', [0.3, 0.5, 0.5], [-0.3, 0.25, 0], HOLZ],
   ],
+  // Nach der Vorlage des Nutzers: dunkler Riese im Mantel, ohne Fuesse.
   waldgott: [
-    ['z', [0.45, 0.7, 2.0, 8], [0, 1.0, 0], '#4d6b3a', 0.6],
-    ['k', [0.42, 8], [0, 2.3, 0], '#cdbf9a'],
-    ['q', [0.08, 0.9, 0.08], [0.35, 2.85, 0], '#e8dcc0', 0, [0, 0, -0.5]],
-    ['q', [0.08, 0.9, 0.08], [-0.35, 2.85, 0], '#e8dcc0', 0, [0, 0, 0.5]],
-    ['q', [0.06, 0.5, 0.06], [0.6, 3.05, 0], '#e8dcc0', 0, [0, 0, -1.1]],
-    ['q', [0.06, 0.5, 0.06], [-0.6, 3.05, 0], '#e8dcc0', 0, [0, 0, 1.1]],
-    ['k', [0.55, 7], [0, 1.6, -0.35], LAUB, 0.3],
+    // Mantel: unten weit, oben schmal, schwebt knapp ueber dem Boden
+    ['z', [0.5, 0.95, 3.0, 9], [0, 1.85, 0], MANTEL, 0.08],
+    ['z', [0.62, 0.5, 0.7, 9], [0, 3.2, -0.02], MANTEL2, 0.05],
+    ...saum(0.88, 0.38, 14),
+    // Haengende Aermel, bis zur Huefte
+    ['z', [0.2, 0.34, 1.9, 6], [0.72, 2.45, 0.05], MANTEL2, 0.05, [0, 0, 0.16]],
+    ['z', [0.2, 0.34, 1.9, 6], [-0.72, 2.45, 0.05], MANTEL2, 0.05, [0, 0, -0.16]],
+    // Hoher Kragen zu beiden Seiten des Kopfes
+    ['q', [0.32, 0.85, 0.1], [0.4, 3.75, -0.05], MANTEL, 0.05, [0, 0.35, -0.22]],
+    ['q', [0.32, 0.85, 0.1], [-0.4, 3.75, -0.05], MANTEL, 0.05, [0, -0.35, 0.22]],
+    ['q', [0.75, 0.7, 0.1], [0, 3.7, -0.3], MANTEL2, 0.05],
+    // Kopf: schwarz, gluehende Augen
+    ['k', [0.26, 8], [0, 3.95, 0.05], '#0b0908'],
+    ['k', [0.055, 5], [0.085, 3.98, 0.29], '#ffd23a', GLUEHT],
+    ['k', [0.055, 5], [-0.085, 3.98, 0.29], '#ffd23a', GLUEHT],
+    // Geweih: zwei Hauptstangen mit Enden
+    ['q', [0.07, 0.95, 0.07], [0.3, 4.48, 0], '#3a3028', 0, [0, 0, -0.55]],
+    ['q', [0.07, 0.95, 0.07], [-0.3, 4.48, 0], '#3a3028', 0, [0, 0, 0.55]],
+    ['q', [0.05, 0.6, 0.05], [0.62, 4.95, 0], '#3a3028', 0, [0, 0, -0.15]],
+    ['q', [0.05, 0.6, 0.05], [-0.62, 4.95, 0], '#3a3028', 0, [0, 0, 0.15]],
+    ['q', [0.045, 0.45, 0.045], [0.34, 4.95, 0.02], '#3a3028', 0, [0, 0, 0.35]],
+    ['q', [0.045, 0.45, 0.045], [-0.34, 4.95, 0.02], '#3a3028', 0, [0, 0, -0.35]],
+    ['q', [0.045, 0.45, 0.045], [0.82, 4.68, 0], '#3a3028', 0, [0, 0, -1.15]],
+    ['q', [0.045, 0.45, 0.045], [-0.82, 4.68, 0], '#3a3028', 0, [0, 0, 1.15]],
+    ['q', [0.04, 0.35, 0.04], [0.15, 4.62, 0.05], '#3a3028', 0, [0, 0, 0.5]],
+    ['q', [0.04, 0.35, 0.04], [-0.15, 4.62, 0.05], '#3a3028', 0, [0, 0, -0.5]],
+    // Gluehende Unterarme und Haende, vor dem Mantel gekreuzt
+    ['z', [0.07, 0.1, 0.62, 5], [0.42, 2.6, 0.45], GOLD, GLUEHT, [1.0, 0, 0.55]],
+    ['q', [0.26, 0.1, 0.3], [0.2, 2.42, 0.66], GOLD, GLUEHT, [0.35, 0, 0.3]],
+    ...klauen(0.2, 2.36, 0.68, 1),
+    ['z', [0.07, 0.1, 0.62, 5], [-0.44, 2.2, 0.42], GOLD, GLUEHT, [1.1, 0, -0.5]],
+    ['q', [0.26, 0.1, 0.3], [-0.22, 2.0, 0.62], GOLD, GLUEHT, [0.4, 0, -0.3]],
+    ...klauen(-0.22, 1.94, 0.64, -1),
   ],
 
   // ------------------------------------------------------------- Gebaeude Menschen
@@ -359,7 +415,7 @@ const MODELLE_DEF = {
   schmiede: [
     ['q', [1.4, 0.8, 1.2], [0, 0.4, 0], '#6a5a4a'],
     ['z', [0.2, 0.25, 1.1, 6], [0.5, 1.2, -0.3], STEIN],
-    ['k', [0.18, 6], [0.5, 1.8, -0.3], '#ff9a3a'],
+    ['k', [0.18, 6], [0.5, 1.8, -0.3], '#ff9a3a', GLUEHT],
     ['q', [1.5, 0.12, 1.3], [0, 0.85, 0], '#5a4030', 0.5],
   ],
   saege: [
@@ -471,8 +527,8 @@ const MODELLE_DEF = {
     ['q', [0.16, 0.02, 0.18], [0, 0, -0.45], '#e8e2d0', 0.6],
   ],
   kugel: [
-    ['k', [0.32, 6], [0, 0, 0], '#e2f7d4', 0.25],
-    ['k', [0.16, 5], [0, 0, -0.35], '#bfe8b0', 0.25],
+    ['k', [0.32, 6], [0, 0, 0], '#e2f7d4', GLUEHT],
+    ['k', [0.16, 5], [0, 0, -0.35], '#bfe8b0', GLUEHT],
   ],
 };
 
@@ -497,9 +553,13 @@ void main() {
   vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
   vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
   vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
-  vec3 col = mix(aCol.rgb, iC.rgb, aCol.a) * iB.z;
+  // Selbstleuchtende Teile behalten ihre eigene Farbe, ohne Fraktionsfarbe.
+  float team = aCol.a > 1.5 ? 0.0 : aCol.a;
+  vec3 col = mix(aCol.rgb, iC.rgb, team) * iB.z;
   float d = max(dot(n, uLicht), 0.0);
-  vCol = vec4(col * (0.42 + 0.7 * d), iB.w);
+  // Teile mit Teamanteil > 1.5 leuchten selbst: Augen, Glut, Lichtkugeln.
+  float licht = aCol.a > 1.5 ? 1.25 : 0.42 + 0.7 * d;
+  vCol = vec4(col * licht, iB.w);
   gl_Position = uVP * vec4(r, 1.0);
   vTiefe = gl_Position.w;
 }`;
@@ -1110,8 +1170,9 @@ function zeichne(now, dt) {
     }
     const s = def.radius * DM * ZEIGE_EINHEIT;
     const schwebt = e.type === 'waldgeist' ? 0.5 + Math.sin(t * 2 + e.id) * 0.25 : 0;
-    const huepf = bewegt && e.type !== 'waldgeist' ? Math.abs(Math.sin(t * 9 + e.id)) * 0.12 * s : 0;
-    const schritt = bewegt && e.type !== 'waldgeist' ? Math.sin(t * 9 + e.id) : 0;
+    const gleitet = e.type === 'waldgeist' || e.type === 'waldgott';
+    const huepf = bewegt && !gleitet ? Math.abs(Math.sin(t * 9 + e.id)) * 0.12 * s : 0;
+    const schritt = bewegt && !gleitet ? Math.sin(t * 9 + e.id) : 0;
     // Ausfall: kurz nach vorn beim Schuss oder Hieb
     const seit = now - (ausfall.get(e.id) || -1e9);
     const ruck = seit < 220 ? Math.sin((seit / 220) * Math.PI) * 0.4 * s : 0;

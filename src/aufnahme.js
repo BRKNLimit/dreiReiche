@@ -10,6 +10,9 @@ import { foerderungProMin } from './sim/sim.js';
 import { UNITS, FACTIONS, KARTEN } from './sim/defs.js';
 import { ICONS } from './icons.js';
 
+/** Name der Karte fuer Anzeigen und Dateinamen. */
+const kartenName = (k) => KARTEN[k]?.name || { zufall: 'Zufallskarte', eigen: 'eigene Karte' }[k] || k;
+
 export const STAND = typeof SPIEL_STAND !== 'undefined' ? SPIEL_STAND : 'dev';
 const FORMAT = 'drei-reiche-wiederholung';
 
@@ -49,7 +52,7 @@ export function aufnahmeSpeichern(a) {
   const link = document.createElement('a');
   link.href = url;
   const min = Math.round(a.ende / 600);
-  link.download = `drei-reiche-${a.factions.join('-gegen-')}-${KARTEN[a.karte]?.name || a.karte}-${min}min.json`;
+  link.download = `drei-reiche-${a.factions.join('-gegen-')}-${kartenName(a.karte)}-${min}min.json`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
@@ -131,7 +134,7 @@ export function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
   const zeile = (name, a, b) => `<tr><td>${name}</td><td>${a}</td><td>${b}</td></tr>`;
   const reihe = (k, p) => v.minuten.map((m) => m[p][k]);
   return `<h1>${titel}</h1>
-    <p>nach ${min} Minuten auf der Karte ${KARTEN[world.karte]?.name || world.karte}</p>
+    <p>nach ${min} Minuten auf der Karte ${kartenName(world.karte)}</p>
     <table class="sieg">
       <tr><th></th><th style="color:${f[0].color}">${f[0].name}</th><th style="color:${f[1].color}">${f[1].name}</th></tr>
       ${zeile('Ausgebildet', v.ausgebildet[0], v.ausgebildet[1])}

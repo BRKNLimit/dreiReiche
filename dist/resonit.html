@@ -123,6 +123,16 @@
   #zeitleiste .gruppe { display: inline-flex; gap: 2px; }
   #zeitleiste button { padding: 3px 7px; font-size: 12px; }
   #zeitleiste button.an { border-color: var(--accent); color: var(--accent); }
+  #intro .bilanz { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+  #intro .bilanz b { color: var(--accent); margin-right: 4px; }
+  #intro .bilanz span { color: var(--dim); font-size: 12px; margin-left: 6px; }
+  #intro .bilanz .ok { color: #8fb86a; }
+  #intro .erfolge ul { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
+  #intro .erfolge li { display: flex; flex-direction: column; padding: 6px 9px; border: 1px solid var(--line); border-radius: 4px; }
+  #intro .erfolge li.zu { opacity: .55; }
+  #intro .erfolge li span { color: var(--dim); font-size: 12px; }
+  #intro .neueErfolge { margin-top: 12px; display: grid; gap: 4px; color: var(--text); }
+  #intro .neueErfolge b { color: var(--accent); }
   #intro .fortsetzen { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--dim); }
   #intro .fortsetzen button { font-weight: 600; color: var(--accent); }
   #intro .kampagne.gott b, #intro .vorwort.gott h1 { color: #7fb069; }
@@ -6695,6 +6705,11 @@ function musikRassel(ton, ziel, t, laut, frequenz, dauer = 0.06) {
 // Tick kennt, kann die ganze Partie nachspielen. Mehr steht in einer
 // Wiederholung nicht. Sie passt nur zum selben Stand der Simulation -- den
 // haelt SPIEL_STAND fest (Pruefsumme der Sim-Dateien, von tools/bundle.mjs).
+
+
+
+/** Name der Karte fuer Anzeigen und Dateinamen. */
+const kartenName = (k) => KARTEN[k]?.name || { zufall: 'Zufallskarte', eigen: 'eigene Karte' }[k] || k;
 const STAND = typeof SPIEL_STAND !== 'undefined' ? SPIEL_STAND : 'dev';
 const FORMAT = 'drei-reiche-wiederholung';
 
@@ -6733,7 +6748,7 @@ function aufnahmeSpeichern(a) {
   const link = document.createElement('a');
   link.href = url;
   const min = Math.round(a.ende / 600);
-  link.download = `drei-reiche-${a.factions.join('-gegen-')}-${KARTEN[a.karte]?.name || a.karte}-${min}min.json`;
+  link.download = `drei-reiche-${a.factions.join('-gegen-')}-${kartenName(a.karte)}-${min}min.json`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
@@ -6814,7 +6829,7 @@ function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
   const zeile = (name, a, b) => `<tr><td>${name}</td><td>${a}</td><td>${b}</td></tr>`;
   const reihe = (k, p) => v.minuten.map((m) => m[p][k]);
   return `<h1>${titel}</h1>
-    <p>nach ${min} Minuten auf der Karte ${KARTEN[world.karte]?.name || world.karte}</p>
+    <p>nach ${min} Minuten auf der Karte ${kartenName(world.karte)}</p>
     <table class="sieg">
       <tr><th></th><th style="color:${f[0].color}">${f[0].name}</th><th style="color:${f[1].color}">${f[1].name}</th></tr>
       ${zeile('Ausgebildet', v.ausgebildet[0], v.ausgebildet[1])}
@@ -7702,6 +7717,125 @@ function onlineBeitreten(el, k) {
       netzStatus('Der Code passt nicht: ' + e.message);
     }
   };
+}
+
+
+/* ---------------------------------- */
+
+// Bilanz: Siege und Niederlagen, die Tagesherausforderung und Erfolge --
+// alles im Browser gespeichert, nur Oberflaeche.
+
+const BILANZ_SPEICHER = 'dreiReiche.bilanz';
+function bilanzLesen() {
+  try {
+    const b = JSON.parse(localStorage.getItem(BILANZ_SPEICHER) || 'null');
+    if (b && b.partien) return b;
+  } catch {
+    /* kaputt oder gesperrt: neu anfangen */
+  }
+  return { partien: { mensch: [0, 0], gott: [0, 0] }, erfolge: {}, tage: {}, gewonnenMit: {} };
+}
+function bilanzSchreiben(b) {
+  try {
+    localStorage.setItem(BILANZ_SPEICHER, JSON.stringify(b));
+  } catch {
+    /* ohne Speicher eben nur fuer diese Sitzung */
+  }
+}
+
+// ------------------------------------------------------------ Tagesherausforderung
+
+const STILNAME = { sturm: 'Sturm', standard: 'Standard', burg: 'Burg' };
+const STUFENNAME = { leicht: 'leicht', mittel: 'mittel', schwer: 'schwer' };
+
+/** Fuer jeden Tag dieselbe Partie fuer alle: Zufallskarte, Volk und Gegner aus dem Datum. */
+function tagesHerausforderung(datum = new Date()) {
+  const tag = datum.getFullYear() * 10000 + (datum.getMonth() + 1) * 100 + datum.getDate();
+  let h = tag;
+  const wuerfel = (n) => {
+    h = (h * 1103515245 + 12345) & 0x7fffffff;
+    return h % n;
+  };
+  const volk = wuerfel(2) ? 'gott' : 'mensch';
+  const stil = ['sturm', 'standard', 'burg'][wuerfel(3)];
+  const stufe = wuerfel(3) === 0 ? 'schwer' : 'mittel';
+  return { tag, seed: tag, volk, stil, stufe, karte: 'zufall', datum: `${datum.getDate()}.${datum.getMonth() + 1}.` };
+}
+
+function zeitText(min) {
+  const s = Math.round(min * 60);
+  return `${(s / 60) | 0}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// ------------------------------------------------------------ Erfolge
+
+/** info: { gewonnen, volk, stufe, karte, minuten, verluste, ausgebildet, online, tages, kampagneFertig } */
+const ERFOLGE = [
+  { id: 'erster-sieg', name: 'Erster Sieg', text: 'Gewinne eine Partie.', pruef: (i) => i.gewonnen },
+  { id: 'zwei-seelen', name: 'Zwei Seelen', text: 'Gewinne mit beiden Völkern.', pruef: (i, b) => b.gewonnenMit.mensch && b.gewonnenMit.gott },
+  { id: 'haerteprobe', name: 'Härteprobe', text: 'Gewinne gegen die KI auf „schwer“.', pruef: (i) => i.gewonnen && !i.online && !i.mission && i.stufe === 'schwer' },
+  { id: 'sturmlauf', name: 'Sturmlauf', text: 'Gewinne in weniger als 15 Minuten.', pruef: (i) => i.gewonnen && !i.mission && i.minuten < 15 },
+  { id: 'eiserne-linie', name: 'Eiserne Linie', text: 'Gewinne mit weniger als 10 Verlusten.', pruef: (i) => i.gewonnen && !i.mission && i.verluste < 10 },
+  { id: 'langer-atem', name: 'Langer Atem', text: 'Gewinne eine Partie, die länger als 45 Minuten dauert.', pruef: (i) => i.gewonnen && i.minuten > 45 },
+  { id: 'heerfuehrer', name: 'Heerführer', text: 'Bilde in einer Partie mehr als 100 Einheiten aus.', pruef: (i) => i.ausgebildet > 100 },
+  { id: 'fremdes-land', name: 'Fremdes Land', text: 'Gewinne auf einer Zufallskarte.', pruef: (i) => i.gewonnen && i.karte === 'zufall' },
+  { id: 'tageswerk', name: 'Tageswerk', text: 'Schaffe eine Tagesherausforderung.', pruef: (i) => i.gewonnen && i.tages },
+  { id: 'mensch-zu-mensch', name: 'Von Mensch zu Mensch', text: 'Gewinne eine Online-Partie.', pruef: (i) => i.gewonnen && i.online },
+  { id: 'die-rodung', name: 'Die Rodung', text: 'Schließe die Kampagne der Menschen ab.', pruef: (i) => i.kampagneFertig === 'rodung' },
+  { id: 'zorn-des-waldes', name: 'Der Zorn des Waldes', text: 'Schließe die Kampagne des Gottes ab.', pruef: (i) => i.kampagneFertig === 'zorn' },
+];
+
+/** Partie eintragen; liefert die Erfolge, die dabei neu dazukamen. */
+function partieErfassen(info) {
+  const b = bilanzLesen();
+  if (!info.mission) {
+    const p = b.partien[info.volk] || (b.partien[info.volk] = [0, 0]);
+    p[info.gewonnen ? 0 : 1]++;
+  }
+  if (info.gewonnen) b.gewonnenMit[info.volk] = true;
+  if (info.tages && info.gewonnen) {
+    const alt = b.tage[info.tages];
+    if (!alt || info.minuten < alt) b.tage[info.tages] = Math.round(info.minuten * 100) / 100;
+  }
+  const neu = [];
+  for (const e of ERFOLGE) {
+    if (b.erfolge[e.id] || !e.pruef(info, b)) continue;
+    b.erfolge[e.id] = new Date().toISOString().slice(0, 10);
+    neu.push(e);
+  }
+  bilanzSchreiben(b);
+  return neu;
+}
+
+// ------------------------------------------------------------ Anzeige
+
+/** Zeile im Startbildschirm: Tagesherausforderung, Bilanz, Erfolge. */
+function bilanzHtml() {
+  const b = bilanzLesen();
+  const h = tagesHerausforderung();
+  const best = b.tage[h.tag];
+  const volk = h.volk === 'mensch' ? 'Menschen' : 'Gott';
+  const zahl = Object.keys(b.erfolge).length;
+  const [ms, mn] = b.partien.mensch || [0, 0];
+  const [gs, gn] = b.partien.gott || [0, 0];
+  return `<div class="bilanz">
+    <div><b>📅 Tagesherausforderung ${h.datum}</b> ${volk} gegen ${STILNAME[h.stil]} (${STUFENNAME[h.stufe]}) auf einer Karte, die es nur heute gibt
+      <button id="tagesStart">Annehmen</button>${best ? ` <span class="ok">Bestzeit heute ${zeitText(best)}</span>` : ''}</div>
+    <div><b>🏆 Erfolge ${zahl}/${ERFOLGE.length}</b> <button id="erfolgeZeigen">ansehen</button>
+      <span>Bilanz: Menschen ${ms}:${mn} · Gott ${gs}:${gn}</span></div>
+  </div>`;
+}
+function erfolgeHtml() {
+  const b = bilanzLesen();
+  return `<div class="vorwort erfolge"><div class="kapitel">Bilanz</div><h1>Erfolge</h1>
+    <ul>${ERFOLGE.map((e) => `<li class="${b.erfolge[e.id] ? 'ok' : 'zu'}"><b>${b.erfolge[e.id] ? '🏆' : '🔒'} ${e.name}</b><span>${e.text}${b.erfolge[e.id] ? ` · ${b.erfolge[e.id]}` : ''}</span></li>`).join('')}</ul>
+    <div class="go"><button id="erfolgeZurueck">Zurück</button></div></div>`;
+}
+
+/** Hinweis fuer den Endbildschirm. */
+function neueErfolgeHtml(liste) {
+  if (!liste.length) return '';
+  return `<div class="neueErfolge">${liste.map((e) => `<div>🏆 <b>Neuer Erfolg: ${e.name}</b> — ${e.text}</div>`).join('')}</div>`;
 }
 
 
@@ -9067,6 +9201,8 @@ let missionStand = []; // erledigte Ziele der Mission
 let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
 let missionMeldungen = []; // Indizes der schon gezeigten Funksprueche
 let netz = null; // Online-Partie (src/netz.js): { kanal, gs, zu, wartetSeit }
+let tagesAktiv = null; // laufende Tagesherausforderung (src/bilanz.js), sonst null
+let tagesStart = null; // beim naechsten neu() als Tagesherausforderung starten
 let funkText = ''; // aktueller Funkspruch (HTML) und bis wann er steht
 let funkBis = 0;
 let funkGezeigt = null;
@@ -9118,6 +9254,8 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   if (altesNetz && altesNetz.kanal && (!online || online.kanal !== altesNetz.kanal)) altesNetz.kanal.close();
   ME = online ? online.ich : 0;
   const ohneKI = !!online || !!(wdh && wdh.online); // online spielen zwei Menschen
+  tagesAktiv = stand ? stand.extra.tages || null : online || wdh ? null : tagesStart;
+  tagesStart = null;
   // Spielstand (src/spielstand.js): Welt und KI von dort, Einstellungen aus extra
   const geladen = stand ? zustandLaden(stand.zustand) : null;
   if (stand) {
@@ -9148,7 +9286,7 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   meFaction = f;
   if (online) meFaction = online.config.factions[online.ich]; // als Gast das zweite Volk
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : (Date.now() / 1000) | 0;
+  const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : tagesAktiv ? tagesAktiv.seed : (Date.now() / 1000) | 0;
   const karte = online
     ? { schluessel: online.config.karte, daten: online.config.karteDaten || KARTEN[online.config.karte] }
     : geladen
@@ -10240,7 +10378,7 @@ function drawHud() {
   document.getElementById('hud').innerHTML = `
     <div class="res">
       ${kommandantZeile()}
-      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : netz ? ' · Online' : ''}</span>
+      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : netz ? ' · Online' : tagesAktiv ? ' · Tagesherausforderung' : ''}</span>
     </div>
     ${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahlHtml()}
@@ -10471,6 +10609,7 @@ function introHtml() {
     ${fortsetzenHtml()}
     ${kampagneHtml()}
     ${onlineHtml()}
+    ${bilanzHtml()}
     <details class="regeln"><summary>Spielregeln in Kürze</summary>
     <div class="cols">
       <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
@@ -10543,10 +10682,16 @@ function zeigeEnde() {
   if (aufnahme) aufnahmeAbschliessen(aufnahme, world);
   const el = document.getElementById('intro');
   if (mission && !wiederholung) {
-    missionEndeZeigen(el, mission, missionGewonnen || world.winner === ME, { waehle: missionWaehlen, menue: startbildschirm });
+    const gewonnen = missionGewonnen || world.winner === ME;
+    const neue = ergebnisErfassen(gewonnen);
+    missionEndeZeigen(el, mission, gewonnen, { waehle: missionWaehlen, menue: startbildschirm });
+    el.insertAdjacentHTML('beforeend', neueErfolgeHtml(neue));
     return;
   }
-  el.innerHTML = siegHtml(world, verlauf, ME, !!aufnahme, !!wiederholung);
+  const gewonnen = world.winner === ME;
+  const neue = ergebnisErfassen(gewonnen);
+  const tagesZeile = tagesAktiv && gewonnen ? `<div class="neueErfolge"><div>📅 <b>Tagesherausforderung geschafft</b> in ${(world.tick / 600).toFixed(1).replace('.', ',')} Minuten</div></div>` : '';
+  el.innerHTML = siegHtml(world, verlauf, ME, !!aufnahme, !!wiederholung) + tagesZeile + neueErfolgeHtml(neue);
   el.style.display = '';
   const knopf = (id, f) => {
     const b = document.getElementById(id);
@@ -10608,6 +10753,7 @@ function standText() {
     missionTitel: mission ? mission.titel : '',
     missionStand,
     missionMeldungen,
+    tages: tagesAktiv,
     aufnahme,
     verlauf,
     gruppen,
@@ -10745,6 +10891,37 @@ function zeitleisteAktualisieren() {
   if (z.textContent !== text) z.textContent = text;
 }
 
+// ------------------------------------------------------------ Bilanz und Erfolge (src/bilanz.js)
+/** Ende einer eigenen Partie eintragen (nicht beim Zuschauen oder Abspielen); liefert neue Erfolge. */
+function ergebnisErfassen(gewonnen) {
+  if (wiederholung || aiMe) return [];
+  const k = mission ? mission.kampagne : null;
+  return partieErfassen({
+    gewonnen,
+    volk: meFaction,
+    stufe: gegnerStufe,
+    stil: gegnerStil,
+    karte: world.karte,
+    minuten: world.tick / 600,
+    verluste: verlauf.verluste[ME],
+    ausgebildet: verlauf.ausgebildet[ME],
+    online: !!netz,
+    tages: tagesAktiv ? tagesAktiv.tag : 0,
+    mission: mission ? mission.id : null,
+    kampagneFertig: k && gewonnen && k.missionen[k.missionen.length - 1] === mission ? k.id : null,
+  });
+}
+function tagesAnnehmen() {
+  const h = tagesHerausforderung();
+  karteSchluessel = 'zufall';
+  gegnerStil = h.stil;
+  gegnerStufe = h.stufe;
+  tagesStart = h;
+  document.getElementById('intro').style.display = 'none';
+  paused = false;
+  neu(h.volk);
+}
+
 // ------------------------------------------------------------ Online (src/netz.js)
 function netzPost(msg) {
   if (netz) netzSenden(netz.kanal, msg);
@@ -10862,6 +11039,15 @@ function startbildschirm() {
   document.getElementById('introGott').onclick = () => starte('gott', false);
   document.getElementById('introSchau').onclick = () => starte('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
+  const tagesKnopf = document.getElementById('tagesStart');
+  if (tagesKnopf) tagesKnopf.onclick = tagesAnnehmen;
+  const erfolgeKnopf = document.getElementById('erfolgeZeigen');
+  if (erfolgeKnopf) {
+    erfolgeKnopf.onclick = () => {
+      el.innerHTML = erfolgeHtml();
+      document.getElementById('erfolgeZurueck').onclick = startbildschirm;
+    };
+  }
   const eroeffnen = document.getElementById('onlineEroeffnen');
   if (eroeffnen) eroeffnen.onclick = () => onlineEroeffnen(el, onlineRueckrufe());
   const beitreten = document.getElementById('onlineBeitreten');

@@ -3,6 +3,19 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.37 — Tagesherausforderung und Erfolge
+
+- **📅 Tagesherausforderung** im Startbildschirm: jeden Tag eine neue
+  Zufallskarte mit festem Volk und Gegner — aus dem Datum berechnet, also
+  für alle gleich. Bestzeit des Tages wird gemerkt.
+- **🏆 Erfolge** (12): Erster Sieg, Zwei Seelen, Härteprobe, Sturmlauf,
+  Eiserne Linie, Langer Atem, Heerführer, Fremdes Land, Tageswerk, Von
+  Mensch zu Mensch und je einer für beide Kampagnen. Neue Erfolge stehen
+  auf dem Endbildschirm; die Übersicht und die Bilanz (Siege : Niederlagen
+  je Volk) im Startbildschirm. Alles im Browser gespeichert
+  (`src/bilanz.js`), Zuschauen und Wiederholungen zählen nicht.
+- Endbildschirm: „Zufallskarte“ statt „zufall“.
+
 ## 0.36 — Musik und Zeitleiste für Wiederholungen
 
 - **Wiederholungen mit Zeitleiste:** Regler zum Springen (vor und zurück),

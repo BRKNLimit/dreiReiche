@@ -53,6 +53,8 @@ let missionStand = []; // erledigte Ziele der Mission
 let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
 let missionMeldungen = []; // Indizes der schon gezeigten Funksprueche
 let netz = null; // Online-Partie (src/netz.js): { kanal, gs, zu, wartetSeit }
+let tagesAktiv = null; // laufende Tagesherausforderung (src/bilanz.js), sonst null
+let tagesStart = null; // beim naechsten neu() als Tagesherausforderung starten
 let funkText = ''; // aktueller Funkspruch (HTML) und bis wann er steht
 let funkBis = 0;
 let funkGezeigt = null;
@@ -137,6 +139,8 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   if (altesNetz && altesNetz.kanal && (!online || online.kanal !== altesNetz.kanal)) altesNetz.kanal.close();
   ME = online ? online.ich : 0;
   const ohneKI = !!online || !!(wdh && wdh.online); // online spielen zwei Menschen
+  tagesAktiv = stand ? stand.extra.tages || null : online || wdh ? null : tagesStart;
+  tagesStart = null;
   // Spielstand (src/spielstand.js): Welt und KI von dort, Einstellungen aus extra
   const geladen = stand ? zustandLaden(stand.zustand) : null;
   if (stand) {
@@ -167,7 +171,7 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   meFaction = f;
   if (online) meFaction = online.config.factions[online.ich]; // als Gast das zweite Volk
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : (Date.now() / 1000) | 0;
+  const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : tagesAktiv ? tagesAktiv.seed : (Date.now() / 1000) | 0;
   const karte = online
     ? { schluessel: online.config.karte, daten: online.config.karteDaten || KARTEN[online.config.karte] }
     : geladen
@@ -1306,7 +1310,7 @@ function zeichneHud() {
   document.getElementById('hud').innerHTML = `
     <div class="res">
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
-      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : ''}</span>
+      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : netz ? ' · Online' : tagesAktiv ? ' · Tagesherausforderung' : ''}</span>
     </div>
     ${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahl}
@@ -1366,6 +1370,7 @@ function introHtml3() {
     ${fortsetzenHtml()}
     ${kampagneHtml()}
     ${onlineHtml()}
+    ${bilanzHtml()}
     <details class="regeln"><summary>Spielregeln in Kürze</summary>
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
     (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
@@ -1423,10 +1428,16 @@ function zeigeEnde() {
   if (aufnahme) aufnahmeAbschliessen(aufnahme, world);
   const el = document.getElementById('intro');
   if (mission && !wiederholung) {
-    missionEndeZeigen(el, mission, missionGewonnen || world.winner === ME, { waehle: missionWaehlen, menue: startbildschirm });
+    const gewonnen = missionGewonnen || world.winner === ME;
+    const neue = ergebnisErfassen(gewonnen);
+    missionEndeZeigen(el, mission, gewonnen, { waehle: missionWaehlen, menue: startbildschirm });
+    el.insertAdjacentHTML('beforeend', neueErfolgeHtml(neue));
     return;
   }
-  el.innerHTML = siegHtml(world, verlauf, ME, !!aufnahme, !!wiederholung);
+  const gewonnen = world.winner === ME;
+  const neue = ergebnisErfassen(gewonnen);
+  const tagesZeile = tagesAktiv && gewonnen ? `<div class="neueErfolge"><div>📅 <b>Tagesherausforderung geschafft</b> in ${(world.tick / 600).toFixed(1).replace('.', ',')} Minuten</div></div>` : '';
+  el.innerHTML = siegHtml(world, verlauf, ME, !!aufnahme, !!wiederholung) + tagesZeile + neueErfolgeHtml(neue);
   el.style.display = '';
   const knopf = (id, f) => {
     const b = document.getElementById(id);
@@ -1488,6 +1499,7 @@ function standText() {
     missionTitel: mission ? mission.titel : '',
     missionStand,
     missionMeldungen,
+    tages: tagesAktiv,
     aufnahme,
     verlauf,
     gruppen,
@@ -1627,6 +1639,37 @@ function zeitleisteAktualisieren() {
   if (z.textContent !== text) z.textContent = text;
 }
 
+// ------------------------------------------------------------ Bilanz und Erfolge (src/bilanz.js)
+/** Ende einer eigenen Partie eintragen (nicht beim Zuschauen oder Abspielen); liefert neue Erfolge. */
+function ergebnisErfassen(gewonnen) {
+  if (wiederholung || aiMe) return [];
+  const k = mission ? mission.kampagne : null;
+  return partieErfassen({
+    gewonnen,
+    volk: meFaction,
+    stufe: gegnerStufe,
+    stil: gegnerStil,
+    karte: world.karte,
+    minuten: world.tick / 600,
+    verluste: verlauf.verluste[ME],
+    ausgebildet: verlauf.ausgebildet[ME],
+    online: !!netz,
+    tages: tagesAktiv ? tagesAktiv.tag : 0,
+    mission: mission ? mission.id : null,
+    kampagneFertig: k && gewonnen && k.missionen[k.missionen.length - 1] === mission ? k.id : null,
+  });
+}
+function tagesAnnehmen() {
+  const h = tagesHerausforderung();
+  karteSchluessel = 'zufall';
+  gegnerStil = h.stil;
+  gegnerStufe = h.stufe;
+  tagesStart = h;
+  document.getElementById('intro').style.display = 'none';
+  paused = false;
+  neu(h.volk);
+}
+
 // ------------------------------------------------------------ Online (src/netz.js)
 function netzPost(msg) {
   if (netz) netzSenden(netz.kanal, msg);
@@ -1744,6 +1787,15 @@ function startbildschirm() {
   document.getElementById('introGott').onclick = () => starte3('gott', false);
   document.getElementById('introSchau').onclick = () => starte3('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
+  const tagesKnopf = document.getElementById('tagesStart');
+  if (tagesKnopf) tagesKnopf.onclick = tagesAnnehmen;
+  const erfolgeKnopf = document.getElementById('erfolgeZeigen');
+  if (erfolgeKnopf) {
+    erfolgeKnopf.onclick = () => {
+      el.innerHTML = erfolgeHtml();
+      document.getElementById('erfolgeZurueck').onclick = startbildschirm;
+    };
+  }
   const eroeffnen = document.getElementById('onlineEroeffnen');
   if (eroeffnen) eroeffnen.onclick = () => onlineEroeffnen(el, onlineRueckrufe());
   const beitreten = document.getElementById('onlineBeitreten');

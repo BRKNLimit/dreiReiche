@@ -3,6 +3,25 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.31 — Balance, Bedienung, doppelt so schnell
+
+- **Balance:** Unterhalt der Menschen um ein Viertel gesenkt (Bauer 4→3,
+  Soldat 9→7, Jäger 10→8, Söldner 24→18 Fron/min; Designzahlen). Gemessen
+  (36 Seeds, Stil-Paarungen): klassische Karte Menschen 22 : Gott 38 →
+  **33 : 28**, Flusstal 18 : 36 → **29 : 27**. Sechs Stellschrauben im
+  Vergleich in `docs/scope.md`, Abschnitt 22.
+- **Gezielter Angriff:** Rechtsklick auf einen sichtbaren Feind — die
+  Auswahl verfolgt genau dieses Ziel und schießt zuerst darauf.
+- **Stopp** (`S`), **Wegpunkte** (Shift+Rechtsklick hängt Ziele an, auch mit
+  `A`), **ganzes Heer wählen** (`F2`), **untätige Arbeiter** (`.` und ein
+  Knopf mit Anzahl), **Rechtsklick auf die Minikarte** schickt die Auswahl.
+- **Simulation bis doppelt so schnell:** Raumraster für die Nachbarsuche
+  (Gefecht mit 300 Einheiten 4,9 → 2,0 ms je Tick), Ergebnisse bitgenau wie
+  vorher — vier ganze KI-Partien alt gegen neu verglichen.
+- Gefallene Einheiten sinken in 3D kurz zu Boden; Andockstellen für Geminis
+  Baugerüst, Trümmer, Bäume je Karte und die Figuren der Draufsicht
+  (`src/figuren2d.js`). Auftrag 3 an Gemini (`docs/grafik/auftrag-3.md`).
+
 ## 0.30 — Steuergruppen, Effekte, zweite Karte, Wiederholungen
 
 - **Steuergruppen:** Strg+Ziffer speichert die Auswahl, Ziffer ruft sie ab,

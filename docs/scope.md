@@ -678,6 +678,26 @@ baut den Außenposten selbst, und die Ader liegt ohne Flussquerung etwa so
 weit wie die seitliche Ader der klassischen Karte. Die Menschen kommen im
 Schnitt erst nach 8,5 Minuten an Götterblut.
 
+### 22. Stellschrauben für die Menschen (Stand 0.31)
+
+Seit Nebel und Spähern lagen die Menschen hinten. Je eine Änderung gegen den
+Ausgang, `node tools/sweep.mjs 36 45 B30 stile` (Konfigurationen „B30 …“):
+
+| Variante | Klassisch M : G (offen) | Flusstal M : G |
+| --- | --- | --- |
+| Ausgang 0.30 | 22 : 38 (12) | 18 : 36 |
+| Gott-Schreine wie Menschen (+25 % / −20 %) | 30 : 37 (5) | 24 : 35 |
+| Menschen-Schreine stärker (+35 % / −25 %) | 22 : 37 (13) | — |
+| Soldat 240 LP | 17 : 21 (34) | — |
+| Jäger 15 Schaden | 24 : 27 (21) | — |
+| Wolf 500 LP | 17 : 30 (25) | — |
+| **Menschen-Unterhalt −25 %** | **33 : 28 (11)** | **29 : 27** |
+
+Übernommen: der Unterhalt. Er passt zur Idee der Menschen — viele
+günstige Einheiten, die der Unterhalt am härtesten trifft — und gleicht
+beide Karten aus, ohne den Kampf selbst anzufassen. Stärkere Einheiten
+(Soldat, Jäger) führen vor allem zu mehr offenen Partien.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

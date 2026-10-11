@@ -5240,6 +5240,10 @@ const TREFFER = {
   wucht: { n: 14, farben: ['#8a7a5a', '#5a5040', '#b0a080'], tempo: 200, auf: 140, dauer: 0.9, groesse: 12, ring: 3 },
   stein: { n: 8, farben: ['#9a9a90', '#6a6a64'], tempo: 160, auf: 120, dauer: 0.7, groesse: 8 },
 };
+
+// Wie lange Gefallene zu Boden sinken und Truemmer liegen bleiben (s)
+const FALLEN = 1.6;
+const TRUEMMER = 45;
 function neueEffekte() {
   return {
     geschosse: [], // { art, a, b, ax, ay, bx, by, t, dauer, bogen, farbe, groesse, w }
@@ -5248,6 +5252,8 @@ function neueEffekte() {
     ringe: [], // { x, y, r, t, dauer, farbe }
     blitze: new Map(), // Id -> Zeitpunkt des letzten Treffers (ms)
     pings: [], // Angriffe ausserhalb des Bildes, fuer die Minikarte: { x, y, t }
+    gefallen: [], // gerade gefallene Einheiten, sinken zu Boden: { id, type, player, x, y, t }
+    truemmer: [], // Reste zerstoerter Gebaeude: { id, type, x, y, t }
     beben: 0,
     jetzt: 0,
     ton: null,
@@ -5272,6 +5278,8 @@ function effekteLeeren(fx) {
   fx.partikel = [];
   fx.ringe = [];
   fx.pings = [];
+  fx.gefallen = [];
+  fx.truemmer = [];
   fx.blitze.clear();
   fx.beben = 0;
 }
@@ -5325,6 +5333,8 @@ function effekteAusEreignissen(fx, world, ich, sichtbar, hoerer, imBild) {
       if (!sichtbar(ev)) continue;
       const gebaeude = ev.kind === 'building';
       partikel(fx, gebaeude ? 'stein' : 'staub', ev.x, ev.y, gebaeude ? 3 : 1.4);
+      if (gebaeude) fx.truemmer.push({ id: ev.id, type: ev.type, x: ev.x, y: ev.y, t: 0 });
+      else fx.gefallen.push({ id: ev.id, type: ev.type, player: ev.player, x: ev.x, y: ev.y, t: 0 });
       if (gebaeude) {
         fx.ringe.push({ x: ev.x, y: ev.y, r: 600, t: 0, dauer: 0.9, farbe: '#c8b890' });
         beben(fx, 9, ev.x, ev.y, hoerer);
@@ -5405,6 +5415,9 @@ function effekteFortschreiben(fx, dt, world, hoerer) {
   fx.partikel = fx.partikel.filter((p) => p.t < p.dauer);
   fx.ringe = fx.ringe.filter((r) => (r.t += dt) < r.dauer);
   fx.pings = fx.pings.filter((p) => (p.t += dt) < 3);
+  fx.gefallen = fx.gefallen.filter((g) => (g.t += dt) < FALLEN);
+  fx.truemmer = fx.truemmer.filter((g) => (g.t += dt) < TRUEMMER);
+  if (fx.truemmer.length > 60) fx.truemmer.splice(0, fx.truemmer.length - 60);
   fx.beben = Math.max(0, fx.beben - dt * 30);
 }
 
@@ -8998,6 +9011,7 @@ function neu(f, zuschauen = false, wdh = null) {
   if (KARTE.schluessel !== karteSchluessel) {
     karteWaehlen(karteSchluessel);
     if (typeof baueBoden === 'function') bodenModell = baueBoden(); // src/gelaende3d.js liest KARTE
+    if (typeof baueDeko === 'function') baueDeko(); // Baeume, Pfad je Karte (src/gelaende3d.js, Gemini)
   }
   world = createWorld({ seed: wdh ? wdh.seed : (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
@@ -9582,6 +9596,8 @@ function zeichne(now, dt) {
       else {
         const f = Math.min(1, e.progress / (def.buildTime * 1000));
         instanz(e.type, e.x * DM, 0, e.y * DM, (e.id % 4) * (Math.PI / 2) + 0.4, r, team, 0.15 + 0.85 * f, 0.55);
+        // Baugeruest um die Baustelle, sobald es ein Modell gibt (Gemini)
+        if (MODELLE.baugeruest) instanz('baugeruest', e.x * DM, 0, e.y * DM, (e.id % 4) * (Math.PI / 2) + 0.4, r, team);
       }
       continue;
     }
@@ -9622,6 +9638,22 @@ function zeichne(now, dt) {
     // Getroffen: kurz hell aufblitzen
     instanz(modellVon(e), x * DM + Math.sin(w) * ruck, schwebt * s + huepf, y * DM + Math.cos(w) * ruck, w, s, team, 1, 1 + 1.6 * blitzVon(fx, e.id), 1, schritt);
   }
+  // Gefallene sinken zu Boden und verblassen
+  for (const g of fx.gefallen) {
+    if (!MODELLE[g.type] && !g.type.startsWith('waldgeist')) continue;
+    const f = g.t / FALLEN;
+    const s = UNITS[g.type].radius * DM * ZEIGE_EINHEIT;
+    const w = blick.get(g.id) || 0;
+    instanz(modellVon({ type: g.type, id: g.id }), g.x * DM, -f * 0.5 * s, g.y * DM, w, s, teamFarbe(g.player), 1 - f * 0.75, 0.55, 1 - f * f, 0);
+  }
+  // Truemmer zerstoerter Gebaeude, sobald es ein Modell gibt (Gemini)
+  if (MODELLE.truemmer) {
+    for (const g of fx.truemmer) {
+      const r = BUILDINGS[g.type].radius * DM * ZEIGE_GEBAEUDE;
+      const aus = Math.min(1, (TRUEMMER - g.t) / 5);
+      instanz('truemmer', g.x * DM, 0, g.y * DM, (g.id % 4) * (Math.PI / 2) + 0.4, r, [0.45, 0.42, 0.38], 1, 1, aus);
+    }
+  }
 
   // Platzierungs-Geist
   if (placing) {
@@ -9644,16 +9676,18 @@ function zeichne(now, dt) {
 
   // Erst alles ausser Einheiten, dann Einheiten zweimal: wo Gebaeude oder
   // Baeume davor stehen als Umriss in Teamfarbe, dann ganz normal.
-  for (const k of Object.keys(MODELLE)) if (k !== 'staubwolke' && !UNITS[k]) zeichneInstanzen(MODELLE[k]);
+  // Einheiten-Modelle: jede Einheit und ihre Varianten (Waldgeist-Jahreszeiten)
+  const istEinheit = (k) => UNITS[k] || UNITS[k.split('_')[0]];
+  for (const k of Object.keys(MODELLE)) if (k !== 'staubwolke' && !istEinheit(k)) zeichneInstanzen(MODELLE[k]);
   const roentgen = gl.getUniformLocation(PROG, 'uRoentgen');
   gl.depthFunc(gl.GREATER);
   gl.depthMask(false);
   gl.uniform1f(roentgen, 1);
-  for (const k of Object.keys(UNITS)) zeichneInstanzen(MODELLE[k], true);
+  for (const k of Object.keys(MODELLE)) if (istEinheit(k)) zeichneInstanzen(MODELLE[k], true);
   gl.uniform1f(roentgen, 0);
   gl.depthFunc(gl.LEQUAL);
   gl.depthMask(true);
-  for (const k of Object.keys(UNITS)) zeichneInstanzen(MODELLE[k]);
+  for (const k of Object.keys(MODELLE)) if (istEinheit(k)) zeichneInstanzen(MODELLE[k]);
 
   // Staub gefallener Einheiten
   gl.depthMask(false);

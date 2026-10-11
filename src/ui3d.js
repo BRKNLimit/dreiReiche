@@ -133,6 +133,7 @@ function neu(f, zuschauen = false, wdh = null) {
   if (KARTE.schluessel !== karteSchluessel) {
     karteWaehlen(karteSchluessel);
     if (typeof baueBoden === 'function') bodenModell = baueBoden(); // src/gelaende3d.js liest KARTE
+    if (typeof baueDeko === 'function') baueDeko(); // Baeume, Pfad je Karte (src/gelaende3d.js, Gemini)
   }
   world = createWorld({ seed: wdh ? wdh.seed : (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
@@ -717,6 +718,8 @@ function zeichne(now, dt) {
       else {
         const f = Math.min(1, e.progress / (def.buildTime * 1000));
         instanz(e.type, e.x * DM, 0, e.y * DM, (e.id % 4) * (Math.PI / 2) + 0.4, r, team, 0.15 + 0.85 * f, 0.55);
+        // Baugeruest um die Baustelle, sobald es ein Modell gibt (Gemini)
+        if (MODELLE.baugeruest) instanz('baugeruest', e.x * DM, 0, e.y * DM, (e.id % 4) * (Math.PI / 2) + 0.4, r, team);
       }
       continue;
     }
@@ -757,6 +760,22 @@ function zeichne(now, dt) {
     // Getroffen: kurz hell aufblitzen
     instanz(modellVon(e), x * DM + Math.sin(w) * ruck, schwebt * s + huepf, y * DM + Math.cos(w) * ruck, w, s, team, 1, 1 + 1.6 * blitzVon(fx, e.id), 1, schritt);
   }
+  // Gefallene sinken zu Boden und verblassen
+  for (const g of fx.gefallen) {
+    if (!MODELLE[g.type] && !g.type.startsWith('waldgeist')) continue;
+    const f = g.t / FALLEN;
+    const s = UNITS[g.type].radius * DM * ZEIGE_EINHEIT;
+    const w = blick.get(g.id) || 0;
+    instanz(modellVon({ type: g.type, id: g.id }), g.x * DM, -f * 0.5 * s, g.y * DM, w, s, teamFarbe(g.player), 1 - f * 0.75, 0.55, 1 - f * f, 0);
+  }
+  // Truemmer zerstoerter Gebaeude, sobald es ein Modell gibt (Gemini)
+  if (MODELLE.truemmer) {
+    for (const g of fx.truemmer) {
+      const r = BUILDINGS[g.type].radius * DM * ZEIGE_GEBAEUDE;
+      const aus = Math.min(1, (TRUEMMER - g.t) / 5);
+      instanz('truemmer', g.x * DM, 0, g.y * DM, (g.id % 4) * (Math.PI / 2) + 0.4, r, [0.45, 0.42, 0.38], 1, 1, aus);
+    }
+  }
 
   // Platzierungs-Geist
   if (placing) {
@@ -779,16 +798,18 @@ function zeichne(now, dt) {
 
   // Erst alles ausser Einheiten, dann Einheiten zweimal: wo Gebaeude oder
   // Baeume davor stehen als Umriss in Teamfarbe, dann ganz normal.
-  for (const k of Object.keys(MODELLE)) if (k !== 'staubwolke' && !UNITS[k]) zeichneInstanzen(MODELLE[k]);
+  // Einheiten-Modelle: jede Einheit und ihre Varianten (Waldgeist-Jahreszeiten)
+  const istEinheit = (k) => UNITS[k] || UNITS[k.split('_')[0]];
+  for (const k of Object.keys(MODELLE)) if (k !== 'staubwolke' && !istEinheit(k)) zeichneInstanzen(MODELLE[k]);
   const roentgen = gl.getUniformLocation(PROG, 'uRoentgen');
   gl.depthFunc(gl.GREATER);
   gl.depthMask(false);
   gl.uniform1f(roentgen, 1);
-  for (const k of Object.keys(UNITS)) zeichneInstanzen(MODELLE[k], true);
+  for (const k of Object.keys(MODELLE)) if (istEinheit(k)) zeichneInstanzen(MODELLE[k], true);
   gl.uniform1f(roentgen, 0);
   gl.depthFunc(gl.LEQUAL);
   gl.depthMask(true);
-  for (const k of Object.keys(UNITS)) zeichneInstanzen(MODELLE[k]);
+  for (const k of Object.keys(MODELLE)) if (istEinheit(k)) zeichneInstanzen(MODELLE[k]);
 
   // Staub gefallener Einheiten
   gl.depthMask(false);

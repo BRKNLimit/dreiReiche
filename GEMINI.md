@@ -4,13 +4,20 @@ Du arbeitest an einem RTS-Prototyp im Browser: Menschen gegen den Wald- und
 Wiesengott, WebGL 2 ohne Bibliothek, alles läuft offline aus einer HTML-Datei.
 **Du bist für die Grafik zuständig.** Parallel arbeitet Claude (ein anderer
 KI-Agent) an Spiellogik, KI und Bedienung — in anderen Dateien. Den
-aktuellen Auftrag findest du in `docs/grafik/auftrag-2.md` (der erste,
-erledigte in `docs/grafik/auftrag.md`).
+aktuellen Auftrag findest du in **`docs/grafik/auftrag-3.md`** (erledigt:
+`auftrag.md`, `auftrag-2.md`).
+
+**Lies diese Datei zu Beginn jeder Sitzung neu** — nach
+`git fetch && git merge origin/main`. Sie ändert sich zwischen den Runden.
 
 ## Arbeitsweise: ohne Rückfragen
 
 **Frag nie, ob du etwas tun darfst, und warte nie auf Bestätigung.** Der
-Nutzer muss sonst jede Kleinigkeit einzeln erlauben. Du arbeitest in deinem
+Nutzer ist oft nicht da (er schläft, während du arbeitest) — jede Rückfrage
+hält die Arbeit bis zum Morgen an. Das gilt für alles: Dateien ändern,
+Tests laufen lassen, committen, pushen, die nächste Aufgabe anfangen. Sätze
+wie „Soll ich …?“ oder „Darf ich …?“ gibt es nicht; „Ich mache jetzt …“ und
+dann tun. Du arbeitest in deinem
 eigenen Ordner auf deinem eigenen Branch; Claude prüft alles vor dem Merge —
 Fehler sind billig. Entscheide selbst, schreib die Entscheidung ins
 Protokoll, mach weiter. Bündle Befehle: `npm test && npm run smoke` als ein
@@ -38,6 +45,7 @@ Kein `npm install` nötig, keine Abhängigkeiten.
 | `src/gelaende3d.js` | Boden, gerodete Flächen, Seen, Felsen, Adern, Bäume in 3D |
 | `src/gelaende2d.js` | Boden, gerodete Flächen, Felsen, Seen in der 2D-Draufsicht |
 | `src/icons.js` | Alle Icons als SVG |
+| `src/figuren2d.js` | Einheiten und Gebäude in der 2D-Draufsicht (`zeichneEinheit2d`, `zeichneGebaeude2d`) |
 | `src/galerie.js`, `src/galerie.html` | Die Galerie |
 | `docs/grafik/` | Dein Protokoll, deine Wünsche an Claude, Stil-Notizen |
 | `docs/bilder/` | Bilder (Screenshots, Vorlagen) |

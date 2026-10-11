@@ -744,15 +744,18 @@ function drawEntities() {
     if (e.kind === 'building') {
       const def = BUILDINGS[e.type];
       const r = Math.max(4, def.radius * cam.z);
-      ctx.fillStyle = e.done ? '#1d2118' : '#171a13';
-      ctx.strokeStyle = col;
-      ctx.lineWidth = def.vital ? 2.5 : 1.5;
-      ctx.beginPath();
-      ctx.rect(x - r, y - r, r * 2, r * 2);
-      ctx.fill();
-      if (!e.done) ctx.setLineDash([3, 3]);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      // Figur aus src/figuren2d.js (Gemini), sonst ein Quadrat
+      if (!zeichneGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
+        ctx.fillStyle = e.done ? '#1d2118' : '#171a13';
+        ctx.strokeStyle = col;
+        ctx.lineWidth = def.vital ? 2.5 : 1.5;
+        ctx.beginPath();
+        ctx.rect(x - r, y - r, r * 2, r * 2);
+        ctx.fill();
+        if (!e.done) ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
 
       if (e.done && e.powered < 1000) {
         ctx.fillStyle = COL.bad;
@@ -805,18 +808,21 @@ function drawEntities() {
           ctx.fillText(def.name, x, y + r + 16);
         }
       }
-      ctx.fillStyle = col;
-      ctx.beginPath();
-      if (def.commander) ctx.arc(x, y, r, 0, Math.PI * 2);
-      else if (def.worker) ctx.arc(x, y, r * 0.8, 0, Math.PI * 2);
-      else if (def.hp > 500) ctx.rect(x - r, y - r * 0.9, r * 2, r * 1.8);
-      else {
-        ctx.moveTo(x, y - r);
-        ctx.lineTo(x + r, y + r);
-        ctx.lineTo(x - r, y + r);
-        ctx.closePath();
+      // Figur aus src/figuren2d.js (Gemini), sonst die einfache Form
+      if (!zeichneEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        if (def.commander) ctx.arc(x, y, r, 0, Math.PI * 2);
+        else if (def.worker) ctx.arc(x, y, r * 0.8, 0, Math.PI * 2);
+        else if (def.hp > 500) ctx.rect(x - r, y - r * 0.9, r * 2, r * 1.8);
+        else {
+          ctx.moveTo(x, y - r);
+          ctx.lineTo(x + r, y + r);
+          ctx.lineTo(x - r, y + r);
+          ctx.closePath();
+        }
+        ctx.fill();
       }
-      ctx.fill();
       // Getroffen: kurz weiss aufblitzen
       const bl = blitzVon(fx, e.id);
       if (bl) {

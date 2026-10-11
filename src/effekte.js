@@ -43,6 +43,10 @@ const TREFFER = {
   stein: { n: 8, farben: ['#9a9a90', '#6a6a64'], tempo: 160, auf: 120, dauer: 0.7, groesse: 8 },
 };
 
+// Wie lange Gefallene zu Boden sinken und Truemmer liegen bleiben (s)
+export const FALLEN = 1.6;
+export const TRUEMMER = 45;
+
 export function neueEffekte() {
   return {
     geschosse: [], // { art, a, b, ax, ay, bx, by, t, dauer, bogen, farbe, groesse, w }
@@ -51,6 +55,8 @@ export function neueEffekte() {
     ringe: [], // { x, y, r, t, dauer, farbe }
     blitze: new Map(), // Id -> Zeitpunkt des letzten Treffers (ms)
     pings: [], // Angriffe ausserhalb des Bildes, fuer die Minikarte: { x, y, t }
+    gefallen: [], // gerade gefallene Einheiten, sinken zu Boden: { id, type, player, x, y, t }
+    truemmer: [], // Reste zerstoerter Gebaeude: { id, type, x, y, t }
     beben: 0,
     jetzt: 0,
     ton: null,
@@ -75,6 +81,8 @@ export function effekteLeeren(fx) {
   fx.partikel = [];
   fx.ringe = [];
   fx.pings = [];
+  fx.gefallen = [];
+  fx.truemmer = [];
   fx.blitze.clear();
   fx.beben = 0;
 }
@@ -128,6 +136,8 @@ export function effekteAusEreignissen(fx, world, ich, sichtbar, hoerer, imBild) 
       if (!sichtbar(ev)) continue;
       const gebaeude = ev.kind === 'building';
       partikel(fx, gebaeude ? 'stein' : 'staub', ev.x, ev.y, gebaeude ? 3 : 1.4);
+      if (gebaeude) fx.truemmer.push({ id: ev.id, type: ev.type, x: ev.x, y: ev.y, t: 0 });
+      else fx.gefallen.push({ id: ev.id, type: ev.type, player: ev.player, x: ev.x, y: ev.y, t: 0 });
       if (gebaeude) {
         fx.ringe.push({ x: ev.x, y: ev.y, r: 600, t: 0, dauer: 0.9, farbe: '#c8b890' });
         beben(fx, 9, ev.x, ev.y, hoerer);
@@ -208,6 +218,9 @@ export function effekteFortschreiben(fx, dt, world, hoerer) {
   fx.partikel = fx.partikel.filter((p) => p.t < p.dauer);
   fx.ringe = fx.ringe.filter((r) => (r.t += dt) < r.dauer);
   fx.pings = fx.pings.filter((p) => (p.t += dt) < 3);
+  fx.gefallen = fx.gefallen.filter((g) => (g.t += dt) < FALLEN);
+  fx.truemmer = fx.truemmer.filter((g) => (g.t += dt) < TRUEMMER);
+  if (fx.truemmer.length > 60) fx.truemmer.splice(0, fx.truemmer.length - 60);
   fx.beben = Math.max(0, fx.beben - dt * 30);
 }
 

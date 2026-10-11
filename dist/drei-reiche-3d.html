@@ -191,6 +191,13 @@ const RULES = {
   erfahrungProMin: 10,
   erfahrungMax: 100,
 
+  // Reparatur: Erbauer mit Auftrag direkt neben einem beschaedigten fertigen
+  // Gebaeude geben ihm Leben zurueck -- reparaturProTick LP je Tick bei voller
+  // Baukraft. Je reparaturLpJeFron LP kostet es 1 Fron; ohne Fron keine
+  // Reparatur.
+  reparaturProTick: 3,
+  reparaturLpJeFron: 20,
+
   // Skillbaum (SKILLS): Punkte kommen mit der Zeit -- skillStart zu Beginn,
   // dann einer je skillTakt Ticks. Forschungsgebaeude (forschung, Promille)
   // beschleunigen den Takt. Aus = alles frei, keine Verbesserungen; nur fuer
@@ -255,14 +262,16 @@ const BUILDINGS = {
     desc: 'Verteidigung: Schützen schießen Pfeile auf Feinde in Reichweite. Braucht Gegenwart — ohne schweigt er.',
     short: 'WTM',
     faction: 'mensch',
-    hp: 1000,
+    hp: 3000,
     radius: 40,
     gegenwartIn: 10,
     prio: PRIO.zorn, // Waffen fallen zuletzt
-    cost: { fron: 200 },
-    buildTime: 200,
+    cost: { fron: 300 },
+    buildTime: 250,
     kampf: 'fern',
-    weapon: { range: 600, damage: 14, cooldown: 8 }, // schiesst nur mit Gegenwart
+    // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
+    // doppelte (Messung in docs/scope.md). Schiesst nur mit Gegenwart.
+    weapon: { range: 900, damage: 60, cooldown: 4 },
   },
   schmiede: {
     name: 'Schmiede',
@@ -395,14 +404,16 @@ const BUILDINGS = {
     desc: 'Verteidigung: schleudert Dornen auf Feinde in Reichweite. Braucht Gegenwart — ohne schläft er.',
     short: 'WBA',
     faction: 'gott',
-    hp: 1000,
+    hp: 3000,
     radius: 40,
     gegenwartIn: 10,
     prio: PRIO.zorn, // Waffen fallen zuletzt
-    cost: { fron: 200 },
-    buildTime: 200,
+    cost: { fron: 300 },
+    buildTime: 250,
     kampf: 'fern',
-    weapon: { range: 600, damage: 14, cooldown: 8 }, // schiesst nur mit Gegenwart
+    // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
+    // doppelte (Messung in docs/scope.md). Schiesst nur mit Gegenwart.
+    weapon: { range: 900, damage: 60, cooldown: 4 },
   },
   quelle: {
     name: 'Quellgrund',
@@ -641,7 +652,7 @@ const UNITS = {
     unterhalt: 24, // Fron pro Minute, solange sie lebt
     buildTime: 240,
     kampf: 'fern',
-    weapon: { range: 520, damage: 26, cooldown: 8 },
+    weapon: { range: 520, damage: 24, cooldown: 8 },
   },
   ent: {
     name: 'Ent',
@@ -859,8 +870,8 @@ function createWorld(opts = {}) {
     nextId: 1,
     entities: [],
     players: [
-      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0 },
-      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0 },
+      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0, reparaturAcc: 0 },
+      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0, reparaturAcc: 0 },
     ],
     deposits: [],
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -927,7 +938,8 @@ function spawnBuilding(world, player, type, x, y, finished = false) {
     powered: 1000,
     queue: [],
     spawned: 0,
-    hilfe: 0, // Baukraft eines Kommandanten in diesem Tick, siehe erschaffen()
+    hilfe: 0, // Baukraft der Erbauer in diesem Tick, siehe erschaffen()
+    flick: 0, // angefangene Reparatur in Milli-LP
     queueProgress: 0,
     cooldown: 0,
     dead: false,
@@ -1071,9 +1083,11 @@ function applyCommand(world, c) {
       const b = tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
       if (b && c.ids) beauftrage(world, c.player, c.ids, b);
     } else if (c.type === 'bauen') {
-      // An einer bestehenden eigenen Baustelle mitbauen.
+      // An einer eigenen Baustelle mitbauen oder ein beschaedigtes Gebaeude reparieren.
       const b = byId(world, c.id);
-      if (b && b.kind === 'building' && b.player === c.player && !b.done && !b.dead) beauftrage(world, c.player, c.ids, b);
+      if (b && b.kind === 'building' && b.player === c.player && !b.dead && (!b.done || b.hp < b.maxHp)) {
+        beauftrage(world, c.player, c.ids, b);
+      }
     } else if (c.type === 'demolish') {
       demolish(world, c.player, c.id);
     } else if (c.type === 'lernen') {
@@ -1506,6 +1520,10 @@ function step(world) {
     }
 
     const pl = world.players[e.player];
+    if (e.hilfe) {
+      reparieren(world, e);
+      e.hilfe = 0;
+    }
     if (def.forschung) pl.forschung += ((def.forschung * e.powered) / 1000) | 0;
     if (def.fronOut || def.blutOut) {
       const mehr = 1000 + bonus(world, e.player, 'foerderung');
@@ -1581,6 +1599,26 @@ function step(world) {
   return world;
 }
 
+/**
+ * Reparatur: die Baukraft der Erbauer daneben wird zu Leben, gegen Fron.
+ * Ohne Fron keine Reparatur.
+ */
+function reparieren(world, e) {
+  const pl = world.players[e.player];
+  if (pl.fron <= 0 || e.hp >= e.maxHp) return;
+  e.flick += e.hilfe * RULES.reparaturProTick;
+  const lp = Math.min((e.flick / 1000) | 0, e.maxHp - e.hp);
+  e.flick %= 1000;
+  if (lp <= 0) return;
+  e.hp += lp;
+  pl.reparaturAcc += lp;
+  const kosten = (pl.reparaturAcc / RULES.reparaturLpJeFron) | 0;
+  if (kosten) {
+    pl.fron = Math.max(0, pl.fron - kosten);
+    pl.reparaturAcc %= RULES.reparaturLpJeFron;
+  }
+}
+
 // Wie nah ein Erbauer an seiner Baustelle stehen muss: Spielraum zwischen
 // dem Rand der Baustelle und seinem eigenen Rand, in Dezimetern.
 const BAU_NAH = 60;
@@ -1599,7 +1637,8 @@ function erschaffen(world) {
     const b = UNITS[u.type].build;
     u.baut = 0;
     const site = byId(world, u.auftrag);
-    if (!b || !site || site.dead || site.done) {
+    // Fertig gebaut und heil: Auftrag erledigt. Beschaedigt: reparieren.
+    if (!b || !site || site.dead || (site.done && site.hp >= site.maxHp)) {
       u.auftrag = 0;
       continue;
     }
@@ -1989,6 +2028,7 @@ function hash(world) {
     } else {
       mix(e.doneAt);
       mix(e.progress);
+      mix(e.flick);
       mix(e.queueProgress);
       mix(e.queue.length);
       mix(e.powered);
@@ -2002,6 +2042,7 @@ function hash(world) {
     mix(world.players[p].unterhaltAcc || 0);
     mix(world.players[p].faehigkeitBereit);
     mix(world.players[p].forschung);
+    mix(world.players[p].reparaturAcc);
     for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
@@ -2114,12 +2155,15 @@ function stepAI(ai, world) {
 
   // 0a. Arbeiter: Wer einen Auftrag hat, bleibt dabei. Freie gehen zur
   //     sicheren Baustelle mit den wenigsten Erbauern, bei Gleichstand zur
-  //     naechsten; ohne Baustelle zurueck zum Hauptgebaeude.
+  //     naechsten; gibt es keine, reparieren sie ein sicheres beschaedigtes
+  //     Gebaeude; sonst zurueck zum Hauptgebaeude.
   const baustellen = offen.filter((b) => sicher(b, 1200)).sort((a, b) => a.id - b.id);
+  const kaputt = bauten.filter((b) => b.done && b.hp < b.maxHp && sicher(b, 1200)).sort((a, b) => a.id - b.id);
+  const ziele = baustellen.length ? baustellen : kaputt;
   for (const u of arbeiter.slice().sort((a, b) => a.id - b.id)) {
-    if (u.auftrag && baustellen.some((b) => b.id === u.auftrag)) continue;
-    if (baustellen.length) {
-      const site = wenigsteHelfer(baustellen, helfer, u);
+    if (u.auftrag && (baustellen.some((b) => b.id === u.auftrag) || kaputt.some((b) => b.id === u.auftrag))) continue;
+    if (ziele.length) {
+      const site = wenigsteHelfer(ziele, helfer, u);
       helfer[site.id] = (helfer[site.id] || 0) + 1;
       issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
     } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
@@ -2190,16 +2234,24 @@ function stepAI(ai, world) {
   }
 
   // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
+  // Verteidigung und Forschung: je eins frueh, je ein zweites ab Minute 12.
+  // Der Turm kommt vor der Forschung -- er haelt allein eine fruehe Welle auf.
+  const turmZiel = minute >= 12 ? 2 : minute >= 3 ? 1 : 0;
+  const forschungZiel = minute >= 12 ? 2 : minute >= 4 ? 1 : 0;
   const naechster =
     ader && zahl(plan.fron) < fronZiel
       ? plan.fron
       : zahl(plan.fabrik) < fabrikZiel
         ? plan.fabrik
-        : veneBereit
-          ? plan.blut
-          : ader && zahl(plan.fron) < 3
-          ? plan.fron
-          : null;
+        : zahl(plan.turm) < turmZiel
+          ? plan.turm
+          : veneBereit
+            ? plan.blut
+            : zahl(plan.forschung) < forschungZiel
+              ? plan.forschung
+              : ader && zahl(plan.fron) < 3
+                ? plan.fron
+                : null;
   const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
   if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
     const n = zahl(plan.kraft);
@@ -2225,22 +2277,18 @@ function stepAI(ai, world) {
     }
   }
 
-  // 3c. Forschung: ab Minute 3 ein Forschungsgebaeude beim Hauptgebaeude,
-  //     ab Minute 12 ein zweites -- mehr Skillpunkte.
-  const forschungZiel = minute >= 12 ? 2 : minute >= 3 ? 1 : 0;
+  // 3c. Verteidigung: ein Turm vor dem Hauptgebaeude zur Front hin.
+  const tb = BUILDINGS[plan.turm];
+  if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
+    const platz = daheimFrei(world, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
+    if (platz && bau(plan.turm, ...platz)) return;
+  }
+
+  // 3d. Forschung beim Hauptgebaeude -- mehr Skillpunkte.
   const fb = BUILDINGS[plan.forschung];
   if (zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
     const platz = daheimFrei(world, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
     if (platz && bau(plan.forschung, ...platz)) return;
-  }
-
-  // 3d. Verteidigung: ab Minute 6 ein Turm vor dem Hauptgebaeude zur Front
-  //     hin, ab Minute 12 ein zweiter.
-  const turmZiel = minute >= 12 ? 2 : minute >= 6 ? 1 : 0;
-  const tb = BUILDINGS[plan.turm];
-  if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron + 100 && bilanz >= tb.gegenwartIn) {
-    const platz = daheimFrei(world, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
-    if (platz && bau(plan.turm, ...platz)) return;
   }
 
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
@@ -2597,8 +2645,17 @@ function blockiert(world, x, y, radius) {
  * Wert des gegnerischen Heers, das in seiner eigenen Domaene steht, gewichtet
  * mit der Wirkung seiner Schreine dort (Zorn und Wehr). Arbeiter zaehlen nicht.
  */
+// So viel Heereswert zaehlt ein versorgter feindlicher Turm: er haelt allein
+// eine fruehe Welle von rund 600 Fron auf (Messung in docs/scope.md).
+const TURM_WERT = 600;
+
 function heimHeer(world, me) {
   let summe = 0;
+  for (const o of world.entities) {
+    if (!o.dead && o.player !== me && o.kind === 'building' && o.done && o.powered && BUILDINGS[o.type].weapon) {
+      summe += TURM_WERT;
+    }
+  }
   for (const o of world.entities) {
     if (o.dead || o.player === me || o.kind !== 'unit') continue;
     const d = UNITS[o.type];
@@ -2896,6 +2953,15 @@ function baustelleText(world, e) {
       ? `${weg} Erbauer unterwegs`
       : '<span class="warn">wartet auf Erbauer — Erbauer wählen, Rechtsklick auf die Baustelle</span>';
   return `Baustelle ${pct} % · ${wer}`;
+}
+
+/** Beschaedigtes Gebaeude: wird es repariert, oder wie schickt man jemanden? Leer, wenn heil. */
+function reparaturText(world, e) {
+  if (!e.done || e.hp >= e.maxHp) return '';
+  let am = 0;
+  for (const u of world.entities) if (!u.dead && u.kind === 'unit' && u.auftrag === e.id && u.baut === e.id) am++;
+  if (am) return ` · ${am} Erbauer reparier${am === 1 ? 't' : 'en'}`;
+  return ' · <span class="warn">beschädigt — Erbauer wählen, Rechtsklick repariert</span>';
 }
 
 /** Ausbildungsliste einer Fabrik: Taste, Name, Kosten, Zeit, Unterhalt. */
@@ -3862,7 +3928,12 @@ function erbauer3() {
 /** Rechtsklick: auf eigene Baustelle -- Erbauer helfen mit, sonst bewegen. */
 function befehl3(x, y) {
   const site = world.entities.find(
-    (b) => b.kind === 'building' && b.player === ME && !b.done && (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 80) ** 2
+    (b) =>
+      b.kind === 'building' &&
+      b.player === ME &&
+      !b.dead &&
+      (!b.done || b.hp < b.maxHp) &&
+      (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 80) ** 2
   );
   const bauer = site ? erbauer3() : [];
   const rest = sel.filter((id) => !bauer.includes(id));
@@ -4581,7 +4652,7 @@ function zeichneHud() {
           ? `gedrosselt ${Math.round(e.powered / 10)} %`
           : 'versorgt';
       const tasten = ausbildungHtml(world, ME, e.type);
-      auswahl = `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
+      auswahl = `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${reparaturText(world, e)}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
         ${tasten}<div class="keys">${def.vital ? '' : '<kbd>Entf</kbd> abreißen'}</div></div>`;
     } else if (e) {
       auswahl = `<div class="sel">${auswahlKopf(world, e)}${einheitKarte(world, ME, e.type)}</div>`;

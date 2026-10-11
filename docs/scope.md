@@ -473,6 +473,42 @@ Götterblut).
 Ø Dauer rund 20 Minuten, zwei bis drei Minuten länger als in 0.16 — die
 Türme bremsen frühe Vorstöße.
 
+### 15. Starke Türme, Reparatur (Stand 0.18)
+
+> **Vorgaben des Nutzers:** Türme brauchen mehr Reichweite und mehr Kraft —
+> ein Turm soll einen frühen Vorstoß allein bewältigen. Bauarbeiter und Co.
+> reparieren beschädigte Gebäude.
+
+**Ein versorgter Turm allein gegen Wellen** (Angriffsbewegung auf den Turm,
+kein Reparieren; 3000 LP, 60 Schaden alle 4 Ticks, 90 m):
+
+| Welle | Fron | ×1 | ×1,5 | ×2 |
+| --- | --- | --- | --- | --- |
+| 13 Soldaten | 585 | hält (696 LP) | fällt | fällt |
+| 7 Soldaten + 4 Jäger | 535 | hält (1651 LP) | fällt | fällt |
+| 10 Jäger | 550 | hält (2038 LP) | hält | fällt |
+| 5 Wölfe | 650 | hält (646 LP) | fällt | fällt |
+| 3 Wölfe + 2 Waldgeister | 650 | hält (1212 LP) | fällt | fällt |
+| 5 Waldgeister | 650 | hält (1466 LP) | fällt | fällt |
+
+Vorher (1000 LP, 14 Schaden, 60 m) fiel er gegen jede dieser Wellen, ohne
+einen Angreifer zu töten.
+
+**KI gegen KI** (64 Seeds × 2 Sitzplätze): Die KI baute zunächst gar keine
+Türme, weil sie nicht dafür sparte. Mit Sparen kommt der erste Turm nach gut
+drei Minuten.
+
+| Stand | Menschen : Gott | Ø Dauer |
+| --- | --- | --- |
+| starke Türme, KI baut sie kaum | 62 : 63 | 21,5 min |
+| KI spart für Turm und Forschung | 48 : 78 | 23,4 min |
+| Waldgeist 22 Schaden | 73 : 53 | 24,2 min |
+| **Waldgeist 24 Schaden — Ausgang** | **59 : 67** | 23,7 min |
+
+Stil-Paarungen (45 Seeds): „Sturm“ gewinnt weiter jede Paarung. Seine erste
+Welle kommt nach gut vier Minuten und scheitert am Turm; er gewinnt später —
+mit dem Kommandanten vorn, der Außenposten an den Adern baut.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

@@ -809,6 +809,69 @@ test('ohne Gegenwart schweigt der Wachturm', () => {
   assert.equal(schaden, 0);
 });
 
+/** Ein versorgter Wachturm gegen n Soldaten im Angriff: haelt er? */
+function turmGegen(n) {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const turm = spawnBuilding(w, 0, 'wachturm', 7000, 5000, true);
+  const ids = [];
+  for (let i = 0; i < n; i++) ids.push(spawnUnit(w, 1, 'soldat', 9500 + (i % 3) * 80, 4600 + ((i / 3) | 0) * 70).id);
+  issue(w, { type: 'attack', player: 1, ids, x: turm.x, y: turm.y });
+  for (let t = 0; t < 3000 && !turm.dead && w.entities.some((e) => !e.dead && e.player === 1); t++) step(w);
+  return !turm.dead;
+}
+
+test('ein Turm haelt allein eine fruehe Welle auf, aber keine doppelte', () => {
+  // 13 Soldaten sind knapp 600 Fron -- eine fruehe Welle.
+  assert.ok(turmGegen(13), 'haelt 13 Soldaten');
+  assert.ok(!turmGegen(26), 'faellt gegen 26');
+});
+
+// ---------------------------------------------------- Reparatur
+
+function beschaedigt() {
+  const w = bare();
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const turm = spawnBuilding(w, 0, 'wachturm', 6500, 5000, true);
+  turm.hp = 1000;
+  w.players[0].fron = 1000;
+  return { w, turm };
+}
+
+test('Reparatur: ein Erbauer daneben gibt Leben zurueck und kostet Fron', () => {
+  const { w, turm } = beschaedigt();
+  erbauerDaneben(w, turm, 'held');
+  for (let i = 0; i < 100; i++) step(w);
+  const lp = turm.hp - 1000;
+  assert.equal(lp, 100 * RULES.reparaturProTick, 'volle Baukraft: reparaturProTick je Tick');
+  assert.equal(w.players[0].fron, 1000 - ((lp / RULES.reparaturLpJeFron) | 0));
+});
+
+test('Reparatur: ohne Erbauer daneben keine, und wer weggeht, hoert auf', () => {
+  const { w, turm } = beschaedigt();
+  for (let i = 0; i < 100; i++) step(w);
+  assert.equal(turm.hp, 1000, 'heilt nicht von selbst');
+  const k = erbauerDaneben(w, turm, 'held');
+  for (let i = 0; i < 20; i++) step(w);
+  const stand = turm.hp;
+  assert.ok(stand > 1000);
+  issue(w, { type: 'move', player: 0, ids: [k.id], x: 4000, y: 5000 });
+  for (let i = 0; i < 100; i++) step(w);
+  assert.equal(turm.hp, stand);
+});
+
+test('Reparatur: ohne Fron keine, und bei vollem Leben ist der Auftrag erledigt', () => {
+  const { w, turm } = beschaedigt();
+  w.players[0].fron = 0;
+  const k = erbauerDaneben(w, turm, 'held');
+  for (let i = 0; i < 50; i++) step(w);
+  assert.equal(turm.hp, 1000, 'ohne Fron');
+  w.players[0].fron = 1000;
+  for (let i = 0; i < 2000 && k.auftrag; i++) step(w);
+  assert.equal(turm.hp, turm.maxHp);
+  assert.equal(k.auftrag, 0, 'Auftrag erledigt');
+});
+
 test('jede Fraktion hat Hauptgebaeude, Anker, Verteidigung, Gegenwart, Fron, Goetterblut, Fabrik, zwei Schreine, Forschung', () => {
   for (const f of ['mensch', 'gott']) {
     const b = Object.values(BUILDINGS).filter((d) => d.faction === f);

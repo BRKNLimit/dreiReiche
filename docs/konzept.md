@@ -100,7 +100,11 @@ Gebäude entstehen nur, solange Erbauer — Arbeiter oder der Kommandant — mit
 Auftrag direkt daneben stehen und daran arbeiten. Die Domäne baut nicht von
 selbst: Wer eine Baustelle setzt und seine Erbauer abzieht, hat nur Fron
 vergraben. Gegenwart braucht ein Gebäude erst, wenn es fertig ist und
-arbeiten soll.
+arbeiten soll. Dieselben Erbauer reparieren beschädigte Gebäude, gegen etwas
+Fron.
+
+Ein Turm hält allein eine frühe Welle auf. Wer früh angreift, muss an ihm
+vorbei oder mehr mitbringen; wer verteidigt, repariert ihn im Kampf.
 
 **Mindestfluss.** Ein Achtel der Gegenwart eines Domänenteils erreicht immer
 die Fabriken. Werk fällt weiter zuerst — nur nicht ganz auf null.

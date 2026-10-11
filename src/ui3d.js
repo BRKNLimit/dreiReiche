@@ -854,7 +854,12 @@ function erbauer3() {
 /** Rechtsklick: auf eigene Baustelle -- Erbauer helfen mit, sonst bewegen. */
 function befehl3(x, y) {
   const site = world.entities.find(
-    (b) => b.kind === 'building' && b.player === ME && !b.done && (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 80) ** 2
+    (b) =>
+      b.kind === 'building' &&
+      b.player === ME &&
+      !b.dead &&
+      (!b.done || b.hp < b.maxHp) &&
+      (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 80) ** 2
   );
   const bauer = site ? erbauer3() : [];
   const rest = sel.filter((id) => !bauer.includes(id));
@@ -1573,7 +1578,7 @@ function zeichneHud() {
           ? `gedrosselt ${Math.round(e.powered / 10)} %`
           : 'versorgt';
       const tasten = ausbildungHtml(world, ME, e.type);
-      auswahl = `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
+      auswahl = `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${reparaturText(world, e)}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
         ${tasten}<div class="keys">${def.vital ? '' : '<kbd>Entf</kbd> abreißen'}</div></div>`;
     } else if (e) {
       auswahl = `<div class="sel">${auswahlKopf(world, e)}${einheitKarte(world, ME, e.type)}</div>`;

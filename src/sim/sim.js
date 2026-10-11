@@ -67,8 +67,8 @@ export function createWorld(opts = {}) {
     nextId: 1,
     entities: [],
     players: [
-      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0 },
-      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0 },
+      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0, reparaturAcc: 0 },
+      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0, reparaturAcc: 0 },
     ],
     deposits: [],
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -136,7 +136,8 @@ export function spawnBuilding(world, player, type, x, y, finished = false) {
     powered: 1000,
     queue: [],
     spawned: 0,
-    hilfe: 0, // Baukraft eines Kommandanten in diesem Tick, siehe erschaffen()
+    hilfe: 0, // Baukraft der Erbauer in diesem Tick, siehe erschaffen()
+    flick: 0, // angefangene Reparatur in Milli-LP
     queueProgress: 0,
     cooldown: 0,
     dead: false,
@@ -283,9 +284,11 @@ function applyCommand(world, c) {
       const b = tryPlace(world, c.player, c.building, c.x | 0, c.y | 0);
       if (b && c.ids) beauftrage(world, c.player, c.ids, b);
     } else if (c.type === 'bauen') {
-      // An einer bestehenden eigenen Baustelle mitbauen.
+      // An einer eigenen Baustelle mitbauen oder ein beschaedigtes Gebaeude reparieren.
       const b = byId(world, c.id);
-      if (b && b.kind === 'building' && b.player === c.player && !b.done && !b.dead) beauftrage(world, c.player, c.ids, b);
+      if (b && b.kind === 'building' && b.player === c.player && !b.dead && (!b.done || b.hp < b.maxHp)) {
+        beauftrage(world, c.player, c.ids, b);
+      }
     } else if (c.type === 'demolish') {
       demolish(world, c.player, c.id);
     } else if (c.type === 'lernen') {
@@ -722,6 +725,10 @@ export function step(world) {
     }
 
     const pl = world.players[e.player];
+    if (e.hilfe) {
+      reparieren(world, e);
+      e.hilfe = 0;
+    }
     if (def.forschung) pl.forschung += ((def.forschung * e.powered) / 1000) | 0;
     if (def.fronOut || def.blutOut) {
       const mehr = 1000 + bonus(world, e.player, 'foerderung');
@@ -797,6 +804,26 @@ export function step(world) {
   return world;
 }
 
+/**
+ * Reparatur: die Baukraft der Erbauer daneben wird zu Leben, gegen Fron.
+ * Ohne Fron keine Reparatur.
+ */
+function reparieren(world, e) {
+  const pl = world.players[e.player];
+  if (pl.fron <= 0 || e.hp >= e.maxHp) return;
+  e.flick += e.hilfe * RULES.reparaturProTick;
+  const lp = Math.min((e.flick / 1000) | 0, e.maxHp - e.hp);
+  e.flick %= 1000;
+  if (lp <= 0) return;
+  e.hp += lp;
+  pl.reparaturAcc += lp;
+  const kosten = (pl.reparaturAcc / RULES.reparaturLpJeFron) | 0;
+  if (kosten) {
+    pl.fron = Math.max(0, pl.fron - kosten);
+    pl.reparaturAcc %= RULES.reparaturLpJeFron;
+  }
+}
+
 // Wie nah ein Erbauer an seiner Baustelle stehen muss: Spielraum zwischen
 // dem Rand der Baustelle und seinem eigenen Rand, in Dezimetern.
 const BAU_NAH = 60;
@@ -815,7 +842,8 @@ function erschaffen(world) {
     const b = UNITS[u.type].build;
     u.baut = 0;
     const site = byId(world, u.auftrag);
-    if (!b || !site || site.dead || site.done) {
+    // Fertig gebaut und heil: Auftrag erledigt. Beschaedigt: reparieren.
+    if (!b || !site || site.dead || (site.done && site.hp >= site.maxHp)) {
       u.auftrag = 0;
       continue;
     }
@@ -1207,6 +1235,7 @@ export function hash(world) {
     } else {
       mix(e.doneAt);
       mix(e.progress);
+      mix(e.flick);
       mix(e.queueProgress);
       mix(e.queue.length);
       mix(e.powered);
@@ -1220,6 +1249,7 @@ export function hash(world) {
     mix(world.players[p].unterhaltAcc || 0);
     mix(world.players[p].faehigkeitBereit);
     mix(world.players[p].forschung);
+    mix(world.players[p].reparaturAcc);
     for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);

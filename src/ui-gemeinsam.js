@@ -111,6 +111,15 @@ export function baustelleText(world, e) {
   return `Baustelle ${pct} % · ${wer}`;
 }
 
+/** Beschaedigtes Gebaeude: wird es repariert, oder wie schickt man jemanden? Leer, wenn heil. */
+export function reparaturText(world, e) {
+  if (!e.done || e.hp >= e.maxHp) return '';
+  let am = 0;
+  for (const u of world.entities) if (!u.dead && u.kind === 'unit' && u.auftrag === e.id && u.baut === e.id) am++;
+  if (am) return ` · ${am} Erbauer reparier${am === 1 ? 't' : 'en'}`;
+  return ' · <span class="warn">beschädigt — Erbauer wählen, Rechtsklick repariert</span>';
+}
+
 /** Ausbildungsliste einer Fabrik: Taste, Name, Kosten, Zeit, Unterhalt. */
 export function ausbildungHtml(world, player, typ) {
   const liste = BUILDINGS[typ].buildList;

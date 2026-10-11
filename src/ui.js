@@ -266,7 +266,12 @@ function erbauer() {
  */
 function befehl(x, y) {
   const site = world.entities.find(
-    (b) => b.kind === 'building' && b.player === ME && !b.done && (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 60) ** 2
+    (b) =>
+      b.kind === 'building' &&
+      b.player === ME &&
+      !b.dead &&
+      (!b.done || b.hp < b.maxHp) &&
+      (b.x - x) ** 2 + (b.y - y) ** 2 <= (BUILDINGS[b.type].radius + 60) ** 2
   );
   const bauer = site ? erbauer() : [];
   const rest = sel.filter((id) => !bauer.includes(id));
@@ -949,8 +954,9 @@ function auswahlHtml() {
       ? `gedrosselt ${Math.round(e.powered / 10)} %`
       : 'versorgt';
   const tasten = ausbildungHtml(world, ME, e.type);
+  const reparatur = reparaturText(world, e);
   const abriss = def.vital ? '' : '<kbd>Entf</kbd> abreißen';
-  return `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
+  return `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${reparatur}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
     ${tasten}<div class="keys">${abriss}</div></div>`;
 }
 

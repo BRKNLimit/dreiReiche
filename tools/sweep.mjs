@@ -48,6 +48,10 @@ export const CONFIGS = {
   'Soldat 8 Schaden': { units: { soldat: { weapon: { damage: 8 } } } },
   'Waldgeist 30 Schaden': { units: { waldgeist: { weapon: { damage: 30 } } } },
   'Jaeger 12 Schaden': { units: { jaeger: { weapon: { damage: 12 } } } },
+  'Jaeger 15 Schaden': { units: { jaeger: { weapon: { damage: 15 } } } },
+  'Waldgeist 22 Schaden': { units: { waldgeist: { weapon: { damage: 22 } } } },
+  'Waldgeist 26 Schaden': { units: { waldgeist: { weapon: { damage: 26 } } } },
+  'Turm 200 Bauzeit': { buildings: { wachturm: { buildTime: 200 }, waechterbaum: { buildTime: 200 } } },
   'Dryade 650': { units: { dryade: { build: { power: 650 } } } },
   'Wolf 540 LP': { units: { wolf: { hp: 540 } } },
   // Baukraft der Arbeiter (0.16): seit nur noch Erbauer bauen

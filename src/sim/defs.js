@@ -50,6 +50,13 @@ export const RULES = {
   erfahrungProMin: 10,
   erfahrungMax: 100,
 
+  // Reparatur: Erbauer mit Auftrag direkt neben einem beschaedigten fertigen
+  // Gebaeude geben ihm Leben zurueck -- reparaturProTick LP je Tick bei voller
+  // Baukraft. Je reparaturLpJeFron LP kostet es 1 Fron; ohne Fron keine
+  // Reparatur.
+  reparaturProTick: 3,
+  reparaturLpJeFron: 20,
+
   // Skillbaum (SKILLS): Punkte kommen mit der Zeit -- skillStart zu Beginn,
   // dann einer je skillTakt Ticks. Forschungsgebaeude (forschung, Promille)
   // beschleunigen den Takt. Aus = alles frei, keine Verbesserungen; nur fuer
@@ -115,14 +122,16 @@ export const BUILDINGS = {
     desc: 'Verteidigung: Schützen schießen Pfeile auf Feinde in Reichweite. Braucht Gegenwart — ohne schweigt er.',
     short: 'WTM',
     faction: 'mensch',
-    hp: 1000,
+    hp: 3000,
     radius: 40,
     gegenwartIn: 10,
     prio: PRIO.zorn, // Waffen fallen zuletzt
-    cost: { fron: 200 },
-    buildTime: 200,
+    cost: { fron: 300 },
+    buildTime: 250,
     kampf: 'fern',
-    weapon: { range: 600, damage: 14, cooldown: 8 }, // schiesst nur mit Gegenwart
+    // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
+    // doppelte (Messung in docs/scope.md). Schiesst nur mit Gegenwart.
+    weapon: { range: 900, damage: 60, cooldown: 4 },
   },
   schmiede: {
     name: 'Schmiede',
@@ -255,14 +264,16 @@ export const BUILDINGS = {
     desc: 'Verteidigung: schleudert Dornen auf Feinde in Reichweite. Braucht Gegenwart — ohne schläft er.',
     short: 'WBA',
     faction: 'gott',
-    hp: 1000,
+    hp: 3000,
     radius: 40,
     gegenwartIn: 10,
     prio: PRIO.zorn, // Waffen fallen zuletzt
-    cost: { fron: 200 },
-    buildTime: 200,
+    cost: { fron: 300 },
+    buildTime: 250,
     kampf: 'fern',
-    weapon: { range: 600, damage: 14, cooldown: 8 }, // schiesst nur mit Gegenwart
+    // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
+    // doppelte (Messung in docs/scope.md). Schiesst nur mit Gegenwart.
+    weapon: { range: 900, damage: 60, cooldown: 4 },
   },
   quelle: {
     name: 'Quellgrund',
@@ -501,7 +512,7 @@ export const UNITS = {
     unterhalt: 24, // Fron pro Minute, solange sie lebt
     buildTime: 240,
     kampf: 'fern',
-    weapon: { range: 520, damage: 26, cooldown: 8 },
+    weapon: { range: 520, damage: 24, cooldown: 8 },
   },
   ent: {
     name: 'Ent',

@@ -105,12 +105,15 @@ export function stepAI(ai, world) {
 
   // 0a. Arbeiter: Wer einen Auftrag hat, bleibt dabei. Freie gehen zur
   //     sicheren Baustelle mit den wenigsten Erbauern, bei Gleichstand zur
-  //     naechsten; ohne Baustelle zurueck zum Hauptgebaeude.
+  //     naechsten; gibt es keine, reparieren sie ein sicheres beschaedigtes
+  //     Gebaeude; sonst zurueck zum Hauptgebaeude.
   const baustellen = offen.filter((b) => sicher(b, 1200)).sort((a, b) => a.id - b.id);
+  const kaputt = bauten.filter((b) => b.done && b.hp < b.maxHp && sicher(b, 1200)).sort((a, b) => a.id - b.id);
+  const ziele = baustellen.length ? baustellen : kaputt;
   for (const u of arbeiter.slice().sort((a, b) => a.id - b.id)) {
-    if (u.auftrag && baustellen.some((b) => b.id === u.auftrag)) continue;
-    if (baustellen.length) {
-      const site = wenigsteHelfer(baustellen, helfer, u);
+    if (u.auftrag && (baustellen.some((b) => b.id === u.auftrag) || kaputt.some((b) => b.id === u.auftrag))) continue;
+    if (ziele.length) {
+      const site = wenigsteHelfer(ziele, helfer, u);
       helfer[site.id] = (helfer[site.id] || 0) + 1;
       issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
     } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
@@ -181,16 +184,24 @@ export function stepAI(ai, world) {
   }
 
   // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
+  // Verteidigung und Forschung: je eins frueh, je ein zweites ab Minute 12.
+  // Der Turm kommt vor der Forschung -- er haelt allein eine fruehe Welle auf.
+  const turmZiel = minute >= 12 ? 2 : minute >= 3 ? 1 : 0;
+  const forschungZiel = minute >= 12 ? 2 : minute >= 4 ? 1 : 0;
   const naechster =
     ader && zahl(plan.fron) < fronZiel
       ? plan.fron
       : zahl(plan.fabrik) < fabrikZiel
         ? plan.fabrik
-        : veneBereit
-          ? plan.blut
-          : ader && zahl(plan.fron) < 3
-          ? plan.fron
-          : null;
+        : zahl(plan.turm) < turmZiel
+          ? plan.turm
+          : veneBereit
+            ? plan.blut
+            : zahl(plan.forschung) < forschungZiel
+              ? plan.forschung
+              : ader && zahl(plan.fron) < 3
+                ? plan.fron
+                : null;
   const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
   if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
     const n = zahl(plan.kraft);
@@ -216,22 +227,18 @@ export function stepAI(ai, world) {
     }
   }
 
-  // 3c. Forschung: ab Minute 3 ein Forschungsgebaeude beim Hauptgebaeude,
-  //     ab Minute 12 ein zweites -- mehr Skillpunkte.
-  const forschungZiel = minute >= 12 ? 2 : minute >= 3 ? 1 : 0;
+  // 3c. Verteidigung: ein Turm vor dem Hauptgebaeude zur Front hin.
+  const tb = BUILDINGS[plan.turm];
+  if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
+    const platz = daheimFrei(world, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
+    if (platz && bau(plan.turm, ...platz)) return;
+  }
+
+  // 3d. Forschung beim Hauptgebaeude -- mehr Skillpunkte.
   const fb = BUILDINGS[plan.forschung];
   if (zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
     const platz = daheimFrei(world, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
     if (platz && bau(plan.forschung, ...platz)) return;
-  }
-
-  // 3d. Verteidigung: ab Minute 6 ein Turm vor dem Hauptgebaeude zur Front
-  //     hin, ab Minute 12 ein zweiter.
-  const turmZiel = minute >= 12 ? 2 : minute >= 6 ? 1 : 0;
-  const tb = BUILDINGS[plan.turm];
-  if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron + 100 && bilanz >= tb.gegenwartIn) {
-    const platz = daheimFrei(world, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
-    if (platz && bau(plan.turm, ...platz)) return;
   }
 
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
@@ -588,8 +595,17 @@ function blockiert(world, x, y, radius) {
  * Wert des gegnerischen Heers, das in seiner eigenen Domaene steht, gewichtet
  * mit der Wirkung seiner Schreine dort (Zorn und Wehr). Arbeiter zaehlen nicht.
  */
+// So viel Heereswert zaehlt ein versorgter feindlicher Turm: er haelt allein
+// eine fruehe Welle von rund 600 Fron auf (Messung in docs/scope.md).
+const TURM_WERT = 600;
+
 function heimHeer(world, me) {
   let summe = 0;
+  for (const o of world.entities) {
+    if (!o.dead && o.player !== me && o.kind === 'building' && o.done && o.powered && BUILDINGS[o.type].weapon) {
+      summe += TURM_WERT;
+    }
+  }
   for (const o of world.entities) {
     if (o.dead || o.player === me || o.kind !== 'unit') continue;
     const d = UNITS[o.type];

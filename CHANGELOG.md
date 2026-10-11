@@ -3,6 +3,22 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.18 — Starke Türme, Reparatur
+
+- **Wachturm und Wächterbaum** halten allein eine frühe Welle von rund
+  600 Fron auf und fallen gegen die anderthalb- bis doppelte Menge: 3000 LP,
+  60 Schaden alle 0,4 s, 90 m Reichweite. Dafür 300 Fron und 25 s Bauzeit.
+- **Reparatur:** Erbauer (Arbeiter, Kommandant) reparieren beschädigte
+  eigene Gebäude, solange sie daneben stehen — Erbauer wählen, Rechtsklick
+  aufs Gebäude. 3 LP je Tick bei voller Baukraft, 1 Fron je 20 LP, ohne Fron
+  keine Reparatur (`RULES.reparaturProTick`, `reparaturLpJeFron`).
+  Die Auswahl zeigt, ob repariert wird, oder wie man jemanden schickt.
+- KI: spart für Turm (ab Minute 3) und Forschung (ab Minute 4), repariert
+  sichere beschädigte Gebäude, zählt feindliche Türme beim Angriffsentscheid
+  mit.
+- Waldgeist 24 statt 26 Schaden (nach Messung).
+- Messung (126 entschiedene Partien): Menschen 59 : Gott 67, Ø 24 min.
+
 ## 0.17 — Gebäude je Rolle, Nah- und Fernkampf
 
 - Jede Fraktion hat jetzt dieselben zehn Rollen (Vorbild Supreme Commander 2):

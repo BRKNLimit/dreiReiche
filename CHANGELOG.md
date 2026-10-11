@@ -3,6 +3,23 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.34 — Spielstände
+
+- **F5 speichert, F9 lädt** — in 2D und 3D, auch mitten in einer Mission.
+  Beim Schließen oder Wegschalten speichert das Spiel von selbst (ab einer
+  Minute, nicht beim Zuschauen oder Abspielen). Im Startbildschirm steht
+  dann **▶ Fortsetzen** mit Volk, Mission, Spielzeit und Uhrzeit.
+- Gespeichert wird der Zustand selbst (`src/spielstand.js`), nicht die
+  Befehle — auch eine Stunde Partie lädt sofort. Wegfindung und Hindernisse
+  werden aus der Karte neu gebaut, Verweise auf Einheiten werden zu Ids und
+  zurück. Ein geladenes Spiel läuft **bitgenau** so weiter wie das
+  gesicherte (Tests: früh, mitten im Kampf, spät, Flusstal, Zufallskarte,
+  offene Befehle). Die Aufnahme läuft mit — eine Wiederholung bleibt
+  vollständig.
+- `npm run serve`: kleiner Server für `dist/` unter
+  http://localhost:8765/ (manche Vorschaufenster öffnen große Dateien nicht
+  direkt).
+
 ## 0.33 — Zwei Kampagnen: „Die Rodung“ und „Der Zorn des Waldes“
 
 - **Kampagne** mit vier Missionen aus Sicht der Menschen, ganz oben im

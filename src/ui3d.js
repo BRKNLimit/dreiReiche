@@ -124,7 +124,15 @@ function aufBoden(sx, sy) {
 }
 
 // ------------------------------------------------------------ Spielstart
-function neu(f, zuschauen = false, wdh = null, m = null) {
+function neu(f, zuschauen = false, wdh = null, m = null, stand = null) {
+  // Spielstand (src/spielstand.js): Welt und KI von dort, Einstellungen aus extra
+  const geladen = stand ? zustandLaden(stand.zustand) : null;
+  if (stand) {
+    gegnerStil = stand.extra.gegnerStil;
+    gegnerStufe = stand.extra.gegnerStufe;
+    karteSchluessel = stand.extra.karteSchluessel;
+    m = stand.extra.mission ? missionVon(stand.extra.mission) : null;
+  }
   // Wiederholung: dieselben Startwerte wie bei der Aufnahme
   if (wdh) {
     karteSchluessel = wdh.karte;
@@ -134,7 +142,7 @@ function neu(f, zuschauen = false, wdh = null, m = null) {
   // Mission: Karte, Gegner und Volk legt sie fest (auch beim Abspielen)
   if (wdh && wdh.mission) m = missionVon(wdh.mission);
   mission = m;
-  missionStand = m ? m.ziele.map(() => false) : [];
+  missionStand = stand && stand.extra.missionStand ? stand.extra.missionStand : m ? m.ziele.map(() => false) : [];
   missionGewonnen = false;
   if (m) {
     karteSchluessel = m.karte;
@@ -144,27 +152,28 @@ function neu(f, zuschauen = false, wdh = null, m = null) {
   }
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  const seed = wdh ? wdh.seed : (Date.now() / 1000) | 0;
-  const karte = karteFuerSpiel(karteSchluessel, wdh, seed);
+  const seed = geladen ? geladen.world.seed : wdh ? wdh.seed : (Date.now() / 1000) | 0;
+  const karte = geladen ? { schluessel: geladen.world.karte, daten: geladen.world.karteDaten } : karteFuerSpiel(karteSchluessel, wdh, seed);
   if (KARTE.schluessel !== karte.schluessel || KARTE.name !== karte.daten.name) {
     karteWaehlen(karte.schluessel, karte.daten);
     if (typeof baueBoden === 'function') bodenModell = baueBoden(); // src/gelaende3d.js liest KARTE
     if (typeof baueDeko === 'function') baueDeko(); // Baeume, Pfad je Karte (src/gelaende3d.js, Gemini)
   }
-  world = createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
-  if (m) m.aufbau(world);
-  ai = m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
-  aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
+  world = geladen ? geladen.world : createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
+  if (m && !geladen) m.aufbau(world);
+  ai = geladen ? geladen.ais[1] : m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
+  aiMe = geladen ? geladen.ais[0] : zuschauen ? createAI(0, world.seed + 1) : null;
   nebel = neuerNebel(!zuschauen && !wdh, ME);
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
   aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null });
-  verlauf = neuerVerlauf();
+  verlauf = stand ? stand.extra.verlauf : neuerVerlauf();
+  if (stand) aufnahme = stand.extra.aufnahme;
   endeGezeigt = false;
   sel = [];
   selPlan = null;
-  gruppen = {};
+  gruppen = stand ? stand.extra.gruppen : {};
   leistenSig = '';
   placing = null;
   angriff = false;
@@ -180,6 +189,7 @@ function neu(f, zuschauen = false, wdh = null, m = null) {
   kam.z = 420;
   kam.dist = 300;
   kam.yaw = -Math.PI * 0.75;
+  if (stand && stand.extra.kam) Object.assign(kam, stand.extra.kam);
   renderBar();
 }
 
@@ -482,6 +492,16 @@ addEventListener('keydown', (e) => {
   const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && bauListe()[i] && erbauer3().length && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
+  if (e.key === 'F5') {
+    e.preventDefault(); // sonst laedt der Browser die Seite neu
+    standSpeichern();
+  }
+  if (e.key === 'F9') {
+    e.preventDefault();
+    const t = schnellLaden();
+    if (t) standLaden(t);
+    else standHinweis('Kein Spielstand gespeichert (F5 speichert)');
+  }
   if (e.key === 'm') {
     stummSchalten(fx);
     tonKnopfZeigen();
@@ -1217,7 +1237,7 @@ function zeichneHud() {
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : ''}</span>
     </div>
-    ${mission ? zieleHtml(mission, missionStand, world) : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
+    ${mission ? zieleHtml(mission, missionStand, world) : ''}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahl}
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}`;
 }
@@ -1272,6 +1292,7 @@ const STIL_NAMEN3 = { sturm: 'Sturm — greift früh an', standard: 'Standard', 
 function introHtml3() {
   return `<h1>Die drei Reiche — 3D</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
+    ${fortsetzenHtml()}
     ${kampagneHtml()}
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
     (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
@@ -1284,7 +1305,7 @@ function introHtml3() {
     Schreine, Verbesserungen und drei Fähigkeiten des Kommandanten frei — Kommandant wählen, dann
     <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,
     sammelt ein wenig Erfahrung.</p>
-    <p style="color:var(--dim)">Dieselbe Simulation wie die 2D-Ansicht — Modelle sind bewusst einfach.</p>
+    <p style="color:var(--dim)">Dieselbe Simulation wie die 2D-Ansicht — Spielstände, Kampagnen und Wiederholungen passen in beide.</p>
     <div class="stil">Gegner:
       ${Object.keys(STILE)
         .map((s) => `<label><input type="radio" name="stil" value="${s}"${s === gegnerStil ? ' checked' : ''}> ${STIL_NAMEN3[s]}</label>`)
@@ -1358,6 +1379,52 @@ function missionFortschritt() {
   if (missionPruefen(mission, missionStand, world, ME, { sel, gruppen }) && mission.sieg === 'ziele') missionGewonnen = true;
 }
 
+// ------------------------------------------------------------ Spielstaende (src/spielstand.js)
+let standMeldung = '';
+let standMeldungBis = 0;
+function standHinweis(text) {
+  standMeldung = text;
+  standMeldungBis = performance.now() + 2500;
+}
+function standText() {
+  return spielstandText(world, [aiMe, ai], {
+    meFaction,
+    zuschauen: !!aiMe,
+    gegnerStil,
+    gegnerStufe,
+    karteSchluessel,
+    mission: mission ? mission.id : null,
+    missionTitel: mission ? mission.titel : '',
+    missionStand,
+    aufnahme,
+    verlauf,
+    gruppen,
+    kam: { x: kam.x, z: kam.z, dist: kam.dist, yaw: kam.yaw },
+  });
+}
+/** F5: Schnellspeichern (auch automatisch beim Verlassen der Seite). */
+function standSpeichern() {
+  if (!world || world.over || wiederholung || missionGewonnen) return standHinweis('Hier gibt es nichts zu speichern');
+  standHinweis(schnellSpeichern(standText()) ? 'Gespeichert — F9 lädt' : 'Speichern fehlgeschlagen (Speicher voll?)');
+}
+/** F9 oder "Fortsetzen": Spielstand laden und weiterspielen. */
+function standLaden(text) {
+  const r = spielstandLesen(text || '');
+  if (r.fehler) return standHinweis(r.fehler);
+  document.getElementById('intro').style.display = 'none';
+  paused = false;
+  neu(r.s.extra.meFaction, r.s.extra.zuschauen, null, null, r.s);
+  wiederholungsHinweis = r.warnung;
+  standHinweis('Spielstand geladen');
+}
+function autoSpeichern() {
+  if (autoSpeichernSinnvoll(world, !!aiMe, wiederholung) && !missionGewonnen) schnellSpeichern(standText());
+}
+addEventListener('pagehide', autoSpeichern);
+addEventListener('visibilitychange', () => {
+  if (document.hidden) autoSpeichern();
+});
+
 /** Startbildschirm zeigen und verdrahten. */
 function startbildschirm() {
   const el = document.getElementById('intro');
@@ -1367,6 +1434,8 @@ function startbildschirm() {
   document.getElementById('introGott').onclick = () => starte3('gott', false);
   document.getElementById('introSchau').onclick = () => starte3('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
+  const weiterKnopf = document.getElementById('standFortsetzen');
+  if (weiterKnopf) weiterKnopf.onclick = () => standLaden(schnellLaden());
   const datei = document.getElementById('wiederholungDatei');
   if (datei) datei.onchange = () => wiederholungLaden(datei);
   const kDatei = document.getElementById('karteDatei');

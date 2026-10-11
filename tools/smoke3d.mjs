@@ -96,6 +96,9 @@ globalThis.requestAnimationFrame = (f) => {
   frameFn = f;
 };
 
+// Browser-Speicher fuer Spielstaende (F5/F9) und Kampagne
+const speicher = {};
+globalThis.localStorage = { getItem: (k) => speicher[k] ?? null, setItem: (k, v) => (speicher[k] = String(v)), removeItem: (k) => delete speicher[k] };
 const fehler = [];
 process.on('uncaughtException', (e) => fehler.push(e));
 try {
@@ -150,6 +153,10 @@ feuer('keyup', { ...basis, key: 'ArrowUp' });
 feuer('keydown', { ...basis, key: 't' });
 if (nodes.skills.onclick) nodes.skills.onclick(({ target: { closest: () => ({ dataset: { skill: 'bogenbau' } }) } }));
 feuer('keydown', { ...basis, key: 'f' });
+// Spielstand: F5 speichert, F9 laedt -- danach muss es weiterlaufen
+feuer('keydown', { ...basis, key: 'F5' });
+if (!speicher['dreiReiche.spielstand']) fehler.push(new Error('F5 hat nichts gespeichert'));
+feuer('keydown', { ...basis, key: 'F9' });
 laufe(600);
 
 if (fehler.length) {

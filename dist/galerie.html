@@ -1489,7 +1489,63 @@ const ICONS = {
     <path d="M17 14 C19 15, 20 17, 20 20" fill="none" stroke="${IC_G_HELL}" stroke-width="1.8" stroke-linecap="round"/>
     <path d="M20 11 C23 13, 23 18, 23 21" fill="none" stroke="${IC_G}" stroke-width="1.8" stroke-linecap="round"/>
   </svg>`,
+
+  // ----------------------------------------------------------- Bedienung
+  ton: `<svg viewBox="0 0 24 24">
+    <!-- Lautsprecher aktiv: Schallaustritt mit zwei goldenen Schallwellen -->
+    <path d="M4 9 L8 9 L13 4 L13 20 L8 15 L4 15 Z" fill="#243b53" stroke="${IC_M}" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M16 8 C17.8 9.5, 17.8 14.5, 16 16" fill="none" stroke="${IC_M_HELL}" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M19 5 C22.2 7.8, 22.2 16.2, 19 19" fill="none" stroke="${IC_M}" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  stumm: `<svg viewBox="0 0 24 24">
+    <!-- Lautsprecher stummgeschaltet mit roter Diagonalsperre -->
+    <path d="M4 9 L8 9 L13 4 L13 20 L8 15 L4 15 Z" fill="#1b2533" stroke="#64748b" stroke-width="1.6" stroke-linejoin="round"/>
+    <line x1="3" y1="3" x2="21" y2="21" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="16.5" y1="9.5" x2="20.5" y2="13.5" stroke="#ef4444" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="20.5" y1="9.5" x2="16.5" y2="13.5" stroke="#ef4444" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  hilfe: `<svg viewBox="0 0 24 24">
+    <!-- Hilfesymbol: Runde Schutzmünze mit leuchtendem Fragezeichen -->
+    <circle cx="12" cy="12" r="9.5" fill="#102a43" stroke="${IC_M}" stroke-width="1.6"/>
+    <path d="M9.5 8.5 C9.5 6.6, 10.8 5.2, 12.4 5.2 C14.0 5.2, 15.2 6.4, 15.2 7.8 C15.2 9.4, 13.6 10.4, 12.4 11.5 V13.2" fill="none" stroke="${IC_M_HELL}" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="12.4" cy="16.8" r="1.3" fill="${IC_M_HELL}"/>
+  </svg>`,
+
+  wiederholung: `<svg viewBox="0 0 24 24">
+    <!-- Wiederholung / Replay: Kreispfeil um Wiedergabe-Kern -->
+    <path d="M12 4 A8 8 0 1 1 5.6 7.4" fill="none" stroke="${IC_M}" stroke-width="2.2" stroke-linecap="round"/>
+    <polygon points="2,7 6.5,2.5 7,7.8" fill="${IC_M_HELL}"/>
+    <!-- Abspielkern -->
+    <circle cx="12" cy="12" r="3.2" fill="#243b53" stroke="${IC_M_HELL}" stroke-width="1.2"/>
+    <polygon points="11,10.2 14.2,12 11,13.8" fill="${IC_M_HELL}"/>
+  </svg>`,
+
+  sammelpunkt: `<svg viewBox="0 0 24 24">
+    <!-- Sammelpunkt: Bannerstandarte mit Zielkreis am Boden -->
+    <path d="M5 21 L5 3" stroke="${IC_SILBER}" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="5,2 3.8,4.5 6.2,4.5" fill="${IC_M}"/>
+    <!-- Schwalbenschwanz-Fahne nach rechts wehend -->
+    <path d="M5 4 L19 8.5 L15 11 L19 13.5 L5 13.5 Z" fill="${IC_M}" stroke="${IC_M_HELL}" stroke-width="1" stroke-linejoin="round"/>
+    <circle cx="9.5" cy="8.8" r="1.4" fill="${IC_M_HELL}"/>
+    <!-- Konzentrische Zielmarkierung am Boden -->
+    <ellipse cx="6" cy="20.5" rx="4.5" ry="1.8" fill="none" stroke="${IC_M_HELL}" stroke-width="1.4" stroke-dasharray="2 1.5"/>
+  </svg>`,
+
+  steuergruppe: `<svg viewBox="0 0 24 24">
+    <!-- Steuergruppe: Formations-Banner mit Gruppenleiter-Standarte -->
+    <rect x="3" y="9" width="5.5" height="9" rx="1.5" fill="#243b53" stroke="${IC_M}" stroke-width="1.2"/>
+    <rect x="15.5" y="9" width="5.5" height="9" rx="1.5" fill="#243b53" stroke="${IC_M}" stroke-width="1.2"/>
+    <!-- Zentrales Fuehrungsbanner -->
+    <rect x="8.5" y="4" width="7" height="12" rx="1.8" fill="#102a43" stroke="${IC_M_HELL}" stroke-width="1.5"/>
+    <path d="M12 6.5 L12 11.5 M10 8 L12 6.5 L14 8" stroke="${IC_M_HELL}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="2" y1="20" x2="22" y2="20" stroke="${IC_M}" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="5.7" cy="13" r="1" fill="${IC_M}"/>
+    <circle cx="18.3" cy="13" r="1" fill="${IC_M}"/>
+  </svg>`,
 };
+
 
 
 /* ---------------------------------- */
@@ -1725,14 +1781,28 @@ out vec4 vCol;
 out float vTiefe;
 out vec3 vTeam;
 out vec2 vWelt;
+out vec3 vNor;
+out vec2 vWasserInfo; // x: istWasser, y: Zeit/Phase
+out vec3 vObjPos;
+out float vWeltY;
 void main() {
   vTeam = iC.rgb;
   float c = cos(iA.w), s = sin(iA.w);
   vec3 a = aPos;
-  // Schritt & Gangart:
-  // 1. Waldgott: schwebender Mantel mit Wurzeln, organisches Brustkorb-Atmen
+
   float istWaldgott = (aCol.a > 0.03 && aCol.a < 0.08) ? 1.0 : 0.0;
-  if (istWaldgott > 0.5) {
+  float istWasser = (aCol.a > 0.74 && aCol.a < 0.80) ? 1.0 : 0.0;
+  vWasserInfo = vec2(istWasser, iC.w);
+
+  if (istWasser > 0.5) {
+    // Sanfte vertikale Wellenbewegung im Wasser
+    vec2 wp = iA.xz + vec2(c * a.x + s * a.z, -s * a.x + c * a.z) * iB.x;
+    float t = iC.w * 1.8;
+    float w1 = sin(wp.x * 0.28 + wp.y * 0.22 + t * 2.0) * 0.06;
+    float w2 = cos(wp.x * 0.18 - wp.y * 0.32 + t * 1.5) * 0.04;
+    a.y += w1 + w2;
+  } else if (istWaldgott > 0.5) {
+    // 1. Waldgott: schwebender Mantel mit Wurzeln, organisches Brustkorb-Atmen
     float saum = max(0.0, 0.85 - a.y);
     a.z += iC.w * 0.22 * saum;
     a.x += sin(iC.w * 3.14159 + a.y * 3.5) * 0.03 * saum;
@@ -1779,12 +1849,18 @@ void main() {
   vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
   vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
   vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
+  vNor = n;
+  vObjPos = aPos;
+  vWeltY = r.y;
 
   // Selbstleuchtende Teile behalten ihre eigene Farbe, ohne Fraktionsfarbe.
-  float team = aCol.a > 1.5 ? 0.0 : aCol.a;
+  float team = (aCol.a > 1.5 || istWasser > 0.5) ? 0.0 : aCol.a;
   vec3 col = mix(aCol.rgb, iC.rgb, team) * iB.z;
 
-  if (aCol.a > 1.5) {
+  if (istWasser > 0.5) {
+    // Wasser erhaelt die Basisfarbe direkt; Schattierung & Glanz erfolgen im Fragment-Shader
+    vCol = vec4(col, iB.w);
+  } else if (aCol.a > 1.5) {
     // Magisch gluehende Elemente (Augen, Kristalle, Glutherz) pulsieren im Atemrhythmus
     float puls = 1.0 + 0.22 * sin(iC.w * 3.14159265);
     vCol = vec4(col * 1.55 * puls, iB.w);
@@ -1808,6 +1884,11 @@ in vec4 vCol;
 in float vTiefe;
 in vec3 vTeam;
 in vec2 vWelt;
+in vec3 vNor;
+in vec2 vWasserInfo;
+in vec3 vObjPos;
+in float vWeltY;
+uniform vec3 uLicht;
 uniform vec3 uNebel;
 uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
 uniform sampler2D uSicht; // Nebel des Krieges: 1 sichtbar, 0.47 erkundet, 0 unbekannt
@@ -1818,6 +1899,102 @@ void main() {
     o = vec4(mix(vTeam, vec3(1.0), 0.3), 0.5);
     return;
   }
+
+  // 1. Weiche Schatten unter Einheiten und Gebaeuden (flache, halbtransparente dunkle Scheiben)
+  float istSchatten = (max(vCol.r, max(vCol.g, vCol.b)) < 0.02 && vCol.a < 0.45 && abs(vNor.y) > 0.85) ? 1.0 : 0.0;
+  if (istSchatten > 0.5) {
+    float rDist = length(vObjPos.xz);
+    float weich = smoothstep(1.0, 0.22, rDist);
+    o = vec4(vec3(0.0), vCol.a * weich);
+    return;
+  }
+
+  vec3 farbe = vCol.rgb;
+
+  // 2. Dynamische Wasseroberflaeche: bewegte Wellen, Glanz, Schaumkronen, Reflexion
+  if (vWasserInfo.x > 0.5) {
+    float t = vWasserInfo.y * 1.6;
+    vec2 wp = vWelt * 0.22;
+
+    float a1 = wp.x * 0.85 + wp.y * 0.52 + t * 2.2;
+    float a2 = -wp.x * 0.48 + wp.y * 0.88 + t * 1.7;
+    float a3 = wp.x * 1.65 - wp.y * 1.42 + t * 3.4;
+
+    float s1 = sin(a1), c1 = cos(a1);
+    float s2 = sin(a2), c2 = cos(a2);
+    float s3 = sin(a3), c3 = cos(a3);
+
+    float dHdx = 0.85 * c1 * 0.14 - 0.48 * c2 * 0.09 + 1.65 * c3 * 0.05;
+    float dHdz = 0.52 * c1 * 0.14 + 0.88 * c2 * 0.09 - 1.42 * c3 * 0.05;
+
+    vec3 wN = normalize(vec3(-dHdx * 3.2, 1.0, -dHdz * 3.2));
+    vec3 blick = normalize(vec3(0.08, 1.35, 0.95));
+
+    // Reflektierter Sonnenstrahl & scharfer Glanzpunkt
+    vec3 refLicht = reflect(-uLicht, wN);
+    float spec = pow(max(dot(refLicht, blick), 0.0), 36.0);
+    float glanz = spec * 1.8;
+    float specBreit = pow(max(dot(refLicht, blick), 0.0), 8.0) * 0.35;
+
+    // Weiche Fresnel-Reflexion des Himmels
+    float fresnel = pow(1.0 - max(dot(wN, blick), 0.0), 2.5);
+
+    vec3 tiefesWasser = farbe * 0.75;
+    vec3 himmelSpiegel = vec3(0.32, 0.62, 0.78);
+    vec3 basisWasser = mix(tiefesWasser, himmelSpiegel, fresnel * 0.65);
+
+    // Zarte Schaumkronen auf hohen Wellenkaemmen
+    float schaumKamm = max(0.0, s1 * 0.5 + s2 * 0.35 + s3 * 0.15 - 0.68) * 2.2;
+    vec3 schaum = vec3(0.88, 0.94, 0.98) * schaumKamm * 0.45;
+
+    vec3 sonnenGlanz = vec3(1.0, 0.95, 0.82) * (glanz + specBreit);
+    farbe = basisWasser + sonnenGlanz + schaum;
+  } else {
+    // 3. Feste Oberflaechen: Kontaktschatten, Spalt-AO und prozedurale Texturen (60 FPS stabil)
+    float bodenDist = max(0.0, vWeltY);
+    // Kontaktschatten: Objekte dunkeln am Boden sanft ab (feste Erdverbundenheit)
+    float kontaktAO = clamp(smoothstep(0.0, 0.65, bodenDist) * 0.32 + 0.68, 0.60, 1.0);
+    // Spalt-AO: Abwaerts zeigende / tiefere Nischen werden schattiert
+    float spaltAO = clamp(vNor.y * 0.22 + 0.78, 0.58, 1.0);
+    float ao = kontaktAO * spaltAO;
+
+    // Prozedurale Oberflaechenstruktur (Holzmaserung, Stein, Rinde, Fell)
+    // Nur fuer normale Materialien, nicht fuer selbstleuchtende Magieteile
+    if (vCol.a <= 1.5) {
+      vec3 p = vObjPos;
+      float rausch = 0.0;
+
+      // A. Holz & Rinde (warme Brauntoene: r > b, g > b)
+      if (farbe.r > farbe.b * 1.25 && farbe.g > farbe.b * 1.05) {
+        float maser = sin(p.y * 22.0 + sin(p.x * 12.0 + p.z * 12.0) * 1.6);
+        float feinfaser = cos(p.y * 48.0 + p.x * 18.0);
+        rausch = (maser * 0.65 + feinfaser * 0.35) * 0.065;
+      }
+      // B. Stein & Metall (neutrale Grautoene: r ~= g ~= b)
+      else if (abs(farbe.r - farbe.g) < 0.08 && abs(farbe.g - farbe.b) * 0.9 < 0.08) {
+        float korn1 = sin(p.x * 30.0 + p.y * 26.0);
+        float korn2 = cos(p.z * 32.0 - p.y * 22.0);
+        rausch = (korn1 * 0.5 + korn2 * 0.5) * 0.055;
+      }
+      // C. Fell & organisches Gewebe (Pelz von Woelfen, Reittieren etc.)
+      else if (farbe.r > 0.12 && farbe.g < farbe.r * 1.1) {
+        float fell1 = sin((p.x + p.y + p.z) * 42.0);
+        float fell2 = cos((p.x - p.y + p.z) * 36.0);
+        rausch = (fell1 * 0.55 + fell2 * 0.45) * 0.045;
+      }
+      // D. Laub & Wiese (Gruentoene)
+      else if (farbe.g > farbe.r * 1.08 && farbe.g > farbe.b * 1.08) {
+        float blatt = sin(p.x * 25.0 + p.z * 25.0) * cos(p.y * 25.0);
+        rausch = blatt * 0.05;
+      }
+      else {
+        rausch = (sin(p.x * 22.0) * cos(p.y * 22.0 + p.z * 18.0)) * 0.035;
+      }
+
+      farbe = clamp(farbe * (1.0 + rausch) * ao, 0.0, 1.0);
+    }
+  }
+
   float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
   // Weiche, runde Nebelraender statt blockiger Rasterkanten
   vec2 uv = clamp(vWelt / uKarte, 0.0, 1.0);
@@ -1829,7 +2006,7 @@ void main() {
   float s3 = texture(uSicht, uv + vec2(0.0, d.y)).r;
   float s4 = texture(uSicht, uv - vec2(0.0, d.y)).r;
   float sicht = (s0 * 2.0 + s1 + s2 + s3 + s4) * (1.0 / 6.0);
-  o = vec4(mix(vCol.rgb, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
+  o = vec4(mix(farbe, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
 }`;
 const VS_LINIE = `#version 300 es
 layout(location=0) in vec3 aPos;
@@ -4535,6 +4712,81 @@ function spaehpostenModell() {
 MODELLE_DEF.rabe = rabeModell();
 MODELLE_DEF.spaehposten = spaehpostenModell();
 
+/** Schilf: Schilfrohr und samtige Rohrkolben an den Ufern von Seen und Fluessen. */
+function schilfModell() {
+  const t = [];
+  const GRUEN1 = '#4a622a';
+  const GRUEN2 = '#5d7835';
+  const GRUEN3 = '#3b5020';
+  const STROH = '#7e7846';
+  const KOLBEN = '#3d2516';
+  const KOLBEN_H = '#523420';
+  const SCHLICK = '#2b261d';
+
+  // 1. Feuchter Wurzelsockel / Erdhuegel im Wasser
+  t.push(
+    ['z', [0.35, 0.55, 0.12, 6], [0, 0.05, 0], SCHLICK],
+    ['k', [0.32, 5], [0.08, 0.06, -0.05], SCHLICK]
+  );
+
+  // 2. Halme mit Rohrkolben (verschiedene Hoehen und Neigungen)
+  const halme = [
+    // [x, z, h, rOben, rUnten, neigX, neigZ, farbe, mitKolben]
+    [0.00, 0.00, 1.85, 0.022, 0.045, 0.04, -0.05, GRUEN1, true],
+    [0.15, -0.08, 1.65, 0.020, 0.040, -0.08, 0.06, GRUEN2, true],
+    [-0.14, 0.10, 1.95, 0.022, 0.045, 0.06, 0.08, GRUEN1, true],
+    [0.08, 0.18, 1.45, 0.018, 0.038, 0.12, -0.06, STROH, true],
+    [-0.18, -0.12, 1.55, 0.020, 0.040, -0.09, -0.09, GRUEN3, false],
+    [0.22, 0.12, 1.30, 0.018, 0.035, 0.15, 0.08, GRUEN2, false],
+    [-0.08, -0.22, 1.40, 0.018, 0.035, -0.14, 0.04, STROH, false],
+    [0.25, -0.15, 1.20, 0.016, 0.032, -0.12, -0.12, GRUEN1, false],
+  ];
+
+  for (const [hx, hz, hh, ro, ru, nx, nz, col, kolb] of halme) {
+    t.push(['z', [ro, ru, hh, 5], [hx, hh * 0.48, hz], col, 0, [nx, 0, nz]]);
+
+    if (kolb) {
+      const yKolb = hh * 0.82;
+      t.push(['z', [0.052, 0.055, 0.38, 6], [hx + nx * yKolb, yKolb, hz + nz * yKolb], KOLBEN, 0, [nx, 0, nz]]);
+      t.push(['k', [0.054, 5], [hx + nx * (yKolb + 0.19), yKolb + 0.19, hz + nz * (yKolb + 0.19)], KOLBEN_H, 0]);
+      t.push(['k', [0.054, 5], [hx + nx * (yKolb - 0.19), yKolb - 0.19, hz + nz * (yKolb - 0.19)], KOLBEN, 0]);
+      const ySpitze = yKolb + 0.28;
+      t.push(['z', [0, 0.018, 0.22, 4], [hx + nx * ySpitze, ySpitze, hz + nz * ySpitze], STROH, 0, [nx, 0, nz]]);
+    }
+  }
+
+  // 3. Ausladende Schilfblaetter
+  const blaetter = [
+    [0.10, 0.05, 1.10, 0.05, 0.28, 0.20, GRUEN2],
+    [-0.12, 0.08, 1.25, 0.06, -0.25, 0.22, GRUEN1],
+    [0.05, -0.12, 1.05, 0.05, 0.18, -0.30, GRUEN3],
+    [-0.15, -0.06, 1.15, 0.05, -0.32, -0.18, STROH],
+    [0.18, 0.14, 0.95, 0.045, 0.35, 0.15, GRUEN2],
+    [-0.05, 0.20, 0.90, 0.045, -0.12, 0.38, GRUEN1],
+  ];
+
+  for (const [bx, bz, bh, bb, rx, rz, bcol] of blaetter) {
+    t.push(['q', [bb, bh, 0.015], [bx, bh * 0.45, bz], bcol, 0, [rx, Math.atan2(bz, bx), rz]]);
+  }
+
+  return t;
+}
+
+/** Wasser: Mehrteilige Scheiben-Geometrie fuer Seen und Fluesse (Materialkennung team=0.77 fuer den Shader). */
+function wasserModell() {
+  const WASSER_FARBE = '#1b4b68';
+  const WASSER_MAT = 0.77;
+  return [
+    ['s', [1.0, 48], [0, 0, 0], WASSER_FARBE, WASSER_MAT],
+    ['s', [0.65, 36], [0, 0.01, 0], '#245a7c', WASSER_MAT],
+    ['s', [0.35, 24], [0, 0.02, 0], '#2d688c', WASSER_MAT],
+  ];
+}
+
+MODELLE_DEF.schilf = schilfModell();
+MODELLE_DEF.wasser = wasserModell();
+
+
 
 
 
@@ -4714,7 +4966,20 @@ function bild(now) {
 
 /** Icons in drei Groessen, ohne WebGL. */
 function iconsZeigen() {
-  const namen = { ...Object.fromEntries(Object.entries(UNITS).map(([k, u]) => [k, u.name])), ...Object.fromEntries(Object.entries(BUILDINGS).map(([k, b]) => [k, b.name])) };
+  const namen = {
+    ...Object.fromEntries(Object.entries(UNITS).map(([k, u]) => [k, u.name])),
+    ...Object.fromEntries(Object.entries(BUILDINGS).map(([k, b]) => [k, b.name])),
+    skillpunkte: 'Skillpunkte',
+    gegenwart: 'Gegenwart',
+    goetterblut: 'Götterblut',
+    fron: 'Fron',
+    ton: 'Ton (an)',
+    stumm: 'Stumm',
+    hilfe: 'Hilfe',
+    wiederholung: 'Wiederholung',
+    sammelpunkt: 'Sammelpunkt',
+    steuergruppe: 'Steuergruppe',
+  };
   document.getElementById('icons').innerHTML = Object.entries(ICONS)
     .map(
       ([k, svg]) => `<div class="ic"><div class="reihe">

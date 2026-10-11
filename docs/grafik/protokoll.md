@@ -31,3 +31,18 @@ geprüft (Tests, Galerie, Spiel).
   - **Kommandanten-Fähigkeiten:** Kriegshorn mit Schallwellen (`schlachtruf`), dreifacher Schildwall (`schildwall`), Sturmstiefel mit Schwingen (`ansturm`), emporschnellende Wurzelgreifer (`wurzelgriff`), umrankter Heiltropfen (`lebenssaft`), heulender Mondwolf (`rudelruf`).
 - **Wie geprüft:** `npm test` und `npm run smoke` (inklusive `tools/smoke-galerie.mjs`) grün; alle 42 Icons sind valides SVG mit `viewBox="0 0 24 24"`, skalieren sauber von 20 px bis 64 px und zeigen klare Erkennbarkeit auf dunklem Hintergrund.
 
+### Runde 3: Organische 3D-Landschaft, weicher Nebel und Geländemodelle (Aufgabe 3)
+- **Was war schwach:** Der 3D-Boden war ein monochromes Rauschgitter ohne Landschaftszonen; Seen waren flache Einzelscheiben ohne Ufer; Felsen bestanden aus vier Kugeln; Adern waren simple Kugelhäufchen; Bäume standen völlig gleichförmig verstreut; der Nebel des Krieges zeigte harte 20-Meter-Blockkanten.
+- **Was wurde geändert:**
+  - **Shader (`src/render3d.js`):** Nebel des Krieges wird im Fragment-Shader durch Mehrfach-Sampling weichgezeichnet, sodass runde, organische Sichtränder statt pixeliger Kanten entstehen.
+  - **Boden (`src/gelaende3d.js`):** `baueBoden` berechnet Wiesenvielfalt, feuchte dunkle Uferzonen an Seen, schottrige Übergänge an Felsen sowie erdig-braune Trampelpfade entlang der Hauptmarschachse zwischen den Basen.
+  - **Seen & Ufer:** Seen erhalten einen Ufersaum aus Schilf/Sand, tiefes Wasser und eine animiert schimmernde, durchscheinende Oberfläche.
+  - **Deko-Wälder:** Bäume sind in natürlichen Hainen/Waldstücken an den Flanken gruppiert statt gleichmäßig gestreut.
+  - **Modelle (`src/modelle3d.js`):**
+    - `fels`: Kantige, geschichtete Felsformationen mit steilen Facetten und Sockelmoos (unter Einhaltung der Kollisionskreise < 10%).
+    - `baum`: Detaillierterer Stamm mit Wurzelansatz und mehrstufiger Laub-/Nadelkrone.
+    - `fronAder`: Steinbruch-Fundstelle mit Holzabstützungen und schimmernden Eisenerz-Einschlüssen.
+    - `blutAder`: Tiefschwarzer Obsidianspalt mit leuchtenden roten Kristallspitzen (`GLUEHT`).
+- **Wie geprüft:** `npm test` und `npm run smoke` (1000 Frames im Headless WebGL) ohne Fehler bestanden; alle Modelle halten ihr Ecken-Budget ein.
+
+

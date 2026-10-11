@@ -268,7 +268,16 @@ void main() {
     return;
   }
   float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
-  float sicht = texture(uSicht, vWelt / uKarte).r;
+  // Weiche, runde Nebelraender statt blockiger Rasterkanten
+  vec2 uv = clamp(vWelt / uKarte, 0.0, 1.0);
+  vec2 ts = vec2(textureSize(uSicht, 0));
+  vec2 d = 0.55 / max(ts, vec2(1.0));
+  float s0 = texture(uSicht, uv).r;
+  float s1 = texture(uSicht, uv + vec2(d.x, 0.0)).r;
+  float s2 = texture(uSicht, uv - vec2(d.x, 0.0)).r;
+  float s3 = texture(uSicht, uv + vec2(0.0, d.y)).r;
+  float s4 = texture(uSicht, uv - vec2(0.0, d.y)).r;
+  float sicht = (s0 * 2.0 + s1 + s2 + s3 + s4) * (1.0 / 6.0);
   o = vec4(mix(vCol.rgb, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
 }`;
 const VS_LINIE = `#version 300 es

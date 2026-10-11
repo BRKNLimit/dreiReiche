@@ -250,6 +250,21 @@ geprüft (Tests, Galerie, Spiel).
   - In `src/galerie.js` wurden aussagekräftige Namen für alle Bedien- und Ressourcen-Icons hinterlegt; die Galerie zeigt nun 50 vollwertige Icons in allen 3 Auflösungen (20 px, 36 px, 64 px).
 - **Wie geprüft:** `npm test` (132/132 Tests grün, SVG-Validierungsregeln eingehalten), `npm run smoke` (Galerie-Smoke-Test rendert 50 Icons fehlerfrei).
 
+### Runde 18: Auftrag 3, Aufgabe 9 — Galerie: Ansichten „Karten“ und „Effekte“ (src/galerie.html, src/galerie.js)
+- **Was war schwach:** In der Galerie gab es bisher nur den Reiter „Karte und Effekte“, der lediglich die übrig gebliebenen Modelle auflistete; eine Übersicht über die eigentlichen Spielkarten (Klassisch vs. Flusstal) fehlte völlig, und Geschosse sowie Bau- und Trümmerstrukturen waren nicht gebündelt inspectierbar.
+- **Was wurde geändert:**
+  - **Reiter getrennt in `src/galerie.html` und `src/galerie.js`:**
+    - `Karten`: Zeigt beide Spielkarten (Klassische Karte und Flusstal) nebeneinander als hochauflösende 2D-Übersichten:
+      - Klassische Karte: Felsgrate mit Toren, Felsring um die zentrale Götterblutader, 3 Bergseen, 4 Fronadern, Basenstandorte und Marschpfad.
+      - Flusstal: Durchgängiges, mäanderndes Flussband, zwei passierbare Furten mit Kiesbänken, dichte Mooswälder, sonnige Blumenwiesen und Götterblutfelder.
+      - Ergänzt mit taktischen Parametern, Geländemerkmalen und strategischen Hinweisen.
+    - `Effekte`: Zeigt alle Projektile und Strukturzustände in voller 3D-Pracht mit rotierender Kamera:
+      - `pfeil`, `bolzen`, `dorn`, `lichtpfeil`, `glutball`, `kugel`, `stein`
+      - `baugeruest` und `truemmer`
+      - `staubwolke`, `schilf`, `wasser`, Adern und Felsen.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (Galerie-Smoke-Test und 3D-Smoke-Test fehlerfrei bestanden; Karten- und Effektansichten schalten nahtlos um).
+
+
 
 
 

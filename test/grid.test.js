@@ -1937,10 +1937,11 @@ test('Gezielter Angriff: verfolgt das gewaehlte Ziel und schiesst zuerst darauf'
   issue(w, { type: 'angreifen', player: 0, ids: [j.id], id: fern.id });
   for (let i = 0; i < 800 && !fern.dead; i++) {
     step(w);
-    nah.tx = nah.x; // der Wolf bleibt stehen
+    nah.tx = nah.x; // der Rabe bleibt stehen
     nah.ty = nah.y;
   }
   assert.ok(fern.dead, 'das gewaehlte Ziel faellt');
+  step(w);
   assert.equal(j.ziel, 0, 'Ziel weg: Auftrag erledigt');
 });
 

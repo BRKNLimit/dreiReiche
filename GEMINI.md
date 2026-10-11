@@ -3,8 +3,19 @@
 Du arbeitest an einem RTS-Prototyp im Browser: Menschen gegen den Wald- und
 Wiesengott, WebGL 2 ohne Bibliothek, alles läuft offline aus einer HTML-Datei.
 **Du bist für die Grafik zuständig.** Parallel arbeitet Claude (ein anderer
-KI-Agent) an Spiellogik, KI und Bedienung — in anderen Dateien. Den Auftrag
-findest du in `docs/grafik/auftrag.md`.
+KI-Agent) an Spiellogik, KI und Bedienung — in anderen Dateien. Den
+aktuellen Auftrag findest du in `docs/grafik/auftrag-2.md` (der erste,
+erledigte in `docs/grafik/auftrag.md`).
+
+## Arbeitsweise: ohne Rückfragen
+
+**Frag nie, ob du etwas tun darfst, und warte nie auf Bestätigung.** Der
+Nutzer muss sonst jede Kleinigkeit einzeln erlauben. Du arbeitest in deinem
+eigenen Ordner auf deinem eigenen Branch; Claude prüft alles vor dem Merge —
+Fehler sind billig. Entscheide selbst, schreib die Entscheidung ins
+Protokoll, mach weiter. Bündle Befehle: `npm test && npm run smoke` als ein
+Aufruf, `git add … && git commit -m … && git push` als einer. Lies Dateien mit
+deinen Lese-Werkzeugen statt mit Shell-Befehlen.
 
 ## Befehle
 
@@ -113,8 +124,15 @@ sichtbare Kante darf nicht mehr als etwa 10 % vom Kreis abweichen.
   orangefarbenes Licht, düster und ehrfurchtgebietend. **Kein grüner
   Waldgeist.** Vorlage: `docs/bilder/vorlagen/waldgott-vorlage.png` (nur
   lokal, nicht im Repo).
+- **Maßstab für alle Modelle: Waldgott G.2 Glutherz und der Rabe** (vom
+  Nutzer gewählt). Fließende Formen statt Klötze, echte Gliedmaßen mit
+  Beinen, die gehen, keine schwankenden Körper. Einzelheiten und Vorlagen je
+  Einheit in `docs/grafik/auftrag-2.md`.
 - Weitere Gott-Einheiten und -Gebäude greifen diese dunkle, golden glühende
   Ästhetik auf. Die Menschen: Mittelalter, Holz, Stein, Eisen.
+- **Waldgeist in vier Jahreszeiten:** Modelle `waldgeist_fruehling`,
+  `waldgeist_sommer`, `waldgeist_herbst`, `waldgeist_winter`;
+  `ui3d.js` wählt je Einheit eine (fehlt eine, nimmt es `waldgeist`).
 - Icons: wie der Entwurf der Ressourcenleiste
   (`docs/bilder/ressourcenleiste-entwurf.png`) — klare Formen, kräftige
   Farben, auf dunklem Blau (`#021722`) lesbar, ab 20 px erkennbar.

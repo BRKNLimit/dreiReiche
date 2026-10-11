@@ -577,9 +577,9 @@ export const UNITS = {
   },
   // Belagerung: wenig gegen Einheiten, viel gegen Gebaeude.
   katapult: {
-    name: 'Katapult',
+    name: 'Balliste', // Schluessel bleibt katapult; Name nach Vorlage des Nutzers
     sicht: 700, // Sichtweite (Nebel des Krieges)
-    desc: 'Belagerung: wirft Steine weiter, als ein Turm schießt. Gegen Einheiten fast nutzlos, langsam und verwundbar.',
+    desc: 'Belagerung: schießt schwere Bolzen weiter, als ein Turm reicht. Gegen Einheiten fast nutzlos, langsam und verwundbar.',
     faction: 'mensch',
     hp: 500,
     radius: 40,
@@ -626,7 +626,7 @@ export const SKILLS = {
   // --------------------------------------------------------------- Menschen
   belagerungsbau: {
     faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
-    desc: 'Die Kaserne baut Katapulte — sie werfen Steine weiter, als ein Turm schießt.',
+    desc: 'Die Kaserne baut Ballisten — sie schießen weiter, als ein Turm reicht.',
   },
   bogenbau: {
     faction: 'mensch', ast: 'einheiten', name: 'Bogenbau', kosten: 1, frei: ['jaeger'],

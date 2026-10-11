@@ -80,9 +80,9 @@ Gegenwart-Überschuss, Götterblut, Fron.
 | Kampf | Menschen | Gott |
 | --- | --- | --- |
 | Nahkampf | Bauer, Soldat, Söldner, Held | Dryade, Wolf, Ent, Wurzelbrecher |
-| Fernkampf | Jäger, Katapult | Waldgeist, Waldgott |
+| Fernkampf | Jäger, Balliste | Waldgeist, Waldgott |
 | Späher, ohne Waffe | — | Rabe: fliegt über Fels, Wasser und Mauern, nur Fernkampf trifft ihn, ein Schuss holt ihn herunter |
-| Belagerung (Gebäude zuerst) | Katapult | Wurzelbrecher |
+| Belagerung (Gebäude zuerst) | Balliste | Wurzelbrecher |
 
 Reichweite zählt von Rand zu Rand: Nahkämpfer müssen ran, Fernkämpfer
 schießen weit. Was gesperrt ist, schaltet der Skillbaum frei.

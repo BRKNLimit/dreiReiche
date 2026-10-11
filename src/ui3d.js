@@ -582,6 +582,18 @@ function groesse() {
   }
 }
 
+// Jahreszeiten der Waldgeister, je Einheit fest nach ihrer Nummer.
+const JAHRESZEITEN = ['fruehling', 'sommer', 'herbst', 'winter'];
+
+/** Modell einer Einheit: Waldgeister in ihrer Jahreszeit, sofern es das Modell gibt. */
+function modellVon(e) {
+  if (e.type === 'waldgeist') {
+    const k = 'waldgeist_' + JAHRESZEITEN[e.id % 4];
+    if (MODELLE[k]) return k;
+  }
+  return e.type;
+}
+
 function zeichne(now, dt) {
   groesse();
   kameraMatrix();
@@ -674,15 +686,18 @@ function zeichne(now, dt) {
     const s = def.radius * DM * ZEIGE_EINHEIT;
     // Raben fliegen hoch, Waldgeister schweben, der Waldgott schwebt knapp ueber dem Boden
     const fliegt = UNITS[e.type].fliegt;
+    // Waldgeister schweben, bis es die Bogenschuetzen in vier Jahreszeiten gibt -- die gehen.
+    const geist = e.type === 'waldgeist' && !MODELLE.waldgeist_fruehling;
     const schwebt = fliegt
       ? 5 + Math.sin(t * 3 + e.id) * 0.4
-      : e.type === 'waldgeist'
+      : geist
         ? 0.5 + Math.sin(t * 2 + e.id) * 0.25
         : e.type === 'waldgott'
           ? 0.08 + Math.sin(t * 1.8 + e.id) * 0.03
           : 0;
-    const gleitet = fliegt || e.type === 'waldgeist' || e.type === 'waldgott';
-    const huepf = bewegt && !gleitet ? Math.abs(Math.sin(t * 9 + e.id)) * 0.12 * s : 0;
+    const gleitet = fliegt || geist || e.type === 'waldgott';
+    // Nur ein leichtes Auf und Ab beim Gehen -- den Schritt machen die Beine im Modell.
+    const huepf = bewegt && !gleitet ? Math.abs(Math.sin(t * 9 + e.id)) * 0.04 * s : 0;
     const schritt = e.type === 'waldgott'
       ? (bewegt ? Math.sin(t * 4 + e.id) : Math.sin(t * 2 + e.id) * 0.5)
       : (bewegt && !gleitet ? Math.sin(t * 9 + e.id) : 0);
@@ -690,7 +705,7 @@ function zeichne(now, dt) {
     const seit = now - (ausfall.get(e.id) || -1e9);
     const ruck = seit < 220 ? Math.sin((seit / 220) * Math.PI) * 0.4 * s : 0;
     const w = blick.get(e.id) || 0;
-    instanz(e.type, x * DM + Math.sin(w) * ruck, schwebt * s + huepf, y * DM + Math.cos(w) * ruck, w, s, team, 1, 1, 1, schritt);
+    instanz(modellVon(e), x * DM + Math.sin(w) * ruck, schwebt * s + huepf, y * DM + Math.cos(w) * ruck, w, s, team, 1, 1, 1, schritt);
   }
 
   // Platzierungs-Geist

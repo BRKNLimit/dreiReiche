@@ -77,6 +77,23 @@
   #intro .go { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   #intro .go button { padding: 8px 14px; font-size: 13px; }
   #nogl { position: absolute; inset: 0; display: none; place-content: center; text-align: center; padding: 24px; }
+  /* Info-Karten */
+  #karte {
+    position: absolute; left: 12px; bottom: 58px; z-index: 15; width: min(340px, calc(100% - 24px));
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+    border: 1px solid var(--line); border-radius: 4px; padding: 9px 11px; pointer-events: none;
+  }
+  #karte[hidden] { display: none; }
+  .karte b { display: block; color: var(--accent); font-size: 13px; }
+  .karte i { display: block; color: var(--dim); font-size: 11px; margin: 2px 0 6px; }
+  .karte .sperre { color: var(--bad); font-size: 11px; margin-bottom: 6px; }
+  .karte .kz { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 11px; }
+  .karte .kz span:nth-child(odd) { color: var(--dim); }
+  .sel .karte { margin-top: 6px; }
+  .sel .karte b { display: none; }
+  .zeile { font-size: 11px; margin-top: 2px; }
+  .zeile.zu { color: var(--dim); }
+  #builds button small { color: var(--dim); font-size: 10px; margin-left: 4px; }
   /* Skillbaum */
   #skills {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20;
@@ -119,6 +136,7 @@
 </div>
 <div id="intro"></div>
 <div id="skills" hidden></div>
+<div id="karte" hidden></div>
 <div id="nogl"><p>Dieser Browser kann kein WebGL 2 — die 2D-Ansicht läuft trotzdem:
   <a class="btn" href="resonit.html">2D-Ansicht öffnen</a></p></div>
 <script>
@@ -196,10 +214,14 @@ const FACTIONS = {
     kommandant: 'waldgott',
   },
 };
+
+// desc: ein, zwei Saetze fuer die Info-Karte; Zahlen setzt die Oberflaeche
+// aus den Daten dazu, damit der Text nie veraltet.
 const BUILDINGS = {
   // --------------------------------------------------------------- Menschen
   halle: {
     name: 'Thingstätte',
+    desc: 'Hauptgebäude der Menschen. Fällt sie, ist die Partie verloren. Trägt die Startbasis und bildet Bauern und Soldaten aus.',
     // Grunddomaene: deckt die ganze Startbasis mit ihren drei Steinhaufen --
     // Anker braucht man zum Ausgreifen, nicht fuer Strom daheim.
     anchorMin: 4000,
@@ -216,6 +238,7 @@ const BUILDINGS = {
   },
   turm: {
     name: 'Wachturm',
+    desc: 'Anker: dehnt die Domäne aus, sofort in voller Größe. Nur in der Domäne fließt Gegenwart.',
     short: 'TRM',
     faction: 'mensch',
     hp: 800,
@@ -226,6 +249,7 @@ const BUILDINGS = {
   },
   schmiede: {
     name: 'Schmiede',
+    desc: 'Liefert Gegenwart in ihr Domänennetz — Kraft für Fabriken, Förderung und Schreine.',
     short: 'SCM',
     faction: 'mensch',
     hp: 900,
@@ -236,6 +260,7 @@ const BUILDINGS = {
   },
   saege: {
     name: 'Sägewerk',
+    desc: 'Fördert Fron auf einem Steinvorkommen. Rodet den Boden ringsum; dort pflanzt der Gott keinen Hain.',
     short: 'SÄG',
     faction: 'mensch',
     hp: 700,
@@ -250,6 +275,7 @@ const BUILDINGS = {
   },
   kaserne: {
     name: 'Kaserne',
+    desc: 'Fabrik: bildet alle Einheiten der Menschen aus. Braucht viel Gegenwart.',
     short: 'KAS',
     faction: 'mensch',
     hp: 1500,
@@ -262,6 +288,7 @@ const BUILDINGS = {
   },
   schacht: {
     name: 'Blutschacht',
+    desc: 'Fördert Götterblut — nur auf einer Götterblut-Ader. Die Adern liegen in der Kartenmitte.',
     short: 'BLS',
     faction: 'mensch',
     hp: 900,
@@ -280,6 +307,7 @@ const BUILDINGS = {
   // Sie haengen an den letzten Stufen der Drosselleiter. Designzahlen.
   banner: {
     name: 'Kriegsbanner',
+    desc: 'Schrein des Zorns: Eigene Einheiten im Umkreis teilen mehr Schaden aus, solange sie in der eigenen Domäne stehen.',
     short: 'BAN',
     faction: 'mensch',
     hp: 600,
@@ -292,6 +320,7 @@ const BUILDINGS = {
   },
   kapelle: {
     name: 'Kapelle',
+    desc: 'Schrein der Wehr: Eigene Einheiten im Umkreis nehmen weniger Schaden, solange sie in der eigenen Domäne stehen.',
     short: 'KAP',
     faction: 'mensch',
     hp: 700,
@@ -306,6 +335,7 @@ const BUILDINGS = {
   // --------------------------------------------------------------- Gott
   herzbaum: {
     name: 'Herzbaum',
+    desc: 'Hauptgebäude des Gottes. Fällt er, ist die Partie verloren. Seine Domäne wächst mit der Zeit; er ruft Dryaden und Wölfe.',
     anchorMin: 4000, // wie die Thingstaette; waechst darueber hinaus bis max
     short: 'HRZ',
     faction: 'gott',
@@ -320,6 +350,7 @@ const BUILDINGS = {
   },
   hain: {
     name: 'Hain',
+    desc: 'Anker: dehnt die Domäne aus — klein am Anfang, wächst mit der Zeit. Nur auf ungerodetem Boden.',
     short: 'HAI',
     faction: 'gott',
     hp: 600,
@@ -331,6 +362,7 @@ const BUILDINGS = {
   },
   quelle: {
     name: 'Quellgrund',
+    desc: 'Liefert Gegenwart in ihr Domänennetz — Kraft für Fabriken, Förderung und Schreine.',
     short: 'QUE',
     faction: 'gott',
     hp: 800,
@@ -341,6 +373,7 @@ const BUILDINGS = {
   },
   moos: {
     name: 'Moosgrube',
+    desc: 'Fördert Fron auf einem Steinvorkommen.',
     short: 'MOS',
     faction: 'gott',
     hp: 700,
@@ -354,6 +387,7 @@ const BUILDINGS = {
   },
   dickicht: {
     name: 'Dickicht',
+    desc: 'Fabrik: ruft alle Geschöpfe des Waldes. Braucht viel Gegenwart.',
     short: 'DIC',
     faction: 'gott',
     hp: 1500,
@@ -366,6 +400,7 @@ const BUILDINGS = {
   },
   blutwurz: {
     name: 'Blutwurz',
+    desc: 'Fördert Götterblut — nur auf einer Götterblut-Ader. Die Adern liegen in der Kartenmitte.',
     short: 'BLW',
     faction: 'gott',
     hp: 900,
@@ -380,6 +415,7 @@ const BUILDINGS = {
   // Beim Gott staerker: sein Wald ist sein Heimvorteil.
   dornenschrein: {
     name: 'Dornenschrein',
+    desc: 'Schrein des Zorns: Eigene Einheiten im Umkreis teilen mehr Schaden aus, solange sie in der eigenen Domäne stehen.',
     short: 'DOR',
     faction: 'gott',
     hp: 600,
@@ -392,6 +428,7 @@ const BUILDINGS = {
   },
   steinkreis: {
     name: 'Steinkreis',
+    desc: 'Schrein der Wehr: Eigene Einheiten im Umkreis nehmen weniger Schaden, solange sie in der eigenen Domäne stehen.',
     short: 'STK',
     faction: 'gott',
     hp: 700,
@@ -411,6 +448,7 @@ const UNITS = {
   // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
   bauer: {
     name: 'Bauer',
+    desc: 'Arbeiter: baut Gebäude, auch außerhalb der Domäne. Kämpft nur zur Not.',
     faction: 'mensch',
     hp: 150,
     radius: 24,
@@ -425,6 +463,7 @@ const UNITS = {
   },
   soldat: {
     name: 'Soldat',
+    desc: 'Günstiger Nahkämpfer — die Masse des Heeres.',
     faction: 'mensch',
     hp: 200,
     radius: 26,
@@ -436,6 +475,7 @@ const UNITS = {
   },
   jaeger: {
     name: 'Jäger',
+    desc: 'Fernkämpfer: schießt aus der zweiten Reihe, hält wenig aus.',
     faction: 'mensch',
     hp: 180,
     radius: 24,
@@ -447,6 +487,7 @@ const UNITS = {
   },
   soeldner: {
     name: 'Söldner',
+    desc: 'Schwer gerüstet und teuer, bezahlt mit Götterblut.',
     faction: 'mensch',
     hp: 620,
     radius: 32,
@@ -469,6 +510,7 @@ const UNITS = {
   //          ausserhalb der Domaene, so entstehen Aussenposten.
   held: {
     name: 'Held',
+    desc: 'Kommandant der Menschen: baut mit voller Kraft und kämpft stark. Einmalig — fällt er, ist die Partie verloren.',
     faction: 'mensch',
     hp: 6000,
     radius: 36,
@@ -484,6 +526,7 @@ const UNITS = {
   // Wenige, teuer, langsam ausgebildet -- jede einzelne zaehlt.
   waldgott: {
     name: 'Waldgott',
+    desc: 'Der Gott selbst: baut mit voller Kraft und kämpft stark. Einmalig — fällt er, ist die Partie verloren.',
     faction: 'gott',
     hp: 6000,
     radius: 40,
@@ -496,6 +539,7 @@ const UNITS = {
   },
   dryade: {
     name: 'Dryade',
+    desc: 'Arbeiterin: lässt Gebäude wachsen, auch außerhalb der Domäne.',
     faction: 'gott',
     hp: 350,
     radius: 28,
@@ -509,6 +553,7 @@ const UNITS = {
   },
   wolf: {
     name: 'Wolf',
+    desc: 'Schneller, zäher Nahkämpfer.',
     faction: 'gott',
     hp: 540,
     radius: 30,
@@ -520,6 +565,7 @@ const UNITS = {
   },
   waldgeist: {
     name: 'Waldgeist',
+    desc: 'Fernkämpfer: wirft Licht aus großer Entfernung.',
     faction: 'gott',
     hp: 480,
     radius: 30,
@@ -531,6 +577,7 @@ const UNITS = {
   },
   ent: {
     name: 'Ent',
+    desc: 'Uralt, gewaltig und langsam, genährt von Götterblut.',
     faction: 'gott',
     hp: 2100,
     radius: 44,
@@ -2602,6 +2649,86 @@ const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
 
+// ------------------------------------------------------------ Info-Karten
+
+/** Kosten als Text: "120 Fron" oder "130 Fron + 10 Götterblut". */
+function kostenText(cost) {
+  return cost.fron + ' Fron' + (cost.goetterblut ? ` + ${cost.goetterblut} Götterblut` : '');
+}
+
+const tempo = (v) => (v >= 32 ? 'sehr schnell' : v >= 28 ? 'schnell' : v >= 24 ? 'mittel' : v >= 20 ? 'gemächlich' : 'langsam');
+
+/** Gesperrt? Dann der Hinweis, welcher Skill es freischaltet. */
+function sperrText(world, player, typ) {
+  if (!gesperrt(world, player, typ)) return '';
+  const f = world.players[player].faction;
+  const namen = Object.values(SKILLS)
+    .filter((s) => s.faction === f && s.frei && s.frei.includes(typ))
+    .map((s) => s.name);
+  return 'Gesperrt — im Skillbaum (T): ' + namen.join(' oder ');
+}
+
+function karte(titel, desc, zeilen, sperre) {
+  return `<div class="karte"><b>${titel}</b><i>${desc || ''}</i>${sperre ? `<div class="sperre">${sperre}</div>` : ''}
+    <div class="kz">${zeilen.map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('')}</div></div>`;
+}
+
+/** Alles, was man vor dem Bau eines Gebaeudes wissen muss. */
+function gebaeudeKarte(world, player, typ) {
+  const d = BUILDINGS[typ];
+  const z = [];
+  if (!d.vital) z.push(['Kosten', kostenText(d.cost)], ['Bauzeit', sekunden(d.buildTime)]);
+  z.push(['Leben', d.hp + ' LP']);
+  if (d.gegenwartIn) z.push(['Gegenwart', 'braucht ' + d.gegenwartIn]);
+  if (d.gegenwartOut) z.push(['Gegenwart', 'liefert ' + d.gegenwartOut]);
+  if (d.anchor) {
+    const g = FACTIONS[d.faction].growth;
+    const start = Math.max(d.anchorMin || 0, g.start);
+    z.push(['Domäne', g.perTick && g.max > start ? `${meterText(start)}, wächst bis ${meterText(g.max)}` : meterText(start)]);
+  }
+  if (d.fronOut) z.push(['Förderung', d.fronOut + ' Fron/min']);
+  if (d.blutOut) z.push(['Förderung', d.blutOut + ' Götterblut/min']);
+  if (d.needs) z.push(['Standort', d.needs === 'fron' ? 'auf einem Steinvorkommen' : 'auf einer Götterblut-Ader']);
+  if (d.needsGrowth) z.push(['Standort', 'nur auf ungerodetem Boden']);
+  if (d.clears) z.push(['Rodet', meterText(d.clears) + ' ringsum']);
+  if (d.buff) {
+    const was = d.buff.zorn ? `+${prozent(d.buff.zorn)} Schaden` : `−${prozent(d.buff.wehr)} genommener Schaden`;
+    z.push(['Wirkung', `${was} im Umkreis von ${meterText(d.buff.radius)}`]);
+  }
+  if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => UNITS[u].name).join(', ')]);
+  return karte(d.name, d.desc, z, sperrText(world, player, typ));
+}
+
+/** Alles, was man vor der Ausbildung einer Einheit wissen muss. */
+function einheitKarte(world, player, typ) {
+  const d = UNITS[typ];
+  const z = [];
+  if (!d.commander) z.push(['Kosten', kostenText(d.cost)], ['Ausbildung', sekunden(d.buildTime)]);
+  if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Fron/min']);
+  z.push(['Leben', d.hp + ' LP']);
+  if (d.weapon) {
+    const w = d.weapon;
+    z.push(['Schaden', `${w.damage} je Schlag, ${((w.damage * 10) / w.cooldown).toFixed(1)} pro s`]);
+    z.push(['Reichweite', meterText(w.range)]);
+  }
+  z.push(['Tempo', tempo(d.speed)]);
+  if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
+  return karte(d.name, d.desc, z, sperrText(world, player, typ));
+}
+
+/** Ausbildungsliste einer Fabrik: Taste, Name, Kosten, Zeit, Unterhalt. */
+function ausbildungHtml(world, player, typ) {
+  const liste = BUILDINGS[typ].buildList;
+  if (!liste) return '';
+  return liste
+    .map((u, i) => {
+      const d = UNITS[u];
+      if (gesperrt(world, player, u)) return `<div class="zeile zu"><kbd>${'QWER'[i]}</kbd> <s>${d.name}</s> — ${sperrText(world, player, u)}</div>`;
+      return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> · ${kostenText(d.cost)} · ${sekunden(d.buildTime)} · ${d.unterhalt} Fron/min</div>`;
+    })
+    .join('');
+}
+
 /** Erfahrung als kurzer Text, leer ohne Erfahrung. */
 function erfahrungText(world, e) {
   const erf = erfahrung(world, e);
@@ -2733,6 +2860,8 @@ let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = false; // F bei einem Griff: naechster Klick ist das Ziel
 let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
+let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
+let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
 let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
 const tastenGehalten = new Set();
@@ -3528,14 +3657,27 @@ function renderBar() {
   bar.innerHTML = bauListe()
     .map((t, i) => {
       const zu = gesperrt(world, ME, t);
-      return `<button data-b="${t}"${zu ? ' class="zu" title="gesperrt — im Skillbaum (T) freischalten"' : ''}>${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`;
+      return `<button data-b="${t}"${zu ? ' class="zu"' : ''}>${BUILDINGS[t].name}<small>${BUILDINGS[t].cost.fron}</small><kbd>${i + 1}</kbd></button>`;
     })
     .join('');
   for (const b of bar.querySelectorAll('[data-b]')) {
     b.onclick = () => {
       if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
     };
+    b.onmouseenter = () => (karteTyp = b.dataset.b);
+    b.onmouseleave = () => (karteTyp = null);
   }
+}
+
+/** Info-Karte: Gebaeude unter der Maus in der Bauleiste, sonst das, was gerade gesetzt wird. */
+function infoKarte3() {
+  const typ = karteTyp || placing;
+  const html = typ ? gebaeudeKarte(world, ME, typ) : '';
+  if (html === karteHtml) return;
+  karteHtml = html;
+  const el = document.getElementById('karte');
+  el.innerHTML = html;
+  el.hidden = !html;
 }
 
 /** F: Faehigkeit des Kommandanten. Ein Ruf wirkt sofort, ein Griff braucht ein Ziel. */
@@ -3823,6 +3965,7 @@ function frame(now) {
     zeichneUeberlagerung(now);
     zeichneHud();
     skillPanel3();
+    infoKarte3();
     zeichneMini();
   }
   requestAnimationFrame(frame);
@@ -4204,15 +4347,11 @@ function zeichneHud() {
         : e.powered < 1000
           ? `gedrosselt ${Math.round(e.powered / 10)} %`
           : 'versorgt';
-      const tasten = def.buildList
-        ? def.buildList
-            .map((u, i) => (gesperrt(world, ME, u) ? `<kbd>${'QWER'[i]}</kbd> <s>${UNITS[u].name}</s> (Skillbaum)` : `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}`))
-            .join(' · ')
-        : '';
+      const tasten = ausbildungHtml(world, ME, e.type);
       auswahl = `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
-        <div class="keys">${tasten}${def.vital ? '' : ' · <kbd>Entf</kbd> abreißen'}</div></div>`;
+        ${tasten}<div class="keys">${def.vital ? '' : '<kbd>Entf</kbd> abreißen'}</div></div>`;
     } else if (e) {
-      auswahl = `<div class="sel">${auswahlKopf(world, e)}</div>`;
+      auswahl = `<div class="sel">${auswahlKopf(world, e)}${einheitKarte(world, ME, e.type)}</div>`;
     }
   } else if (sel.length > 1) {
     const zahl = {};
@@ -4278,6 +4417,10 @@ function introHtml3() {
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
     (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
     ist die Partie verloren.</p>
+    <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
+    Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
+    Schreine, Verbesserungen und eine Fähigkeit des Kommandanten frei (<kbd>F</kbd>). Wer lange lebt,
+    sammelt ein wenig Erfahrung.</p>
     <p style="color:var(--dim)">Dieselbe Simulation wie die 2D-Ansicht — Modelle sind bewusst einfach.</p>
     <div class="stil">Gegner:
       ${Object.keys(STILE)

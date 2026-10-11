@@ -35,6 +35,8 @@ let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = false; // F bei einem Griff: naechster Klick ist das Ziel
 let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
+let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
+let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
 let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
 const tastenGehalten = new Set();
@@ -830,14 +832,27 @@ function renderBar() {
   bar.innerHTML = bauListe()
     .map((t, i) => {
       const zu = gesperrt(world, ME, t);
-      return `<button data-b="${t}"${zu ? ' class="zu" title="gesperrt — im Skillbaum (T) freischalten"' : ''}>${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`;
+      return `<button data-b="${t}"${zu ? ' class="zu"' : ''}>${BUILDINGS[t].name}<small>${BUILDINGS[t].cost.fron}</small><kbd>${i + 1}</kbd></button>`;
     })
     .join('');
   for (const b of bar.querySelectorAll('[data-b]')) {
     b.onclick = () => {
       if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
     };
+    b.onmouseenter = () => (karteTyp = b.dataset.b);
+    b.onmouseleave = () => (karteTyp = null);
   }
+}
+
+/** Info-Karte: Gebaeude unter der Maus in der Bauleiste, sonst das, was gerade gesetzt wird. */
+function infoKarte3() {
+  const typ = karteTyp || placing;
+  const html = typ ? gebaeudeKarte(world, ME, typ) : '';
+  if (html === karteHtml) return;
+  karteHtml = html;
+  const el = document.getElementById('karte');
+  el.innerHTML = html;
+  el.hidden = !html;
 }
 
 /** F: Faehigkeit des Kommandanten. Ein Ruf wirkt sofort, ein Griff braucht ein Ziel. */
@@ -1125,6 +1140,7 @@ function frame(now) {
     zeichneUeberlagerung(now);
     zeichneHud();
     skillPanel3();
+    infoKarte3();
     zeichneMini();
   }
   requestAnimationFrame(frame);
@@ -1506,15 +1522,11 @@ function zeichneHud() {
         : e.powered < 1000
           ? `gedrosselt ${Math.round(e.powered / 10)} %`
           : 'versorgt';
-      const tasten = def.buildList
-        ? def.buildList
-            .map((u, i) => (gesperrt(world, ME, u) ? `<kbd>${'QWER'[i]}</kbd> <s>${UNITS[u].name}</s> (Skillbaum)` : `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}`))
-            .join(' · ')
-        : '';
+      const tasten = ausbildungHtml(world, ME, e.type);
       auswahl = `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
-        <div class="keys">${tasten}${def.vital ? '' : ' · <kbd>Entf</kbd> abreißen'}</div></div>`;
+        ${tasten}<div class="keys">${def.vital ? '' : '<kbd>Entf</kbd> abreißen'}</div></div>`;
     } else if (e) {
-      auswahl = `<div class="sel">${auswahlKopf(world, e)}</div>`;
+      auswahl = `<div class="sel">${auswahlKopf(world, e)}${einheitKarte(world, ME, e.type)}</div>`;
     }
   } else if (sel.length > 1) {
     const zahl = {};
@@ -1580,6 +1592,10 @@ function introHtml3() {
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
     (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
     ist die Partie verloren.</p>
+    <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
+    Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
+    Schreine, Verbesserungen und eine Fähigkeit des Kommandanten frei (<kbd>F</kbd>). Wer lange lebt,
+    sammelt ein wenig Erfahrung.</p>
     <p style="color:var(--dim)">Dieselbe Simulation wie die 2D-Ansicht — Modelle sind bewusst einfach.</p>
     <div class="stil">Gegner:
       ${Object.keys(STILE)

@@ -18,6 +18,8 @@ let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = false; // F bei einem Griff: naechster Klick ist das Ziel
 const wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
+let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
+let karteHtml = ''; // zuletzt gezeigte Info-Karte
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
 let sel = [];
@@ -283,13 +285,15 @@ function renderBar() {
   bar.innerHTML = bauListe()
     .map((t, i) => {
       const zu = gesperrt(world, ME, t);
-      return `<button data-b="${t}"${zu ? ' class="zu" title="gesperrt — im Skillbaum (T) freischalten"' : ''}>${BUILDINGS[t].name}<kbd>${i + 1}</kbd></button>`;
+      return `<button data-b="${t}"${zu ? ' class="zu"' : ''}>${BUILDINGS[t].name}<small>${BUILDINGS[t].cost.fron}</small><kbd>${i + 1}</kbd></button>`;
     })
     .join('');
   for (const b of bar.querySelectorAll('[data-b]')) {
     b.onclick = () => {
       if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
     };
+    b.onmouseenter = () => (karteTyp = b.dataset.b);
+    b.onmouseleave = () => (karteTyp = null);
   }
 }
 
@@ -332,7 +336,19 @@ function draw() {
   if (placing) drawGhost();
   drawHud();
   skillPanel();
+  infoKarte();
   drawMini();
+}
+
+/** Info-Karte: Gebaeude unter der Maus in der Bauleiste, sonst das, was gerade gesetzt wird. */
+function infoKarte() {
+  const typ = karteTyp || placing;
+  const html = typ ? gebaeudeKarte(world, ME, typ) : '';
+  if (html === karteHtml) return;
+  karteHtml = html;
+  const el = document.getElementById('karte');
+  el.innerHTML = html;
+  el.hidden = !html;
 }
 
 /** Wirkungskreise fertiger Schreine, gestrichelt in der Farbe ihres Volkes. */
@@ -917,25 +933,17 @@ function auswahlHtml() {
   if (sel.length !== 1) return '';
   const e = byId(world, sel[0]);
   if (!e) return '';
-  if (e.kind === 'unit') return `<div class="sel">${auswahlKopf(world, e)}</div>`;
+  if (e.kind === 'unit') return `<div class="sel">${auswahlKopf(world, e)}${einheitKarte(world, ME, e.type)}</div>`;
   const def = BUILDINGS[e.type];
   const zustand = !e.done
     ? `Baustelle ${Math.min(100, Math.floor(e.progress / (def.buildTime * 10)))} %`
     : e.powered < 1000
       ? `gedrosselt ${Math.round(e.powered / 10)} %`
       : 'versorgt';
-  const tasten = def.buildList
-    ? def.buildList
-        .map((u, i) =>
-          gesperrt(world, ME, u)
-            ? `<kbd>${'QWER'[i]}</kbd> <s>${UNITS[u].name}</s> (Skillbaum)`
-            : `<kbd>${'QWER'[i]}</kbd> ${UNITS[u].name}${UNITS[u].cost.goetterblut ? ` (${UNITS[u].cost.goetterblut} Götterblut)` : ''}`
-        )
-        .join(' · ')
-    : '';
-  const abriss = def.vital ? '' : ' · <kbd>Entf</kbd> abreißen';
+  const tasten = ausbildungHtml(world, ME, e.type);
+  const abriss = def.vital ? '' : '<kbd>Entf</kbd> abreißen';
   return `<div class="sel">${auswahlKopf(world, e)} · ${zustand}${e.queue.length ? ` · ${e.queue.length} in Auftrag` : ''}
-    <div class="keys">${tasten}${abriss}</div></div>`;
+    ${tasten}<div class="keys">${abriss}</div></div>`;
 }
 
 function drossel(r) {
@@ -1012,6 +1020,10 @@ function introHtml() {
     ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut, was in seiner Nähe steht,
     auch außerhalb der Domäne. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
     vorn kämpft, entscheidest du.</p>
+    <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
+    Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
+    Schreine, Verbesserungen und eine Fähigkeit des Kommandanten frei (<kbd>F</kbd>). Wer lange lebt,
+    sammelt ein wenig Erfahrung.</p>
     <p class="achten">Die Domäne ist das Werkzeug, nicht das Ziel: Wann fordert sie eine Entscheidung — und wann nervt sie?</p>
     <div class="stil">Gegner:
       ${Object.keys(STILE)

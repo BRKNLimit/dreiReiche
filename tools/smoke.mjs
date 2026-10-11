@@ -81,6 +81,7 @@ const nodes = {
   introGott: makeEl('introGott'),
   introSchau: makeEl('introSchau'),
   skills: makeEl('skills'),
+  karte: makeEl('karte'),
 };
 
 globalThis.document = {

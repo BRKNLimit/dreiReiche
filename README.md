@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.14
+# Die drei Reiche — Prototyp 0.15
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -37,7 +37,8 @@ der Draufsicht.
 
 | Eingabe | Wirkung |
 | --- | --- |
-| Linksklick / Ziehen | Einheiten wählen |
+| Bauleiste überfahren | Info-Karte: Kosten, Bauzeit, Gegenwart, Wirkung, Sperre |
+| Linksklick / Ziehen | Einheiten wählen (Auswahl zeigt Werte, Fabriken ihre Ausbildungsliste) |
 | Rechtsklick | Bewegen (Einheiten stellen Feinde erst am Ziel) |
 | `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |
 | Mittlere Maustaste | Karte schieben · Mausrad zoomen |

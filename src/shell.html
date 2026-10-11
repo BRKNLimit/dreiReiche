@@ -115,6 +115,23 @@
     border: 1px solid var(--line); border-radius: 3px;
     background: #0b0d08; cursor: pointer;
   }
+  /* Info-Karten */
+  #karte {
+    position: absolute; left: 12px; bottom: 58px; z-index: 15; width: min(340px, calc(100% - 24px));
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+    border: 1px solid var(--line); border-radius: 4px; padding: 9px 11px; pointer-events: none;
+  }
+  #karte[hidden] { display: none; }
+  .karte b { display: block; color: var(--accent); font-size: 13px; }
+  .karte i { display: block; color: var(--dim); font-size: 11px; margin: 2px 0 6px; }
+  .karte .sperre { color: var(--bad); font-size: 11px; margin-bottom: 6px; }
+  .karte .kz { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 11px; }
+  .karte .kz span:nth-child(odd) { color: var(--dim); }
+  .sel .karte { margin-top: 6px; }
+  .sel .karte b { display: none; }
+  .zeile { font-size: 11px; margin-top: 2px; }
+  .zeile.zu { color: var(--dim); }
+  #builds button small { color: var(--dim); font-size: 10px; margin-left: 4px; }
   /* Skillbaum */
   #skills {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20;
@@ -147,6 +164,7 @@
   <canvas id="mini" width="340" height="340"></canvas>
   <div id="intro"></div>
   <div id="skills" hidden></div>
+  <div id="karte" hidden></div>
   <div id="bar">
     <span id="builds"></span>
     <div class="sep"></div>
@@ -155,7 +173,7 @@
     <a class="btn" href="drei-reiche-3d.html" title="Dieselbe Simulation in 3D">3D-Ansicht</a>
     <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
     <span class="hint">
-      Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Mausrad zoomt · Mittlere Taste schiebt ·
+      Bauleiste überfahren zeigt Kosten und Werte · Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Mausrad zoomt · Mittlere Taste schiebt ·
       <b>1</b>–<b>7</b> bauen · Gebäude anklicken: <b>Q</b>–<b>R</b> Einheiten, <b>Entf</b> abreißen · <b>K</b> Kommandant · <b>T</b> Skillbaum · <b>F</b> Fähigkeit · <b>I</b> Auswertung · Leertaste pausiert · +/− Tempo
     </span>
   </div>

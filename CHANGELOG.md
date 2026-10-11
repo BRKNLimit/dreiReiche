@@ -3,6 +3,21 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.15 — Info-Karten: wissen, was man baut
+
+- Jede Einheit und jedes Gebäude hat eine Beschreibung (`desc` in
+  `defs.js`); die Zahlen setzt die Oberfläche aus den Daten dazu.
+- **Info-Karte** beim Überfahren der Bauleiste und beim Platzieren: Kosten,
+  Bauzeit, Leben, Gegenwart (braucht/liefert), Domäne, Förderung,
+  Standort, Rodung, Schrein-Wirkung, was die Fabrik ausbildet — und ob es
+  gesperrt ist und welcher Skill es freischaltet.
+- Bauleiste zeigt die Kosten direkt auf den Knöpfen.
+- Gewählte Fabrik: Ausbildungsliste mit Kosten, Zeit und Unterhalt je
+  Einheit. Gewählte Einheit: Leben, Erfahrung, Schaden je Schlag und pro
+  Sekunde, Reichweite, Tempo, Unterhalt, Baukraft.
+- Startbildschirm erklärt Unterhalt, Skillpunkte und Erfahrung.
+- Alles in `src/ui-gemeinsam.js`, dieselben Karten in 2D und 3D.
+
 ## 0.14 — Skillpunkte und Skillbaum
 
 - **Skillpunkte mit der Zeit:** einer zu Beginn, dann einer alle 2 Minuten

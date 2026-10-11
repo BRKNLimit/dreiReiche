@@ -76,10 +76,13 @@ export const FACTIONS = {
   },
 };
 
+// desc: ein, zwei Saetze fuer die Info-Karte; Zahlen setzt die Oberflaeche
+// aus den Daten dazu, damit der Text nie veraltet.
 export const BUILDINGS = {
   // --------------------------------------------------------------- Menschen
   halle: {
     name: 'Thingstätte',
+    desc: 'Hauptgebäude der Menschen. Fällt sie, ist die Partie verloren. Trägt die Startbasis und bildet Bauern und Soldaten aus.',
     // Grunddomaene: deckt die ganze Startbasis mit ihren drei Steinhaufen --
     // Anker braucht man zum Ausgreifen, nicht fuer Strom daheim.
     anchorMin: 4000,
@@ -96,6 +99,7 @@ export const BUILDINGS = {
   },
   turm: {
     name: 'Wachturm',
+    desc: 'Anker: dehnt die Domäne aus, sofort in voller Größe. Nur in der Domäne fließt Gegenwart.',
     short: 'TRM',
     faction: 'mensch',
     hp: 800,
@@ -106,6 +110,7 @@ export const BUILDINGS = {
   },
   schmiede: {
     name: 'Schmiede',
+    desc: 'Liefert Gegenwart in ihr Domänennetz — Kraft für Fabriken, Förderung und Schreine.',
     short: 'SCM',
     faction: 'mensch',
     hp: 900,
@@ -116,6 +121,7 @@ export const BUILDINGS = {
   },
   saege: {
     name: 'Sägewerk',
+    desc: 'Fördert Fron auf einem Steinvorkommen. Rodet den Boden ringsum; dort pflanzt der Gott keinen Hain.',
     short: 'SÄG',
     faction: 'mensch',
     hp: 700,
@@ -130,6 +136,7 @@ export const BUILDINGS = {
   },
   kaserne: {
     name: 'Kaserne',
+    desc: 'Fabrik: bildet alle Einheiten der Menschen aus. Braucht viel Gegenwart.',
     short: 'KAS',
     faction: 'mensch',
     hp: 1500,
@@ -142,6 +149,7 @@ export const BUILDINGS = {
   },
   schacht: {
     name: 'Blutschacht',
+    desc: 'Fördert Götterblut — nur auf einer Götterblut-Ader. Die Adern liegen in der Kartenmitte.',
     short: 'BLS',
     faction: 'mensch',
     hp: 900,
@@ -160,6 +168,7 @@ export const BUILDINGS = {
   // Sie haengen an den letzten Stufen der Drosselleiter. Designzahlen.
   banner: {
     name: 'Kriegsbanner',
+    desc: 'Schrein des Zorns: Eigene Einheiten im Umkreis teilen mehr Schaden aus, solange sie in der eigenen Domäne stehen.',
     short: 'BAN',
     faction: 'mensch',
     hp: 600,
@@ -172,6 +181,7 @@ export const BUILDINGS = {
   },
   kapelle: {
     name: 'Kapelle',
+    desc: 'Schrein der Wehr: Eigene Einheiten im Umkreis nehmen weniger Schaden, solange sie in der eigenen Domäne stehen.',
     short: 'KAP',
     faction: 'mensch',
     hp: 700,
@@ -186,6 +196,7 @@ export const BUILDINGS = {
   // --------------------------------------------------------------- Gott
   herzbaum: {
     name: 'Herzbaum',
+    desc: 'Hauptgebäude des Gottes. Fällt er, ist die Partie verloren. Seine Domäne wächst mit der Zeit; er ruft Dryaden und Wölfe.',
     anchorMin: 4000, // wie die Thingstaette; waechst darueber hinaus bis max
     short: 'HRZ',
     faction: 'gott',
@@ -200,6 +211,7 @@ export const BUILDINGS = {
   },
   hain: {
     name: 'Hain',
+    desc: 'Anker: dehnt die Domäne aus — klein am Anfang, wächst mit der Zeit. Nur auf ungerodetem Boden.',
     short: 'HAI',
     faction: 'gott',
     hp: 600,
@@ -211,6 +223,7 @@ export const BUILDINGS = {
   },
   quelle: {
     name: 'Quellgrund',
+    desc: 'Liefert Gegenwart in ihr Domänennetz — Kraft für Fabriken, Förderung und Schreine.',
     short: 'QUE',
     faction: 'gott',
     hp: 800,
@@ -221,6 +234,7 @@ export const BUILDINGS = {
   },
   moos: {
     name: 'Moosgrube',
+    desc: 'Fördert Fron auf einem Steinvorkommen.',
     short: 'MOS',
     faction: 'gott',
     hp: 700,
@@ -234,6 +248,7 @@ export const BUILDINGS = {
   },
   dickicht: {
     name: 'Dickicht',
+    desc: 'Fabrik: ruft alle Geschöpfe des Waldes. Braucht viel Gegenwart.',
     short: 'DIC',
     faction: 'gott',
     hp: 1500,
@@ -246,6 +261,7 @@ export const BUILDINGS = {
   },
   blutwurz: {
     name: 'Blutwurz',
+    desc: 'Fördert Götterblut — nur auf einer Götterblut-Ader. Die Adern liegen in der Kartenmitte.',
     short: 'BLW',
     faction: 'gott',
     hp: 900,
@@ -260,6 +276,7 @@ export const BUILDINGS = {
   // Beim Gott staerker: sein Wald ist sein Heimvorteil.
   dornenschrein: {
     name: 'Dornenschrein',
+    desc: 'Schrein des Zorns: Eigene Einheiten im Umkreis teilen mehr Schaden aus, solange sie in der eigenen Domäne stehen.',
     short: 'DOR',
     faction: 'gott',
     hp: 600,
@@ -272,6 +289,7 @@ export const BUILDINGS = {
   },
   steinkreis: {
     name: 'Steinkreis',
+    desc: 'Schrein der Wehr: Eigene Einheiten im Umkreis nehmen weniger Schaden, solange sie in der eigenen Domäne stehen.',
     short: 'STK',
     faction: 'gott',
     hp: 700,
@@ -291,6 +309,7 @@ export const UNITS = {
   // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
   bauer: {
     name: 'Bauer',
+    desc: 'Arbeiter: baut Gebäude, auch außerhalb der Domäne. Kämpft nur zur Not.',
     faction: 'mensch',
     hp: 150,
     radius: 24,
@@ -305,6 +324,7 @@ export const UNITS = {
   },
   soldat: {
     name: 'Soldat',
+    desc: 'Günstiger Nahkämpfer — die Masse des Heeres.',
     faction: 'mensch',
     hp: 200,
     radius: 26,
@@ -316,6 +336,7 @@ export const UNITS = {
   },
   jaeger: {
     name: 'Jäger',
+    desc: 'Fernkämpfer: schießt aus der zweiten Reihe, hält wenig aus.',
     faction: 'mensch',
     hp: 180,
     radius: 24,
@@ -327,6 +348,7 @@ export const UNITS = {
   },
   soeldner: {
     name: 'Söldner',
+    desc: 'Schwer gerüstet und teuer, bezahlt mit Götterblut.',
     faction: 'mensch',
     hp: 620,
     radius: 32,
@@ -349,6 +371,7 @@ export const UNITS = {
   //          ausserhalb der Domaene, so entstehen Aussenposten.
   held: {
     name: 'Held',
+    desc: 'Kommandant der Menschen: baut mit voller Kraft und kämpft stark. Einmalig — fällt er, ist die Partie verloren.',
     faction: 'mensch',
     hp: 6000,
     radius: 36,
@@ -364,6 +387,7 @@ export const UNITS = {
   // Wenige, teuer, langsam ausgebildet -- jede einzelne zaehlt.
   waldgott: {
     name: 'Waldgott',
+    desc: 'Der Gott selbst: baut mit voller Kraft und kämpft stark. Einmalig — fällt er, ist die Partie verloren.',
     faction: 'gott',
     hp: 6000,
     radius: 40,
@@ -376,6 +400,7 @@ export const UNITS = {
   },
   dryade: {
     name: 'Dryade',
+    desc: 'Arbeiterin: lässt Gebäude wachsen, auch außerhalb der Domäne.',
     faction: 'gott',
     hp: 350,
     radius: 28,
@@ -389,6 +414,7 @@ export const UNITS = {
   },
   wolf: {
     name: 'Wolf',
+    desc: 'Schneller, zäher Nahkämpfer.',
     faction: 'gott',
     hp: 540,
     radius: 30,
@@ -400,6 +426,7 @@ export const UNITS = {
   },
   waldgeist: {
     name: 'Waldgeist',
+    desc: 'Fernkämpfer: wirft Licht aus großer Entfernung.',
     faction: 'gott',
     hp: 480,
     radius: 30,
@@ -411,6 +438,7 @@ export const UNITS = {
   },
   ent: {
     name: 'Ent',
+    desc: 'Uralt, gewaltig und langsam, genährt von Götterblut.',
     faction: 'gott',
     hp: 2100,
     radius: 44,

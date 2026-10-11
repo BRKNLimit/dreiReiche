@@ -85,7 +85,11 @@
     font: 500 22px/1 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
     font-variant-numeric: tabular-nums;
   }
-  #ressourcen .ri { display: flex; align-items: center; gap: 9px; min-width: 64px; }
+  #ressourcen .ri { display: flex; align-items: center; gap: 9px; }
+  /* feste Breite je Zahl: die Leiste waechst nicht, wenn Zahlen groesser werden */
+  #ressourcen .ri span { display: inline-block; width: 4.6ch; text-align: left; }
+  #ressourcen .ri:first-child span { width: 2.4ch; }
+  #ressourcen .frei { color: #f7b55a; }
   #ressourcen svg { width: 24px; height: 24px; flex: none; }
   #ressourcen .knapp { color: #ff8a6a; }
   /* Info-Karten */

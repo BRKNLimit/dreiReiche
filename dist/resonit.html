@@ -123,7 +123,11 @@
     font: 500 22px/1 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
     font-variant-numeric: tabular-nums;
   }
-  #ressourcen .ri { display: flex; align-items: center; gap: 9px; min-width: 64px; }
+  #ressourcen .ri { display: flex; align-items: center; gap: 9px; }
+  /* feste Breite je Zahl: die Leiste waechst nicht, wenn Zahlen groesser werden */
+  #ressourcen .ri span { display: inline-block; width: 4.6ch; text-align: left; }
+  #ressourcen .ri:first-child span { width: 2.4ch; }
+  #ressourcen .frei { color: #f7b55a; }
   #ressourcen svg { width: 24px; height: 24px; flex: none; }
   #ressourcen .knapp { color: #ff8a6a; }
   /* Info-Karten */
@@ -3482,8 +3486,79 @@ function winkel(a, b) {
 
 /* ---------------------------------- */
 
+// Icons: Ressourcen, Einheiten, Gebaeude, Faehigkeiten, Skills.
+// Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
+// anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
+// Dateien (gl, MAP, KARTE, ...) sind dort global. Exporte gibt es nur fuer die
+// Tests unter Node.
+//
+// Jedes Icon ist ein SVG-String mit viewBox="0 0 24 24", ohne feste Groesse
+// (die Oberflaeche setzt sie per CSS). Stil: der Entwurf des Nutzers fuer die
+// Ressourcenleiste (docs/bilder/ressourcenleiste-entwurf.png) -- klare Formen,
+// kraeftige Farben, lesbar ab 20 px. Einheiten und Gebaeude: helle Silhouette,
+// Fraktionsfarbe als Akzent (Menschen #d8b06a, Gott #8fb86a).
+
+/** Platzhalter: Kreis mit Kuerzel, bis ein richtiges Icon da ist. */
+function platzhalter(text, farbe) {
+  return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="${farbe}" stroke-width="1.6"/><text x="12" y="16" text-anchor="middle" font-size="10" font-family="sans-serif" fill="${farbe}">${text}</text></svg>`;
+}
+const M = '#d8b06a';
+const G = '#8fb86a';
+const ICONS = {
+  // Ressourcenleiste
+  skillpunkte: `<svg viewBox="0 0 24 24" fill="none" stroke="#f7b55a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.8v2M4.6 4.8l1.3 1.3M19.4 4.8l-1.3 1.3M2.2 11h2M19.8 11h2"/><path d="M8.3 16.2a6.2 6.2 0 1 1 7.4 0c-.8.6-1.1 1.3-1.1 2.1v.7H9.4v-.7c0-.8-.3-1.5-1.1-2.1z"/><path d="M9.4 19.6h5.2"/><path d="M9.9 21.6h4.2"/></svg>`,
+  gegenwart: `<svg viewBox="0 0 24 24"><path d="M13.2 1.8 4.6 13.6h6.1l-1.5 8.6 9.2-12.4h-6.3z" fill="#8fd8ff" stroke="#d8f4ff" stroke-width=".8" stroke-linejoin="round"/></svg>`,
+  goetterblut: `<svg viewBox="0 0 24 24"><path d="M12 2.2 6 12.6a6.9 6.9 0 1 0 12 0z" fill="#ff3434"/></svg>`,
+  fron: `<svg viewBox="0 0 24 24"><path d="M2.5 6.4 6.6 4.3l3.2 2.1-.9 5.2-4.7 1.9z" fill="#c9ffe0"/><path d="M9.8 5.1 14.6 2.2l5 1.9 1.1 5.9-4.6 3.8-5.4-2.1z" fill="#e6fff0"/><path d="M14.6 2.2l5 1.9-3.4 3.3z" fill="#7dffae"/><path d="M3.4 13.8 9.6 11.4l5.3 2.1-2.2 6.3H6z" fill="#1fd35a"/><path d="M9.6 11.4l5.3 2.1-4.1 1.6z" fill="#9dffc2"/><path d="M14.9 13.6l6-3.2 1.1 6.4-4.2 3.3h-4.1z" fill="#0fae3e"/><path d="M3.4 13.8 6 19.8H3z" fill="#078a2c"/></svg>`,
+  // Einheiten
+  bauer: platzhalter('Ba', M),
+  soldat: platzhalter('So', M),
+  jaeger: platzhalter('Jä', M),
+  soeldner: platzhalter('Sö', M),
+  katapult: platzhalter('Ka', M),
+  held: platzhalter('He', M),
+  dryade: platzhalter('Dr', G),
+  wolf: platzhalter('Wo', G),
+  waldgeist: platzhalter('Wg', G),
+  ent: platzhalter('En', G),
+  wurzelbrecher: platzhalter('Wb', G),
+  waldgott: platzhalter('Go', G),
+  // Gebaeude
+  halle: platzhalter('Th', M),
+  grenzstein: platzhalter('Gr', M),
+  wachturm: platzhalter('Wt', M),
+  schmiede: platzhalter('Sm', M),
+  saege: platzhalter('Sä', M),
+  kaserne: platzhalter('Ks', M),
+  schacht: platzhalter('Bs', M),
+  banner: platzhalter('Kb', M),
+  kapelle: platzhalter('Kp', M),
+  skriptorium: platzhalter('Sk', M),
+  herzbaum: platzhalter('Hb', G),
+  hain: platzhalter('Ha', G),
+  waechterbaum: platzhalter('Wä', G),
+  quelle: platzhalter('Qu', G),
+  moos: platzhalter('Mo', G),
+  dickicht: platzhalter('Di', G),
+  blutwurz: platzhalter('Bw', G),
+  dornenschrein: platzhalter('Ds', G),
+  steinkreis: platzhalter('Sk', G),
+  eiche: platzhalter('Ei', G),
+  // Faehigkeiten der Kommandanten
+  schlachtruf: platzhalter('Ru', M),
+  schildwall: platzhalter('Sw', M),
+  ansturm: platzhalter('An', M),
+  wurzelgriff: platzhalter('Wu', G),
+  lebenssaft: platzhalter('Ls', G),
+  rudelruf: platzhalter('Rr', G),
+};
+
+
+/* ---------------------------------- */
+
 // Gemeinsame Texte fuer beide Oberflaechen (2D und 3D). Liest den Zustand,
 // aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
+
 
 
 
@@ -3531,13 +3606,9 @@ function nebelHelligkeit(nebel, ziel) {
 
 // ------------------------------------------------------------ Ressourcenleiste
 // Nach dem Entwurf des Nutzers: dunkle Leiste oben links, rechts rund
-// auslaufend; Gluehbirne = Gegenwart (Energie), Tropfen = Goetterblut,
-// gruene Kristalle = Fron (Masse).
-const ICON_GEGENWART = `<svg viewBox="0 0 24 24" fill="none" stroke="#f7b55a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.8v2M4.6 4.8l1.3 1.3M19.4 4.8l-1.3 1.3M2.2 11h2M19.8 11h2"/><path d="M8.3 16.2a6.2 6.2 0 1 1 7.4 0c-.8.6-1.1 1.3-1.1 2.1v.7H9.4v-.7c0-.8-.3-1.5-1.1-2.1z"/><path d="M9.4 19.6h5.2"/><path d="M9.9 21.6h4.2"/></svg>`;
-const ICON_BLUT = `<svg viewBox="0 0 24 24"><path d="M12 2.2 6 12.6a6.9 6.9 0 1 0 12 0z" fill="#ff3434"/></svg>`;
-const ICON_FRON = `<svg viewBox="0 0 24 24"><path d="M2.5 6.4 6.6 4.3l3.2 2.1-.9 5.2-4.7 1.9z" fill="#c9ffe0"/><path d="M9.8 5.1 14.6 2.2l5 1.9 1.1 5.9-4.6 3.8-5.4-2.1z" fill="#e6fff0"/><path d="M14.6 2.2l5 1.9-3.4 3.3z" fill="#7dffae"/><path d="M3.4 13.8 9.6 11.4l5.3 2.1-2.2 6.3H6z" fill="#1fd35a"/><path d="M9.6 11.4l5.3 2.1-4.1 1.6z" fill="#9dffc2"/><path d="M14.9 13.6l6-3.2 1.1 6.4-4.2 3.3h-4.1z" fill="#0fae3e"/><path d="M3.4 13.8 6 19.8H3z" fill="#078a2c"/></svg>`;
-
-/** Ressourcenleiste: Gegenwart-Ueberschuss aller Netze, Goetterblut, Fron. */
+// auslaufend; Gluehbirne = freie Skillpunkte, Blitz = Gegenwart, Tropfen =
+// Goetterblut, gruene Kristalle = Fron. Icons in src/icons.js.
+/** Ressourcenleiste: freie Skillpunkte, Gegenwart-Ueberschuss aller Netze, Goetterblut, Fron. */
 function ressourcenHtml(world, player) {
   const p = world.players[player];
   let angebot = 0;
@@ -3552,9 +3623,10 @@ function ressourcenHtml(world, player) {
   const eintrag = (icon, wert, titel, klasse = '') =>
     `<div class="ri" title="${titel}">${icon}<span class="${klasse}">${wert}</span></div>`;
   return (
-    eintrag(ICON_GEGENWART, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
-    eintrag(ICON_BLUT, p.goetterblut, 'Götterblut') +
-    eintrag(ICON_FRON, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
+    eintrag(ICONS.skillpunkte, skillFrei(world, player), 'Skillpunkte, die du ausgeben kannst (T)', skillFrei(world, player) > 0 ? 'frei' : '') +
+    eintrag(ICONS.gegenwart, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
+    eintrag(ICONS.goetterblut, p.goetterblut, 'Götterblut') +
+    eintrag(ICONS.fron, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
   );
 }
 
@@ -3804,7 +3876,59 @@ function faehigkeitFarbe(art) {
 
 /* ---------------------------------- */
 
-// Darstellung und Eingabe. Aendert den Simulationszustand nie direkt,
+// Gelaende der 2D-Ansicht: Boden, gerodete Flaechen, Felsen und Seen.
+// Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
+// anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
+// Dateien (gl, MAP, KARTE, ...) sind dort global. Exporte gibt es nur fuer die
+// Tests unter Node.
+// Globale aus ui.js: ctx, cam, w2sx, w2sy, s2wx, s2wy, COL, world.
+function drawGrid(W, H) {
+  const s = 2000;
+  ctx.strokeStyle = COL.grid;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = Math.floor(s2wx(0) / s) * s; x < s2wx(W) + s; x += s) {
+    const sx = Math.round(w2sx(x)) + 0.5;
+    ctx.moveTo(sx, 0);
+    ctx.lineTo(sx, H);
+  }
+  for (let y = Math.floor(s2wy(0) / s) * s; y < s2wy(H) + s; y += s) {
+    const sy = Math.round(w2sy(y)) + 0.5;
+    ctx.moveTo(0, sy);
+    ctx.lineTo(W, sy);
+  }
+  ctx.stroke();
+  ctx.strokeStyle = '#2a3022';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(w2sx(0), w2sy(0), MAP * cam.z, MAP * cam.z);
+}
+function drawCleared() {
+  ctx.fillStyle = COL.cleared;
+  for (const c of world.cleared) {
+    ctx.beginPath();
+    ctx.arc(w2sx(c.x), w2sy(c.y), c.r * cam.z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** Felsen und Seen: unpassierbar, nicht bebaubar. */
+function drawHindernisse() {
+  for (const h of world.hindernisse) {
+    ctx.fillStyle = h.art === 'see' ? '#1d3a4d' : '#34352d';
+    ctx.strokeStyle = h.art === 'see' ? '#2c5670' : '#4c4e42';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(w2sx(h.x), w2sy(h.y), h.r * cam.z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+
+/* ---------------------------------- */
+
+// Darstellung und Eingabe. Gelaende-Zeichnung liegt in src/gelaende2d.js
+// (siehe GEMINI.md). Aendert den Simulationszustand nie direkt,
 // sondern nur ueber issue(). Wird von tools/bundle.mjs mit der Sim
 // zusammengefuegt -- deshalb hier keine Imports.
 
@@ -4270,35 +4394,7 @@ function markierung(e) {
   return e.gebundenBis > t ? 'griff' : e.wehrBis > t ? 'wehr' : e.rufBis > t ? 'ruf' : e.tempoBis > t ? 'tempo' : e.beschworen ? 'rufen' : null;
 }
 
-function drawGrid(W, H) {
-  const s = 2000;
-  ctx.strokeStyle = COL.grid;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = Math.floor(s2wx(0) / s) * s; x < s2wx(W) + s; x += s) {
-    const sx = Math.round(w2sx(x)) + 0.5;
-    ctx.moveTo(sx, 0);
-    ctx.lineTo(sx, H);
-  }
-  for (let y = Math.floor(s2wy(0) / s) * s; y < s2wy(H) + s; y += s) {
-    const sy = Math.round(w2sy(y)) + 0.5;
-    ctx.moveTo(0, sy);
-    ctx.lineTo(W, sy);
-  }
-  ctx.stroke();
-  ctx.strokeStyle = '#2a3022';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(w2sx(0), w2sy(0), MAP * cam.z, MAP * cam.z);
-}
 
-function drawCleared() {
-  ctx.fillStyle = COL.cleared;
-  for (const c of world.cleared) {
-    ctx.beginPath();
-    ctx.arc(w2sx(c.x), w2sy(c.y), c.r * cam.z, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
 
 /** Die Domäne ist die wichtigste Linie im Spiel -- also die auffälligste. */
 function drawDomains() {
@@ -4385,18 +4481,6 @@ function grenzlinie(anker, farbe, breite, alpha) {
   ctx.restore();
 }
 
-/** Felsen und Seen: unpassierbar, nicht bebaubar. */
-function drawHindernisse() {
-  for (const h of world.hindernisse) {
-    ctx.fillStyle = h.art === 'see' ? '#1d3a4d' : '#34352d';
-    ctx.strokeStyle = h.art === 'see' ? '#2c5670' : '#4c4e42';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(w2sx(h.x), w2sy(h.y), h.r * cam.z, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  }
-}
 
 function drawDeposits() {
   for (const d of world.deposits) {

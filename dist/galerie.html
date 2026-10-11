@@ -1,0 +1,1858 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Die drei Reiche — Galerie</title>
+<style>
+  :root {
+    --bg: #12140f;
+    --panel: #1a1e15;
+    --line: #2c3327;
+    --text: #d8dcd0;
+    --dim: #7d8575;
+    --accent: #d8b06a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+  }
+  #kopf {
+    position: fixed; top: 0; left: 0; right: 0; height: 52px; z-index: 5;
+    display: flex; align-items: center; gap: 8px; padding: 0 14px;
+    background: #021722; border-bottom: 1px solid var(--line);
+  }
+  #kopf h1 { margin: 0 14px 0 0; font-size: 15px; color: var(--accent); font-weight: 600; }
+  #kopf button {
+    font: inherit; color: var(--text); background: #20261a; border: 1px solid var(--line);
+    border-radius: 3px; padding: 6px 11px; cursor: pointer;
+  }
+  #kopf button.an { border-color: var(--accent); color: #fff; }
+  #hinweis { margin-left: auto; color: var(--dim); font-size: 12px; }
+  #leinwand { position: fixed; top: 52px; left: 0; width: 100%; height: calc(100% - 52px); display: block; }
+  #schilder { position: fixed; top: 52px; left: 0; right: 0; bottom: 0; pointer-events: none; }
+  .schild {
+    position: absolute; padding: 3px 8px; font-size: 12px; color: #fff;
+    background: rgba(2, 23, 34, .78); border-radius: 0 0 6px 0;
+  }
+  #icons {
+    position: fixed; top: 52px; left: 0; right: 0; bottom: 0; overflow: auto; padding: 18px;
+    display: none; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; align-content: start;
+  }
+  .ic { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px; text-align: center; }
+  .ic .reihe { display: flex; align-items: end; justify-content: center; gap: 10px; height: 72px; }
+  .ic .reihe span { display: inline-block; }
+  .ic .reihe svg { width: 100%; height: 100%; }
+  .ic b { display: block; margin-top: 6px; font-weight: 500; font-size: 12px; }
+  #nogl { position: fixed; inset: 52px 0 0 0; display: none; align-items: center; justify-content: center; color: var(--dim); }
+</style>
+</head>
+<body>
+<div id="kopf">
+  <h1>Galerie</h1>
+  <button data-ansicht="waldgott" class="an">Waldgott-Varianten</button>
+  <button data-ansicht="einheiten">Einheiten</button>
+  <button data-ansicht="gebaeude">Gebäude</button>
+  <button data-ansicht="karte">Karte und Effekte</button>
+  <button data-ansicht="icons">Icons</button>
+  <span id="hinweis">Welche Variante gefällt dir am besten? Nenne ihren Buchstaben.</span>
+</div>
+<canvas id="leinwand"></canvas>
+<div id="schilder"></div>
+<div id="icons"></div>
+<div id="nogl">Dieser Browser kann kein WebGL 2.</div>
+<script>
+// Datenschicht. Keine Logik hier drin.
+// Alle Werte Integer. Entfernungen in Dezimetern, Zeiten in Ticks (10 Hz),
+// Gegenwart pro Tick, Foerderung (fronOut, blutOut) pro Minute.
+//
+// Zwei Fraktionen, dieselben Systeme, dieselben Ressourcen. Der einzige
+// strukturelle Unterschied steckt in anchor.growth -- siehe FACTIONS.
+const TICK_MS = 100;
+const MAP = 20000; // 2000 m -- Mittelalter, Fusstruppen
+
+// Gegenwart-Prioritaet: wer zuerst bedient wird, wird zuletzt gedrosselt.
+// Drosselleiter: Bauwerke zuerst, dann Segnungen, dann Wehr, zuletzt Zorn.
+const PRIO = {
+  zorn: 0, // Waffen -- fallen als Letztes
+  wehr: 1, // Schutzzauber
+  segen: 2, // Foerderung, Produktion
+  werk: 3, // Baustellen und Fabriken -- fallen zuerst
+};
+const PRIO_NAMES = ['Zorn', 'Wehr', 'Segen', 'Werk'];
+
+// Regeln, die fuer alle Fraktionen gleich gelten. Ein Objekt, damit Messungen
+// (tools/match.mjs) sie umschalten koennen, ohne die Datei zu aendern.
+const RULES = {
+  // Mindestfluss fuer Werk (Fabriken), in Promille der Versorgung einer
+  // Domaene. Werk faellt weiter zuerst -- aber nie ganz auf null, solange
+  // ueberhaupt Gegenwart fliesst. Eingefuehrt fuer Baustellen, die frueher
+  // Gegenwart brauchten; seit 0.16 bauen nur Erbauer, und Baustellen ziehen
+  // keine Gegenwart mehr.
+  werkFloor: 125,
+
+  // Schaden in fremder Domaene, in Promille. 1000 = kein Malus.
+  // Offene Designfrage aus docs/konzept.md: Macht ein Malus die Grenze zum
+  // eigentlichen Schlachtfeld? Messung in docs/scope.md.
+  fremdMalus: 1000,
+
+  // Gegenwart, die jeder fertige Anker spendet, pro 100 m Radius.
+  // konzept.md nennt "Schreine und Anker" als Herkunft der Gegenwart; bisher
+  // spendeten nur die Hauptgebaeude. Damit haengt die Wirtschaft an der
+  // einen Regel: ein grosser Kreis traegt mehr als ein kleiner. 0 = aus.
+  ankerKraft: 0,
+
+  // Jeder Spieler beginnt mit seinem Kommandanten (UNITS mit commander).
+  // Aus nur fuer Vergleichsmessungen.
+  kommandanten: true,
+
+  // Erfahrung: Wer lange lebt, wird ein wenig staerker -- teilt mehr Schaden
+  // aus und nimmt weniger. Promille je voller Minute seit Entstehung (Einheit)
+  // bzw. Bauende (Gebaeude), gedeckelt. Bewusst klein. 0 = aus.
+  erfahrungProMin: 10,
+  erfahrungMax: 100,
+
+  // Reparatur: Erbauer mit Auftrag direkt neben einem beschaedigten fertigen
+  // Gebaeude geben ihm Leben zurueck -- reparaturProTick LP je Tick bei voller
+  // Baukraft. Je reparaturLpJeFron LP kostet es 1 Fron; ohne Fron keine
+  // Reparatur.
+  reparaturProTick: 3,
+  reparaturLpJeFron: 20,
+
+  // Skillbaum (SKILLS): Punkte kommen mit der Zeit -- skillStart zu Beginn,
+  // dann einer je skillTakt Ticks. Forschungsgebaeude (forschung, Promille)
+  // beschleunigen den Takt. Aus = alles frei, keine Verbesserungen; nur fuer
+  // Vergleichsmessungen.
+  skills: true,
+  skillStart: 1,
+  skillTakt: 1200,
+};
+const FACTIONS = {
+  mensch: {
+    name: 'Menschen',
+    color: '#d8b06a',
+    // Radius steht bei Bauende fest. Planbar, sofort, ueberall gleich.
+    growth: { start: 2600, max: 2600, perTick: 0 },
+    kommandant: 'held',
+    faehigkeiten: ['schlachtruf', 'schildwall', 'ansturm'], // Reihenfolge = Tasten Q, W, E
+  },
+  gott: {
+    name: 'Wald- und Wiesengott',
+    color: '#7fb069',
+    // Radius waechst mit dem Alter des Ankers. Frueh winzig, spaet riesig.
+    // 1 dm/Tick: nach gut 7 Minuten (4250 Ticks) am Maximum.
+    // start 950 statt 900: bei 160 KI-Partien ausgeglichen (docs/scope.md).
+    growth: { start: 950, max: 5200, perTick: 1 },
+    kommandant: 'waldgott',
+    faehigkeiten: ['wurzelgriff', 'lebenssaft', 'rudelruf'],
+  },
+};
+
+// sicht: Sichtweite im Nebel des Krieges, Dezimeter (sonst Einheiten 900,
+// fertige Gebaeude 700, Baustellen 400).
+// desc: ein, zwei Saetze fuer die Info-Karte; Zahlen setzt die Oberflaeche
+// aus den Daten dazu, damit der Text nie veraltet.
+const BUILDINGS = {
+  // --------------------------------------------------------------- Menschen
+  halle: {
+    name: 'Thingstätte',
+    sicht: 1300, // Sichtweite (Nebel des Krieges)
+    desc: 'Hauptgebäude der Menschen. Fällt sie, ist die Partie verloren. Trägt die Startbasis und bildet Bauern und Soldaten aus.',
+    // Grunddomaene: deckt die ganze Startbasis mit ihren drei Steinhaufen --
+    // Anker braucht man zum Ausgreifen, nicht fuer Strom daheim.
+    anchorMin: 4000,
+    short: 'HAL',
+    faction: 'mensch',
+    hp: 5000,
+    radius: 90,
+    anchor: true,
+    gegenwartOut: 24,
+    cost: { fron: 0 },
+    buildTime: 0,
+    buildList: ['bauer', 'soldat'],
+    vital: true,
+  },
+  grenzstein: {
+    name: 'Grenzstein',
+    sicht: 900, // Sichtweite (Nebel des Krieges)
+    desc: 'Anker: dehnt die Domäne aus, sofort in voller Größe. Nur in der Domäne fließt Gegenwart.',
+    short: 'GRZ',
+    faction: 'mensch',
+    hp: 800,
+    radius: 48,
+    anchor: true,
+    cost: { fron: 120 },
+    buildTime: 150,
+  },
+  wachturm: {
+    name: 'Wachturm',
+    sicht: 1200, // Sichtweite (Nebel des Krieges)
+    desc: 'Verteidigung: Schützen schießen Pfeile auf Feinde in Reichweite. Braucht Gegenwart — ohne schweigt er.',
+    short: 'WTM',
+    faction: 'mensch',
+    hp: 3000,
+    radius: 40,
+    gegenwartIn: 10,
+    prio: PRIO.zorn, // Waffen fallen zuletzt
+    cost: { fron: 300 },
+    buildTime: 250,
+    kampf: 'fern',
+    // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
+    // doppelte (Messung in docs/scope.md). Schiesst nur mit Gegenwart.
+    weapon: { range: 900, damage: 60, cooldown: 4 },
+  },
+  schmiede: {
+    name: 'Schmiede',
+    desc: 'Liefert Gegenwart in ihr Domänennetz — Kraft für Fabriken, Förderung und Schreine.',
+    short: 'SCM',
+    faction: 'mensch',
+    hp: 900,
+    radius: 60,
+    gegenwartOut: 40,
+    cost: { fron: 280 },
+    buildTime: 230,
+  },
+  saege: {
+    name: 'Sägewerk',
+    desc: 'Fördert Fron auf einem Steinvorkommen. Rodet den Boden ringsum; dort pflanzt der Gott keinen Hain.',
+    short: 'SÄG',
+    faction: 'mensch',
+    hp: 700,
+    radius: 55,
+    gegenwartIn: 14,
+    prio: PRIO.segen,
+    fronOut: 360, // Fron pro Minute bei voller Versorgung
+    cost: { fron: 150 },
+    buildTime: 170,
+    needs: 'fron',
+    clears: 2200, // rodet den Boden ringsum -- nimmt dem Gott Wachstumsgrund
+  },
+  kaserne: {
+    name: 'Kaserne',
+    desc: 'Fabrik: bildet alle Einheiten der Menschen aus. Braucht viel Gegenwart.',
+    short: 'KAS',
+    faction: 'mensch',
+    hp: 1500,
+    radius: 80,
+    gegenwartIn: 55,
+    prio: PRIO.werk,
+    cost: { fron: 400 },
+    buildTime: 340,
+    buildList: ['soldat', 'jaeger', 'soeldner', 'katapult'], // Bauern bildet die Thingstaette aus
+  },
+  schacht: {
+    name: 'Blutschacht',
+    desc: 'Fördert Götterblut — nur auf einer Götterblut-Ader. Die Adern liegen in der Kartenmitte.',
+    short: 'BLS',
+    faction: 'mensch',
+    hp: 900,
+    radius: 60,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    blutOut: 40, // Goetterblut pro Minute bei voller Versorgung
+    cost: { fron: 250 },
+    buildTime: 210,
+    needs: 'goetterblut', // nur auf einer Ader -- und die liegen in der Mitte
+  },
+  // Schreine: Heimvorteil kommt aus der Domaene, nicht aus den Einheiten.
+  // Ein versorgter Schrein staerkt alle eigenen Einheiten, die im selben
+  // Domaenennetz stehen -- zorn: mehr Schaden, wehr: weniger Schaden
+  // genommen (Promille, mit der Versorgung skaliert, stapelt nicht).
+  // Sie haengen an den letzten Stufen der Drosselleiter. Designzahlen.
+  banner: {
+    name: 'Kriegsbanner',
+    desc: 'Schrein des Zorns: Eigene Einheiten im Umkreis teilen mehr Schaden aus, solange sie in der eigenen Domäne stehen.',
+    short: 'BAN',
+    faction: 'mensch',
+    hp: 600,
+    radius: 40,
+    gegenwartIn: 15,
+    prio: PRIO.zorn,
+    cost: { fron: 160 },
+    buildTime: 170,
+    buff: { zorn: 250, radius: 3000 },
+  },
+  kapelle: {
+    name: 'Kapelle',
+    desc: 'Schrein der Wehr: Eigene Einheiten im Umkreis nehmen weniger Schaden, solange sie in der eigenen Domäne stehen.',
+    short: 'KAP',
+    faction: 'mensch',
+    hp: 700,
+    radius: 50,
+    gegenwartIn: 15,
+    prio: PRIO.wehr,
+    cost: { fron: 160 },
+    buildTime: 170,
+    buff: { wehr: 200, radius: 3000 },
+  },
+  skriptorium: {
+    name: 'Skriptorium',
+    desc: 'Forschung: Mönche schreiben, sammeln und ordnen — Skillpunkte kommen schneller. Braucht Gegenwart.',
+    short: 'SKR',
+    faction: 'mensch',
+    hp: 900,
+    radius: 55,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    cost: { fron: 250 },
+    buildTime: 230,
+    forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
+  },
+
+  // --------------------------------------------------------------- Gott
+  herzbaum: {
+    name: 'Herzbaum',
+    sicht: 1300, // Sichtweite (Nebel des Krieges)
+    desc: 'Hauptgebäude des Gottes. Fällt er, ist die Partie verloren. Seine Domäne wächst mit der Zeit; er ruft Dryaden und Wölfe.',
+    anchorMin: 4000, // wie die Thingstaette; waechst darueber hinaus bis max
+    short: 'HRZ',
+    faction: 'gott',
+    hp: 5000,
+    radius: 90,
+    anchor: true,
+    gegenwartOut: 24,
+    cost: { fron: 0 },
+    buildTime: 0,
+    buildList: ['dryade', 'wolf'],
+    vital: true,
+  },
+  hain: {
+    name: 'Hain',
+    sicht: 900, // Sichtweite (Nebel des Krieges)
+    desc: 'Anker: dehnt die Domäne aus — klein am Anfang, wächst mit der Zeit. Nur auf ungerodetem Boden.',
+    short: 'HAI',
+    faction: 'gott',
+    hp: 600,
+    radius: 48,
+    anchor: true,
+    cost: { fron: 110 },
+    buildTime: 190,
+    needsGrowth: true, // nur auf ungerodetem Boden
+  },
+  waechterbaum: {
+    name: 'Wächterbaum',
+    sicht: 1200, // Sichtweite (Nebel des Krieges)
+    desc: 'Verteidigung: schleudert Dornen auf Feinde in Reichweite. Braucht Gegenwart — ohne schläft er.',
+    short: 'WBA',
+    faction: 'gott',
+    hp: 3000,
+    radius: 40,
+    gegenwartIn: 10,
+    prio: PRIO.zorn, // Waffen fallen zuletzt
+    cost: { fron: 300 },
+    buildTime: 250,
+    kampf: 'fern',
+    // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
+    // doppelte (Messung in docs/scope.md). Schiesst nur mit Gegenwart.
+    weapon: { range: 900, damage: 60, cooldown: 4 },
+  },
+  quelle: {
+    name: 'Quellgrund',
+    desc: 'Liefert Gegenwart in ihr Domänennetz — Kraft für Fabriken, Förderung und Schreine.',
+    short: 'QUE',
+    faction: 'gott',
+    hp: 800,
+    radius: 60,
+    gegenwartOut: 40,
+    cost: { fron: 280 },
+    buildTime: 230,
+  },
+  moos: {
+    name: 'Moosgrube',
+    desc: 'Fördert Fron auf einem Steinvorkommen.',
+    short: 'MOS',
+    faction: 'gott',
+    hp: 700,
+    radius: 55,
+    gegenwartIn: 14,
+    prio: PRIO.segen,
+    fronOut: 360, // Fron pro Minute bei voller Versorgung
+    cost: { fron: 150 },
+    buildTime: 170,
+    needs: 'fron',
+  },
+  dickicht: {
+    name: 'Dickicht',
+    desc: 'Fabrik: ruft alle Geschöpfe des Waldes. Braucht viel Gegenwart.',
+    short: 'DIC',
+    faction: 'gott',
+    hp: 1500,
+    radius: 80,
+    gegenwartIn: 55,
+    prio: PRIO.werk,
+    cost: { fron: 400 },
+    buildTime: 340,
+    buildList: ['wolf', 'waldgeist', 'ent', 'wurzelbrecher'], // Dryaden ruft der Herzbaum
+  },
+  blutwurz: {
+    name: 'Blutwurz',
+    desc: 'Fördert Götterblut — nur auf einer Götterblut-Ader. Die Adern liegen in der Kartenmitte.',
+    short: 'BLW',
+    faction: 'gott',
+    hp: 900,
+    radius: 60,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    blutOut: 40,
+    cost: { fron: 250 },
+    buildTime: 210,
+    needs: 'goetterblut',
+  },
+  // Beim Gott staerker: sein Wald ist sein Heimvorteil.
+  dornenschrein: {
+    name: 'Dornenschrein',
+    desc: 'Schrein des Zorns: Eigene Einheiten im Umkreis teilen mehr Schaden aus, solange sie in der eigenen Domäne stehen.',
+    short: 'DOR',
+    faction: 'gott',
+    hp: 600,
+    radius: 40,
+    gegenwartIn: 15,
+    prio: PRIO.zorn,
+    cost: { fron: 160 },
+    buildTime: 170,
+    buff: { zorn: 450, radius: 3000 },
+  },
+  steinkreis: {
+    name: 'Steinkreis',
+    desc: 'Schrein der Wehr: Eigene Einheiten im Umkreis nehmen weniger Schaden, solange sie in der eigenen Domäne stehen.',
+    short: 'STK',
+    faction: 'gott',
+    hp: 700,
+    radius: 50,
+    gegenwartIn: 15,
+    prio: PRIO.wehr,
+    cost: { fron: 160 },
+    buildTime: 170,
+    buff: { wehr: 300, radius: 3000 },
+  },
+  eiche: {
+    name: 'Raunende Eiche',
+    desc: 'Forschung: Die alte Eiche flüstert, was der Wald weiß — Skillpunkte kommen schneller. Braucht Gegenwart.',
+    short: 'EIC',
+    faction: 'gott',
+    hp: 900,
+    radius: 55,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    cost: { fron: 250 },
+    buildTime: 230,
+    forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
+  },
+};
+
+// unterhalt: laufende Kosten in Fron pro Minute. Grosse Heere fressen die
+// Wirtschaft -- keine harte Obergrenze, aber eine spuerbare Bremse.
+// kampf: 'nah' schlaegt erst bei Beruehrung zu, 'fern' schiesst aus der Ferne.
+// weapon.range: Abstand von Rand zu Rand, in dem getroffen wird.
+// weapon.gebaeude: Schaden gegen Gebaeude, wenn er vom Schaden gegen
+// Einheiten abweicht (Belagerung); weapon.vorrang 'gebaeude': greift
+// Gebaeude in Reichweite zuerst an.
+const UNITS = {
+  // ------------------------------------------------------------- Menschen
+  // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
+  bauer: {
+    name: 'Bauer',
+    desc: 'Arbeiter: baut Gebäude, auch außerhalb der Domäne. Kämpft nur zur Not.',
+    faction: 'mensch',
+    hp: 150,
+    radius: 24,
+    speed: 30,
+    cost: { fron: 40 },
+    unterhalt: 4, // Fron pro Minute, solange sie lebt
+    buildTime: 80,
+    worker: true,
+    // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
+    build: { power: 400 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 4, cooldown: 8 },
+  },
+  soldat: {
+    name: 'Soldat',
+    desc: 'Günstiger Nahkämpfer — die Masse des Heeres.',
+    faction: 'mensch',
+    hp: 215,
+    radius: 26,
+    speed: 30,
+    cost: { fron: 45 },
+    unterhalt: 9, // Fron pro Minute, solange sie lebt
+    buildTime: 80,
+    kampf: 'nah',
+    weapon: { range: 20, damage: 9, cooldown: 6 },
+  },
+  jaeger: {
+    name: 'Jäger',
+    sicht: 1000, // Sichtweite (Nebel des Krieges)
+    desc: 'Fernkämpfer: schießt aus der zweiten Reihe, hält wenig aus.',
+    faction: 'mensch',
+    hp: 180,
+    radius: 24,
+    speed: 32,
+    cost: { fron: 55 },
+    unterhalt: 10, // Fron pro Minute, solange sie lebt
+    buildTime: 100,
+    kampf: 'fern',
+    weapon: { range: 480, damage: 13, cooldown: 8 },
+  },
+  soeldner: {
+    name: 'Söldner',
+    desc: 'Schwer gerüstet und teuer, bezahlt mit Götterblut.',
+    faction: 'mensch',
+    hp: 620,
+    radius: 32,
+    speed: 26,
+    // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
+    // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
+    cost: { fron: 130, goetterblut: 10 },
+    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    buildTime: 190,
+    kampf: 'nah',
+    weapon: { range: 25, damage: 26, cooldown: 8 },
+  },
+
+  // Kommandanten -- Designentscheidung, siehe docs/scope.md. Vorbild ist die
+  // ACU aus Supreme Commander: eine extrem starke Einheit, die auch baut.
+  // Jeder Spieler hat genau einen, einmalig: Faellt er, ist die Partie
+  // verloren. Sonst gibt die Regel nichts vor -- ob er hinten baut oder
+  // vorn kaempft, entscheidet der Spieler.
+  //   build: Baukraft (Promille je Tick, wie volle Gegenwart). Gebaut wird
+  //          nur der eigene Bauauftrag, und nur direkt daneben -- auch
+  //          ausserhalb der Domaene, so entstehen Aussenposten.
+  held: {
+    name: 'Held',
+    sicht: 1000, // Sichtweite (Nebel des Krieges)
+    desc: 'Kommandant der Menschen: baut mit voller Kraft und kämpft stark. Einmalig — fällt er, ist die Partie verloren.',
+    faction: 'mensch',
+    hp: 6000,
+    radius: 36,
+    speed: 24,
+    cost: { fron: 0 },
+    buildTime: 0,
+    kampf: 'nah',
+    weapon: { range: 30, damage: 45, cooldown: 6 },
+    commander: true,
+    build: { power: 1000 },
+  },
+
+  // ------------------------------------------------------------- Gott
+  // Wenige, teuer, langsam ausgebildet -- jede einzelne zaehlt.
+  waldgott: {
+    name: 'Waldgott',
+    sicht: 1000, // Sichtweite (Nebel des Krieges)
+    desc: 'Der Gott selbst: baut mit voller Kraft und kämpft stark. Einmalig — fällt er, ist die Partie verloren.',
+    faction: 'gott',
+    hp: 6000,
+    radius: 40,
+    speed: 22,
+    cost: { fron: 0 },
+    buildTime: 0,
+    kampf: 'fern',
+    weapon: { range: 380, damage: 42, cooldown: 6 },
+    commander: true,
+    build: { power: 1000 },
+  },
+  dryade: {
+    name: 'Dryade',
+    desc: 'Arbeiterin: lässt Gebäude wachsen, auch außerhalb der Domäne.',
+    faction: 'gott',
+    hp: 350,
+    radius: 28,
+    speed: 28,
+    cost: { fron: 90 },
+    unterhalt: 12, // Fron pro Minute, solange sie lebt
+    buildTime: 180,
+    worker: true,
+    build: { power: 700 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 8, cooldown: 7 },
+  },
+  wolf: {
+    name: 'Wolf',
+    desc: 'Schneller, zäher Nahkämpfer.',
+    faction: 'gott',
+    hp: 540,
+    radius: 30,
+    speed: 34,
+    cost: { fron: 130 },
+    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    buildTime: 210,
+    kampf: 'nah',
+    weapon: { range: 20, damage: 22, cooldown: 6 },
+  },
+  waldgeist: {
+    name: 'Waldgeist',
+    sicht: 1000, // Sichtweite (Nebel des Krieges)
+    desc: 'Fernkämpfer: wirft Licht aus großer Entfernung.',
+    faction: 'gott',
+    hp: 480,
+    radius: 30,
+    speed: 26,
+    cost: { fron: 130 },
+    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    buildTime: 240,
+    kampf: 'fern',
+    weapon: { range: 520, damage: 24, cooldown: 8 },
+  },
+  ent: {
+    name: 'Ent',
+    desc: 'Uralt, gewaltig und langsam, genährt von Götterblut.',
+    faction: 'gott',
+    hp: 2100,
+    radius: 66, // maechtig gross
+    speed: 16,
+    cost: { fron: 300, goetterblut: 20 },
+    unterhalt: 56, // Fron pro Minute, solange sie lebt
+    buildTime: 480,
+    kampf: 'nah',
+    weapon: { range: 40, damage: 52, cooldown: 10 },
+  },
+  // Belagerung: wenig gegen Einheiten, viel gegen Gebaeude.
+  katapult: {
+    name: 'Katapult',
+    sicht: 700, // Sichtweite (Nebel des Krieges)
+    desc: 'Belagerung: wirft Steine weiter, als ein Turm schießt. Gegen Einheiten fast nutzlos, langsam und verwundbar.',
+    faction: 'mensch',
+    hp: 500,
+    radius: 40,
+    speed: 14,
+    cost: { fron: 250 },
+    unterhalt: 30, // Fron pro Minute, solange sie lebt
+    buildTime: 300,
+    kampf: 'fern',
+    weapon: { range: 1000, damage: 8, cooldown: 30, gebaeude: 260, vorrang: 'gebaeude' },
+  },
+  wurzelbrecher: {
+    name: 'Wurzelbrecher',
+    desc: 'Belagerung: ein Knäuel uralter Wurzeln, sehr zäh, sprengt Gebäude von innen. Gegen Einheiten schwach.',
+    faction: 'gott',
+    hp: 3200,
+    radius: 50,
+    speed: 14,
+    cost: { fron: 280 },
+    unterhalt: 32, // Fron pro Minute, solange sie lebt
+    buildTime: 320,
+    kampf: 'nah',
+    weapon: { range: 30, damage: 12, cooldown: 10, gebaeude: 240, vorrang: 'gebaeude' },
+  },
+};
+
+// ------------------------------------------------------------- Skillbaum
+// Je Fraktion ein Baum mit vier Aesten. Ein Skill kostet Punkte, braucht
+// womoeglich andere Skills und
+//   frei:        schaltet Einheiten oder Gebaeude frei -- was ein Skill
+//                freischaltet, ist ohne ihn gesperrt; alles andere ist ab
+//                Minute eins da
+//   wirkung:     verbessert das ganze Volk, in Promille
+//                schaden    mehr ausgeteilter Schaden aller Einheiten
+//                schutz     weniger genommener Schaden aller Einheiten
+//                kdtSchutz  weniger genommener Schaden des Kommandanten
+//                foerderung mehr Fron und Goetterblut aus Foerderbauten
+//                ausbildung schnellere Ausbildung in Fabriken
+//                unterhalt  weniger Unterhalt
+//   faehigkeit:  gibt dem Kommandanten eine aktive Faehigkeit (FAEHIGKEITEN)
+// Die Reihenfolge der Eintraege ist die Anzeigereihenfolge.
+const AESTE = { einheiten: 'Einheiten', gebaeude: 'Gebäude', verbesserung: 'Verbesserungen', kommandant: 'Kommandant' };
+const SKILLS = {
+  // --------------------------------------------------------------- Menschen
+  belagerungsbau: {
+    faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
+    desc: 'Die Kaserne baut Katapulte — sie werfen Steine weiter, als ein Turm schießt.',
+  },
+  bogenbau: {
+    faction: 'mensch', ast: 'einheiten', name: 'Bogenbau', kosten: 1, frei: ['jaeger'],
+    desc: 'Die Kaserne bildet Jäger aus — Fernkämpfer hinter der Linie.',
+  },
+  soeldnervertraege: {
+    faction: 'mensch', ast: 'einheiten', name: 'Söldnerverträge', kosten: 2, braucht: ['bogenbau'], frei: ['soeldner'],
+    desc: 'Die Kaserne wirbt Söldner an — schwer gerüstet, bezahlt mit Götterblut.',
+  },
+  kriegsbanner: {
+    faction: 'mensch', ast: 'gebaeude', name: 'Kriegsbanner', kosten: 1, frei: ['banner'],
+    desc: 'Schrein des Zorns: Wer unter dem Banner kämpft, schlägt härter zu.',
+  },
+  kapellenbau: {
+    faction: 'mensch', ast: 'gebaeude', name: 'Kapellenbau', kosten: 1, frei: ['kapelle'],
+    desc: 'Schrein der Wehr: Gebete schützen, wer in der Nähe kämpft.',
+  },
+  klingen: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Geschliffene Klingen', kosten: 1, wirkung: { schaden: 100 },
+    desc: 'Bessere Waffen für alle.',
+  },
+  kettenhemden: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Kettenhemden', kosten: 1, braucht: ['klingen'], wirkung: { schutz: 100 },
+    desc: 'Bessere Rüstung für alle.',
+  },
+  fronvoegte: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Fronvögte', kosten: 1, wirkung: { foerderung: 200 },
+    desc: 'Strenge Aufsicht in Sägewerk und Schacht.',
+  },
+  drillmeister: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Drillmeister', kosten: 1, braucht: ['fronvoegte'], wirkung: { ausbildung: 250 },
+    desc: 'Rekruten lernen schneller.',
+  },
+  sold: {
+    faction: 'mensch', ast: 'verbesserung', name: 'Sold und Ordnung', kosten: 2, braucht: ['drillmeister'], wirkung: { unterhalt: 250 },
+    desc: 'Ein geordnetes Heer kostet weniger.',
+  },
+  heldenmut: {
+    faction: 'mensch', ast: 'kommandant', name: 'Heldenmut', kosten: 1, wirkung: { kdtSchutz: 200 },
+    desc: 'Der Held hält mehr aus.',
+  },
+  schlachtruf: {
+    faction: 'mensch', ast: 'kommandant', name: 'Schlachtruf', kosten: 2, braucht: ['heldenmut'], faehigkeit: 'schlachtruf',
+    desc: 'Der Held reißt alle um sich mit.',
+  },
+  schildwall: {
+    faction: 'mensch', ast: 'kommandant', name: 'Schildwall', kosten: 2, braucht: ['heldenmut'], faehigkeit: 'schildwall',
+    desc: 'Auf seinen Ruf schließen sich die Reihen.',
+  },
+  ansturm: {
+    faction: 'mensch', ast: 'kommandant', name: 'Ansturm', kosten: 2, braucht: ['schlachtruf'], faehigkeit: 'ansturm',
+    desc: 'Der Held stürmt voran, und alle folgen.',
+  },
+
+  // --------------------------------------------------------------- Gott
+  wurzelbrecher: {
+    faction: 'gott', ast: 'einheiten', name: 'Wurzelbrecher wecken', kosten: 2, braucht: ['waldgeister'], frei: ['wurzelbrecher'],
+    desc: 'Das Dickicht weckt Wurzelbrecher — sie sprengen Mauern von innen.',
+  },
+  waldgeister: {
+    faction: 'gott', ast: 'einheiten', name: 'Waldgeister rufen', kosten: 1, frei: ['waldgeist'],
+    desc: 'Das Dickicht ruft Waldgeister — sie werfen Licht aus der Ferne.',
+  },
+  ents: {
+    faction: 'gott', ast: 'einheiten', name: 'Ents erwecken', kosten: 2, braucht: ['waldgeister'], frei: ['ent'],
+    desc: 'Das Dickicht erweckt Ents — uralt, gewaltig, genährt von Götterblut.',
+  },
+  dornen: {
+    faction: 'gott', ast: 'gebaeude', name: 'Dornenschrein', kosten: 1, frei: ['dornenschrein'],
+    desc: 'Schrein des Zorns: Dornen schärfen, wer in ihrer Nähe kämpft.',
+  },
+  steine: {
+    faction: 'gott', ast: 'gebaeude', name: 'Steinkreis', kosten: 1, frei: ['steinkreis'],
+    desc: 'Schrein der Wehr: Alte Steine halten Schaden fern.',
+  },
+  faenge: {
+    faction: 'gott', ast: 'verbesserung', name: 'Scharfe Fänge', kosten: 1, wirkung: { schaden: 100 },
+    desc: 'Krallen und Zähne für alle.',
+  },
+  borke: {
+    faction: 'gott', ast: 'verbesserung', name: 'Borkenhaut', kosten: 1, braucht: ['faenge'], wirkung: { schutz: 100 },
+    desc: 'Rinde statt Haut für alle.',
+  },
+  saftfluss: {
+    faction: 'gott', ast: 'verbesserung', name: 'Saftfluss', kosten: 1, wirkung: { foerderung: 200 },
+    desc: 'Moos und Blutwurz treiben kräftiger.',
+  },
+  keimkraft: {
+    faction: 'gott', ast: 'verbesserung', name: 'Keimkraft', kosten: 1, braucht: ['saftfluss'], wirkung: { ausbildung: 250 },
+    desc: 'Was im Dickicht wächst, wächst schneller.',
+  },
+  genuegsamkeit: {
+    faction: 'gott', ast: 'verbesserung', name: 'Genügsamkeit', kosten: 2, braucht: ['keimkraft'], wirkung: { unterhalt: 250 },
+    desc: 'Die Geschöpfe des Waldes brauchen weniger.',
+  },
+  rinde: {
+    faction: 'gott', ast: 'kommandant', name: 'Uralte Rinde', kosten: 1, wirkung: { kdtSchutz: 200 },
+    desc: 'Der Waldgott hält mehr aus.',
+  },
+  wurzelgriff: {
+    faction: 'gott', ast: 'kommandant', name: 'Wurzelgriff', kosten: 2, braucht: ['rinde'], faehigkeit: 'wurzelgriff',
+    desc: 'Wurzeln brechen aus dem Boden und halten Feinde fest.',
+  },
+  lebenssaft: {
+    faction: 'gott', ast: 'kommandant', name: 'Lebenssaft', kosten: 2, braucht: ['rinde'], faehigkeit: 'lebenssaft',
+    desc: 'Der Wald gibt seinen Geschöpfen Kraft zurück.',
+  },
+  rudelruf: {
+    faction: 'gott', ast: 'kommandant', name: 'Rudelruf', kosten: 2, braucht: ['wurzelgriff'], faehigkeit: 'rudelruf',
+    desc: 'Ein Heulen, und das Rudel kommt.',
+  },
+};
+
+// Aktive Faehigkeiten der Kommandanten, je drei, freigeschaltet im
+// Skillbaum (FACTIONS[...].faehigkeiten nennt sie in Tastenreihenfolge).
+//   art 'ruf':     eigene Einheiten im Umkreis um den Kommandanten teilen
+//                  dauer Ticks lang wert Promille mehr Schaden aus
+//   art 'wehr':    ... nehmen dauer Ticks lang wert Promille weniger Schaden
+//   art 'tempo':   ... laufen dauer Ticks lang wert Promille schneller
+//   art 'heilung': ... bekommen sofort wert LP zurueck
+//   art 'griff':   feindliche Einheiten im Umkreis um einen Zielpunkt
+//                  (hoechstens reichweite vom Kommandanten) koennen sich dauer
+//                  Ticks lang nicht bewegen -- kaempfen aber weiter
+//   art 'rufen':   anzahl Einheiten vom Typ einheit erscheinen beim
+//                  Kommandanten, ohne Unterhalt, und vergehen nach dauer Ticks
+// abklingen: Ticks bis zum naechsten Einsatz.
+const FAEHIGKEITEN = {
+  schlachtruf: { name: 'Schlachtruf', art: 'ruf', radius: 900, dauer: 150, wert: 300, abklingen: 900 },
+  schildwall: { name: 'Schildwall', art: 'wehr', radius: 900, dauer: 150, wert: 350, abklingen: 900 },
+  ansturm: { name: 'Ansturm', art: 'tempo', radius: 900, dauer: 100, wert: 500, abklingen: 700 },
+  wurzelgriff: { name: 'Wurzelgriff', art: 'griff', reichweite: 1600, radius: 600, dauer: 80, abklingen: 700 },
+  lebenssaft: { name: 'Lebenssaft', art: 'heilung', radius: 900, wert: 300, abklingen: 900 },
+  rudelruf: { name: 'Rudelruf', art: 'rufen', einheit: 'wolf', anzahl: 3, dauer: 400, abklingen: 1200 },
+};
+const START_FRON = 1100;
+
+// ------------------------------------------------------------- Karte
+// Punktsymmetrisch um die Kartenmitte -- beide Sitzplaetze spielen dieselbe
+// Karte. hindernisse: Felsen und Seen als Kreise, unpassierbar und nicht
+// bebaubar. adern: Fron- und Goetterblut-Vorkommen. Nur ganze Zahlen.
+//
+// Vor jeder Basis ein Felsgrat mit einem Tor zur Mitte und zwei Seitenpfaden;
+// dahinter zwei Fron-Vorkommen zum Ausbauen. In der Mitte ein Felsring um die
+// grosse Goetterblut-Ader, mit vier Zugaengen; zwei Seen; zwei weitere
+// Goetterblut-Adern an den Seitenraendern.
+const gespiegelt = (o) => ({ ...o, x: MAP - o.x, y: MAP - o.y });
+const paarweise = (liste) => liste.flatMap((o) => [o, gespiegelt(o)]);
+
+/** Felsgrat: n Felsen gleichmaessig von (x0,y0) nach (x1,y1), ohne die Luecken. */
+function grat(x0, y0, x1, y1, n, r, luecken) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    if (luecken.includes(k)) continue;
+    out.push({ x: x0 + (((x1 - x0) * k) / (n - 1)) | 0, y: y0 + (((y1 - y0) * k) / (n - 1)) | 0, r, art: 'fels' });
+  }
+  return out;
+}
+const KARTE = {
+  hindernisse: [
+    // Grat vor jeder Basis: breites Tor in der Mitte, zwei Seitenpfade
+    ...paarweise(grat(700, 12300, 12300, 700, 21, 560, [2, 3, 9, 10, 11, 17, 18])),
+    // Felsring um die Mitte, Zugaenge diagonal
+    { x: 11300, y: 10000, r: 500, art: 'fels' },
+    { x: 8700, y: 10000, r: 500, art: 'fels' },
+    { x: 10000, y: 11300, r: 500, art: 'fels' },
+    { x: 10000, y: 8700, r: 500, art: 'fels' },
+    // Seen zwischen Mitte und Seitenraendern
+    ...paarweise([{ x: 7200, y: 12800, r: 1300, art: 'see' }]),
+  ],
+  adern: [
+    // je Basis fuenf Vorkommen -- alle in der Grunddomaene des Hauptgebaeudes
+    ...paarweise([
+      { x: 4800, y: 2200, kind: 'fron' },
+      { x: 2200, y: 4800, kind: 'fron' },
+      { x: 6200, y: 4500, kind: 'fron' },
+      { x: 6700, y: 2100, kind: 'fron' },
+      { x: 2100, y: 6700, kind: 'fron' },
+    ]),
+    // Mitte: je eines naeher an jedem Spieler
+    ...paarweise([{ x: 10000, y: 7400, kind: 'fron' }]),
+    // Goetterblut: die grosse Ader im Felsring, zwei an den Seitenraendern
+    { x: 10000, y: 10000, kind: 'goetterblut' },
+    ...paarweise([{ x: 5200, y: 14800, kind: 'goetterblut' }]),
+  ],
+};
+
+/** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
+const RESOURCES = ['fron', 'goetterblut'];
+
+/** Alle Gebäude bzw. Einheiten einer Fraktion. */
+function buildingsOf(f) {
+  return Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].faction === f);
+}
+function unitsOf(f) {
+  return Object.keys(UNITS).filter((k) => UNITS[k].faction === f);
+}
+
+
+/* ---------------------------------- */
+
+// Icons: Ressourcen, Einheiten, Gebaeude, Faehigkeiten, Skills.
+// Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
+// anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
+// Dateien (gl, MAP, KARTE, ...) sind dort global. Exporte gibt es nur fuer die
+// Tests unter Node.
+//
+// Jedes Icon ist ein SVG-String mit viewBox="0 0 24 24", ohne feste Groesse
+// (die Oberflaeche setzt sie per CSS). Stil: der Entwurf des Nutzers fuer die
+// Ressourcenleiste (docs/bilder/ressourcenleiste-entwurf.png) -- klare Formen,
+// kraeftige Farben, lesbar ab 20 px. Einheiten und Gebaeude: helle Silhouette,
+// Fraktionsfarbe als Akzent (Menschen #d8b06a, Gott #8fb86a).
+
+/** Platzhalter: Kreis mit Kuerzel, bis ein richtiges Icon da ist. */
+function platzhalter(text, farbe) {
+  return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="${farbe}" stroke-width="1.6"/><text x="12" y="16" text-anchor="middle" font-size="10" font-family="sans-serif" fill="${farbe}">${text}</text></svg>`;
+}
+const M = '#d8b06a';
+const G = '#8fb86a';
+const ICONS = {
+  // Ressourcenleiste
+  skillpunkte: `<svg viewBox="0 0 24 24" fill="none" stroke="#f7b55a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.8v2M4.6 4.8l1.3 1.3M19.4 4.8l-1.3 1.3M2.2 11h2M19.8 11h2"/><path d="M8.3 16.2a6.2 6.2 0 1 1 7.4 0c-.8.6-1.1 1.3-1.1 2.1v.7H9.4v-.7c0-.8-.3-1.5-1.1-2.1z"/><path d="M9.4 19.6h5.2"/><path d="M9.9 21.6h4.2"/></svg>`,
+  gegenwart: `<svg viewBox="0 0 24 24"><path d="M13.2 1.8 4.6 13.6h6.1l-1.5 8.6 9.2-12.4h-6.3z" fill="#8fd8ff" stroke="#d8f4ff" stroke-width=".8" stroke-linejoin="round"/></svg>`,
+  goetterblut: `<svg viewBox="0 0 24 24"><path d="M12 2.2 6 12.6a6.9 6.9 0 1 0 12 0z" fill="#ff3434"/></svg>`,
+  fron: `<svg viewBox="0 0 24 24"><path d="M2.5 6.4 6.6 4.3l3.2 2.1-.9 5.2-4.7 1.9z" fill="#c9ffe0"/><path d="M9.8 5.1 14.6 2.2l5 1.9 1.1 5.9-4.6 3.8-5.4-2.1z" fill="#e6fff0"/><path d="M14.6 2.2l5 1.9-3.4 3.3z" fill="#7dffae"/><path d="M3.4 13.8 9.6 11.4l5.3 2.1-2.2 6.3H6z" fill="#1fd35a"/><path d="M9.6 11.4l5.3 2.1-4.1 1.6z" fill="#9dffc2"/><path d="M14.9 13.6l6-3.2 1.1 6.4-4.2 3.3h-4.1z" fill="#0fae3e"/><path d="M3.4 13.8 6 19.8H3z" fill="#078a2c"/></svg>`,
+  // Einheiten
+  bauer: platzhalter('Ba', M),
+  soldat: platzhalter('So', M),
+  jaeger: platzhalter('Jä', M),
+  soeldner: platzhalter('Sö', M),
+  katapult: platzhalter('Ka', M),
+  held: platzhalter('He', M),
+  dryade: platzhalter('Dr', G),
+  wolf: platzhalter('Wo', G),
+  waldgeist: platzhalter('Wg', G),
+  ent: platzhalter('En', G),
+  wurzelbrecher: platzhalter('Wb', G),
+  waldgott: platzhalter('Go', G),
+  // Gebaeude
+  halle: platzhalter('Th', M),
+  grenzstein: platzhalter('Gr', M),
+  wachturm: platzhalter('Wt', M),
+  schmiede: platzhalter('Sm', M),
+  saege: platzhalter('Sä', M),
+  kaserne: platzhalter('Ks', M),
+  schacht: platzhalter('Bs', M),
+  banner: platzhalter('Kb', M),
+  kapelle: platzhalter('Kp', M),
+  skriptorium: platzhalter('Sk', M),
+  herzbaum: platzhalter('Hb', G),
+  hain: platzhalter('Ha', G),
+  waechterbaum: platzhalter('Wä', G),
+  quelle: platzhalter('Qu', G),
+  moos: platzhalter('Mo', G),
+  dickicht: platzhalter('Di', G),
+  blutwurz: platzhalter('Bw', G),
+  dornenschrein: platzhalter('Ds', G),
+  steinkreis: platzhalter('Sk', G),
+  eiche: platzhalter('Ei', G),
+  // Faehigkeiten der Kommandanten
+  schlachtruf: platzhalter('Ru', M),
+  schildwall: platzhalter('Sw', M),
+  ansturm: platzhalter('An', M),
+  wurzelgriff: platzhalter('Wu', G),
+  lebenssaft: platzhalter('Ls', G),
+  rudelruf: platzhalter('Rr', G),
+};
+
+
+/* ---------------------------------- */
+
+// Renderer der 3D-Ansicht: Mathematik, Geometrie aus Grundkoerpern, Shader, Instanzen.
+// Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
+// anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
+// Dateien (gl, MAP, KARTE, ...) sind dort global. Exporte gibt es nur fuer die
+// Tests unter Node.
+const DM = 0.1; // Dezimeter -> Meter
+const HEX = (h) => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
+// Farbe von Ferne und Hintergrund (Dunst)
+const NEBEL = [0.07, 0.08, 0.06];
+
+// ------------------------------------------------------------ Mathematik
+// Matrizen spaltenweise wie in WebGL: Element (Zeile r, Spalte c) an [c*4 + r].
+function m4mul(a, b) {
+  const o = new Float32Array(16);
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < 4; r++) {
+      let s = 0;
+      for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+      o[c * 4 + r] = s;
+    }
+  }
+  return o;
+}
+function m4persp(fovy, asp, n, f) {
+  const t = 1 / Math.tan(fovy / 2);
+  const nf = 1 / (n - f);
+  return new Float32Array([t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) * nf, -1, 0, 0, 2 * f * n * nf, 0]);
+}
+function m4look(eye, at, up) {
+  let zx = eye[0] - at[0];
+  let zy = eye[1] - at[1];
+  let zz = eye[2] - at[2];
+  let l = Math.hypot(zx, zy, zz);
+  zx /= l;
+  zy /= l;
+  zz /= l;
+  let xx = up[1] * zz - up[2] * zy;
+  let xy = up[2] * zx - up[0] * zz;
+  let xz = up[0] * zy - up[1] * zx;
+  l = Math.hypot(xx, xy, xz);
+  xx /= l;
+  xy /= l;
+  xz /= l;
+  const yx = zy * xz - zz * xy;
+  const yy = zz * xx - zx * xz;
+  const yz = zx * xy - zy * xx;
+  return new Float32Array([
+    xx, yx, zx, 0,
+    xy, yy, zy, 0,
+    xz, yz, zz, 0,
+    -(xx * eye[0] + xy * eye[1] + xz * eye[2]),
+    -(yx * eye[0] + yy * eye[1] + yz * eye[2]),
+    -(zx * eye[0] + zy * eye[1] + zz * eye[2]),
+    1,
+  ]);
+}
+function m4inv(m) {
+  const [a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33] = m;
+  const b00 = a00 * a11 - a01 * a10;
+  const b01 = a00 * a12 - a02 * a10;
+  const b02 = a00 * a13 - a03 * a10;
+  const b03 = a01 * a12 - a02 * a11;
+  const b04 = a01 * a13 - a03 * a11;
+  const b05 = a02 * a13 - a03 * a12;
+  const b06 = a20 * a31 - a21 * a30;
+  const b07 = a20 * a32 - a22 * a30;
+  const b08 = a20 * a33 - a23 * a30;
+  const b09 = a21 * a32 - a22 * a31;
+  const b10 = a21 * a33 - a23 * a31;
+  const b11 = a22 * a33 - a23 * a32;
+  const det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+  const d = 1 / det;
+  return new Float32Array([
+    (a11 * b11 - a12 * b10 + a13 * b09) * d,
+    (a02 * b10 - a01 * b11 - a03 * b09) * d,
+    (a31 * b05 - a32 * b04 + a33 * b03) * d,
+    (a22 * b04 - a21 * b05 - a23 * b03) * d,
+    (a12 * b08 - a10 * b11 - a13 * b07) * d,
+    (a00 * b11 - a02 * b08 + a03 * b07) * d,
+    (a32 * b02 - a30 * b05 - a33 * b01) * d,
+    (a20 * b05 - a22 * b02 + a23 * b01) * d,
+    (a10 * b10 - a11 * b08 + a13 * b06) * d,
+    (a01 * b08 - a00 * b10 - a03 * b06) * d,
+    (a30 * b04 - a31 * b02 + a33 * b00) * d,
+    (a21 * b02 - a20 * b04 - a23 * b00) * d,
+    (a11 * b07 - a10 * b09 - a12 * b06) * d,
+    (a00 * b09 - a01 * b07 + a02 * b06) * d,
+    (a31 * b01 - a30 * b03 - a32 * b00) * d,
+    (a20 * b03 - a21 * b01 + a22 * b00) * d,
+  ]);
+}
+
+// ------------------------------------------------------------ Geometrie
+// Grundkoerper als Dreieckslisten [x,y,z, x,y,z, x,y,z, ...], um den
+// Ursprung zentriert. Normalen entstehen spaeter je Dreieck (flach).
+function geoQuader(w, h, d) {
+  const x = w / 2;
+  const y = h / 2;
+  const z = d / 2;
+  const P = [
+    [-x, -y, -z], [x, -y, -z], [x, y, -z], [-x, y, -z],
+    [-x, -y, z], [x, -y, z], [x, y, z], [-x, y, z],
+  ];
+  const F = [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [3, 2, 6, 7], [4, 5, 1, 0]];
+  const t = [];
+  for (const [a, b, c, e] of F) t.push(...P[a], ...P[b], ...P[c], ...P[a], ...P[c], ...P[e]);
+  return t;
+}
+function geoZylinder(rOben, rUnten, h, seg) {
+  const t = [];
+  const y0 = -h / 2;
+  const y1 = h / 2;
+  for (let i = 0; i < seg; i++) {
+    const a0 = (i / seg) * Math.PI * 2;
+    const a1 = ((i + 1) / seg) * Math.PI * 2;
+    const c0 = Math.cos(a0);
+    const s0 = Math.sin(a0);
+    const c1 = Math.cos(a1);
+    const s1 = Math.sin(a1);
+    const u0 = [c0 * rUnten, y0, s0 * rUnten];
+    const u1 = [c1 * rUnten, y0, s1 * rUnten];
+    const o0 = [c0 * rOben, y1, s0 * rOben];
+    const o1 = [c1 * rOben, y1, s1 * rOben];
+    if (rUnten > 0 || rOben > 0) t.push(...u0, ...u1, ...o1);
+    if (rOben > 0) t.push(...u0, ...o1, ...o0);
+    if (rOben > 0) t.push(0, y1, 0, ...o0, ...o1);
+    if (rUnten > 0) t.push(0, y0, 0, ...u1, ...u0);
+  }
+  return t;
+}
+function geoKugel(r, seg) {
+  const t = [];
+  const ringe = Math.max(3, seg >> 1);
+  const p = (i, j) => {
+    const th = (i / ringe) * Math.PI;
+    const ph = (j / seg) * Math.PI * 2;
+    return [r * Math.sin(th) * Math.cos(ph), r * Math.cos(th), r * Math.sin(th) * Math.sin(ph)];
+  };
+  for (let i = 0; i < ringe; i++) {
+    for (let j = 0; j < seg; j++) {
+      const a = p(i, j);
+      const b = p(i + 1, j);
+      const c = p(i + 1, j + 1);
+      const d = p(i, j + 1);
+      if (i > 0) t.push(...a, ...b, ...d);
+      if (i < ringe - 1) t.push(...d, ...b, ...c);
+    }
+  }
+  return t;
+}
+function geoScheibe(r, seg) {
+  const t = [];
+  for (let i = 0; i < seg; i++) {
+    const a0 = (i / seg) * Math.PI * 2;
+    const a1 = ((i + 1) / seg) * Math.PI * 2;
+    t.push(0, 0, 0, Math.cos(a1) * r, 0, Math.sin(a1) * r, Math.cos(a0) * r, 0, Math.sin(a0) * r);
+  }
+  return t;
+}
+
+/**
+ * Ein Modell aus Teilen. Jedes Teil: [form, masse, position, farbe, team,
+ * drehung]. form: 'q' Quader [w,h,d], 'z' Zylinder [rOben,rUnten,h,seg],
+ * 'k' Kugel [r,seg], 's' Scheibe [r,seg]. team: Anteil der Fraktionsfarbe.
+ * drehung: [rx, ry, rz] in Bogenmass, um die Teilmitte.
+ * Ergebnis je Ecke: x,y,z, nx,ny,nz, r,g,b, team.
+ */
+function baueModell(teile) {
+  const v = [];
+  for (const [form, masse, pos, farbe, team = 0, dreh = [0, 0, 0]] of teile) {
+    const roh =
+      form === 'q' ? geoQuader(...masse) : form === 'z' ? geoZylinder(...masse) : form === 'k' ? geoKugel(...masse) : geoScheibe(...masse);
+    const [rx, ry, rz] = dreh;
+    const cx = Math.cos(rx);
+    const sx = Math.sin(rx);
+    const cy = Math.cos(ry);
+    const sy = Math.sin(ry);
+    const cz = Math.cos(rz);
+    const sz = Math.sin(rz);
+    const tf = (x, y, z) => {
+      // erst um x, dann um z, dann um y
+      let y1 = y * cx - z * sx;
+      let z1 = y * sx + z * cx;
+      let x2 = x * cz - y1 * sz;
+      let y2 = x * sz + y1 * cz;
+      let x3 = x2 * cy + z1 * sy;
+      let z3 = -x2 * sy + z1 * cy;
+      return [x3 + pos[0], y2 + pos[1], z3 + pos[2]];
+    };
+    const [r, g, b] = HEX(farbe);
+    for (let i = 0; i < roh.length; i += 9) {
+      const A = tf(roh[i], roh[i + 1], roh[i + 2]);
+      const B = tf(roh[i + 3], roh[i + 4], roh[i + 5]);
+      const C = tf(roh[i + 6], roh[i + 7], roh[i + 8]);
+      let nx = (B[1] - A[1]) * (C[2] - A[2]) - (B[2] - A[2]) * (C[1] - A[1]);
+      let ny = (B[2] - A[2]) * (C[0] - A[0]) - (B[0] - A[0]) * (C[2] - A[2]);
+      let nz = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0]);
+      const l = Math.hypot(nx, ny, nz) || 1;
+      nx /= l;
+      ny /= l;
+      nz /= l;
+      // Normale nach aussen drehen: weg von der Teilmitte. Flache Scheiben nach oben.
+      const mx = (A[0] + B[0] + C[0]) / 3 - pos[0];
+      const my = (A[1] + B[1] + C[1]) / 3 - pos[1];
+      const mz = (A[2] + B[2] + C[2]) / 3 - pos[2];
+      const aussen = form === 's' ? ny : nx * mx + ny * my + nz * mz;
+      if (aussen < 0) {
+        nx = -nx;
+        ny = -ny;
+        nz = -nz;
+      }
+      for (const P of [A, B, C]) v.push(P[0], P[1], P[2], nx, ny, nz, r, g, b, team);
+    }
+  }
+  return new Float32Array(v);
+}
+
+// ------------------------------------------------------------ WebGL
+const VS = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNor;
+layout(location=2) in vec4 aCol;
+layout(location=3) in vec4 iA; // x, y, z, Drehung
+layout(location=4) in vec4 iB; // Massstab, Hoehenfaktor, Helligkeit, Alpha
+layout(location=5) in vec4 iC; // Teamfarbe, w: Schrittphase (-1..1)
+uniform mat4 uVP;
+uniform vec3 uLicht;
+out vec4 vCol;
+out float vTiefe;
+out vec3 vTeam;
+out vec2 vWelt;
+void main() {
+  vTeam = iC.rgb;
+  float c = cos(iA.w), s = sin(iA.w);
+  // Schritt: der untere Teil des Modells schwingt vor und zurueck -- Beine,
+  // Rocksaum, Laeufe. Ohne Skelett, nur nach Hoehe im Modell.
+  vec3 a = aPos;
+  a.z += iC.w * 0.45 * max(0.0, 0.65 - a.y);
+  vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
+  vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
+  vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
+  // Selbstleuchtende Teile behalten ihre eigene Farbe, ohne Fraktionsfarbe.
+  float team = aCol.a > 1.5 ? 0.0 : aCol.a;
+  vec3 col = mix(aCol.rgb, iC.rgb, team) * iB.z;
+  float d = max(dot(n, uLicht), 0.0);
+  // Teile mit Teamanteil > 1.5 leuchten selbst: Augen, Glut, Lichtkugeln.
+  float licht = aCol.a > 1.5 ? 1.25 : 0.42 + 0.7 * d;
+  vCol = vec4(col * licht, iB.w);
+  gl_Position = uVP * vec4(r, 1.0);
+  vTiefe = gl_Position.w;
+  vWelt = r.xz;
+}`;
+const FS = `#version 300 es
+precision mediump float;
+in vec4 vCol;
+in float vTiefe;
+in vec3 vTeam;
+in vec2 vWelt;
+uniform vec3 uNebel;
+uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
+uniform sampler2D uSicht; // Nebel des Krieges: 1 sichtbar, 0.47 erkundet, 0 unbekannt
+uniform float uKarte; // Kantenlaenge der Karte in Metern
+out vec4 o;
+void main() {
+  if (uRoentgen > 0.5) {
+    o = vec4(mix(vTeam, vec3(1.0), 0.3), 0.5);
+    return;
+  }
+  float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
+  float sicht = texture(uSicht, vWelt / uKarte).r;
+  o = vec4(mix(vCol.rgb, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
+}`;
+const VS_LINIE = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec4 aCol;
+uniform mat4 uVP;
+out vec4 vCol;
+void main() { vCol = aCol; gl_Position = uVP * vec4(aPos, 1.0); }`;
+const FS_LINIE = `#version 300 es
+precision mediump float;
+in vec4 vCol;
+out vec4 o;
+void main() { o = vCol; }`;
+
+function shader(typ, quelle) {
+  const s = gl.createShader(typ);
+  gl.shaderSource(s, quelle);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function programm(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, shader(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+
+let PROG;
+let PROG_L;
+const MODELLE = {};
+let bodenModell;
+let linienPuffer;
+let linienVao;
+
+/** Laedt ein Modell in die Grafikkarte: Eckpuffer, Instanzpuffer, VAO. */
+function ladeModell(daten) {
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  const vb = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+  gl.bufferData(gl.ARRAY_BUFFER, daten, gl.STATIC_DRAW);
+  const st = 10 * 4;
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, st, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, st, 12);
+  gl.enableVertexAttribArray(2);
+  gl.vertexAttribPointer(2, 4, gl.FLOAT, false, st, 24);
+  const ib = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, ib);
+  const ist = 12 * 4;
+  for (let k = 0; k < 3; k++) {
+    gl.enableVertexAttribArray(3 + k);
+    gl.vertexAttribPointer(3 + k, 4, gl.FLOAT, false, ist, k * 16);
+    gl.vertexAttribDivisor(3 + k, 1);
+  }
+  gl.bindVertexArray(null);
+  return { vao, ib, anzahl: daten.length / 10, inst: [], cap: 0 };
+}
+
+function initGL() {
+  PROG = programm(VS, FS);
+  PROG_L = programm(VS_LINIE, FS_LINIE);
+  for (const [k, teile] of Object.entries(MODELLE_DEF)) MODELLE[k] = ladeModell(baueModell(teile));
+  bodenModell = typeof baueBoden === 'function' ? baueBoden() : null; // die Galerie hat kein Gelaende
+  linienVao = gl.createVertexArray();
+  gl.bindVertexArray(linienVao);
+  linienPuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, linienPuffer);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 28, 12);
+  gl.bindVertexArray(null);
+}
+
+/** Eine Instanz vormerken: Modell, Ort (m), Drehung, Massstab, Hoehe, Helligkeit, Alpha, Teamfarbe. */
+function instanz(key, x, y, z, rot, scale, team, yScale = 1, hell = 1, alpha = 1, schritt = 0) {
+  const m = MODELLE[key];
+  if (!m) return;
+  m.inst.push(x, y, z, rot, scale, yScale, hell, alpha, team[0], team[1], team[2], schritt);
+}
+
+function zeichneInstanzen(m, behalten = false) {
+  const n = m.inst.length / 12;
+  if (!n) return;
+  gl.bindVertexArray(m.vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.ib);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m.inst), gl.DYNAMIC_DRAW);
+  gl.drawArraysInstanced(gl.TRIANGLES, 0, m.anzahl, n);
+  if (!behalten) m.inst.length = 0;
+}
+
+
+
+/* ---------------------------------- */
+
+// Modelle der 3D-Ansicht: jede Einheit, jedes Gebaeude, Karte und Effekte.
+// Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
+// anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
+// Dateien (gl, MAP, KARTE, ...) sind dort global. Exporte gibt es nur fuer die
+// Tests unter Node.
+//
+// Ein Modell ist eine Liste von Teilen: [form, masse, position, farbe, team, drehung]
+//   form   'q' Quader [breite, hoehe, tiefe] | 'z' Zylinder/Kegel [rOben, rUnten,
+//          hoehe, segmente] | 'k' Kugel [radius, segmente] | 's' Scheibe [radius, segmente]
+//   position [x, y, z] der Teilmitte; y ist oben, das Modell schaut entlang +z
+//   farbe  '#rrggbb'
+//   team   0..1 Anteil der Fraktionsfarbe; GLUEHT (2) = leuchtet selbst
+//   drehung [rx, ry, rz] in Bogenmass um die Teilmitte
+// Massstab: 1 entspricht dem Radius der Einheit bzw. des Gebaeudes (die
+// Ansicht vergroessert Einheiten um ZEIGE_EINHEIT, Gebaeude um ZEIGE_GEBAEUDE).
+
+// Alle Modelle auf Grundflaechen-Radius 1, Boden bei y = 0; gezeichnet mit
+// Massstab = Radius der Einheit bzw. des Gebaeudes in Metern.
+const HAUT = '#d9b38c';
+const HOLZ = '#6b4a2b';
+const STEIN = '#8a8f86';
+const EISEN = '#a7adb3';
+const LAUB = '#3f7a35';
+const LAUB2 = '#5c9a43';
+const BLUT = '#a86fb5';
+const GLUEHT = 2; // als Teamanteil: Teil leuchtet selbst (siehe Shader)
+const MANTEL = '#17130f';
+const MANTEL2 = '#211a14';
+const GOLD = '#f5b23c';
+const GOLD2 = '#ffd36a';
+
+/** Lange Klauenfinger einer Hand, von der Handflaeche aus nach unten. */
+function klauen(x, y, z, seite) {
+  const t = [];
+  for (let i = 0; i < 4; i++) {
+    const dx = x + seite * (i - 1.5) * 0.075;
+    const laenge = 0.62 - Math.abs(i - 1.5) * 0.08;
+    t.push(['q', [0.035, laenge, 0.035], [dx, y - laenge / 2, z + 0.04 * i], GOLD2, GLUEHT, [0.25, 0, seite * (i - 1.5) * 0.06]]);
+  }
+  // Daumen
+  t.push(['q', [0.035, 0.32, 0.035], [x - seite * 0.17, y - 0.08, z + 0.05], GOLD2, GLUEHT, [0.4, 0, -seite * 0.7]]);
+  return t;
+}
+
+/** Zerfaserter Saum: Spitzen, die nach unten zeigen, rund um den Mantel. */
+function saum(r, y, n) {
+  const t = [];
+  for (let i = 0; i < n; i++) {
+    const w = (i / n) * Math.PI * 2;
+    const lang = 0.45 + ((i * 37) % 5) * 0.08;
+    t.push(['z', [0.16, 0, lang, 4], [Math.cos(w) * r, y - lang / 2, Math.sin(w) * r], i % 2 ? MANTEL : MANTEL2, 0.05]);
+  }
+  return t;
+}
+const MODELLE_DEF = {
+  // ------------------------------------------------------------- Menschen
+  bauer: [
+    ['z', [0.45, 0.55, 1.1, 7], [0, 0.55, 0], '#8a6a3a', 0.6],
+    ['k', [0.32, 7], [0, 1.4, 0], HAUT],
+    ['z', [0, 0.6, 0.3, 8], [0, 1.72, 0], '#d8c26a'],
+    ['q', [0.08, 1.8, 0.08], [0.5, 0.9, 0.2], HOLZ, 0, [0.15, 0, 0]],
+  ],
+  soldat: [
+    ['z', [0.45, 0.55, 1.2, 7], [0, 0.6, 0], '#555555', 0.8],
+    ['k', [0.32, 7], [0, 1.5, 0], HAUT],
+    ['k', [0.34, 7], [0, 1.62, 0], EISEN],
+    ['q', [0.07, 2.4, 0.07], [0.55, 1.2, 0.15], HOLZ],
+    ['z', [0, 0.12, 0.3, 4], [0.55, 2.5, 0.15], EISEN],
+    ['q', [0.12, 0.8, 0.6], [-0.55, 0.9, 0.1], '#555555', 0.9],
+  ],
+  jaeger: [
+    ['z', [0.4, 0.5, 1.15, 7], [0, 0.58, 0], '#3d5a2a', 0.5],
+    ['k', [0.3, 7], [0, 1.45, 0], HAUT],
+    ['z', [0, 0.38, 0.5, 7], [0, 1.75, 0], '#2f4a22', 0.4],
+    ['q', [0.06, 1.6, 0.12], [0.5, 1.1, 0.25], HOLZ, 0, [0, 0, 0.12]],
+  ],
+  soeldner: [
+    ['q', [1.1, 1.3, 0.8], [0, 0.75, 0], '#444444', 0.75],
+    ['k', [0.33, 7], [0, 1.65, 0], HAUT],
+    ['z', [0.36, 0.36, 0.3, 8], [0, 1.85, 0], EISEN],
+    ['q', [0.14, 1.6, 0.14], [0.7, 1.1, 0.3], EISEN, 0, [0.5, 0, 0]],
+    ['q', [1.2, 0.3, 0.9], [0, 1.35, 0], EISEN],
+  ],
+  held: [
+    ['z', [0.5, 0.65, 1.5, 8], [0, 0.75, 0], '#3a3a3a', 0.8],
+    ['q', [1.0, 1.4, 0.12], [0, 0.95, -0.5], '#8c1f1f', 0.3],
+    ['k', [0.36, 8], [0, 1.85, 0], HAUT],
+    ['z', [0.3, 0.38, 0.3, 6], [0, 2.2, 0], '#d8b06a'],
+    ['q', [0.12, 2.0, 0.12], [0.75, 1.3, 0.3], EISEN, 0, [0.3, 0, 0]],
+    ['q', [1.4, 0.25, 0.7], [0, 1.6, 0], EISEN, 0.4],
+  ],
+  // ------------------------------------------------------------- Gott
+  dryade: [
+    ['z', [0.15, 0.6, 1.5, 8], [0, 0.75, 0], '#6fa35a', 0.5],
+    ['k', [0.3, 7], [0, 1.7, 0], '#c9d99a'],
+    ['k', [0.48, 7], [0, 1.85, -0.1], LAUB2, 0.4],
+  ],
+  wolf: [
+    ['q', [0.7, 0.7, 1.6], [0, 0.85, 0], '#6d6f6a', 0.35],
+    ['q', [0.5, 0.5, 0.6], [0, 1.15, 1.0], '#6d6f6a', 0.35],
+    ['q', [0.25, 0.25, 0.4], [0, 1.05, 1.4], '#4a4b48'],
+    ['z', [0, 0.12, 0.3, 4], [0.15, 1.5, 0.9], '#4a4b48'],
+    ['z', [0, 0.12, 0.3, 4], [-0.15, 1.5, 0.9], '#4a4b48'],
+    ['q', [0.15, 0.6, 0.15], [0.22, 0.3, 0.55], '#4a4b48'],
+    ['q', [0.15, 0.6, 0.15], [-0.22, 0.3, 0.55], '#4a4b48'],
+    ['q', [0.15, 0.6, 0.15], [0.22, 0.3, -0.55], '#4a4b48'],
+    ['q', [0.15, 0.6, 0.15], [-0.22, 0.3, -0.55], '#4a4b48'],
+    ['q', [0.15, 0.15, 0.7], [0, 1.0, -1.0], '#6d6f6a', 0, [0.6, 0, 0]],
+  ],
+  waldgeist: [
+    ['k', [0.6, 8], [0, 1.4, 0], '#bfe8b0', 0.3],
+    ['k', [0.25, 6], [0.6, 1.9, 0.2], '#e2f7d4', GLUEHT],
+    ['k', [0.2, 6], [-0.55, 1.0, -0.2], '#e2f7d4', GLUEHT],
+    ['z', [0.35, 0, 0.9, 7], [0, 0.6, 0], '#9ccf8a', 0.3],
+  ],
+  ent: [
+    ['z', [0.45, 0.6, 2.2, 7], [0, 1.1, 0], HOLZ],
+    ['k', [0.95, 7], [0, 2.6, 0], LAUB, 0.25],
+    ['k', [0.6, 6], [0.5, 3.1, 0.2], LAUB2, 0.25],
+    ['q', [0.25, 1.4, 0.25], [0.7, 1.6, 0], HOLZ, 0, [0, 0, -0.7]],
+    ['q', [0.25, 1.4, 0.25], [-0.7, 1.6, 0], HOLZ, 0, [0, 0, 0.7]],
+    ['q', [0.3, 0.5, 0.5], [0.3, 0.25, 0], HOLZ],
+    ['q', [0.3, 0.5, 0.5], [-0.3, 0.25, 0], HOLZ],
+  ],
+  // Nach der Vorlage des Nutzers: dunkler Riese im Mantel, ohne Fuesse.
+  waldgott: [
+    // Mantel: unten weit, oben schmal, schwebt knapp ueber dem Boden
+    ['z', [0.5, 0.95, 3.0, 9], [0, 1.85, 0], MANTEL, 0.08],
+    ['z', [0.62, 0.5, 0.7, 9], [0, 3.2, -0.02], MANTEL2, 0.05],
+    ...saum(0.88, 0.38, 14),
+    // Haengende Aermel, bis zur Huefte
+    ['z', [0.2, 0.34, 1.9, 6], [0.72, 2.45, 0.05], MANTEL2, 0.05, [0, 0, 0.16]],
+    ['z', [0.2, 0.34, 1.9, 6], [-0.72, 2.45, 0.05], MANTEL2, 0.05, [0, 0, -0.16]],
+    // Hoher Kragen zu beiden Seiten des Kopfes
+    ['q', [0.32, 0.85, 0.1], [0.4, 3.75, -0.05], MANTEL, 0.05, [0, 0.35, -0.22]],
+    ['q', [0.32, 0.85, 0.1], [-0.4, 3.75, -0.05], MANTEL, 0.05, [0, -0.35, 0.22]],
+    ['q', [0.75, 0.7, 0.1], [0, 3.7, -0.3], MANTEL2, 0.05],
+    // Kopf: schwarz, gluehende Augen
+    ['k', [0.26, 8], [0, 3.95, 0.05], '#0b0908'],
+    ['k', [0.055, 5], [0.085, 3.98, 0.29], '#ffd23a', GLUEHT],
+    ['k', [0.055, 5], [-0.085, 3.98, 0.29], '#ffd23a', GLUEHT],
+    // Geweih: zwei Hauptstangen mit Enden
+    ['q', [0.07, 0.95, 0.07], [0.3, 4.48, 0], '#3a3028', 0, [0, 0, -0.55]],
+    ['q', [0.07, 0.95, 0.07], [-0.3, 4.48, 0], '#3a3028', 0, [0, 0, 0.55]],
+    ['q', [0.05, 0.6, 0.05], [0.62, 4.95, 0], '#3a3028', 0, [0, 0, -0.15]],
+    ['q', [0.05, 0.6, 0.05], [-0.62, 4.95, 0], '#3a3028', 0, [0, 0, 0.15]],
+    ['q', [0.045, 0.45, 0.045], [0.34, 4.95, 0.02], '#3a3028', 0, [0, 0, 0.35]],
+    ['q', [0.045, 0.45, 0.045], [-0.34, 4.95, 0.02], '#3a3028', 0, [0, 0, -0.35]],
+    ['q', [0.045, 0.45, 0.045], [0.82, 4.68, 0], '#3a3028', 0, [0, 0, -1.15]],
+    ['q', [0.045, 0.45, 0.045], [-0.82, 4.68, 0], '#3a3028', 0, [0, 0, 1.15]],
+    ['q', [0.04, 0.35, 0.04], [0.15, 4.62, 0.05], '#3a3028', 0, [0, 0, 0.5]],
+    ['q', [0.04, 0.35, 0.04], [-0.15, 4.62, 0.05], '#3a3028', 0, [0, 0, -0.5]],
+    // Gluehende Unterarme und Haende, vor dem Mantel gekreuzt
+    ['z', [0.07, 0.1, 0.62, 5], [0.42, 2.6, 0.45], GOLD, GLUEHT, [1.0, 0, 0.55]],
+    ['q', [0.26, 0.1, 0.3], [0.2, 2.42, 0.66], GOLD, GLUEHT, [0.35, 0, 0.3]],
+    ...klauen(0.2, 2.36, 0.68, 1),
+    ['z', [0.07, 0.1, 0.62, 5], [-0.44, 2.2, 0.42], GOLD, GLUEHT, [1.1, 0, -0.5]],
+    ['q', [0.26, 0.1, 0.3], [-0.22, 2.0, 0.62], GOLD, GLUEHT, [0.4, 0, -0.3]],
+    ...klauen(-0.22, 1.94, 0.64, -1),
+  ],
+
+  // ------------------------------------------------------------- Gebaeude Menschen
+  halle: [
+    ['q', [1.6, 0.8, 1.1], [0, 0.4, 0], '#7a5a3a'],
+    ['z', [0, 1.0, 0.6, 4], [0, 1.1, 0], '#8c2f2f', 0.6, [0, Math.PI / 4, 0]],
+    ['q', [0.25, 0.35, 0.05], [0, 0.18, 0.56], '#2a1d12'],
+    ['q', [0.05, 0.9, 0.05], [0.7, 1.0, 0.4], HOLZ],
+    ['q', [0.35, 0.22, 0.03], [0.88, 1.3, 0.4], '#d8b06a', 0.8],
+  ],
+  grenzstein: [
+    ['z', [0.45, 0.6, 0.25, 6], [0, 0.12, 0], '#6d726a'],
+    ['q', [0.5, 1.9, 0.35], [0, 1.15, 0], STEIN],
+    ['z', [0, 0.3, 0.3, 4], [0, 2.25, 0], STEIN, 0, [0, Math.PI / 4, 0]],
+    ['q', [0.05, 1.1, 0.05], [0.32, 2.3, 0], HOLZ],
+    ['q', [0.5, 0.3, 0.03], [0.58, 2.65, 0], '#8c2f2f', 0.8],
+  ],
+  wachturm: [
+    ['z', [0.55, 0.7, 2.6, 8], [0, 1.3, 0], STEIN],
+    ['z', [0.78, 0.78, 0.25, 8], [0, 2.72, 0], '#6d726a'],
+    ['q', [0.18, 0.3, 0.18], [0.62, 3.0, 0], STEIN],
+    ['q', [0.18, 0.3, 0.18], [-0.62, 3.0, 0], STEIN],
+    ['q', [0.18, 0.3, 0.18], [0, 3.0, 0.62], STEIN],
+    ['q', [0.18, 0.3, 0.18], [0, 3.0, -0.62], STEIN],
+    ['k', [0.2, 6], [0, 3.05, 0], '#d8c8a0', 0.6],
+  ],
+  schmiede: [
+    ['q', [1.4, 0.8, 1.2], [0, 0.4, 0], '#6a5a4a'],
+    ['z', [0.2, 0.25, 1.1, 6], [0.5, 1.2, -0.3], STEIN],
+    ['k', [0.18, 6], [0.5, 1.8, -0.3], '#ff9a3a', GLUEHT],
+    ['q', [1.5, 0.12, 1.3], [0, 0.85, 0], '#5a4030', 0.5],
+  ],
+  saege: [
+    ['q', [1.4, 0.6, 1.0], [0, 0.3, 0], '#7a5a3a'],
+    ['z', [0.2, 0.2, 1.6, 7], [0, 0.85, 0], '#8a6a3a', 0, [0, 0, Math.PI / 2]],
+    ['z', [0.2, 0.2, 1.6, 7], [0, 0.85, 0.45], '#8a6a3a', 0, [0, 0, Math.PI / 2]],
+    ['q', [1.5, 0.1, 1.1], [0, 0.65, 0], '#5a4030', 0.5],
+  ],
+  kaserne: [
+    ['q', [1.8, 0.7, 1.0], [0, 0.35, 0], '#6a5a4a'],
+    ['z', [0, 0.9, 0.5, 4], [0, 0.95, 0], '#8c2f2f', 0.6, [0, Math.PI / 4, 0]],
+    ['q', [0.06, 1.6, 0.06], [0.8, 0.8, 0.5], HOLZ],
+    ['q', [0.45, 0.3, 0.03], [1.03, 1.45, 0.5], '#d8b06a', 0.9],
+  ],
+  schacht: [
+    ['q', [1.1, 0.25, 1.1], [0, 0.12, 0], STEIN],
+    ['q', [0.12, 1.4, 0.12], [0.45, 0.7, 0.45], HOLZ],
+    ['q', [0.12, 1.4, 0.12], [-0.45, 0.7, -0.45], HOLZ],
+    ['q', [1.3, 0.12, 0.12], [0, 1.4, 0], HOLZ, 0, [0, Math.PI / 4, 0]],
+    ['z', [0, 0.35, 0.8, 5], [0, 0.65, 0], BLUT],
+  ],
+  banner: [
+    ['q', [0.1, 2.6, 0.1], [0, 1.3, 0], HOLZ],
+    ['q', [0.9, 0.6, 0.04], [0.47, 2.25, 0], '#d8b06a', 0.9],
+    ['z', [0.35, 0.45, 0.25, 6], [0, 0.12, 0], STEIN],
+  ],
+  kapelle: [
+    ['q', [1.0, 0.8, 1.4], [0, 0.4, 0], '#d6d0c0'],
+    ['z', [0, 0.85, 0.5, 4], [0, 1.05, 0], '#5a4a6a', 0.5, [0, Math.PI / 4, 0]],
+    ['q', [0.35, 0.9, 0.35], [0, 1.1, 0.55], '#d6d0c0'],
+    ['z', [0, 0.3, 0.5, 4], [0, 1.8, 0.55], '#5a4a6a', 0.5],
+  ],
+  // Skriptorium: Steinhaus mit Lesepult-Fenster und leuchtender Kerze
+  skriptorium: [
+    ['q', [1.3, 0.9, 1.0], [0, 0.45, 0], '#c8bea8'],
+    ['z', [0, 0.95, 0.55, 4], [0, 1.18, 0], '#5a4a3a', 0.4, [0, Math.PI / 4, 0]],
+    ['z', [0.25, 0.28, 1.4, 6], [0.55, 0.9, -0.3], '#c8bea8'],
+    ['z', [0, 0.32, 0.4, 6], [0.55, 1.8, -0.3], '#5a4a3a', 0.4],
+    ['q', [0.35, 0.3, 0.04], [-0.2, 0.55, 0.51], '#3a2a1a'],
+    ['k', [0.07, 5], [-0.2, 0.6, 0.55], '#ffd36a', GLUEHT],
+  ],
+  // ------------------------------------------------------------- Gebaeude Gott
+  herzbaum: [
+    ['z', [0.35, 0.55, 2.2, 8], [0, 1.1, 0], HOLZ],
+    ['k', [1.2, 8], [0, 2.8, 0], LAUB, 0.25],
+    ['k', [0.8, 7], [0.7, 2.4, 0.3], LAUB2, 0.25],
+    ['k', [0.8, 7], [-0.6, 2.5, -0.4], LAUB2, 0.25],
+    ['z', [0.1, 0.25, 0.6, 5], [0.45, 0.2, 0], HOLZ, 0, [0, 0, -0.9]],
+    ['z', [0.1, 0.25, 0.6, 5], [-0.45, 0.2, 0], HOLZ, 0, [0, 0, 0.9]],
+  ],
+  hain: [
+    ['z', [0.1, 0.14, 0.8, 5], [0.35, 0.4, 0], HOLZ],
+    ['z', [0, 0.45, 1.2, 6], [0.35, 1.2, 0], LAUB, 0.3],
+    ['z', [0.1, 0.14, 0.6, 5], [-0.35, 0.3, 0.25], HOLZ],
+    ['z', [0, 0.38, 1.0, 6], [-0.35, 0.95, 0.25], LAUB2, 0.3],
+    ['z', [0.1, 0.14, 0.7, 5], [0, 0.35, -0.4], HOLZ],
+    ['z', [0, 0.4, 1.1, 6], [0, 1.05, -0.4], LAUB, 0.3],
+  ],
+  // Waechterbaum: knorriger dunkler Stamm, Dornenkrone, gluehende Augen
+  waechterbaum: [
+    ['z', [0.25, 0.45, 2.2, 6], [0, 1.1, 0], '#2a2018'],
+    ['z', [0, 0.12, 0.9, 4], [0.35, 2.2, 0], '#2a2018', 0, [0, 0, -0.6]],
+    ['z', [0, 0.12, 0.9, 4], [-0.35, 2.2, 0], '#2a2018', 0, [0, 0, 0.6]],
+    ['z', [0, 0.12, 0.8, 4], [0, 2.25, 0.35], '#2a2018', 0, [0.6, 0, 0]],
+    ['z', [0, 0.12, 0.8, 4], [0, 2.25, -0.35], '#2a2018', 0, [-0.6, 0, 0]],
+    ['k', [0.06, 5], [0.1, 1.7, 0.26], '#ffd23a', GLUEHT],
+    ['k', [0.06, 5], [-0.1, 1.7, 0.26], '#ffd23a', GLUEHT],
+  ],
+  quelle: [
+    ['z', [0.9, 0.9, 0.08, 10], [0, 0.04, 0], '#3a7fb0', 0.15],
+    ['k', [0.25, 5], [0.85, 0.15, 0.2], STEIN],
+    ['k', [0.22, 5], [-0.7, 0.12, 0.5], STEIN],
+    ['k', [0.2, 5], [0.1, 0.1, -0.9], STEIN],
+  ],
+  moos: [
+    ['k', [0.85, 7], [0, 0.15, 0], '#4f7a3a', 0.3],
+    ['k', [0.35, 6], [0.4, 0.6, 0.2], '#6a9a4a'],
+  ],
+  dickicht: [
+    ['k', [0.6, 6], [0.5, 0.5, 0], LAUB, 0.3],
+    ['k', [0.55, 6], [-0.5, 0.45, 0.2], LAUB2, 0.3],
+    ['k', [0.6, 6], [0, 0.55, -0.5], LAUB, 0.3],
+    ['k', [0.45, 6], [0, 0.9, 0.3], LAUB2, 0.3],
+  ],
+  blutwurz: [
+    ['k', [0.55, 6], [0, 0.2, 0], '#5a3a2a'],
+    ['z', [0, 0.3, 1.2, 5], [0, 0.9, 0], BLUT],
+    ['z', [0, 0.18, 0.8, 5], [0.35, 0.6, 0.1], BLUT, 0, [0, 0, -0.4]],
+    ['z', [0, 0.18, 0.8, 5], [-0.3, 0.6, -0.1], BLUT, 0, [0, 0, 0.4]],
+  ],
+  dornenschrein: [
+    ['z', [0.5, 0.6, 0.3, 6], [0, 0.15, 0], STEIN],
+    ['z', [0, 0.18, 1.6, 4], [0, 1.05, 0], '#3a2a20', 0.3],
+    ['z', [0, 0.12, 1.0, 4], [0.35, 0.7, 0], '#3a2a20', 0.3, [0, 0, -0.5]],
+    ['z', [0, 0.12, 1.0, 4], [-0.35, 0.7, 0], '#3a2a20', 0.3, [0, 0, 0.5]],
+    ['z', [0, 0.12, 1.0, 4], [0, 0.7, 0.35], '#3a2a20', 0.3, [0.5, 0, 0]],
+  ],
+  // Raunende Eiche: breite alte Eiche mit gluehenden Runen am Stamm
+  eiche: [
+    ['z', [0.45, 0.65, 1.6, 8], [0, 0.8, 0], HOLZ],
+    ['k', [1.15, 8], [0, 2.2, 0], '#35602c', 0.25],
+    ['k', [0.75, 7], [0.8, 1.9, 0.2], LAUB, 0.25],
+    ['k', [0.75, 7], [-0.75, 1.95, -0.2], LAUB2, 0.25],
+    ['q', [0.05, 0.35, 0.03], [0.12, 0.9, 0.5], '#f5b23c', GLUEHT],
+    ['q', [0.05, 0.25, 0.03], [-0.12, 1.1, 0.5], '#f5b23c', GLUEHT],
+    ['q', [0.18, 0.05, 0.03], [0, 0.65, 0.52], '#f5b23c', GLUEHT],
+  ],
+  steinkreis: [
+    ['q', [0.25, 0.9, 0.18], [0.8, 0.45, 0], STEIN],
+    ['q', [0.25, 0.9, 0.18], [-0.8, 0.45, 0], STEIN],
+    ['q', [0.25, 0.9, 0.18], [0.4, 0.45, 0.7], STEIN],
+    ['q', [0.25, 0.9, 0.18], [-0.4, 0.45, 0.7], STEIN],
+    ['q', [0.25, 0.9, 0.18], [0.4, 0.45, -0.7], STEIN],
+    ['q', [0.25, 0.9, 0.18], [-0.4, 0.45, -0.7], STEIN],
+    ['k', [0.25, 6], [0, 0.3, 0], '#9ad0c0', 0.4],
+  ],
+
+  // ------------------------------------------------------------- Karte und Effekte
+  scheibe: [['s', [1, 64], [0, 0, 0], '#ffffff', 1]],
+  fronAder: [
+    ['k', [0.45, 5], [0, 0.2, 0], STEIN],
+    ['k', [0.35, 5], [0.55, 0.15, 0.2], '#7a7f76'],
+    ['k', [0.3, 5], [-0.4, 0.12, -0.35], '#9a9f96'],
+  ],
+  blutAder: [
+    ['z', [0, 0.22, 1.1, 5], [0, 0.55, 0], BLUT],
+    ['z', [0, 0.18, 0.8, 5], [0.3, 0.4, 0.15], '#c58fd2', 0, [0, 0, -0.35]],
+    ['z', [0, 0.16, 0.7, 5], [-0.3, 0.35, -0.1], '#8a4f9a', 0, [0.3, 0, 0.3]],
+  ],
+  baum: [
+    ['z', [0.12, 0.18, 1.2, 5], [0, 0.6, 0], HOLZ],
+    ['z', [0, 0.7, 1.8, 6], [0, 1.9, 0], '#2f5a2a'],
+  ],
+  staubwolke: [['k', [1, 6], [0, 0, 0], '#b0a890']],
+  pfeil: [
+    ['q', [0.05, 0.05, 1.0], [0, 0, 0], HOLZ],
+    ['z', [0, 0.06, 0.18, 4], [0, 0, 0.55], EISEN, 0, [Math.PI / 2, 0, 0]],
+    ['q', [0.16, 0.02, 0.18], [0, 0, -0.45], '#e8e2d0', 0.6],
+  ],
+  kugel: [
+    ['k', [0.32, 6], [0, 0, 0], '#e2f7d4', GLUEHT],
+    ['k', [0.16, 5], [0, 0, -0.35], '#bfe8b0', GLUEHT],
+  ],
+  stein: [['k', [0.45, 6], [0, 0, 0], STEIN]],
+  // Fels: ein grosser und zwei kleinere Brocken, Groesse 1 = Felsradius
+  fels: [
+    ['k', [0.85, 6], [0, 0.35, 0], '#5c5e55'],
+    ['k', [0.55, 5], [0.55, 0.3, 0.35], '#6c6e64'],
+    ['k', [0.5, 5], [-0.5, 0.25, -0.4], '#53554c'],
+    ['k', [0.35, 5], [0.2, 0.75, -0.2], '#74766b'],
+  ],
+  // Katapult: Holzrahmen auf vier Raedern, Wurfarm mit Schale
+  katapult: [
+    ['q', [1.2, 0.18, 0.7], [0, 0.45, 0], HOLZ],
+    ['z', [0.22, 0.22, 0.1, 8], [0.42, 0.22, 0.4], '#4a3a2a', 0, [Math.PI / 2, 0, 0]],
+    ['z', [0.22, 0.22, 0.1, 8], [-0.42, 0.22, 0.4], '#4a3a2a', 0, [Math.PI / 2, 0, 0]],
+    ['z', [0.22, 0.22, 0.1, 8], [0.42, 0.22, -0.4], '#4a3a2a', 0, [Math.PI / 2, 0, 0]],
+    ['z', [0.22, 0.22, 0.1, 8], [-0.42, 0.22, -0.4], '#4a3a2a', 0, [Math.PI / 2, 0, 0]],
+    ['q', [0.12, 0.7, 0.12], [-0.2, 0.85, 0.25], HOLZ],
+    ['q', [0.12, 0.7, 0.12], [-0.2, 0.85, -0.25], HOLZ],
+    ['q', [0.1, 1.3, 0.1], [0.05, 1.05, 0], '#8a6a3a', 0, [0, 0, -0.9]],
+    ['k', [0.18, 5], [0.55, 1.45, 0], STEIN],
+    ['q', [0.5, 0.06, 0.6], [0, 0.56, 0], '#8c2f2f', 0.7],
+  ],
+  // Wurzelbrecher: gebuecktes Knaeuel aus dunklen Wurzeln mit gluehendem Kern
+  wurzelbrecher: [
+    ['k', [0.75, 7], [0, 0.75, 0], '#3a2a1e', 0.15],
+    ['z', [0.1, 0.22, 1.0, 5], [0.55, 0.35, 0.3], '#2e2218', 0, [0.4, 0, -0.9]],
+    ['z', [0.1, 0.22, 1.0, 5], [-0.55, 0.35, 0.3], '#2e2218', 0, [0.4, 0, 0.9]],
+    ['z', [0.1, 0.22, 1.0, 5], [0.5, 0.35, -0.4], '#2e2218', 0, [-0.4, 0, -0.9]],
+    ['z', [0.1, 0.22, 1.0, 5], [-0.5, 0.35, -0.4], '#2e2218', 0, [-0.4, 0, 0.9]],
+    ['z', [0.14, 0.3, 1.2, 5], [0, 1.0, 0.65], '#2e2218', 0, [1.2, 0, 0]],
+    ['k', [0.22, 6], [0, 0.85, 0.62], '#f5b23c', GLUEHT],
+    ['z', [0, 0.12, 0.8, 4], [0.3, 1.5, -0.1], '#2e2218', 0, [0, 0, -0.5]],
+    ['z', [0, 0.12, 0.8, 4], [-0.3, 1.5, -0.1], '#2e2218', 0, [0, 0, 0.5]],
+  ],
+};
+
+/**
+ * Varianten des Waldgotts fuer die Stil-Auswahl in dist/galerie.html. Der
+ * Nutzer sucht die beste aus; sie wird dann MODELLE_DEF.waldgott. Vorlage:
+ * docs/bilder/vorlagen/waldgott-vorlage.png (nur lokal).
+ */
+const WALDGOTT_VARIANTEN = {
+  'A — bisher': MODELLE_DEF.waldgott,
+};
+
+
+/* ---------------------------------- */
+
+// Modell-Galerie: zeigt Modelle drehend nebeneinander, damit der Nutzer den
+// Grafikstil auswaehlen kann -- zuerst die Varianten des Waldgotts, dann
+// alle Einheiten, Gebaeude, Karte und Effekte, dazu die Icons.
+// Gehoert zur Grafik (siehe GEMINI.md). Nutzt denselben Renderer wie die
+// 3D-Ansicht (src/render3d.js) und dieselben Modelle (src/modelle3d.js).
+// Wird von tools/bundle.mjs zu dist/galerie.html zusammengefuegt.
+
+const leinwand = document.getElementById('leinwand');
+const gl = leinwand.getContext('webgl2', { antialias: true, stencil: true });
+const TEAMFARBE = { mensch: HEX('#d8b06a'), gott: HEX('#8fb86a') };
+const WEISS = [1, 1, 1];
+let ansicht = 'waldgott';
+let schilderSig = '';
+const masse = {}; // Modell -> { hoehe, breite } fuer die Kamera
+
+/** Ein Modell laden und seine Ausdehnung merken. */
+function lade(key, teile) {
+  const daten = baueModell(teile);
+  let hoehe = 0.1;
+  let breite = 0.1;
+  for (let i = 0; i < daten.length; i += 10) {
+    hoehe = Math.max(hoehe, daten[i + 1]);
+    breite = Math.max(breite, Math.abs(daten[i]), Math.abs(daten[i + 2]));
+  }
+  MODELLE[key] = ladeModell(daten);
+  masse[key] = { hoehe, breite };
+}
+
+/** Was in der aktuellen Ansicht gezeigt wird: Modell, Name, Farbe. */
+function eintraege() {
+  if (ansicht === 'waldgott') {
+    return Object.keys(WALDGOTT_VARIANTEN).map((n) => ({ key: 'variante:' + n, name: n, team: TEAMFARBE.gott }));
+  }
+  if (ansicht === 'einheiten') {
+    return Object.keys(UNITS).map((k) => ({ key: k, name: UNITS[k].name, team: TEAMFARBE[UNITS[k].faction] }));
+  }
+  if (ansicht === 'gebaeude') {
+    return Object.keys(BUILDINGS).map((k) => ({ key: k, name: BUILDINGS[k].name, team: TEAMFARBE[BUILDINGS[k].faction] }));
+  }
+  const reste = Object.keys(MODELLE_DEF).filter((k) => !UNITS[k] && !BUILDINGS[k] && k !== 'scheibe');
+  return reste.map((k) => ({ key: k, name: k, team: WEISS }));
+}
+
+/** Raster: so viele Spalten, dass die Zellen etwa quadratisch werden. */
+function raster(n, w, h) {
+  const spalten = Math.max(1, Math.round(Math.sqrt((n * w) / h)));
+  const zeilen = Math.ceil(n / spalten);
+  return { spalten, zeilen, zw: w / spalten, zh: h / zeilen };
+}
+
+/** Namensschilder als HTML ueber den Zellen; nur neu, wenn sich etwas aendert. */
+function schilder(liste, r) {
+  const sig = ansicht + '|' + liste.length + '|' + Math.round(r.zw) + 'x' + Math.round(r.zh);
+  if (sig === schilderSig) return;
+  schilderSig = sig;
+  document.getElementById('schilder').innerHTML = liste
+    .map((e, i) => {
+      const x = (i % r.spalten) * r.zw;
+      const y = Math.floor(i / r.spalten) * r.zh;
+      return `<div class="schild" style="left:${x}px;top:${y}px">${e.name}</div>`;
+    })
+    .join('');
+}
+
+/** Ein Bild: jede Zelle mit eigener Kamera, das Modell dreht sich langsam. */
+function bild(now) {
+  requestAnimationFrame(bild);
+  if (ansicht === 'icons') return;
+  const d = devicePixelRatio || 1;
+  const w = leinwand.clientWidth;
+  const h = leinwand.clientHeight;
+  if (leinwand.width !== ((w * d) | 0) || leinwand.height !== ((h * d) | 0)) {
+    leinwand.width = (w * d) | 0;
+    leinwand.height = (h * d) | 0;
+  }
+  const liste = eintraege();
+  const r = raster(liste.length, w, h);
+  schilder(liste, r);
+
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+  gl.disable(gl.CULL_FACE);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.enable(gl.SCISSOR_TEST);
+  gl.scissor(0, 0, leinwand.width, leinwand.height);
+  gl.clearColor(NEBEL[0], NEBEL[1], NEBEL[2], 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  gl.useProgram(PROG);
+  const l = [0.45, 1, 0.3];
+  const ll = Math.hypot(...l);
+  gl.uniform3f(gl.getUniformLocation(PROG, 'uLicht'), l[0] / ll, l[1] / ll, l[2] / ll);
+  gl.uniform3f(gl.getUniformLocation(PROG, 'uNebel'), ...NEBEL);
+  gl.uniform1f(gl.getUniformLocation(PROG, 'uRoentgen'), 0);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, sichtTex);
+  gl.uniform1i(gl.getUniformLocation(PROG, 'uSicht'), 0);
+  gl.uniform1f(gl.getUniformLocation(PROG, 'uKarte'), 1e6);
+
+  const drehung = (now / 1000) * 0.6;
+  liste.forEach((e, i) => {
+    if (!MODELLE[e.key]) return;
+    const x = (i % r.spalten) * r.zw;
+    const y = Math.floor(i / r.spalten) * r.zh;
+    // GL zaehlt von unten
+    const vx = Math.round(x * d);
+    const vy = Math.round((h - y - r.zh) * d);
+    const vw = Math.round(r.zw * d) - 2;
+    const vh = Math.round(r.zh * d) - 2;
+    gl.viewport(vx, vy, vw, vh);
+    gl.scissor(vx, vy, vw, vh);
+    gl.clearColor(0.09, 0.11, 0.08, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const m = masse[e.key];
+    const gross = Math.max(m.hoehe, m.breite * 2);
+    const abstand = gross * 1.7 + 0.5;
+    const ziel = [0, m.hoehe * 0.45, 0];
+    const auge = [0, m.hoehe * 0.45 + abstand * 0.45, abstand];
+    const vp = m4mul(m4persp(0.7, vw / vh, 0.05, 200), m4look(auge, ziel, [0, 1, 0]));
+    gl.uniformMatrix4fv(gl.getUniformLocation(PROG, 'uVP'), false, vp);
+    // Boden-Scheibe als Standflaeche
+    instanz('scheibe', 0, 0, 0, 0, m.breite * 1.3, [0.2, 0.25, 0.16], 1, 1, 1);
+    zeichneInstanzen(MODELLE.scheibe);
+    instanz(e.key, 0, 0, 0, drehung, 1, e.team);
+    zeichneInstanzen(MODELLE[e.key]);
+  });
+  gl.disable(gl.SCISSOR_TEST);
+}
+
+/** Icons in drei Groessen, ohne WebGL. */
+function iconsZeigen() {
+  const namen = { ...Object.fromEntries(Object.entries(UNITS).map(([k, u]) => [k, u.name])), ...Object.fromEntries(Object.entries(BUILDINGS).map(([k, b]) => [k, b.name])) };
+  document.getElementById('icons').innerHTML = Object.entries(ICONS)
+    .map(
+      ([k, svg]) => `<div class="ic"><div class="reihe">
+        <span style="width:20px;height:20px">${svg}</span>
+        <span style="width:36px;height:36px">${svg}</span>
+        <span style="width:64px;height:64px">${svg}</span></div><b>${namen[k] || k}</b></div>`
+    )
+    .join('');
+}
+
+function wechsle(neu) {
+  ansicht = neu;
+  schilderSig = '';
+  for (const b of document.querySelectorAll('#kopf [data-ansicht]')) b.className = b.dataset.ansicht === neu ? 'an' : '';
+  const icons = neu === 'icons';
+  document.getElementById('icons').style.display = icons ? 'grid' : 'none';
+  leinwand.style.display = icons ? 'none' : 'block';
+  document.getElementById('schilder').style.display = icons ? 'none' : 'block';
+  document.getElementById('hinweis').textContent =
+    neu === 'waldgott' ? 'Welche Variante gefällt dir am besten? Nenne ihren Buchstaben.' : 'Teamfarbe: Menschen gold, Gott grün.';
+  if (icons) iconsZeigen();
+}
+
+let sichtTex = null;
+function start() {
+  for (const b of document.querySelectorAll('#kopf [data-ansicht]')) b.onclick = () => wechsle(b.dataset.ansicht);
+  if (!gl) {
+    document.getElementById('nogl').style.display = 'flex';
+    return;
+  }
+  initGL();
+  for (const [k, teile] of Object.entries(MODELLE_DEF)) lade(k, teile);
+  for (const [n, teile] of Object.entries(WALDGOTT_VARIANTEN)) lade('variante:' + n, teile);
+  // Kein Nebel in der Galerie: eine weisse Sicht-Textur
+  sichtTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, sichtTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array([255]));
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  requestAnimationFrame(bild);
+}
+start();
+
+</script>
+</body>
+</html>

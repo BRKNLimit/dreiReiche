@@ -1,0 +1,120 @@
+# Die drei Reiche — Regeln für Gemini (Grafik)
+
+Du arbeitest an einem RTS-Prototyp im Browser: Menschen gegen den Wald- und
+Wiesengott, WebGL 2 ohne Bibliothek, alles läuft offline aus einer HTML-Datei.
+**Du bist für die Grafik zuständig.** Parallel arbeitet Claude (ein anderer
+KI-Agent) an Spiellogik, KI und Bedienung — in anderen Dateien. Den Auftrag
+findest du in `docs/grafik/auftrag.md`.
+
+## Befehle
+
+```bash
+npm test          # alle Tests, auch test/grafik.test.js (Modelle, Icons)
+npm run smoke     # baut dist/*.html und fährt 2D, 3D und Galerie headless
+npm run galerie   # nur die Galerie bauen und prüfen
+```
+
+Ansehen: `dist/galerie.html` (Stil-Auswahl, Modelle, Icons),
+`dist/drei-reiche-3d.html` (das Spiel in 3D), `dist/resonit.html` (2D).
+Kein `npm install` nötig, keine Abhängigkeiten.
+
+## Deine Dateien — nur diese änderst du
+
+| Datei | Inhalt |
+| --- | --- |
+| `src/modelle3d.js` | Alle 3D-Modelle (`MODELLE_DEF`) und die Waldgott-Varianten (`WALDGOTT_VARIANTEN`) |
+| `src/render3d.js` | Renderer: Geometrie, Shader, Licht, Instanzen |
+| `src/gelaende3d.js` | Boden, gerodete Flächen, Seen, Felsen, Adern, Bäume in 3D |
+| `src/gelaende2d.js` | Boden, gerodete Flächen, Felsen, Seen in der 2D-Draufsicht |
+| `src/icons.js` | Alle Icons als SVG |
+| `src/galerie.js`, `src/galerie.html` | Die Galerie |
+| `docs/grafik/` | Dein Protokoll, deine Wünsche an Claude, Stil-Notizen |
+| `docs/bilder/` | Bilder (Screenshots, Vorlagen) |
+
+**Nicht anfassen:** `src/sim/**` (deterministische Simulation), `src/ui.js`,
+`src/ui3d.js`, `src/ui-gemeinsam.js`, `src/shell*.html`, `test/grid.test.js`,
+`tools/**`, `package.json`, `CLAUDE.md`, `README.md`, `CHANGELOG.md`.
+Brauchst du dort etwas (neuer Uniform, neuer Aufruf, andere Daten), trag es
+in `docs/grafik/wuensche.md` ein — Claude setzt es um.
+
+## Schnittstellen — die dürfen nicht brechen
+
+**`src/modelle3d.js`**
+- `MODELLE_DEF` braucht jeden Schlüssel aus `UNITS` und `BUILDINGS`
+  (`src/sim/defs.js`) und dazu `scheibe`, `fronAder`, `blutAder`, `baum`,
+  `pfeil`, `kugel`, `stein`, `fels`, `staubwolke`. Neue Schlüssel sind erlaubt.
+- Ein Modell ist eine Liste von Teilen
+  `[form, masse, position, farbe, team, drehung]`:
+  `'q'` Quader `[b, h, t]`, `'z'` Zylinder/Kegel `[rOben, rUnten, h, segmente]`,
+  `'k'` Kugel `[r, segmente]`, `'s'` Scheibe `[r, segmente]`;
+  Farbe immer `'#rrggbb'`; `team` 0..1 = Anteil der Fraktionsfarbe,
+  `GLUEHT` (2) = leuchtet selbst; Drehung `[rx, ry, rz]` in Bogenmaß.
+- y ist oben, Modelle schauen entlang **+z**. Maßstab 1 = Radius der Einheit
+  bzw. des Gebäudes. Füße bzw. Fundament bei y = 0.
+- Budget: höchstens 6000 Ecken je Einheit, 9000 je Gebäude (prüft der Test).
+  Ein Heer hat Hunderte Einheiten — kein Detail, das man aus Spielhöhe nicht
+  sieht.
+
+**`src/render3d.js`** — diese Namen nutzt `src/ui3d.js` und dürfen bleiben,
+wie sie sind: `DM`, `HEX`, `NEBEL`, `m4mul`, `m4persp`, `m4look`, `m4inv`,
+`baueModell`, `ladeModell`, `initGL`, `instanz(key, x, y, z, rot, scale, team,
+yScale, hell, alpha, schritt)`, `zeichneInstanzen(m, behalten)`, `MODELLE`,
+`PROG`, `PROG_L`, `bodenModell`, `linienVao`, `linienPuffer`. Der Shader `PROG`
+braucht weiter die Attribute 0–5 (Ecke: Position, Normale, Farbe+team;
+Instanz: 12 Floats) und die Uniforms `uVP`, `uLicht`, `uNebel`, `uRoentgen`
+(1 = verdeckte Einheit als Umriss in Teamfarbe), `uSicht` (Nebel des
+Krieges, R8-Textur auf Einheit 0, 1 = sichtbar) und `uKarte` (Kartengröße in
+m). Wie du daraus Licht, Material und Nebel berechnest, ist deine Sache.
+
+**`src/gelaende3d.js`** — `baueBoden()`, `DEKO`, `zeichneBoden(world)`,
+`zeichneGelaende(world, now)`. **`src/gelaende2d.js`** — `drawGrid(W, H)`,
+`drawCleared()`, `drawHindernisse()`.
+Felsen und Seen kommen aus `world.hindernisse` (Kreise mit `x`, `y`, `r` in
+Dezimetern, `art: 'fels' | 'see'`). **Die Kreise sind die Wahrheit:** Einheiten
+laufen genau bis an ihren Rand. Organisch aussehen darf es, aber die
+sichtbare Kante darf nicht mehr als etwa 10 % vom Kreis abweichen.
+
+**`src/icons.js`** — `ICONS` braucht `skillpunkte`, `gegenwart`,
+`goetterblut`, `fron`, jeden Schlüssel aus `UNITS`, `BUILDINGS` und
+`FAEHIGKEITEN`. Jedes Icon: SVG-String mit `viewBox="0 0 24 24"`, ohne
+`width`/`height` am `<svg>`, ohne Skripte und externe Verweise.
+
+## Regeln
+
+1. **Vor jedem Commit:** `npm test` und `npm run smoke` grün. Nie mit roten
+   Tests committen.
+2. **Branch `gemini/grafik`**, kleine Commits mit deutscher Nachricht, was und
+   warum. Kein Force-Push, kein Merge nach `main` — das macht der Nutzer oder
+   Claude. Hol dir Claudes Stand regelmäßig: `git fetch && git merge origin/main`
+   (Konflikte sollte es nicht geben, die Dateien sind getrennt).
+3. **Offline:** keine Bibliotheken, keine CDNs, keine nachgeladenen Dateien,
+   keine Texturen aus dem Netz. Prozedural erzeugen (Rauschen im Shader,
+   Farbverläufe je Ecke) ist erlaubt und erwünscht.
+4. **Leistung:** 60 Bilder pro Sekunde mit 300 Einheiten auf einem normalen
+   Laptop. Lieber eine gute Form als viele kleine Teile.
+5. **Lesbarkeit vor Schönheit:** Aus Spielhöhe muss man jede Einheit an der
+   Silhouette erkennen, und die Fraktionsfarbe (Menschen gold `#d8b06a`, Gott
+   grün `#8fb86a`) muss sichtbar sein.
+6. **Code wie der vorhandene:** deutsche Bezeichner und Kommentare, zwei
+   Leerzeichen, Semikolons, einfache Anführungszeichen. Kommentare erklären
+   das Warum.
+7. Trag jede Arbeitsrunde in `docs/grafik/protokoll.md` ein: was, warum,
+   wie geprüft.
+
+## Stil (Vorgaben des Nutzers)
+
+- **Waldgott:** riesig, dunkel, unheimlich. Fast schwarzer Mantel ohne
+  sichtbare Füße, unten zerfasert wie Wurzeln; hoher Kragen, hängende Ärmel;
+  schwarzer Kopf mit glühenden gelben Augen und verzweigtem Geweih; lange,
+  golden leuchtende Hände mit Klauenfingern, vor dem Körper gekreuzt. Warmes
+  orangefarbenes Licht, düster und ehrfurchtgebietend. **Kein grüner
+  Waldgeist.** Vorlage: `docs/bilder/vorlagen/waldgott-vorlage.png` (nur
+  lokal, nicht im Repo).
+- Weitere Gott-Einheiten und -Gebäude greifen diese dunkle, golden glühende
+  Ästhetik auf. Die Menschen: Mittelalter, Holz, Stein, Eisen.
+- Icons: wie der Entwurf der Ressourcenleiste
+  (`docs/bilder/ressourcenleiste-entwurf.png`) — klare Formen, kräftige
+  Farben, auf dunklem Blau (`#021722`) lesbar, ab 20 px erkennbar.
+- Die Karte soll organisch und echt wirken, nicht nach Pixelbrei: natürliche
+  Übergänge, Felsformationen statt Kugelketten, Seen mit Ufer, weiche
+  Nebelränder.

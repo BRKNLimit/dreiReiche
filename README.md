@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.24
+# Die drei Reiche — Prototyp 0.25
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -13,9 +13,10 @@ Verbesserungen und eine Fähigkeit des Kommandanten frei.
 ## Loslegen
 
 ```bash
-npm test          # 108 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
+npm test          # 111 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
-npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
+npm run smoke     # fährt 2D, 3D und Galerie headless
+npm run galerie   # nur die Galerie (dist/galerie.html): Modelle und Icons zur Stil-Auswahl
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
 npm run sweep     # Einstellungen vergleichen: node tools/sweep.mjs [seeds] [minuten] [filter] [stile]
 ```

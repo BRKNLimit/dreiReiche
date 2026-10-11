@@ -85,7 +85,11 @@
     font: 500 22px/1 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
     font-variant-numeric: tabular-nums;
   }
-  #ressourcen .ri { display: flex; align-items: center; gap: 9px; min-width: 64px; }
+  #ressourcen .ri { display: flex; align-items: center; gap: 9px; }
+  /* feste Breite je Zahl: die Leiste waechst nicht, wenn Zahlen groesser werden */
+  #ressourcen .ri span { display: inline-block; width: 4.6ch; text-align: left; }
+  #ressourcen .ri:first-child span { width: 2.4ch; }
+  #ressourcen .frei { color: #f7b55a; }
   #ressourcen svg { width: 24px; height: 24px; flex: none; }
   #ressourcen .knapp { color: #ff8a6a; }
   /* Info-Karten */
@@ -3443,8 +3447,79 @@ function winkel(a, b) {
 
 /* ---------------------------------- */
 
+// Icons: Ressourcen, Einheiten, Gebaeude, Faehigkeiten, Skills.
+// Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
+// anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
+// Dateien (gl, MAP, KARTE, ...) sind dort global. Exporte gibt es nur fuer die
+// Tests unter Node.
+//
+// Jedes Icon ist ein SVG-String mit viewBox="0 0 24 24", ohne feste Groesse
+// (die Oberflaeche setzt sie per CSS). Stil: der Entwurf des Nutzers fuer die
+// Ressourcenleiste (docs/bilder/ressourcenleiste-entwurf.png) -- klare Formen,
+// kraeftige Farben, lesbar ab 20 px. Einheiten und Gebaeude: helle Silhouette,
+// Fraktionsfarbe als Akzent (Menschen #d8b06a, Gott #8fb86a).
+
+/** Platzhalter: Kreis mit Kuerzel, bis ein richtiges Icon da ist. */
+function platzhalter(text, farbe) {
+  return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="${farbe}" stroke-width="1.6"/><text x="12" y="16" text-anchor="middle" font-size="10" font-family="sans-serif" fill="${farbe}">${text}</text></svg>`;
+}
+const M = '#d8b06a';
+const G = '#8fb86a';
+const ICONS = {
+  // Ressourcenleiste
+  skillpunkte: `<svg viewBox="0 0 24 24" fill="none" stroke="#f7b55a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.8v2M4.6 4.8l1.3 1.3M19.4 4.8l-1.3 1.3M2.2 11h2M19.8 11h2"/><path d="M8.3 16.2a6.2 6.2 0 1 1 7.4 0c-.8.6-1.1 1.3-1.1 2.1v.7H9.4v-.7c0-.8-.3-1.5-1.1-2.1z"/><path d="M9.4 19.6h5.2"/><path d="M9.9 21.6h4.2"/></svg>`,
+  gegenwart: `<svg viewBox="0 0 24 24"><path d="M13.2 1.8 4.6 13.6h6.1l-1.5 8.6 9.2-12.4h-6.3z" fill="#8fd8ff" stroke="#d8f4ff" stroke-width=".8" stroke-linejoin="round"/></svg>`,
+  goetterblut: `<svg viewBox="0 0 24 24"><path d="M12 2.2 6 12.6a6.9 6.9 0 1 0 12 0z" fill="#ff3434"/></svg>`,
+  fron: `<svg viewBox="0 0 24 24"><path d="M2.5 6.4 6.6 4.3l3.2 2.1-.9 5.2-4.7 1.9z" fill="#c9ffe0"/><path d="M9.8 5.1 14.6 2.2l5 1.9 1.1 5.9-4.6 3.8-5.4-2.1z" fill="#e6fff0"/><path d="M14.6 2.2l5 1.9-3.4 3.3z" fill="#7dffae"/><path d="M3.4 13.8 9.6 11.4l5.3 2.1-2.2 6.3H6z" fill="#1fd35a"/><path d="M9.6 11.4l5.3 2.1-4.1 1.6z" fill="#9dffc2"/><path d="M14.9 13.6l6-3.2 1.1 6.4-4.2 3.3h-4.1z" fill="#0fae3e"/><path d="M3.4 13.8 6 19.8H3z" fill="#078a2c"/></svg>`,
+  // Einheiten
+  bauer: platzhalter('Ba', M),
+  soldat: platzhalter('So', M),
+  jaeger: platzhalter('Jä', M),
+  soeldner: platzhalter('Sö', M),
+  katapult: platzhalter('Ka', M),
+  held: platzhalter('He', M),
+  dryade: platzhalter('Dr', G),
+  wolf: platzhalter('Wo', G),
+  waldgeist: platzhalter('Wg', G),
+  ent: platzhalter('En', G),
+  wurzelbrecher: platzhalter('Wb', G),
+  waldgott: platzhalter('Go', G),
+  // Gebaeude
+  halle: platzhalter('Th', M),
+  grenzstein: platzhalter('Gr', M),
+  wachturm: platzhalter('Wt', M),
+  schmiede: platzhalter('Sm', M),
+  saege: platzhalter('Sä', M),
+  kaserne: platzhalter('Ks', M),
+  schacht: platzhalter('Bs', M),
+  banner: platzhalter('Kb', M),
+  kapelle: platzhalter('Kp', M),
+  skriptorium: platzhalter('Sk', M),
+  herzbaum: platzhalter('Hb', G),
+  hain: platzhalter('Ha', G),
+  waechterbaum: platzhalter('Wä', G),
+  quelle: platzhalter('Qu', G),
+  moos: platzhalter('Mo', G),
+  dickicht: platzhalter('Di', G),
+  blutwurz: platzhalter('Bw', G),
+  dornenschrein: platzhalter('Ds', G),
+  steinkreis: platzhalter('Sk', G),
+  eiche: platzhalter('Ei', G),
+  // Faehigkeiten der Kommandanten
+  schlachtruf: platzhalter('Ru', M),
+  schildwall: platzhalter('Sw', M),
+  ansturm: platzhalter('An', M),
+  wurzelgriff: platzhalter('Wu', G),
+  lebenssaft: platzhalter('Ls', G),
+  rudelruf: platzhalter('Rr', G),
+};
+
+
+/* ---------------------------------- */
+
 // Gemeinsame Texte fuer beide Oberflaechen (2D und 3D). Liest den Zustand,
 // aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
+
 
 
 
@@ -3492,13 +3567,9 @@ function nebelHelligkeit(nebel, ziel) {
 
 // ------------------------------------------------------------ Ressourcenleiste
 // Nach dem Entwurf des Nutzers: dunkle Leiste oben links, rechts rund
-// auslaufend; Gluehbirne = Gegenwart (Energie), Tropfen = Goetterblut,
-// gruene Kristalle = Fron (Masse).
-const ICON_GEGENWART = `<svg viewBox="0 0 24 24" fill="none" stroke="#f7b55a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.8v2M4.6 4.8l1.3 1.3M19.4 4.8l-1.3 1.3M2.2 11h2M19.8 11h2"/><path d="M8.3 16.2a6.2 6.2 0 1 1 7.4 0c-.8.6-1.1 1.3-1.1 2.1v.7H9.4v-.7c0-.8-.3-1.5-1.1-2.1z"/><path d="M9.4 19.6h5.2"/><path d="M9.9 21.6h4.2"/></svg>`;
-const ICON_BLUT = `<svg viewBox="0 0 24 24"><path d="M12 2.2 6 12.6a6.9 6.9 0 1 0 12 0z" fill="#ff3434"/></svg>`;
-const ICON_FRON = `<svg viewBox="0 0 24 24"><path d="M2.5 6.4 6.6 4.3l3.2 2.1-.9 5.2-4.7 1.9z" fill="#c9ffe0"/><path d="M9.8 5.1 14.6 2.2l5 1.9 1.1 5.9-4.6 3.8-5.4-2.1z" fill="#e6fff0"/><path d="M14.6 2.2l5 1.9-3.4 3.3z" fill="#7dffae"/><path d="M3.4 13.8 9.6 11.4l5.3 2.1-2.2 6.3H6z" fill="#1fd35a"/><path d="M9.6 11.4l5.3 2.1-4.1 1.6z" fill="#9dffc2"/><path d="M14.9 13.6l6-3.2 1.1 6.4-4.2 3.3h-4.1z" fill="#0fae3e"/><path d="M3.4 13.8 6 19.8H3z" fill="#078a2c"/></svg>`;
-
-/** Ressourcenleiste: Gegenwart-Ueberschuss aller Netze, Goetterblut, Fron. */
+// auslaufend; Gluehbirne = freie Skillpunkte, Blitz = Gegenwart, Tropfen =
+// Goetterblut, gruene Kristalle = Fron. Icons in src/icons.js.
+/** Ressourcenleiste: freie Skillpunkte, Gegenwart-Ueberschuss aller Netze, Goetterblut, Fron. */
 function ressourcenHtml(world, player) {
   const p = world.players[player];
   let angebot = 0;
@@ -3513,9 +3584,10 @@ function ressourcenHtml(world, player) {
   const eintrag = (icon, wert, titel, klasse = '') =>
     `<div class="ri" title="${titel}">${icon}<span class="${klasse}">${wert}</span></div>`;
   return (
-    eintrag(ICON_GEGENWART, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
-    eintrag(ICON_BLUT, p.goetterblut, 'Götterblut') +
-    eintrag(ICON_FRON, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
+    eintrag(ICONS.skillpunkte, skillFrei(world, player), 'Skillpunkte, die du ausgeben kannst (T)', skillFrei(world, player) > 0 ? 'frei' : '') +
+    eintrag(ICONS.gegenwart, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
+    eintrag(ICONS.goetterblut, p.goetterblut, 'Götterblut') +
+    eintrag(ICONS.fron, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
   );
 }
 
@@ -3765,63 +3837,15 @@ function faehigkeitFarbe(art) {
 
 /* ---------------------------------- */
 
-// 3D-Ansicht. Dieselbe Simulation wie die 2D-Ansicht, gezeichnet mit WebGL 2
-// ohne Bibliothek: Modelle aus Grundkoerpern (Quader, Zylinder, Kegel, Kugel),
-// flach schattiert, instanziert gezeichnet. Aendert den Simulationszustand
-// nie direkt, nur ueber issue(). Wird von tools/bundle.mjs mit der Sim
-// zusammengefuegt -- deshalb hier keine Imports.
-//
-// Koordinaten: Simulation in Dezimetern (x, y). Szene in Metern: x -> x,
-// y -> z, Hoehe ist y. Modelle schauen entlang +z.
-
-const cv3 = document.getElementById('cv3d');
-const ov = document.getElementById('overlay');
-const octx = ov.getContext('2d');
-const mini3 = document.getElementById('mini');
-const mctx3 = mini3.getContext('2d');
-const gl = cv3.getContext('webgl2', { antialias: true, stencil: true });
-
-const ME = 0;
+// Renderer der 3D-Ansicht: Mathematik, Geometrie aus Grundkoerpern, Shader, Instanzen.
+// Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
+// anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
+// Dateien (gl, MAP, KARTE, ...) sind dort global. Exporte gibt es nur fuer die
+// Tests unter Node.
 const DM = 0.1; // Dezimeter -> Meter
-// Darstellungsmassstab: Einheiten und Gebaeude groesser als ihr Kollisionskreis,
-// wie in jedem RTS -- sonst sind 3 m grosse Soldaten auf 2 km Karte Punkte.
-const ZEIGE_EINHEIT = 1.6;
-const ZEIGE_GEBAEUDE = 1.25;
-let meFaction = 'mensch';
-let world, ai, aiMe;
-let gegnerStil = 'standard';
-let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
-let paused = true;
-let speed = 1;
-let acc = 0;
-let last = performance.now();
-let sel = [];
-let drag = null;
-let placing = null;
-let angriff = false;
-let skillsOffen = false; // T: Skillbaum
-let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
-let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
-let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
-let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
-let nebel = neuerNebel(true); // Nebel des Krieges; beim Zuschauen aus
-const verborgen = (e) => e.player !== ME && !sieht(nebel, e.x, e.y);
-const nebelHell = new Uint8Array(NEBEL_N * NEBEL_N);
-let nebelTex = null;
-let karteHtml = ''; // zuletzt gezeigte Info-Karte
-let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
-let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
-const tastenGehalten = new Set();
-const vorher = new Map(); // id -> [x, y] vor dem letzten Tick, fuer Interpolation
-const blick = new Map(); // id -> Blickrichtung in Bogenmass
-let schuesse = []; // { ax, ay, bx, by, farbe, t }
-let staub = []; // { x, y, r, t }
-const ausfall = new Map(); // id -> Zeitpunkt des letzten Schusses (ms), fuer den Ruck nach vorn
-
-const kam = { x: 420, z: 420, dist: 300, yaw: -Math.PI * 0.75, pitch: 0.95 };
-
 const HEX = (h) => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
-const teamFarbe = (p) => HEX(FACTIONS[world.players[p].faction].color);
+// Farbe von Ferne und Hintergrund (Dunst)
+const NEBEL = [0.07, 0.08, 0.06];
 
 // ------------------------------------------------------------ Mathematik
 // Matrizen spaltenweise wie in WebGL: Element (Zeile r, Spalte c) an [c*4 + r].
@@ -4030,7 +4054,175 @@ function baueModell(teile) {
   return new Float32Array(v);
 }
 
-// ------------------------------------------------------------ Modelle
+// ------------------------------------------------------------ WebGL
+const VS = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNor;
+layout(location=2) in vec4 aCol;
+layout(location=3) in vec4 iA; // x, y, z, Drehung
+layout(location=4) in vec4 iB; // Massstab, Hoehenfaktor, Helligkeit, Alpha
+layout(location=5) in vec4 iC; // Teamfarbe, w: Schrittphase (-1..1)
+uniform mat4 uVP;
+uniform vec3 uLicht;
+out vec4 vCol;
+out float vTiefe;
+out vec3 vTeam;
+out vec2 vWelt;
+void main() {
+  vTeam = iC.rgb;
+  float c = cos(iA.w), s = sin(iA.w);
+  // Schritt: der untere Teil des Modells schwingt vor und zurueck -- Beine,
+  // Rocksaum, Laeufe. Ohne Skelett, nur nach Hoehe im Modell.
+  vec3 a = aPos;
+  a.z += iC.w * 0.45 * max(0.0, 0.65 - a.y);
+  vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
+  vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
+  vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
+  // Selbstleuchtende Teile behalten ihre eigene Farbe, ohne Fraktionsfarbe.
+  float team = aCol.a > 1.5 ? 0.0 : aCol.a;
+  vec3 col = mix(aCol.rgb, iC.rgb, team) * iB.z;
+  float d = max(dot(n, uLicht), 0.0);
+  // Teile mit Teamanteil > 1.5 leuchten selbst: Augen, Glut, Lichtkugeln.
+  float licht = aCol.a > 1.5 ? 1.25 : 0.42 + 0.7 * d;
+  vCol = vec4(col * licht, iB.w);
+  gl_Position = uVP * vec4(r, 1.0);
+  vTiefe = gl_Position.w;
+  vWelt = r.xz;
+}`;
+const FS = `#version 300 es
+precision mediump float;
+in vec4 vCol;
+in float vTiefe;
+in vec3 vTeam;
+in vec2 vWelt;
+uniform vec3 uNebel;
+uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
+uniform sampler2D uSicht; // Nebel des Krieges: 1 sichtbar, 0.47 erkundet, 0 unbekannt
+uniform float uKarte; // Kantenlaenge der Karte in Metern
+out vec4 o;
+void main() {
+  if (uRoentgen > 0.5) {
+    o = vec4(mix(vTeam, vec3(1.0), 0.3), 0.5);
+    return;
+  }
+  float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
+  float sicht = texture(uSicht, vWelt / uKarte).r;
+  o = vec4(mix(vCol.rgb, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
+}`;
+const VS_LINIE = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec4 aCol;
+uniform mat4 uVP;
+out vec4 vCol;
+void main() { vCol = aCol; gl_Position = uVP * vec4(aPos, 1.0); }`;
+const FS_LINIE = `#version 300 es
+precision mediump float;
+in vec4 vCol;
+out vec4 o;
+void main() { o = vCol; }`;
+
+function shader(typ, quelle) {
+  const s = gl.createShader(typ);
+  gl.shaderSource(s, quelle);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function programm(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, shader(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+
+let PROG;
+let PROG_L;
+const MODELLE = {};
+let bodenModell;
+let linienPuffer;
+let linienVao;
+
+/** Laedt ein Modell in die Grafikkarte: Eckpuffer, Instanzpuffer, VAO. */
+function ladeModell(daten) {
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  const vb = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+  gl.bufferData(gl.ARRAY_BUFFER, daten, gl.STATIC_DRAW);
+  const st = 10 * 4;
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, st, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, st, 12);
+  gl.enableVertexAttribArray(2);
+  gl.vertexAttribPointer(2, 4, gl.FLOAT, false, st, 24);
+  const ib = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, ib);
+  const ist = 12 * 4;
+  for (let k = 0; k < 3; k++) {
+    gl.enableVertexAttribArray(3 + k);
+    gl.vertexAttribPointer(3 + k, 4, gl.FLOAT, false, ist, k * 16);
+    gl.vertexAttribDivisor(3 + k, 1);
+  }
+  gl.bindVertexArray(null);
+  return { vao, ib, anzahl: daten.length / 10, inst: [], cap: 0 };
+}
+
+function initGL() {
+  PROG = programm(VS, FS);
+  PROG_L = programm(VS_LINIE, FS_LINIE);
+  for (const [k, teile] of Object.entries(MODELLE_DEF)) MODELLE[k] = ladeModell(baueModell(teile));
+  bodenModell = typeof baueBoden === 'function' ? baueBoden() : null; // die Galerie hat kein Gelaende
+  linienVao = gl.createVertexArray();
+  gl.bindVertexArray(linienVao);
+  linienPuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, linienPuffer);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 28, 12);
+  gl.bindVertexArray(null);
+}
+
+/** Eine Instanz vormerken: Modell, Ort (m), Drehung, Massstab, Hoehe, Helligkeit, Alpha, Teamfarbe. */
+function instanz(key, x, y, z, rot, scale, team, yScale = 1, hell = 1, alpha = 1, schritt = 0) {
+  const m = MODELLE[key];
+  if (!m) return;
+  m.inst.push(x, y, z, rot, scale, yScale, hell, alpha, team[0], team[1], team[2], schritt);
+}
+
+function zeichneInstanzen(m, behalten = false) {
+  const n = m.inst.length / 12;
+  if (!n) return;
+  gl.bindVertexArray(m.vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.ib);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m.inst), gl.DYNAMIC_DRAW);
+  gl.drawArraysInstanced(gl.TRIANGLES, 0, m.anzahl, n);
+  if (!behalten) m.inst.length = 0;
+}
+
+
+
+/* ---------------------------------- */
+
+// Modelle der 3D-Ansicht: jede Einheit, jedes Gebaeude, Karte und Effekte.
+// Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
+// anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
+// Dateien (gl, MAP, KARTE, ...) sind dort global. Exporte gibt es nur fuer die
+// Tests unter Node.
+//
+// Ein Modell ist eine Liste von Teilen: [form, masse, position, farbe, team, drehung]
+//   form   'q' Quader [breite, hoehe, tiefe] | 'z' Zylinder/Kegel [rOben, rUnten,
+//          hoehe, segmente] | 'k' Kugel [radius, segmente] | 's' Scheibe [radius, segmente]
+//   position [x, y, z] der Teilmitte; y ist oben, das Modell schaut entlang +z
+//   farbe  '#rrggbb'
+//   team   0..1 Anteil der Fraktionsfarbe; GLUEHT (2) = leuchtet selbst
+//   drehung [rx, ry, rz] in Bogenmass um die Teilmitte
+// Massstab: 1 entspricht dem Radius der Einheit bzw. des Gebaeudes (die
+// Ansicht vergroessert Einheiten um ZEIGE_EINHEIT, Gebaeude um ZEIGE_GEBAEUDE).
+
 // Alle Modelle auf Grundflaechen-Radius 1, Boden bei y = 0; gezeichnet mit
 // Massstab = Radius der Einheit bzw. des Gebaeudes in Metern.
 const HAUT = '#d9b38c';
@@ -4069,7 +4261,6 @@ function saum(r, y, n) {
   }
   return t;
 }
-
 const MODELLE_DEF = {
   // ------------------------------------------------------------- Menschen
   bauer: [
@@ -4079,12 +4270,12 @@ const MODELLE_DEF = {
     ['q', [0.08, 1.8, 0.08], [0.5, 0.9, 0.2], HOLZ, 0, [0.15, 0, 0]],
   ],
   soldat: [
-    ['z', [0.45, 0.55, 1.2, 7], [0, 0.6, 0], '#555', 0.8],
+    ['z', [0.45, 0.55, 1.2, 7], [0, 0.6, 0], '#555555', 0.8],
     ['k', [0.32, 7], [0, 1.5, 0], HAUT],
     ['k', [0.34, 7], [0, 1.62, 0], EISEN],
     ['q', [0.07, 2.4, 0.07], [0.55, 1.2, 0.15], HOLZ],
     ['z', [0, 0.12, 0.3, 4], [0.55, 2.5, 0.15], EISEN],
-    ['q', [0.12, 0.8, 0.6], [-0.55, 0.9, 0.1], '#555', 0.9],
+    ['q', [0.12, 0.8, 0.6], [-0.55, 0.9, 0.1], '#555555', 0.9],
   ],
   jaeger: [
     ['z', [0.4, 0.5, 1.15, 7], [0, 0.58, 0], '#3d5a2a', 0.5],
@@ -4093,7 +4284,7 @@ const MODELLE_DEF = {
     ['q', [0.06, 1.6, 0.12], [0.5, 1.1, 0.25], HOLZ, 0, [0, 0, 0.12]],
   ],
   soeldner: [
-    ['q', [1.1, 1.3, 0.8], [0, 0.75, 0], '#444', 0.75],
+    ['q', [1.1, 1.3, 0.8], [0, 0.75, 0], '#444444', 0.75],
     ['k', [0.33, 7], [0, 1.65, 0], HAUT],
     ['z', [0.36, 0.36, 0.3, 8], [0, 1.85, 0], EISEN],
     ['q', [0.14, 1.6, 0.14], [0.7, 1.1, 0.3], EISEN, 0, [0.5, 0, 0]],
@@ -4383,121 +4574,23 @@ const MODELLE_DEF = {
   ],
 };
 
-// ------------------------------------------------------------ WebGL
-const VS = `#version 300 es
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aNor;
-layout(location=2) in vec4 aCol;
-layout(location=3) in vec4 iA; // x, y, z, Drehung
-layout(location=4) in vec4 iB; // Massstab, Hoehenfaktor, Helligkeit, Alpha
-layout(location=5) in vec4 iC; // Teamfarbe, w: Schrittphase (-1..1)
-uniform mat4 uVP;
-uniform vec3 uLicht;
-out vec4 vCol;
-out float vTiefe;
-out vec3 vTeam;
-out vec2 vWelt;
-void main() {
-  vTeam = iC.rgb;
-  float c = cos(iA.w), s = sin(iA.w);
-  // Schritt: der untere Teil des Modells schwingt vor und zurueck -- Beine,
-  // Rocksaum, Laeufe. Ohne Skelett, nur nach Hoehe im Modell.
-  vec3 a = aPos;
-  a.z += iC.w * 0.45 * max(0.0, 0.65 - a.y);
-  vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
-  vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
-  vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
-  // Selbstleuchtende Teile behalten ihre eigene Farbe, ohne Fraktionsfarbe.
-  float team = aCol.a > 1.5 ? 0.0 : aCol.a;
-  vec3 col = mix(aCol.rgb, iC.rgb, team) * iB.z;
-  float d = max(dot(n, uLicht), 0.0);
-  // Teile mit Teamanteil > 1.5 leuchten selbst: Augen, Glut, Lichtkugeln.
-  float licht = aCol.a > 1.5 ? 1.25 : 0.42 + 0.7 * d;
-  vCol = vec4(col * licht, iB.w);
-  gl_Position = uVP * vec4(r, 1.0);
-  vTiefe = gl_Position.w;
-  vWelt = r.xz;
-}`;
-const FS = `#version 300 es
-precision mediump float;
-in vec4 vCol;
-in float vTiefe;
-in vec3 vTeam;
-in vec2 vWelt;
-uniform vec3 uNebel;
-uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
-uniform sampler2D uSicht; // Nebel des Krieges: 1 sichtbar, 0.47 erkundet, 0 unbekannt
-uniform float uKarte; // Kantenlaenge der Karte in Metern
-out vec4 o;
-void main() {
-  if (uRoentgen > 0.5) {
-    o = vec4(mix(vTeam, vec3(1.0), 0.3), 0.5);
-    return;
-  }
-  float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
-  float sicht = texture(uSicht, vWelt / uKarte).r;
-  o = vec4(mix(vCol.rgb, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
-}`;
-const VS_LINIE = `#version 300 es
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec4 aCol;
-uniform mat4 uVP;
-out vec4 vCol;
-void main() { vCol = aCol; gl_Position = uVP * vec4(aPos, 1.0); }`;
-const FS_LINIE = `#version 300 es
-precision mediump float;
-in vec4 vCol;
-out vec4 o;
-void main() { o = vCol; }`;
+/**
+ * Varianten des Waldgotts fuer die Stil-Auswahl in dist/galerie.html. Der
+ * Nutzer sucht die beste aus; sie wird dann MODELLE_DEF.waldgott. Vorlage:
+ * docs/bilder/vorlagen/waldgott-vorlage.png (nur lokal).
+ */
+const WALDGOTT_VARIANTEN = {
+  'A — bisher': MODELLE_DEF.waldgott,
+};
 
-function shader(typ, quelle) {
-  const s = gl.createShader(typ);
-  gl.shaderSource(s, quelle);
-  gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
-  return s;
-}
-function programm(vs, fs) {
-  const p = gl.createProgram();
-  gl.attachShader(p, shader(gl.VERTEX_SHADER, vs));
-  gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fs));
-  gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
-  return p;
-}
 
-let PROG;
-let PROG_L;
-const MODELLE = {};
-let bodenModell;
-let linienPuffer;
-let linienVao;
+/* ---------------------------------- */
 
-/** Laedt ein Modell in die Grafikkarte: Eckpuffer, Instanzpuffer, VAO. */
-function ladeModell(daten) {
-  const vao = gl.createVertexArray();
-  gl.bindVertexArray(vao);
-  const vb = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, vb);
-  gl.bufferData(gl.ARRAY_BUFFER, daten, gl.STATIC_DRAW);
-  const st = 10 * 4;
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, st, 0);
-  gl.enableVertexAttribArray(1);
-  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, st, 12);
-  gl.enableVertexAttribArray(2);
-  gl.vertexAttribPointer(2, 4, gl.FLOAT, false, st, 24);
-  const ib = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, ib);
-  const ist = 12 * 4;
-  for (let k = 0; k < 3; k++) {
-    gl.enableVertexAttribArray(3 + k);
-    gl.vertexAttribPointer(3 + k, 4, gl.FLOAT, false, ist, k * 16);
-    gl.vertexAttribDivisor(3 + k, 1);
-  }
-  gl.bindVertexArray(null);
-  return { vao, ib, anzahl: daten.length / 10, inst: [], cap: 0 };
-}
+// Gelaende der 3D-Ansicht: Boden, gerodete Flaechen, Seen, Felsen, Adern, Baeume.
+// Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
+// anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
+// Dateien (gl, MAP, KARTE, ...) sind dort global. Exporte gibt es nur fuer die
+// Tests unter Node.
 
 /**
  * Boden: Raster mit Farbe je Eckpunkt aus zwei Rauschlagen -- die Farben
@@ -4565,44 +4658,105 @@ const DEKO = (() => {
   return d;
 })();
 
-function initGL() {
-  PROG = programm(VS, FS);
-  PROG_L = programm(VS_LINIE, FS_LINIE);
-  for (const [k, teile] of Object.entries(MODELLE_DEF)) MODELLE[k] = ladeModell(baueModell(teile));
-  bodenModell = baueBoden();
-  nebelTex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, nebelTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  linienVao = gl.createVertexArray();
-  gl.bindVertexArray(linienVao);
-  linienPuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, linienPuffer);
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
-  gl.enableVertexAttribArray(1);
-  gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 28, 12);
-  gl.bindVertexArray(null);
+/** Boden und gerodete Flaechen -- vor Schatten und Domaenen gezeichnet. */
+function zeichneBoden(world) {
+  bodenModell.inst.push(0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0);
+  zeichneInstanzen(bodenModell);
+  gl.depthMask(false);
+  for (const c of world.cleared) instanz('scheibe', c.x * DM, 0.05, c.y * DM, 0, c.r * DM, [0.36, 0.3, 0.2], 1, 1, 0.32);
+  zeichneInstanzen(MODELLE.scheibe);
+  gl.depthMask(true);
 }
 
-/** Eine Instanz vormerken: Modell, Ort (m), Drehung, Massstab, Hoehe, Helligkeit, Alpha, Teamfarbe. */
-function instanz(key, x, y, z, rot, scale, team, yScale = 1, hell = 1, alpha = 1, schritt = 0) {
-  const m = MODELLE[key];
-  if (!m) return;
-  m.inst.push(x, y, z, rot, scale, yScale, hell, alpha, team[0], team[1], team[2], schritt);
+/**
+ * Seen, Felsen, Adern und Baeume -- nach den Domaenen, vor Gebaeuden und
+ * Einheiten. Felsen, Adern und Baeume werden nur vorgemerkt (instanz) und mit
+ * allen anderen Modellen gezeichnet. Kollision und Wege bestimmt die
+ * Simulation (Kreise in KARTE.hindernisse); hier geht es nur ums Aussehen.
+ */
+function zeichneGelaende(world, now) {
+  // Seen: flache Scheiben knapp ueber dem Boden; Felsen: Brocken in Felsgroesse
+  gl.depthMask(false);
+  for (const h of world.hindernisse) {
+    if (h.art === 'see') instanz('scheibe', h.x * DM, 0.1, h.y * DM, 0, h.r * DM, [0.16, 0.32, 0.44], 1, 1, 0.95);
+  }
+  zeichneInstanzen(MODELLE.scheibe);
+  gl.depthMask(true);
+  for (const h of world.hindernisse) {
+    if (h.art === 'fels') instanz('fels', h.x * DM, 0, h.y * DM, ((h.x * 7 + h.y * 3) % 628) / 100, h.r * DM, [1, 1, 1]);
+  }
+  // Adern
+  for (const d of world.deposits) {
+    const key = d.kind === 'goetterblut' ? 'blutAder' : 'fronAder';
+    const s = d.kind === 'goetterblut' ? 9 : 6;
+    instanz(key, d.x * DM, 0, d.y * DM, ((d.x + d.y) % 7) * 0.9, s, [1, 1, 1], 1, d.takenBy ? 0.55 : 1);
+  }
+  // Deko-Baeume
+  for (const [x, z, s, r] of DEKO) instanz('baum', x, 0, z, r, s, [1, 1, 1]);
 }
 
-function zeichneInstanzen(m, behalten = false) {
-  const n = m.inst.length / 12;
-  if (!n) return;
-  gl.bindVertexArray(m.vao);
-  gl.bindBuffer(gl.ARRAY_BUFFER, m.ib);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m.inst), gl.DYNAMIC_DRAW);
-  gl.drawArraysInstanced(gl.TRIANGLES, 0, m.anzahl, n);
-  if (!behalten) m.inst.length = 0;
-}
+
+/* ---------------------------------- */
+
+// 3D-Ansicht. Dieselbe Simulation wie die 2D-Ansicht, gezeichnet mit WebGL 2
+// ohne Bibliothek: Modelle aus Grundkoerpern (Quader, Zylinder, Kegel, Kugel),
+// flach schattiert, instanziert gezeichnet. Aendert den Simulationszustand
+// nie direkt, nur ueber issue(). Wird von tools/bundle.mjs mit der Sim
+// zusammengefuegt -- deshalb hier keine Imports.
+//
+// Koordinaten: Simulation in Dezimetern (x, y). Szene in Metern: x -> x,
+// y -> z, Hoehe ist y. Modelle schauen entlang +z.
+//
+// Grafik liegt in eigenen Dateien (siehe GEMINI.md): src/render3d.js
+// (Renderer, Shader), src/modelle3d.js (Modelle), src/gelaende3d.js (Boden,
+// Gelaende). Hier: Spielstand, Eingabe, Zeichnen von Einheiten und Gebaeuden.
+
+const cv3 = document.getElementById('cv3d');
+const ov = document.getElementById('overlay');
+const octx = ov.getContext('2d');
+const mini3 = document.getElementById('mini');
+const mctx3 = mini3.getContext('2d');
+const gl = cv3.getContext('webgl2', { antialias: true, stencil: true });
+
+const ME = 0;
+// Darstellungsmassstab: Einheiten und Gebaeude groesser als ihr Kollisionskreis,
+// wie in jedem RTS -- sonst sind 3 m grosse Soldaten auf 2 km Karte Punkte.
+const ZEIGE_EINHEIT = 1.6;
+const ZEIGE_GEBAEUDE = 1.25;
+let meFaction = 'mensch';
+let world, ai, aiMe;
+let gegnerStil = 'standard';
+let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
+let paused = true;
+let speed = 1;
+let acc = 0;
+let last = performance.now();
+let sel = [];
+let drag = null;
+let placing = null;
+let angriff = false;
+let skillsOffen = false; // T: Skillbaum
+let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
+let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
+let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
+let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
+let nebel = neuerNebel(true); // Nebel des Krieges; beim Zuschauen aus
+const verborgen = (e) => e.player !== ME && !sieht(nebel, e.x, e.y);
+const nebelHell = new Uint8Array(NEBEL_N * NEBEL_N);
+let nebelTex = null;
+let karteHtml = ''; // zuletzt gezeigte Info-Karte
+let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
+let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
+const tastenGehalten = new Set();
+const vorher = new Map(); // id -> [x, y] vor dem letzten Tick, fuer Interpolation
+const blick = new Map(); // id -> Blickrichtung in Bogenmass
+let schuesse = []; // { ax, ay, bx, by, farbe, t }
+let staub = []; // { x, y, r, t }
+const ausfall = new Map(); // id -> Zeitpunkt des letzten Schusses (ms), fuer den Ruck nach vorn
+
+const kam = { x: 420, z: 420, dist: 300, yaw: -Math.PI * 0.75, pitch: 0.95 };
+
+const teamFarbe = (p) => HEX(FACTIONS[world.players[p].faction].color);
 
 // ------------------------------------------------------------ Kamera
 let VP = new Float32Array(16);
@@ -5057,7 +5211,6 @@ function groesse() {
   }
 }
 
-const NEBEL = [0.07, 0.08, 0.06];
 function zeichne(now, dt) {
   groesse();
   kameraMatrix();
@@ -5089,15 +5242,7 @@ function zeichne(now, dt) {
   gl.uniform1i(gl.getUniformLocation(PROG, 'uSicht'), 0);
   gl.uniform1f(gl.getUniformLocation(PROG, 'uKarte'), MAP * DM);
 
-  // Boden
-  bodenModell.inst.push(0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0);
-  zeichneInstanzen(bodenModell);
-
-  // Gerodeter Boden
-  gl.depthMask(false);
-  for (const c of world.cleared) instanz('scheibe', c.x * DM, 0.05, c.y * DM, 0, c.r * DM, [0.36, 0.3, 0.2], 1, 1, 0.32);
-  zeichneInstanzen(MODELLE.scheibe);
-  gl.depthMask(true);
+  zeichneBoden(world); // src/gelaende3d.js
 
   // Schatten: dunkle Scheiben unter allem, was steht oder laeuft -- billig und
   // macht Bodenkontakt und Tiefe lesbar.
@@ -5114,25 +5259,7 @@ function zeichne(now, dt) {
 
   zeichneDomaenen();
 
-  // Seen: flache Scheiben knapp ueber dem Boden; Felsen: Brocken in Felsgroesse
-  gl.depthMask(false);
-  for (const h of world.hindernisse) {
-    if (h.art === 'see') instanz('scheibe', h.x * DM, 0.1, h.y * DM, 0, h.r * DM, [0.16, 0.32, 0.44], 1, 1, 0.95);
-  }
-  zeichneInstanzen(MODELLE.scheibe);
-  gl.depthMask(true);
-  for (const h of world.hindernisse) {
-    if (h.art === 'fels') instanz('fels', h.x * DM, 0, h.y * DM, ((h.x * 7 + h.y * 3) % 628) / 100, h.r * DM, [1, 1, 1]);
-  }
-
-  // Adern
-  for (const d of world.deposits) {
-    const key = d.kind === 'goetterblut' ? 'blutAder' : 'fronAder';
-    const s = d.kind === 'goetterblut' ? 9 : 6;
-    instanz(key, d.x * DM, 0, d.y * DM, ((d.x + d.y) % 7) * 0.9, s, [1, 1, 1], 1, d.takenBy ? 0.55 : 1);
-  }
-  // Deko-Baeume
-  for (const [x, z, s, r] of DEKO) instanz('baum', x, 0, z, r, s, [1, 1, 1]);
+  zeichneGelaende(world, now); // src/gelaende3d.js: Seen, Felsen, Adern, Baeume
 
   // Gebaeude und Einheiten
   const t = now / 1000;
@@ -5597,6 +5724,13 @@ if (!gl) {
   document.getElementById('intro').style.display = 'none';
 } else {
   initGL();
+  // Nebel des Krieges: eine Textur, eine Zelle je Texel (siehe zeichne)
+  nebelTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, nebelTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   document.getElementById('intro').innerHTML = introHtml3();
   document.getElementById('introMensch').onclick = () => starte3('mensch', false);
   document.getElementById('introGott').onclick = () => starte3('gott', false);

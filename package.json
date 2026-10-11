@@ -1,14 +1,15 @@
 {
   "name": "drei-reiche-proto",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "private": true,
   "type": "module",
   "description": "RTS-Prototyp: fester gegen wachsenden Domänenradius",
   "scripts": {
     "test": "node --test",
     "bundle": "node tools/bundle.mjs",
-    "smoke": "node tools/bundle.mjs && node tools/smoke.mjs && node tools/smoke3d.mjs",
+    "smoke": "node tools/bundle.mjs && node tools/smoke.mjs && node tools/smoke3d.mjs && node tools/smoke-galerie.mjs",
     "match": "node tools/match.mjs",
-    "sweep": "node tools/sweep.mjs"
+    "sweep": "node tools/sweep.mjs",
+    "galerie": "node tools/bundle.mjs && node tools/smoke-galerie.mjs"
   }
 }

@@ -3,6 +3,21 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.25 — Vorbereitung für Gemini, Ressourcenleiste
+
+- **Grafik in eigenen Dateien**, damit Gemini parallel daran arbeiten kann:
+  `src/render3d.js` (Renderer, Shader), `src/modelle3d.js` (Modelle,
+  Waldgott-Varianten), `src/gelaende3d.js` und `src/gelaende2d.js`
+  (Gelände), `src/icons.js` (Icons). Regeln in `GEMINI.md`, Auftrag und
+  Masterprompt in `docs/grafik/auftrag.md`.
+- **Galerie** `dist/galerie.html`: Waldgott-Varianten, Einheiten, Gebäude,
+  Karte und Icons nebeneinander, drehend — für die Wahl des Grafikstils.
+- `test/grafik.test.js` prüft Modelle (Format, Vollständigkeit, Budget) und
+  Icons; Galerie-Smoke-Test. Fand gleich einen Fehler: Kurzfarben wie `#555`
+  wurden als NaN gelesen.
+- **Ressourcenleiste:** Glühbirne = freie Skillpunkte, eigenes Icon für
+  Gegenwart, feste Breiten — die Leiste wächst nicht mehr mit den Zahlen.
+
 ## 0.24 — Schwierigkeitsgrade
 
 - Gegner-KI in drei Stufen (`STUFEN` in `ai.js`), nur über Verhalten,

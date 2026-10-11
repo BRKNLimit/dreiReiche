@@ -7,6 +7,7 @@ import {
   gridReport, foerderungProMin, unterhaltProMin, sichtGitter,
 } from './sim/sim.js';
 import { ZELLE } from './sim/weg.js';
+import { ICONS } from './icons.js';
 
 const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
@@ -53,13 +54,9 @@ export function nebelHelligkeit(nebel, ziel) {
 
 // ------------------------------------------------------------ Ressourcenleiste
 // Nach dem Entwurf des Nutzers: dunkle Leiste oben links, rechts rund
-// auslaufend; Gluehbirne = Gegenwart (Energie), Tropfen = Goetterblut,
-// gruene Kristalle = Fron (Masse).
-const ICON_GEGENWART = `<svg viewBox="0 0 24 24" fill="none" stroke="#f7b55a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.8v2M4.6 4.8l1.3 1.3M19.4 4.8l-1.3 1.3M2.2 11h2M19.8 11h2"/><path d="M8.3 16.2a6.2 6.2 0 1 1 7.4 0c-.8.6-1.1 1.3-1.1 2.1v.7H9.4v-.7c0-.8-.3-1.5-1.1-2.1z"/><path d="M9.4 19.6h5.2"/><path d="M9.9 21.6h4.2"/></svg>`;
-const ICON_BLUT = `<svg viewBox="0 0 24 24"><path d="M12 2.2 6 12.6a6.9 6.9 0 1 0 12 0z" fill="#ff3434"/></svg>`;
-const ICON_FRON = `<svg viewBox="0 0 24 24"><path d="M2.5 6.4 6.6 4.3l3.2 2.1-.9 5.2-4.7 1.9z" fill="#c9ffe0"/><path d="M9.8 5.1 14.6 2.2l5 1.9 1.1 5.9-4.6 3.8-5.4-2.1z" fill="#e6fff0"/><path d="M14.6 2.2l5 1.9-3.4 3.3z" fill="#7dffae"/><path d="M3.4 13.8 9.6 11.4l5.3 2.1-2.2 6.3H6z" fill="#1fd35a"/><path d="M9.6 11.4l5.3 2.1-4.1 1.6z" fill="#9dffc2"/><path d="M14.9 13.6l6-3.2 1.1 6.4-4.2 3.3h-4.1z" fill="#0fae3e"/><path d="M3.4 13.8 6 19.8H3z" fill="#078a2c"/></svg>`;
-
-/** Ressourcenleiste: Gegenwart-Ueberschuss aller Netze, Goetterblut, Fron. */
+// auslaufend; Gluehbirne = freie Skillpunkte, Blitz = Gegenwart, Tropfen =
+// Goetterblut, gruene Kristalle = Fron. Icons in src/icons.js.
+/** Ressourcenleiste: freie Skillpunkte, Gegenwart-Ueberschuss aller Netze, Goetterblut, Fron. */
 export function ressourcenHtml(world, player) {
   const p = world.players[player];
   let angebot = 0;
@@ -74,9 +71,10 @@ export function ressourcenHtml(world, player) {
   const eintrag = (icon, wert, titel, klasse = '') =>
     `<div class="ri" title="${titel}">${icon}<span class="${klasse}">${wert}</span></div>`;
   return (
-    eintrag(ICON_GEGENWART, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
-    eintrag(ICON_BLUT, p.goetterblut, 'Götterblut') +
-    eintrag(ICON_FRON, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
+    eintrag(ICONS.skillpunkte, skillFrei(world, player), 'Skillpunkte, die du ausgeben kannst (T)', skillFrei(world, player) > 0 ? 'frei' : '') +
+    eintrag(ICONS.gegenwart, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
+    eintrag(ICONS.goetterblut, p.goetterblut, 'Götterblut') +
+    eintrag(ICONS.fron, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
   );
 }
 

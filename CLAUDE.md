@@ -82,6 +82,16 @@ Höhen im Gelände, Todesgott, Bergung der Gefallenen, Netzwerk. Die KI
 sieht durch den Nebel des Krieges (er ist nur eine Sicht der Oberfläche).
 Siehe `docs/scope.md`.
 
+## Zusammenarbeit mit Gemini (Grafik)
+
+Gemini arbeitet parallel auf dem Branch `gemini/grafik` an der Grafik — Regeln
+und Auftrag in `GEMINI.md` und `docs/grafik/`. **Diese Dateien gehören Gemini
+und werden hier nicht geändert:** `src/modelle3d.js`, `src/render3d.js`,
+`src/gelaende3d.js`, `src/gelaende2d.js`, `src/icons.js`, `src/galerie.js`,
+`src/galerie.html`. Ihre Schnittstellen stehen in `GEMINI.md`; Wünsche von
+Gemini an diese Seite stehen in `docs/grafik/wuensche.md`. Den Branch nach
+Prüfung (Tests, Smoke, Diff lesen) nach `main` mergen.
+
 ## Teststrategie
 
 `npm test` muss grün sein, bevor etwas als fertig gilt. Jede Eigenschaft der

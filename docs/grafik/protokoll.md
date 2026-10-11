@@ -22,5 +22,12 @@ geprüft (Tests, Galerie, Spiel).
   - `F — Verspielt, große Formen`: Glockenmantel, runde Formen, breite Augen und Geweihschaufeln.
   - `G — Glutherz`: Im geöffneten Mantel glimmt ein orangefarbener Glutkern mit Funken und glühenden Geweihspitzen.
   - In `src/galerie.js` wurde die Möglichkeit ergänzt, feste Blickwinkel für Vergleiche zu nutzen.
-- **Wie geprüft:** `npm test` und `npm run smoke` erfolgreich ausgeführt; alle Varianten halten das Ecken-Budget (höchstens 5.712 von 6.000 erlaubten Ecken) und rotieren fehlerfrei in `dist/galerie.html`.
+### Runde 2: Vollständiger Satz handgefertigter SVG-Icons (Aufgabe 2)
+- **Was war schwach:** Fast alle Einheiten, Gebäude und Fähigkeiten nutzten lediglich Platzhalterkreise mit Buchstabenkürzeln ("Ba", "So", "Hb" etc.), und `gegenwart` war lediglich ein einfacher Blitz. In der UI fehlte visuelle Erkennbarkeit.
+- **Was wurde geändert:** In `src/icons.js` wurden sämtliche 38 Platzhalter sowie `gegenwart` durch detaillierte, semantisch treffende Vektor-Icons (SVG) ersetzt:
+  - **Ressourcen:** `gegenwart` als pulsierender Äther-/Domänen-Nexus mit rotierenden Flussschwingen (deutlich verschieden von der Glühbirne für `skillpunkte`).
+  - **Einheiten:** Individuelle Silhouetten für alle Menschen- und Gott-Einheiten mit Fraktionsfarb-Akzenten (`#d8b06a` Gold, `#8fb86a` Waldgrün), z.B. Sense & Ähre für den Bauer, Ritterschild & Klinge für den Soldat, Waldgott mit Hörnern, Augen und gekreuzten Klauen.
+  - **Gebäude:** Prägnante Architektur- und Natur-Icons (z.B. Langhaus mit Giebelbalken für die Thingstätte, Förderturm mit Blut für den Blutschacht, Weltenbaum mit glimmendem Kern für den Herzbaum, Stonehenge-Trilithen für den Steinkreis).
+  - **Kommandanten-Fähigkeiten:** Kriegshorn mit Schallwellen (`schlachtruf`), dreifacher Schildwall (`schildwall`), Sturmstiefel mit Schwingen (`ansturm`), emporschnellende Wurzelgreifer (`wurzelgriff`), umrankter Heiltropfen (`lebenssaft`), heulender Mondwolf (`rudelruf`).
+- **Wie geprüft:** `npm test` und `npm run smoke` (inklusive `tools/smoke-galerie.mjs`) grün; alle 42 Icons sind valides SVG mit `viewBox="0 0 24 24"`, skalieren sauber von 20 px bis 64 px und zeigen klare Erkennbarkeit auf dunklem Hintergrund.
 

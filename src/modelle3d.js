@@ -2605,4 +2605,79 @@ function spaehpostenModell() {
 MODELLE_DEF.rabe = rabeModell();
 MODELLE_DEF.spaehposten = spaehpostenModell();
 
+/** Schilf: Schilfrohr und samtige Rohrkolben an den Ufern von Seen und Fluessen. */
+function schilfModell() {
+  const t = [];
+  const GRUEN1 = '#4a622a';
+  const GRUEN2 = '#5d7835';
+  const GRUEN3 = '#3b5020';
+  const STROH = '#7e7846';
+  const KOLBEN = '#3d2516';
+  const KOLBEN_H = '#523420';
+  const SCHLICK = '#2b261d';
+
+  // 1. Feuchter Wurzelsockel / Erdhuegel im Wasser
+  t.push(
+    ['z', [0.35, 0.55, 0.12, 6], [0, 0.05, 0], SCHLICK],
+    ['k', [0.32, 5], [0.08, 0.06, -0.05], SCHLICK]
+  );
+
+  // 2. Halme mit Rohrkolben (verschiedene Hoehen und Neigungen)
+  const halme = [
+    // [x, z, h, rOben, rUnten, neigX, neigZ, farbe, mitKolben]
+    [0.00, 0.00, 1.85, 0.022, 0.045, 0.04, -0.05, GRUEN1, true],
+    [0.15, -0.08, 1.65, 0.020, 0.040, -0.08, 0.06, GRUEN2, true],
+    [-0.14, 0.10, 1.95, 0.022, 0.045, 0.06, 0.08, GRUEN1, true],
+    [0.08, 0.18, 1.45, 0.018, 0.038, 0.12, -0.06, STROH, true],
+    [-0.18, -0.12, 1.55, 0.020, 0.040, -0.09, -0.09, GRUEN3, false],
+    [0.22, 0.12, 1.30, 0.018, 0.035, 0.15, 0.08, GRUEN2, false],
+    [-0.08, -0.22, 1.40, 0.018, 0.035, -0.14, 0.04, STROH, false],
+    [0.25, -0.15, 1.20, 0.016, 0.032, -0.12, -0.12, GRUEN1, false],
+  ];
+
+  for (const [hx, hz, hh, ro, ru, nx, nz, col, kolb] of halme) {
+    t.push(['z', [ro, ru, hh, 5], [hx, hh * 0.48, hz], col, 0, [nx, 0, nz]]);
+
+    if (kolb) {
+      const yKolb = hh * 0.82;
+      t.push(['z', [0.052, 0.055, 0.38, 6], [hx + nx * yKolb, yKolb, hz + nz * yKolb], KOLBEN, 0, [nx, 0, nz]]);
+      t.push(['k', [0.054, 5], [hx + nx * (yKolb + 0.19), yKolb + 0.19, hz + nz * (yKolb + 0.19)], KOLBEN_H, 0]);
+      t.push(['k', [0.054, 5], [hx + nx * (yKolb - 0.19), yKolb - 0.19, hz + nz * (yKolb - 0.19)], KOLBEN, 0]);
+      const ySpitze = yKolb + 0.28;
+      t.push(['z', [0, 0.018, 0.22, 4], [hx + nx * ySpitze, ySpitze, hz + nz * ySpitze], STROH, 0, [nx, 0, nz]]);
+    }
+  }
+
+  // 3. Ausladende Schilfblaetter
+  const blaetter = [
+    [0.10, 0.05, 1.10, 0.05, 0.28, 0.20, GRUEN2],
+    [-0.12, 0.08, 1.25, 0.06, -0.25, 0.22, GRUEN1],
+    [0.05, -0.12, 1.05, 0.05, 0.18, -0.30, GRUEN3],
+    [-0.15, -0.06, 1.15, 0.05, -0.32, -0.18, STROH],
+    [0.18, 0.14, 0.95, 0.045, 0.35, 0.15, GRUEN2],
+    [-0.05, 0.20, 0.90, 0.045, -0.12, 0.38, GRUEN1],
+  ];
+
+  for (const [bx, bz, bh, bb, rx, rz, bcol] of blaetter) {
+    t.push(['q', [bb, bh, 0.015], [bx, bh * 0.45, bz], bcol, 0, [rx, Math.atan2(bz, bx), rz]]);
+  }
+
+  return t;
+}
+
+/** Wasser: Mehrteilige Scheiben-Geometrie fuer Seen und Fluesse (Materialkennung team=0.77 fuer den Shader). */
+function wasserModell() {
+  const WASSER_FARBE = '#1b4b68';
+  const WASSER_MAT = 0.77;
+  return [
+    ['s', [1.0, 48], [0, 0, 0], WASSER_FARBE, WASSER_MAT],
+    ['s', [0.65, 36], [0, 0.01, 0], '#245a7c', WASSER_MAT],
+    ['s', [0.35, 24], [0, 0.02, 0], '#2d688c', WASSER_MAT],
+  ];
+}
+
+MODELLE_DEF.schilf = schilfModell();
+MODELLE_DEF.wasser = wasserModell();
+
+
 

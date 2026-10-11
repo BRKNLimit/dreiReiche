@@ -180,11 +180,13 @@ export function baueBoden() {
   return ladeModell(new Float32Array(v));
 }
 
-// Deko: Baeume je nach Karte (wird nach Kartenwechsel von ui3d.js neu gerufen)
+// Deko: Baeume und Schilf je nach Karte (wird nach Kartenwechsel von ui3d.js neu gerufen)
 export let DEKO = [];
+export let DEKO_SCHILF = [];
 
 export function baueDeko() {
   DEKO.length = 0;
+  DEKO_SCHILF.length = 0;
   let s = 12345;
   const r = () => ((s = (Math.imul(s, 1103515245) + 12345) | 0) >>> 8) / 16777216;
 
@@ -208,6 +210,58 @@ export function baueDeko() {
     return false;
   }
 
+  // 1. Schilf an den Ufern von Seen und Fluessen
+  for (const h of hindernisse) {
+    if (h.art === 'see') {
+      const cx = h.x * DM;
+      const cz = h.y * DM;
+      const cr = h.r * DM;
+      const anzahl = h.fluss ? Math.floor(6 + r() * 5) : Math.floor(8 + r() * 6);
+
+      for (let k = 0; k < anzahl; k++) {
+        const wnk = (k / anzahl) * Math.PI * 2 + (r() - 0.5) * 0.45;
+        const dist = cr * (0.95 + r() * 0.12);
+        const px = cx + Math.cos(wnk) * dist;
+        const pz = cz + Math.sin(wnk) * dist;
+
+        if (px < 40 || px > 1960 || pz < 40 || pz > 1960) continue;
+        if (Math.hypot(px - 300, pz - 300) < 310 || Math.hypot(px - 1700, pz - 1700) < 310) continue;
+
+        let naheFurt = false;
+        for (const f of furten) {
+          if (Math.hypot(px - f.x * DM, pz - f.y * DM) < 52) {
+            naheFurt = true;
+            break;
+          }
+        }
+        if (naheFurt) continue;
+
+        let imTiefenWasser = false;
+        for (const o of hindernisse) {
+          if (o !== h && o.art === 'see') {
+            if (Math.hypot(px - o.x * DM, pz - o.y * DM) < o.r * DM * 0.86) {
+              imTiefenWasser = true;
+              break;
+            }
+          }
+        }
+        if (imTiefenWasser) continue;
+
+        let aufFels = false;
+        for (const o of hindernisse) {
+          if (o.art === 'fels' && Math.hypot(px - o.x * DM, pz - o.y * DM) < o.r * DM + 6) {
+            aufFels = true;
+            break;
+          }
+        }
+        if (aufFels) continue;
+
+        DEKO_SCHILF.push([px, pz, 1.1 + r() * 0.7, r() * 6.28]);
+      }
+    }
+  }
+
+  // 2. Baeume
   if (istFlusstal) {
     // Flusstal: Dichter Wald in den Wald-Zonen laut KARTE.wald
     for (const w of waldKreise) {
@@ -286,23 +340,38 @@ export function zeichneGelaende(world, now) {
   gl.depthMask(false);
 
   const hindernisse = world.hindernisse || [];
+  const zeit = (now || 0) * 0.001;
 
   // 1. Seen und Fluesse
   for (const h of hindernisse) {
     if (h.art === 'see') {
       const rM = h.r * DM;
       if (h.fluss) {
-        // Fluss: zusammenhaengendes tiefes Wasser ohne zerschneidende Uferringe
-        instanz('scheibe', h.x * DM, 0.12, h.y * DM, 0, rM * 0.99, [0.10, 0.27, 0.40], 1, 1, 0.96);
-        // Schimmernde Stroemungsoberflaeche
-        const puls = 0.94 + 0.06 * Math.sin((now || 0) * 0.003 + h.x * 0.05 + h.y * 0.05);
-        instanz('scheibe', h.x * DM, 0.14, h.y * DM, ((now || 0) * 0.001) % 6.28, rM * 0.93, [0.16, 0.36, 0.48], 1, puls, 0.72);
+        // Flussbett: dunkler Kies- und Schlickgrund
+        instanz('scheibe', h.x * DM, 0.08, h.y * DM, 0, rM * 1.02, [0.18, 0.22, 0.16], 1, 1, 0.95);
+        if (MODELLE.wasser) {
+          // Strömende Wasseroberfläche mit prozeduralen Wellen & Sonnenglanz
+          instanz('wasser', h.x * DM, 0.13, h.y * DM, 0, rM * 0.98, [0.12, 0.32, 0.46], 1, 1, 0.94, zeit);
+          // Versetzte Strömungskräuselung
+          instanz('wasser', h.x * DM, 0.15, h.y * DM, (zeit * 0.25) % 6.28, rM * 0.94, [0.18, 0.42, 0.54], 1, 1, 0.78, zeit + 2.0);
+        } else {
+          instanz('scheibe', h.x * DM, 0.12, h.y * DM, 0, rM * 0.99, [0.10, 0.27, 0.40], 1, 1, 0.96);
+          const puls = 0.94 + 0.06 * Math.sin(zeit * 3.0 + h.x * 0.05 + h.y * 0.05);
+          instanz('scheibe', h.x * DM, 0.14, h.y * DM, (zeit * 1.0) % 6.28, rM * 0.93, [0.16, 0.36, 0.48], 1, puls, 0.72);
+        }
       } else {
-        // Standsee: Ufersaum (feuchter Sand/Schilf) und tiefes Wasser
-        instanz('scheibe', h.x * DM, 0.08, h.y * DM, 0, rM * 1.04, [0.28, 0.26, 0.19], 1, 1, 0.9);
-        instanz('scheibe', h.x * DM, 0.12, h.y * DM, 0, rM * 0.98, [0.11, 0.27, 0.39], 1, 1, 0.94);
-        const puls = 0.95 + 0.05 * Math.sin((now || 0) * 0.002 + h.x);
-        instanz('scheibe', h.x * DM, 0.15, h.y * DM, ((now || 0) * 0.0003) % 6.28, rM * 0.95, [0.18, 0.38, 0.48], 1, puls, 0.7);
+        // Standsee: Ufersaum (feuchter Sand/Schlick)
+        instanz('scheibe', h.x * DM, 0.07, h.y * DM, 0, rM * 1.04, [0.26, 0.24, 0.18], 1, 1, 0.92);
+        if (MODELLE.wasser) {
+          // Tiefes Wasser mit sanften Wellen und Glanz
+          instanz('wasser', h.x * DM, 0.12, h.y * DM, 0, rM * 0.98, [0.10, 0.28, 0.40], 1, 1, 0.94, zeit * 0.6);
+          // Schimmernde Oberflaeche
+          instanz('wasser', h.x * DM, 0.14, h.y * DM, (zeit * 0.08) % 6.28, rM * 0.95, [0.16, 0.38, 0.49], 1, 1, 0.75, zeit * 0.6 + 1.5);
+        } else {
+          instanz('scheibe', h.x * DM, 0.12, h.y * DM, 0, rM * 0.98, [0.11, 0.27, 0.39], 1, 1, 0.94);
+          const puls = 0.95 + 0.05 * Math.sin(zeit * 2.0 + h.x);
+          instanz('scheibe', h.x * DM, 0.15, h.y * DM, (zeit * 0.3) % 6.28, rM * 0.95, [0.18, 0.38, 0.48], 1, puls, 0.7);
+        }
       }
     }
   }
@@ -310,10 +379,11 @@ export function zeichneGelaende(world, now) {
   // 2. Furten: flache Kiesbaenke mit sanftem Uebertritt
   const furten = (KARTE && KARTE.furten) || [];
   for (const f of furten) {
-    instanz('scheibe', f.x * DM, 0.08, f.y * DM, 0, 48, [0.44, 0.38, 0.28], 1, 1, 0.85);
+    instanz('scheibe', f.x * DM, 0.09, f.y * DM, 0, 48, [0.44, 0.38, 0.28], 1, 1, 0.85);
   }
 
   zeichneInstanzen(MODELLE.scheibe);
+  if (MODELLE.wasser) zeichneInstanzen(MODELLE.wasser);
   gl.depthMask(true);
 
   // 3. Felsen: kantige Felsformationen
@@ -333,4 +403,13 @@ export function zeichneGelaende(world, now) {
 
   // 5. Deko-Baeume (aus gewaehlter Karte via baueDeko)
   for (const [x, z, s, r] of DEKO) instanz('baum', x, 0, z, r, s, [1, 1, 1]);
+
+  // 6. Schilf an Ufern von Seen und Fluessen
+  if (MODELLE.schilf) {
+    for (const [x, z, s, r] of DEKO_SCHILF) {
+      instanz('schilf', x, 0.05, z, r, s, [1, 1, 1]);
+    }
+    zeichneInstanzen(MODELLE.schilf);
+  }
 }
+

@@ -206,6 +206,22 @@ geprüft (Tests, Galerie, Spiel).
   - **Finsterer Borkenschädel:** Tief im Nacken versunkener Kopf mit hohlen Augenhöhlen und glimmenden bernsteinfarbenen Seelenfunken (`GLUEHT`) sowie kleiner Schädelkrone.
 - **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; Modell bleibt mit ca. 2.900 Ecken weit unter dem 6.000er-Budget).
 
+### Runde 15: Auftrag 3, Aufgabe 6 — Wasser: Wellen, Glanz und Uferschilf (src/render3d.js, src/gelaende3d.js, src/modelle3d.js)
+- **Was war schwach:** Wasseroberflächen waren bisher flache, statische Scheiben ohne bewegte Wellenoberfläche oder Sonnenreflexion. Uferlinien wirkten kahl ohne natürliche Ufervegetation.
+- **Was wurde geändert:**
+  - **Shader (`src/render3d.js`):**
+    - `VS`: Wasserflächen (markiert über Materialkennung) erhalten eine sanfte vertikale Wellenbewegung. Weltkoordinate und dynamische Zeitphase werden an den Fragment-Shader weitergegeben.
+    - `FS`: Prozedurale Wellenbildung durch drei überlagerte Sinuswellen mit analytischer Normalenberechnung (Strömung, Wind, Feinkräuselung).
+    - **Sonnenglanz & Highlights:** Scharfer, lebendiger Specular-Glanzpunkt (`spec = pow(..., 36.0)`) plus weicher Sekundärglanz, der im Sonnenlicht funkelt.
+    - **Fresnel & Tiefenwirkung:** Übergang von dunklem, tiefem Wasser im Steilwinkel zu spiegelnder Himmelsreflexion am flachen Ufersaum. Feine weiße Schaumkrönchen auf hohen Wellenbergen.
+  - **Geometrie & Modelle (`src/modelle3d.js`):**
+    - `wasser`: Mehrstufige Scheibengeometrie mit inneren Ringen zur sauberen Tiefendarstellung.
+    - `schilf`: Detaillierte Schilfhorste mit Wurzelsockel im Wasser, schlanken Halmen in unterschiedlichen Neigungen, samtigen dunkelbraunen Rohrkolben mit Spitzenborste und ausladenden, gebogenen Schilfblättern.
+  - **Ufer-Generierung (`src/gelaende3d.js`):**
+    - `baueDeko`: Platziert `DEKO_SCHILF` entlang der Uferlinien aller Seen und beider Flussufer. Furten, Basen, tiefe Flusskerne und Felsen werden automatisch ausgespart.
+    - `zeichneGelaende`: Rendert die dynamischen Wasserflächen mit kontinuierlicher Zeitphase (`now`) sowie die Ufer-Schilfhorste.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; keine Ausnahmen).
+
 
 
 

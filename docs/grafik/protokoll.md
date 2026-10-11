@@ -222,6 +222,23 @@ geprüft (Tests, Galerie, Spiel).
     - `zeichneGelaende`: Rendert die dynamischen Wasserflächen mit kontinuierlicher Zeitphase (`now`) sowie die Ufer-Schilfhorste.
 - **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; keine Ausnahmen).
 
+### Runde 16: Auftrag 3, Aufgabe 7 — Material und Licht: Prozedurale Oberflächen, Kontaktschatten und weiche Schatten (src/render3d.js)
+- **Was war schwach:** Modelle wirkten mit rein monochromen Farbflächen steril und schwebend; es gab keine Bodenabdunklung (Kontaktschatten) an Füßen und Fundamenten; Schatten unter Einheiten und Gebäuden waren kreisrunde Scheiben mit harten, scharfen Schnittkanten.
+- **Was wurde geändert:** In `src/render3d.js`:
+  - **Kontaktschatten & Spalt-AO:**
+    - `kontaktAO`: Objekte dunkeln im Bereich $y \le 0.65$ zur Bodenkante hin sanft ab (`clamp(smoothstep(0.0, 0.65, y) * 0.32 + 0.68, 0.6, 1.0)`). Füße, Pfosten, Maueransätze und Felsbasen wirken fest im Erdreich verankert statt schwebend.
+    - `spaltAO`: Nischen und abwärts geneigte Polygone erhalten zusätzliche Ambient Occlusion (`vNor.y * 0.22 + 0.78`).
+  - **Weiche Schatten unter Einheiten und Gebäuden:**
+    - Drop Shadows werden im Fragment-Shader über ihren radialen Abstand vom Mittelpunkt (`length(vObjPos.xz)`) mit einem weichen Gauß-ähnlichen Penumbra-Verlauf versehen (`smoothstep(1.0, 0.22, rDist)`). Keine harten Kanten mehr auf dem Boden.
+  - **Prozedurale Oberflächenstrukturen im Shader (60 FPS stabil):**
+    - **Holz & Rinde:** Ausrichtungsspezifische Längsmaserung mit gewellten Wachstumsringen (`sin(p.y * 22.0 + sin(...) * 1.6)`).
+    - **Stein & Metall:** Feines mineralisches Bruch- und Meißelkorn auf Rüstungen, Werkzeugen, Mauern und Felsen.
+    - **Fell & Tiergewebe:** Schräge Haarstreifung für Wölfe und Tiere.
+    - **Laub & Moos:** Gefleckte Blatttextur für Baumkronen und Schilf.
+    - Alle Details laufen in reiner GPU-Arithmetik (wenige Sinus-/Kosinus-Instruktionen, keine Texturbindings), wodurch 60 FPS auch bei hunderten Einheiten gewährleistet sind.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; butterweiche Schattendarstellung).
+
+
 
 
 

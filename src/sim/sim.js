@@ -127,6 +127,8 @@ export function spawnBuilding(world, player, type, x, y, finished = false) {
     hilfe: 0, // Baukraft der Erbauer in diesem Tick, siehe erschaffen()
     flick: 0, // angefangene Reparatur in Milli-LP
     queueProgress: 0,
+    sammelX: -1, // Sammelpunkt fuer neue Einheiten; -1: keiner
+    sammelY: -1,
     cooldown: 0,
     dead: false,
   };
@@ -402,6 +404,14 @@ function applyCommand(world, c) {
       if (kannLernen(world, c.player, c.skill)) world.players[c.player].gelernt.push(c.skill);
     } else if (c.type === 'faehigkeit') {
       wirke(world, c.player, c.faehigkeit, c.x | 0, c.y | 0);
+    } else if (c.type === 'sammelpunkt') {
+      // Sammelpunkt eigener Fabriken; x < 0 hebt ihn auf.
+      for (let k = 0; k < c.ids.length; k++) {
+        const b = byId(world, c.ids[k]);
+        if (!b || b.dead || b.kind !== 'building' || b.player !== c.player || !BUILDINGS[b.type].buildList) continue;
+        b.sammelX = c.x < 0 ? -1 : clamp(c.x | 0);
+        b.sammelY = c.x < 0 ? -1 : clamp(c.y | 0);
+      }
     } else if (c.type === 'produce') {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
@@ -945,6 +955,12 @@ export function step(world) {
         const ux = e.x + (((dx * off - dy * quer) / d) | 0);
         const uy = e.y + (((dy * off + dx * quer) / d) | 0);
         const u = spawnUnit(world, e.player, type, clamp(ux), clamp(uy));
+        if (e.sammelX >= 0) {
+          // Zum Sammelpunkt, als waere es ein Bewegungsbefehl.
+          u.tx = u.befX = e.sammelX;
+          u.ty = u.befY = e.sammelY;
+          u.arrived = false;
+        }
         world.events.push({ t: 'spawned', id: u.id });
       }
     }
@@ -1552,6 +1568,8 @@ export function hash(world) {
       mix(e.progress);
       mix(e.flick);
       mix(e.queueProgress);
+      mix(e.sammelX);
+      mix(e.sammelY);
       mix(e.queue.length);
       mix(e.powered);
     }

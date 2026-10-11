@@ -26,6 +26,7 @@ let nebelFrame = 0; // Zaehler, damit das Nebelbild je Frame nur einmal entsteht
 const verborgen = (e) => imNebel(nebel, e, ME);
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
+let gruppen = {}; // Steuergruppen: Ziffer -> Ids
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
 let sel = [];
@@ -65,6 +66,7 @@ function neu(f, zuschauen = false) {
   skillSig = '';
   selPlan = null;
   leistenSig = '';
+  gruppen = {};
   zielen = null;
   wirkungen.length = 0;
   flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
@@ -192,6 +194,19 @@ cv.addEventListener(
 );
 
 addEventListener('keydown', (e) => {
+  if (!world) return;
+  const g = steuergruppe(e, gruppen, sel, world, ME);
+  if (g) {
+    sel = g.sel;
+    selPlan = null;
+    const m = g.springe ? auswahlMitte(world, sel) : null;
+    if (m) {
+      cam.x = m.x;
+      cam.y = m.y;
+    }
+    return;
+  }
+  if (e.ctrlKey || e.metaKey) return;
   const liste = bauListe();
   const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && liste[i] && erbauer().length && !gesperrt(world, ME, liste[i])) placing = liste[i];
@@ -357,6 +372,9 @@ function befehl(x, y, anhaengen = false) {
   const rest = sel.filter((id) => !bauer.includes(id));
   if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id, anhaengen });
   if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y });
+  // Gewaehlte Fabriken: Sammelpunkt fuer neue Einheiten
+  const fabs = gewaehlteFabriken(world, sel, ME);
+  if (fabs.length) issue(world, { type: 'sammelpunkt', player: ME, ids: fabs, x, y });
 }
 
 function bauListe() {
@@ -781,6 +799,31 @@ function drawEntities() {
 }
 
 function drawSelection() {
+  // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
+  ctx.strokeStyle = FACTIONS[meFaction].color;
+  ctx.fillStyle = FACTIONS[meFaction].color;
+  ctx.lineWidth = 1.5;
+  for (const id of gewaehlteFabriken(world, sel, ME)) {
+    const b = byId(world, id);
+    if (b.sammelX < 0) continue;
+    const sx = w2sx(b.sammelX);
+    const sy = w2sy(b.sammelY);
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(w2sx(b.x), w2sy(b.y));
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx, sy - 16);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - 16);
+    ctx.lineTo(sx + 10, sy - 12);
+    ctx.lineTo(sx, sy - 8);
+    ctx.fill();
+  }
   if (zielen) {
     // Griff scharf: Wirkungskreis am Mauszeiger, rot ausser Reichweite.
     const f = FAEHIGKEITEN[zielen];

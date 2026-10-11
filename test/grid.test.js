@@ -1792,3 +1792,23 @@ test('RULES.kommandanten = false: keine Kommandanten', () => {
     RULES.kommandanten = alt;
   }
 });
+
+// ---------------------------------------------------- Sammelpunkt
+
+test('Sammelpunkt: neue Einheiten laufen dorthin, nur eigene Fabriken nehmen ihn an', () => {
+  const w = bare();
+  w.players[0].fron = 2000;
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const k = spawnBuilding(w, 0, 'kaserne', 6000, 5000, true);
+  issue(w, { type: 'sammelpunkt', player: 1, ids: [k.id], x: 100, y: 100 });
+  issue(w, { type: 'sammelpunkt', player: 0, ids: [k.id], x: 8000, y: 7000 });
+  issue(w, { type: 'produce', player: 0, id: k.id, unit: 'soldat' });
+  step(w);
+  assert.deepEqual([k.sammelX, k.sammelY], [8000, 7000], 'der Gegner kann ihn nicht setzen');
+  for (let i = 0; i < 1000 && !w.entities.some((e) => e.type === 'soldat'); i++) step(w);
+  const s = w.entities.find((e) => e.type === 'soldat');
+  assert.ok(s, 'ausgebildet');
+  assert.deepEqual([s.tx, s.ty], [8000, 7000], 'unterwegs zum Sammelpunkt');
+  for (let i = 0; i < 300; i++) step(w);
+  assert.ok(s.arrived && (s.x - 8000) ** 2 + (s.y - 7000) ** 2 < 200 * 200, 'angekommen');
+});

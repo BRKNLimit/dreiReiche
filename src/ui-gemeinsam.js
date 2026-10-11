@@ -171,6 +171,60 @@ export function ressourcenHtml(world, player) {
   );
 }
 
+// ------------------------------------------------------------ Steuergruppen
+
+/**
+ * Steuergruppen wie in jedem RTS: Strg+Ziffer speichert die Auswahl, Ziffer
+ * ruft sie ab, zweimal schnell springt die Kamera hin. Eine belegte Gruppe
+ * geht vor; ist sie leer, bleibt die Ziffer eine Bautaste. Liefert null, wenn
+ * die Taste keine Gruppe betrifft, sonst { sel, springe }.
+ */
+export function steuergruppe(ereignis, gruppen, sel, world, ich) {
+  const m = /^Digit([0-9])$/.exec(ereignis.code || '');
+  if (!m) return null;
+  const n = m[1];
+  const eigen = (id) => {
+    const e = byId(world, id);
+    return e && !e.dead && e.player === ich;
+  };
+  if (ereignis.ctrlKey || ereignis.metaKey) {
+    if (ereignis.preventDefault) ereignis.preventDefault();
+    gruppen[n] = sel.filter(eigen);
+    return { sel, springe: false };
+  }
+  const g = (gruppen[n] || []).filter(eigen);
+  gruppen[n] = g;
+  if (!g.length) return null;
+  const jetzt = typeof performance !== 'undefined' ? performance.now() : 0;
+  const springe = gruppen.letzte === n && jetzt - gruppen.zeit < 400;
+  gruppen.letzte = n;
+  gruppen.zeit = jetzt;
+  return { sel: g.slice(), springe };
+}
+
+/** Mitte einer Auswahl (fuer den Kamerasprung). */
+export function auswahlMitte(world, sel) {
+  let x = 0;
+  let y = 0;
+  let n = 0;
+  for (const id of sel) {
+    const e = byId(world, id);
+    if (!e) continue;
+    x += e.x;
+    y += e.y;
+    n++;
+  }
+  return n ? { x: x / n, y: y / n } : null;
+}
+
+/** Gewaehlte eigene Fabriken -- ein Rechtsklick setzt ihren Sammelpunkt. */
+export function gewaehlteFabriken(world, sel, ich) {
+  return sel.filter((id) => {
+    const b = byId(world, id);
+    return b && !b.dead && b.kind === 'building' && b.player === ich && BUILDINGS[b.type].buildList;
+  });
+}
+
 // ------------------------------------------------------------ Untere Leiste
 
 /** Je Einheitentyp der Auswahl ein Knopf mit Icon und Anzahl; ein Klick behaelt nur diesen Typ. */

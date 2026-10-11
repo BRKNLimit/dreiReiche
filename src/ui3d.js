@@ -46,6 +46,7 @@ const verborgen = (e) => imNebel(nebel, e, ME);
 let nebelTex = null;
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
+let gruppen = {}; // Steuergruppen: Ziffer -> Ids
 let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
 let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
 const tastenGehalten = new Set();
@@ -109,6 +110,7 @@ function neu(f, zuschauen = false) {
   nebel = neuerNebel(!zuschauen, ME);
   sel = [];
   selPlan = null;
+  gruppen = {};
   leistenSig = '';
   placing = null;
   angriff = false;
@@ -150,6 +152,9 @@ function befehl3(x, y, anhaengen = false) {
   const rest = sel.filter((id) => !bauer.includes(id));
   if (bauer.length) issue(world, { type: 'bauen', player: ME, ids: bauer, id: site.id, anhaengen });
   if (rest.length) issue(world, { type: 'move', player: ME, ids: rest, x, y });
+  // Gewaehlte Fabriken: Sammelpunkt fuer neue Einheiten
+  const fabs = gewaehlteFabriken(world, sel, ME);
+  if (fabs.length) issue(world, { type: 'sammelpunkt', player: ME, ids: fabs, x, y });
 }
 
 function bauListe() {
@@ -405,6 +410,18 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (!world) return;
+  const g = steuergruppe(e, gruppen, sel, world, ME);
+  if (g) {
+    sel = g.sel;
+    selPlan = null;
+    const m = g.springe ? auswahlMitte(world, sel) : null;
+    if (m) {
+      kam.x = m.x * DM;
+      kam.z = m.y * DM;
+    }
+    return;
+  }
+  if (e.ctrlKey || e.metaKey) return;
   const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && bauListe()[i] && erbauer3().length && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
@@ -854,6 +871,32 @@ function bodenKreis(x, y, r) {
 
 /** Schrein-Umkreise, Faehigkeits-Einsaetze, gerufene und festgehaltene Einheiten, Zielkreis. */
 function zeichneWirkungen() {
+  // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
+  octx.strokeStyle = FACTIONS[meFaction].color;
+  octx.fillStyle = FACTIONS[meFaction].color;
+  octx.lineWidth = 1.5;
+  for (const id of gewaehlteFabriken(world, sel, ME)) {
+    const b = byId(world, id);
+    if (b.sammelX < 0) continue;
+    const a = aufSchirm(b.x * DM, 0.3, b.y * DM);
+    const z = aufSchirm(b.sammelX * DM, 0.3, b.sammelY * DM);
+    if (!a || !z) continue;
+    octx.setLineDash([4, 4]);
+    octx.beginPath();
+    octx.moveTo(a[0], a[1]);
+    octx.lineTo(z[0], z[1]);
+    octx.stroke();
+    octx.setLineDash([]);
+    octx.beginPath();
+    octx.moveTo(z[0], z[1]);
+    octx.lineTo(z[0], z[1] - 16);
+    octx.stroke();
+    octx.beginPath();
+    octx.moveTo(z[0], z[1] - 16);
+    octx.lineTo(z[0] + 10, z[1] - 12);
+    octx.lineTo(z[0], z[1] - 8);
+    octx.fill();
+  }
   octx.lineWidth = 1;
   octx.setLineDash([6, 6]);
   for (const e of world.entities) {

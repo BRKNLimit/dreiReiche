@@ -939,6 +939,52 @@ test('Ents: gelernt und mit Goetterblut entstehen sie im Dickicht und kaempfen',
   assert.ok(ziel.dead || ziel.hp < hp, 'der Ent schlaegt zu');
 });
 
+// ---------------------------------------------------- Belagerung
+
+test('Belagerung: viel Schaden gegen Gebaeude, wenig gegen Einheiten, Gebaeude zuerst', () => {
+  const w = bare();
+  const kat = spawnUnit(w, 0, 'katapult', 5000, 5000);
+  kat.arrived = false;
+  kat.tx = kat.x;
+  kat.ty = kat.y;
+  const hain = spawnBuilding(w, 1, 'hain', 5000 + 700, 5000, true);
+  const wolf = spawnUnit(w, 1, 'wolf', 5000, 5000 + 300); // naeher als der Hain
+  wolf.cooldown = 1e9;
+  wolf.arrived = false;
+  wolf.tx = wolf.x;
+  wolf.ty = wolf.y;
+  const [hpH, hpW] = [hain.hp, wolf.hp];
+  step(w);
+  assert.equal(hpH - hain.hp, UNITS.katapult.weapon.gebaeude, 'trifft den Hain, obwohl der Wolf naeher steht');
+  assert.equal(hpW - wolf.hp, 0);
+  hain.dead = true;
+  for (let i = 0; i < UNITS.katapult.weapon.cooldown + 1; i++) step(w);
+  assert.equal(hpW - wolf.hp, UNITS.katapult.weapon.damage, 'ohne Gebaeude in Reichweite: der Wolf, mit wenig Schaden');
+});
+
+test('Belagerung: das Katapult schiesst weiter als ein Turm', () => {
+  assert.ok(UNITS.katapult.weapon.range > BUILDINGS.wachturm.weapon.range);
+  assert.ok(UNITS.katapult.weapon.range > BUILDINGS.waechterbaum.weapon.range);
+});
+
+test('Belagerung: ein Wurzelbrecher bricht allein einen versorgten Turm', () => {
+  const w = bare('mensch', 'gott');
+  spawnBuilding(w, 0, 'halle', 5000, 5000, true);
+  const turm = spawnBuilding(w, 0, 'wachturm', 7000, 5000, true);
+  const wb = spawnUnit(w, 1, 'wurzelbrecher', 9000, 5000);
+  issue(w, { type: 'attack', player: 1, ids: [wb.id], x: turm.x, y: turm.y });
+  for (let t = 0; t < 3000 && !turm.dead && !wb.dead; t++) step(w);
+  assert.ok(turm.dead && !wb.dead);
+});
+
+test('jede Fraktion hat eine Belagerungseinheit, freizuschalten im Skillbaum', () => {
+  for (const f of ['mensch', 'gott']) {
+    const bel = Object.entries(UNITS).filter(([, u]) => u.faction === f && u.weapon.vorrang === 'gebaeude');
+    assert.equal(bel.length, 1, f);
+    assert.ok(Object.values(SKILLS).some((s) => s.faction === f && s.frei && s.frei.includes(bel[0][0])));
+  }
+});
+
 // ---------------------------------------------------- Reparatur
 
 function beschaedigt() {

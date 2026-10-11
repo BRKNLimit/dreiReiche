@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.20
+# Die drei Reiche — Prototyp 0.21
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -13,7 +13,7 @@ Verbesserungen und eine Fähigkeit des Kommandanten frei.
 ## Loslegen
 
 ```bash
-npm test          # 95 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
+npm test          # 99 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -73,8 +73,9 @@ Götterblut, Fron.
 
 | Kampf | Menschen | Gott |
 | --- | --- | --- |
-| Nahkampf | Bauer, Soldat, Söldner, Held | Dryade, Wolf, Ent |
-| Fernkampf | Jäger | Waldgeist, Waldgott |
+| Nahkampf | Bauer, Soldat, Söldner, Held | Dryade, Wolf, Ent, Wurzelbrecher |
+| Fernkampf | Jäger, Katapult | Waldgeist, Waldgott |
+| Belagerung (Gebäude zuerst) | Katapult | Wurzelbrecher |
 
 Reichweite zählt von Rand zu Rand: Nahkämpfer müssen ran, Fernkämpfer
 schießen weit. Was gesperrt ist, schaltet der Skillbaum frei.

@@ -172,7 +172,7 @@ export const BUILDINGS = {
     prio: PRIO.werk,
     cost: { fron: 400 },
     buildTime: 340,
-    buildList: ['bauer', 'soldat', 'jaeger', 'soeldner'],
+    buildList: ['soldat', 'jaeger', 'soeldner', 'katapult'], // Bauern bildet die Thingstaette aus
   },
   schacht: {
     name: 'Blutschacht',
@@ -313,7 +313,7 @@ export const BUILDINGS = {
     prio: PRIO.werk,
     cost: { fron: 400 },
     buildTime: 340,
-    buildList: ['dryade', 'wolf', 'waldgeist', 'ent'],
+    buildList: ['wolf', 'waldgeist', 'ent', 'wurzelbrecher'], // Dryaden ruft der Herzbaum
   },
   blutwurz: {
     name: 'Blutwurz',
@@ -375,6 +375,9 @@ export const BUILDINGS = {
 // Wirtschaft -- keine harte Obergrenze, aber eine spuerbare Bremse.
 // kampf: 'nah' schlaegt erst bei Beruehrung zu, 'fern' schiesst aus der Ferne.
 // weapon.range: Abstand von Rand zu Rand, in dem getroffen wird.
+// weapon.gebaeude: Schaden gegen Gebaeude, wenn er vom Schaden gegen
+// Einheiten abweicht (Belagerung); weapon.vorrang 'gebaeude': greift
+// Gebaeude in Reichweite zuerst an.
 export const UNITS = {
   // ------------------------------------------------------------- Menschen
   // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
@@ -529,6 +532,33 @@ export const UNITS = {
     kampf: 'nah',
     weapon: { range: 40, damage: 52, cooldown: 10 },
   },
+  // Belagerung: wenig gegen Einheiten, viel gegen Gebaeude.
+  katapult: {
+    name: 'Katapult',
+    desc: 'Belagerung: wirft Steine weiter, als ein Turm schießt. Gegen Einheiten fast nutzlos, langsam und verwundbar.',
+    faction: 'mensch',
+    hp: 500,
+    radius: 40,
+    speed: 14,
+    cost: { fron: 250 },
+    unterhalt: 30, // Fron pro Minute, solange sie lebt
+    buildTime: 300,
+    kampf: 'fern',
+    weapon: { range: 1000, damage: 8, cooldown: 30, gebaeude: 260, vorrang: 'gebaeude' },
+  },
+  wurzelbrecher: {
+    name: 'Wurzelbrecher',
+    desc: 'Belagerung: ein Knäuel uralter Wurzeln, sehr zäh, sprengt Gebäude von innen. Gegen Einheiten schwach.',
+    faction: 'gott',
+    hp: 3200,
+    radius: 50,
+    speed: 14,
+    cost: { fron: 280 },
+    unterhalt: 32, // Fron pro Minute, solange sie lebt
+    buildTime: 320,
+    kampf: 'nah',
+    weapon: { range: 30, damage: 12, cooldown: 10, gebaeude: 240, vorrang: 'gebaeude' },
+  },
 };
 
 // ------------------------------------------------------------- Skillbaum
@@ -550,6 +580,10 @@ export const AESTE = { einheiten: 'Einheiten', gebaeude: 'Gebäude', verbesserun
 
 export const SKILLS = {
   // --------------------------------------------------------------- Menschen
+  belagerungsbau: {
+    faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
+    desc: 'Die Kaserne baut Katapulte — sie werfen Steine weiter, als ein Turm schießt.',
+  },
   bogenbau: {
     faction: 'mensch', ast: 'einheiten', name: 'Bogenbau', kosten: 1, frei: ['jaeger'],
     desc: 'Die Kaserne bildet Jäger aus — Fernkämpfer hinter der Linie.',
@@ -604,6 +638,10 @@ export const SKILLS = {
   },
 
   // --------------------------------------------------------------- Gott
+  wurzelbrecher: {
+    faction: 'gott', ast: 'einheiten', name: 'Wurzelbrecher wecken', kosten: 2, braucht: ['waldgeister'], frei: ['wurzelbrecher'],
+    desc: 'Das Dickicht weckt Wurzelbrecher — sie sprengen Mauern von innen.',
+  },
   waldgeister: {
     faction: 'gott', ast: 'einheiten', name: 'Waldgeister rufen', kosten: 1, frei: ['waldgeist'],
     desc: 'Das Dickicht ruft Waldgeister — sie werfen Licht aus der Ferne.',

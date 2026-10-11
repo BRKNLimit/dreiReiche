@@ -12,12 +12,12 @@ const PLAN = {
   mensch: {
     anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
     zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium',
-    bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner',
+    bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult',
   },
   gott: {
     anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht',
     zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche',
-    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent',
+    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher',
   },
 };
 
@@ -27,11 +27,11 @@ const PLAN = {
 const LERNEN = {
   mensch: [
     'bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte',
-    'kapellenbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'ansturm',
+    'kapellenbau', 'belagerungsbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'ansturm',
   ],
   gott: [
     'waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss',
-    'steine', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf',
+    'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf',
   ],
 };
 
@@ -335,9 +335,15 @@ export function stepAI(ai, world) {
     } else {
       // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
       // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
+      // Belagerung, solange der Gegner Tuerme hat: je Turm eine, hoechstens drei.
+      const feindTuerme = world.entities.filter((o) => !o.dead && o.player !== ai.player && o.kind === 'building' && BUILDINGS[o.type].weapon).length;
+      const belagerer = einheiten.filter((u) => u.type === plan.belagerung).length;
+      if (feindTuerme && belagerer < Math.min(3, feindTuerme) && frei(plan.belagerung) && liste.includes(plan.belagerung)) {
+        unit = plan.belagerung;
+      }
       const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
       const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
-      if (reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
+      if (!unit && reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
       for (let k = 0; !unit && k < MISCHUNG.length; k++) {
         const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
         if (rolle === 'schwer' && !schwerMoeglich) continue;

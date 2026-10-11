@@ -3,6 +3,24 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.21 — Belagerung
+
+- **Katapult** (Menschen): Fernkampf, 100 m — weiter als jeder Turm —,
+  260 Schaden gegen Gebäude alle 3 s, gegen Einheiten fast nutzlos, 500 LP,
+  langsam. 250 Fron.
+- **Wurzelbrecher** (Gott): Nahkampf, 3200 LP, 240 Schaden gegen Gebäude
+  je Sekunde, gegen Einheiten schwach. Bricht allein einen versorgten Turm.
+  280 Fron.
+- Belagerer greifen Gebäude in Reichweite zuerst an (`weapon.vorrang`),
+  eigener Schaden gegen Gebäude (`weapon.gebaeude`). Freizuschalten im
+  Einheiten-Ast (Belagerungsbau, Wurzelbrecher wecken).
+- Kaserne und Dickicht bilden jetzt Soldat/Wolf, Fernkämpfer, schwere und
+  Belagerungseinheit aus; Bauern und Dryaden kommen nur noch aus den
+  Hauptgebäuden.
+- KI baut je feindlichem Turm einen Belagerer, höchstens drei.
+- 3D-Modelle für beide, das Katapult wirft Steine im hohen Bogen.
+- Messung (128 Partien): Menschen 71 : Gott 57, Sitz 0 gewinnt 61, Ø 23 min.
+
 ## 0.20 — Drei Fähigkeiten je Kommandant
 
 - Jeder Kommandant hat drei aktive Fähigkeiten, jede ein eigener Skill im

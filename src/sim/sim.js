@@ -977,14 +977,19 @@ function moveUnits(world) {
 function chaseTarget(world, e, r, leash) {
   let best = null;
   let bestD = Infinity;
+  let bestRang = 1;
   const re = radiusVon(e);
+  const gebaeudeZuerst = UNITS[e.type].weapon.vorrang === 'gebaeude';
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
     if (o.dead || o.player === e.player) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const rr = r + re + radiusVon(o);
-    if (dd > rr * rr || dd >= bestD) continue;
+    if (dd > rr * rr) continue;
+    const rang = gebaeudeZuerst && o.kind === 'building' ? 0 : 1;
+    if (rang > bestRang || (rang === bestRang && dd >= bestD)) continue;
     if (dist2(e.tx, e.ty, o.x, o.y) > leash * leash) continue;
+    bestRang = rang;
     bestD = dd;
     best = o;
   }
@@ -1085,7 +1090,7 @@ function combat(world) {
     const target = nearestEnemy(world, e);
     if (!target) continue;
 
-    let dmg = def.weapon.damage;
+    let dmg = target.kind === 'building' && def.weapon.gebaeude ? def.weapon.gebaeude : def.weapon.damage;
     if (e.kind === 'building') dmg = ((dmg * e.powered) / 1000) | 0;
     // Heimvorteil: auf eigenem Boden staerker. Der Gott lebt davon.
     // Zorn: ein versorgter Schrein im Netz, in dem der Schuetze steht.
@@ -1156,16 +1161,22 @@ export function reichweite(e, o) {
   return def.weapon.range + radiusVon(e) + radiusVon(o);
 }
 
-/** Naechster Feind, den e mit seiner Waffe erreicht. */
+/** Naechster Feind, den e mit seiner Waffe erreicht -- Belagerung nimmt Gebaeude zuerst. */
 function nearestEnemy(world, e) {
+  const w = (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).weapon;
+  const gebaeudeZuerst = w.vorrang === 'gebaeude';
   let best = null;
   let bestD = Infinity;
+  let bestRang = 1;
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
     if (o.dead || o.player === e.player) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const r = reichweite(e, o);
-    if (dd <= r * r && dd <= bestD) {
+    if (dd > r * r) continue;
+    const rang = gebaeudeZuerst && o.kind === 'building' ? 0 : 1;
+    if (rang < bestRang || (rang === bestRang && dd <= bestD)) {
+      bestRang = rang;
       bestD = dd;
       best = o;
     }

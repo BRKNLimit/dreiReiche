@@ -136,8 +136,9 @@ beides.
 
 | Kampf | Menschen | Gott |
 | --- | --- | --- |
-| Nahkampf | Bauer, Soldat, Söldner, Held | Dryade, Wolf, Ent |
-| Fernkampf | Jäger | Waldgeist, Waldgott |
+| Nahkampf | Bauer, Soldat, Söldner, Held | Dryade, Wolf, Ent, Wurzelbrecher |
+| Fernkampf | Jäger, Katapult | Waldgeist, Waldgott |
+| Belagerung (Gebäude zuerst) | Katapult | Wurzelbrecher |
 
 ### Skillbaum statt Zeitalter
 

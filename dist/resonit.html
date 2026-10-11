@@ -378,7 +378,7 @@ const BUILDINGS = {
     prio: PRIO.werk,
     cost: { fron: 400 },
     buildTime: 340,
-    buildList: ['bauer', 'soldat', 'jaeger', 'soeldner'],
+    buildList: ['soldat', 'jaeger', 'soeldner', 'katapult'], // Bauern bildet die Thingstaette aus
   },
   schacht: {
     name: 'Blutschacht',
@@ -519,7 +519,7 @@ const BUILDINGS = {
     prio: PRIO.werk,
     cost: { fron: 400 },
     buildTime: 340,
-    buildList: ['dryade', 'wolf', 'waldgeist', 'ent'],
+    buildList: ['wolf', 'waldgeist', 'ent', 'wurzelbrecher'], // Dryaden ruft der Herzbaum
   },
   blutwurz: {
     name: 'Blutwurz',
@@ -581,6 +581,9 @@ const BUILDINGS = {
 // Wirtschaft -- keine harte Obergrenze, aber eine spuerbare Bremse.
 // kampf: 'nah' schlaegt erst bei Beruehrung zu, 'fern' schiesst aus der Ferne.
 // weapon.range: Abstand von Rand zu Rand, in dem getroffen wird.
+// weapon.gebaeude: Schaden gegen Gebaeude, wenn er vom Schaden gegen
+// Einheiten abweicht (Belagerung); weapon.vorrang 'gebaeude': greift
+// Gebaeude in Reichweite zuerst an.
 const UNITS = {
   // ------------------------------------------------------------- Menschen
   // Viele, guenstig, schnell ausgebildet. Staerke kommt aus der Zahl.
@@ -735,6 +738,33 @@ const UNITS = {
     kampf: 'nah',
     weapon: { range: 40, damage: 52, cooldown: 10 },
   },
+  // Belagerung: wenig gegen Einheiten, viel gegen Gebaeude.
+  katapult: {
+    name: 'Katapult',
+    desc: 'Belagerung: wirft Steine weiter, als ein Turm schießt. Gegen Einheiten fast nutzlos, langsam und verwundbar.',
+    faction: 'mensch',
+    hp: 500,
+    radius: 40,
+    speed: 14,
+    cost: { fron: 250 },
+    unterhalt: 30, // Fron pro Minute, solange sie lebt
+    buildTime: 300,
+    kampf: 'fern',
+    weapon: { range: 1000, damage: 8, cooldown: 30, gebaeude: 260, vorrang: 'gebaeude' },
+  },
+  wurzelbrecher: {
+    name: 'Wurzelbrecher',
+    desc: 'Belagerung: ein Knäuel uralter Wurzeln, sehr zäh, sprengt Gebäude von innen. Gegen Einheiten schwach.',
+    faction: 'gott',
+    hp: 3200,
+    radius: 50,
+    speed: 14,
+    cost: { fron: 280 },
+    unterhalt: 32, // Fron pro Minute, solange sie lebt
+    buildTime: 320,
+    kampf: 'nah',
+    weapon: { range: 30, damage: 12, cooldown: 10, gebaeude: 240, vorrang: 'gebaeude' },
+  },
 };
 
 // ------------------------------------------------------------- Skillbaum
@@ -755,6 +785,10 @@ const UNITS = {
 const AESTE = { einheiten: 'Einheiten', gebaeude: 'Gebäude', verbesserung: 'Verbesserungen', kommandant: 'Kommandant' };
 const SKILLS = {
   // --------------------------------------------------------------- Menschen
+  belagerungsbau: {
+    faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
+    desc: 'Die Kaserne baut Katapulte — sie werfen Steine weiter, als ein Turm schießt.',
+  },
   bogenbau: {
     faction: 'mensch', ast: 'einheiten', name: 'Bogenbau', kosten: 1, frei: ['jaeger'],
     desc: 'Die Kaserne bildet Jäger aus — Fernkämpfer hinter der Linie.',
@@ -809,6 +843,10 @@ const SKILLS = {
   },
 
   // --------------------------------------------------------------- Gott
+  wurzelbrecher: {
+    faction: 'gott', ast: 'einheiten', name: 'Wurzelbrecher wecken', kosten: 2, braucht: ['waldgeister'], frei: ['wurzelbrecher'],
+    desc: 'Das Dickicht weckt Wurzelbrecher — sie sprengen Mauern von innen.',
+  },
   waldgeister: {
     faction: 'gott', ast: 'einheiten', name: 'Waldgeister rufen', kosten: 1, frei: ['waldgeist'],
     desc: 'Das Dickicht ruft Waldgeister — sie werfen Licht aus der Ferne.',
@@ -1866,14 +1904,19 @@ function moveUnits(world) {
 function chaseTarget(world, e, r, leash) {
   let best = null;
   let bestD = Infinity;
+  let bestRang = 1;
   const re = radiusVon(e);
+  const gebaeudeZuerst = UNITS[e.type].weapon.vorrang === 'gebaeude';
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
     if (o.dead || o.player === e.player) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const rr = r + re + radiusVon(o);
-    if (dd > rr * rr || dd >= bestD) continue;
+    if (dd > rr * rr) continue;
+    const rang = gebaeudeZuerst && o.kind === 'building' ? 0 : 1;
+    if (rang > bestRang || (rang === bestRang && dd >= bestD)) continue;
     if (dist2(e.tx, e.ty, o.x, o.y) > leash * leash) continue;
+    bestRang = rang;
     bestD = dd;
     best = o;
   }
@@ -1974,7 +2017,7 @@ function combat(world) {
     const target = nearestEnemy(world, e);
     if (!target) continue;
 
-    let dmg = def.weapon.damage;
+    let dmg = target.kind === 'building' && def.weapon.gebaeude ? def.weapon.gebaeude : def.weapon.damage;
     if (e.kind === 'building') dmg = ((dmg * e.powered) / 1000) | 0;
     // Heimvorteil: auf eigenem Boden staerker. Der Gott lebt davon.
     // Zorn: ein versorgter Schrein im Netz, in dem der Schuetze steht.
@@ -2045,16 +2088,22 @@ function reichweite(e, o) {
   return def.weapon.range + radiusVon(e) + radiusVon(o);
 }
 
-/** Naechster Feind, den e mit seiner Waffe erreicht. */
+/** Naechster Feind, den e mit seiner Waffe erreicht -- Belagerung nimmt Gebaeude zuerst. */
 function nearestEnemy(world, e) {
+  const w = (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).weapon;
+  const gebaeudeZuerst = w.vorrang === 'gebaeude';
   let best = null;
   let bestD = Infinity;
+  let bestRang = 1;
   for (let i = 0; i < world.entities.length; i++) {
     const o = world.entities[i];
     if (o.dead || o.player === e.player) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
     const r = reichweite(e, o);
-    if (dd <= r * r && dd <= bestD) {
+    if (dd > r * r) continue;
+    const rang = gebaeudeZuerst && o.kind === 'building' ? 0 : 1;
+    if (rang < bestRang || (rang === bestRang && dd <= bestD)) {
+      bestRang = rang;
       bestD = dd;
       best = o;
     }
@@ -2209,12 +2258,12 @@ const PLAN = {
   mensch: {
     anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
     zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium',
-    bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner',
+    bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult',
   },
   gott: {
     anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht',
     zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche',
-    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent',
+    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher',
   },
 };
 
@@ -2224,11 +2273,11 @@ const PLAN = {
 const LERNEN = {
   mensch: [
     'bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte',
-    'kapellenbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'ansturm',
+    'kapellenbau', 'belagerungsbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'ansturm',
   ],
   gott: [
     'waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss',
-    'steine', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf',
+    'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf',
   ],
 };
 
@@ -2530,9 +2579,15 @@ function stepAI(ai, world) {
     } else {
       // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
       // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
+      // Belagerung, solange der Gegner Tuerme hat: je Turm eine, hoechstens drei.
+      const feindTuerme = world.entities.filter((o) => !o.dead && o.player !== ai.player && o.kind === 'building' && BUILDINGS[o.type].weapon).length;
+      const belagerer = einheiten.filter((u) => u.type === plan.belagerung).length;
+      if (feindTuerme && belagerer < Math.min(3, feindTuerme) && frei(plan.belagerung) && liste.includes(plan.belagerung)) {
+        unit = plan.belagerung;
+      }
       const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
       const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
-      if (reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
+      if (!unit && reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
       for (let k = 0; !unit && k < MISCHUNG.length; k++) {
         const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
         if (rolle === 'schwer' && !schwerMoeglich) continue;

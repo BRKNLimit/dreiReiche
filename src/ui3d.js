@@ -576,6 +576,32 @@ const MODELLE_DEF = {
     ['k', [0.32, 6], [0, 0, 0], '#e2f7d4', GLUEHT],
     ['k', [0.16, 5], [0, 0, -0.35], '#bfe8b0', GLUEHT],
   ],
+  stein: [['k', [0.45, 6], [0, 0, 0], STEIN]],
+  // Katapult: Holzrahmen auf vier Raedern, Wurfarm mit Schale
+  katapult: [
+    ['q', [1.2, 0.18, 0.7], [0, 0.45, 0], HOLZ],
+    ['z', [0.22, 0.22, 0.1, 8], [0.42, 0.22, 0.4], '#4a3a2a', 0, [Math.PI / 2, 0, 0]],
+    ['z', [0.22, 0.22, 0.1, 8], [-0.42, 0.22, 0.4], '#4a3a2a', 0, [Math.PI / 2, 0, 0]],
+    ['z', [0.22, 0.22, 0.1, 8], [0.42, 0.22, -0.4], '#4a3a2a', 0, [Math.PI / 2, 0, 0]],
+    ['z', [0.22, 0.22, 0.1, 8], [-0.42, 0.22, -0.4], '#4a3a2a', 0, [Math.PI / 2, 0, 0]],
+    ['q', [0.12, 0.7, 0.12], [-0.2, 0.85, 0.25], HOLZ],
+    ['q', [0.12, 0.7, 0.12], [-0.2, 0.85, -0.25], HOLZ],
+    ['q', [0.1, 1.3, 0.1], [0.05, 1.05, 0], '#8a6a3a', 0, [0, 0, -0.9]],
+    ['k', [0.18, 5], [0.55, 1.45, 0], STEIN],
+    ['q', [0.5, 0.06, 0.6], [0, 0.56, 0], '#8c2f2f', 0.7],
+  ],
+  // Wurzelbrecher: gebuecktes Knaeuel aus dunklen Wurzeln mit gluehendem Kern
+  wurzelbrecher: [
+    ['k', [0.75, 7], [0, 0.75, 0], '#3a2a1e', 0.15],
+    ['z', [0.1, 0.22, 1.0, 5], [0.55, 0.35, 0.3], '#2e2218', 0, [0.4, 0, -0.9]],
+    ['z', [0.1, 0.22, 1.0, 5], [-0.55, 0.35, 0.3], '#2e2218', 0, [0.4, 0, 0.9]],
+    ['z', [0.1, 0.22, 1.0, 5], [0.5, 0.35, -0.4], '#2e2218', 0, [-0.4, 0, -0.9]],
+    ['z', [0.1, 0.22, 1.0, 5], [-0.5, 0.35, -0.4], '#2e2218', 0, [-0.4, 0, 0.9]],
+    ['z', [0.14, 0.3, 1.2, 5], [0, 1.0, 0.65], '#2e2218', 0, [1.2, 0, 0]],
+    ['k', [0.22, 6], [0, 0.85, 0.62], '#f5b23c', GLUEHT],
+    ['z', [0, 0.12, 0.8, 4], [0.3, 1.5, -0.1], '#2e2218', 0, [0, 0, -0.5]],
+    ['z', [0, 0.12, 0.8, 4], [-0.3, 1.5, -0.1], '#2e2218', 0, [0, 0, 0.5]],
+  ],
 };
 
 // ------------------------------------------------------------ WebGL
@@ -1174,12 +1200,14 @@ function tick() {
       // Fernkaempfer schiessen sichtbar: Jaeger Pfeile, Waldgeist und Waldgott
       // Lichtkugeln. Sonst ein kurzer Blitz zwischen Angreifer und Ziel.
       const art =
-        a.type === 'jaeger' || a.type === 'wachturm' || a.type === 'waechterbaum'
-          ? 'pfeil'
-          : a.type === 'waldgeist' || a.type === 'waldgott'
-            ? 'kugel'
-            : 'blitz';
-      const dauer = art === 'blitz' ? 0.22 : 0.4;
+        a.type === 'katapult'
+          ? 'stein'
+          : a.type === 'jaeger' || a.type === 'wachturm' || a.type === 'waechterbaum'
+            ? 'pfeil'
+            : a.type === 'waldgeist' || a.type === 'waldgott'
+              ? 'kugel'
+              : 'blitz';
+      const dauer = art === 'blitz' ? 0.22 : art === 'stein' ? 0.9 : 0.4;
       schuesse.push({ a: ev.from, b: ev.to, ax: a.x, ay: a.y, bx: b.x, by: b.y, farbe: teamFarbe(a.player), t: dauer, dauer, art });
       // Schuetzen schauen zum Ziel
       if (a.kind === 'unit') {
@@ -1417,12 +1445,12 @@ function zeichneSchuesse(dt) {
     if (s.art !== 'blitz') {
       // Geschoss im Bogen vom Schuetzen zum Ziel
       const f = 1 - s.t / s.dauer;
-      const bogen = Math.sin(f * Math.PI) * (s.art === 'pfeil' ? 3 : 1.2);
+      const bogen = Math.sin(f * Math.PI) * (s.art === 'pfeil' ? 3 : s.art === 'stein' ? 12 : 1.2);
       const w = Math.atan2(bx - ax, by - ay);
       const x = ax + (bx - ax) * f;
       const y = ay + (by - ay) * f;
       // Geschosse uebertrieben gross, sonst sind sie aus Spielhoehe unsichtbar
-      instanz(s.art, x * DM, 2 + bogen, y * DM, w, s.art === 'pfeil' ? 2.8 : 2.4, s.farbe, 1, s.art === 'kugel' ? 1.4 : 1);
+      instanz(s.art, x * DM, 2 + bogen, y * DM, w, s.art === 'pfeil' ? 2.8 : s.art === 'stein' ? 3.2 : 2.4, s.farbe, 1, s.art === 'kugel' ? 1.4 : 1);
       continue;
     }
     const al = Math.min(1, s.t / 0.22);
@@ -1431,6 +1459,7 @@ function zeichneSchuesse(dt) {
   }
   zeichneInstanzen(MODELLE.pfeil);
   zeichneInstanzen(MODELLE.kugel);
+  zeichneInstanzen(MODELLE.stein);
   // Baulinien: Erbauer zu ihrer Baustelle
   for (const e of world.entities) {
     if (e.kind !== 'unit' || !e.baut) continue;

@@ -345,6 +345,17 @@ geprüft (Tests, Galerie, Spiel).
   - `hainModell` (2.232 Ecken, vorher 1.116): Drei knorrige, miteinander verwobene Urweiden mit mächtigen Stützwurzeln, Astgabeln und kaskadierenden Kronen mit Feen-Glanzlichtern; im Zentrum ein steingefasster Quellsee mit blühenden Seerosengruppen und einem schwebenden, grün-weiß leuchtenden Lebenskristall.
 - **Wie geprüft:** `npm test` (137/137 Tests grün, Eckenbudgets strikt eingehalten), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
 
+### Runde 23: Universelle Zonen- und Geländegenerierung im 3D-Boden (src/gelaende3d.js)
+- **Was war schwach:** Die Schattierung von Wald-, Wiesen- und Furtenzonen in `baueBoden()` hing an der Bedingung `if (istFlusstal)`. Eigene Karten aus Claudes neuem Karteneditor oder prozedurale Zufallskarten mit Wiesen- oder Waldzonen wurden dadurch ohne die entsprechenden Bodenverfärbungen gezeichnet, falls der Kartenschlüssel nicht explizit 'flusstal' hieß.
+- **Was wurde geändert:**
+  - In `src/gelaende3d.js` (`baueBoden`) wurden die Zonenprüfungen vollständig entkoppelt:
+    - Waldzonen werden gerendert, sobald `waldKreise.length > 0` ist.
+    - Wiesen/Lichtungen werden gerendert, sobald `wiesenKreise.length > 0` ist.
+    - Kiesige Furten werden gerendert, sobald `furten.length > 0` ist.
+    - Jede Karte — ob 'klassisch', 'flusstal', 'zufall' oder 'eigene' — erhält damit nahtlos und automatisch ihre korrekten Bodenfarben, Moosböden, sonnigen Wiesen und Furtübergänge.
+- **Wie geprüft:** `npm test` (137/137 Tests grün), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
+
+
 
 
 

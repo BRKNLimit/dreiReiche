@@ -60,7 +60,7 @@ export function baueBoden() {
       let b = 0.14 + 0.04 * k;
 
       // Zonen der Karte: Wald & helle Wiesen
-      if (istFlusstal) {
+      if (waldKreise.length > 0) {
         // Waldzonen: dunkler, moosiger Waldboden
         let inWald = 0;
         for (const w of waldKreise) {
@@ -74,7 +74,9 @@ export function baueBoden() {
           gr = gr * (1 - wF) + 0.21 * wF;
           b = b * (1 - wF) + 0.10 * wF;
         }
+      }
 
+      if (wiesenKreise.length > 0) {
         // Helle Wiesen: sonnige, gelbgruene Lichtungen
         let inWiese = 0;
         for (const w of wiesenKreise) {
@@ -88,7 +90,9 @@ export function baueBoden() {
           gr = gr * (1 - mF) + 0.39 * mF;
           b = b * (1 - mF) + 0.16 * mF;
         }
+      }
 
+      if (furten.length > 0) {
         // Kiesige Furten: heller Sand und Steine
         let inFurt = 0;
         for (const f of furten) {

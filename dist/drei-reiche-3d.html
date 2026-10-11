@@ -103,6 +103,7 @@
   .ikon .kosten { position: absolute; left: 3px; bottom: 1px; font-size: 9px; color: var(--dim); }
   .ikon kbd { position: absolute; right: 3px; top: 1px; margin: 0; font-size: 9px; }
   .ikon.zu { opacity: .4; }
+  .ikon[hidden] { display: none; }
   .warn { display: flex; align-items: center; gap: 6px; }
   #hud .warn { margin-top: 8px; font-size: 11px; }
   #hud .warn svg { width: 14px; height: 14px; flex: none; }
@@ -199,7 +200,9 @@
   <dt>Linksklick, Ziehen</dt><dd>wählen</dd>
   <dt>Icon unten</dt><dd>nur diesen Typ aus der Auswahl behalten</dd>
   <dt>Rechtsklick</dt><dd>bewegen · mit Erbauern auf Plan/Baustelle: bauen, reparieren</dd>
+  <dt>Rechtsklick auf Feind</dt><dd>gezielt angreifen, verfolgen bis er fällt</dd>
   <dt>A, Klick</dt><dd>Angriffsbewegung</dd>
+  <dt>S</dt><dd>Stopp</dd>
   <dt>Shift+Rechtsklick</dt><dd>Wegpunkt anhängen (auch mit A)</dd>
   <dt>Strg+1–0, 1–0</dt><dd>Steuergruppe setzen, abrufen (zweimal: hinspringen)</dd>
   <dt>1–0</dt><dd>bauen (Erbauer gewählt, Gruppe leer) · mit Shift: weitere in die Reihe</dd>
@@ -223,7 +226,7 @@
 <div id="nogl"><p>Dieser Browser kann kein WebGL 2 — die 2D-Ansicht läuft trotzdem:
   <a class="btn" href="resonit.html">2D-Ansicht öffnen</a></p></div>
 <script>
-const SPIEL_STAND = '1fe4762ac3';
+const SPIEL_STAND = '17cb3a0358';
 
 /* ---------------------------------- */
 
@@ -637,7 +640,7 @@ const UNITS = {
     radius: 24,
     speed: 30,
     cost: { fron: 40 },
-    unterhalt: 4, // Fron pro Minute, solange sie lebt
+    unterhalt: 3, // Fron pro Minute, solange sie lebt (0.31: 4 -> 3, Designzahl)
     buildTime: 80,
     worker: true,
     // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
@@ -653,7 +656,7 @@ const UNITS = {
     radius: 26,
     speed: 30,
     cost: { fron: 45 },
-    unterhalt: 9, // Fron pro Minute, solange sie lebt
+    unterhalt: 7, // Fron pro Minute, solange sie lebt (0.31: 9 -> 7, Designzahl)
     buildTime: 80,
     kampf: 'nah',
     weapon: { range: 20, damage: 9, cooldown: 6 },
@@ -667,7 +670,7 @@ const UNITS = {
     radius: 24,
     speed: 32,
     cost: { fron: 55 },
-    unterhalt: 10, // Fron pro Minute, solange sie lebt
+    unterhalt: 8, // Fron pro Minute, solange sie lebt (0.31: 10 -> 8, Designzahl)
     buildTime: 100,
     kampf: 'fern',
     weapon: { range: 480, damage: 13, cooldown: 8 },
@@ -682,7 +685,7 @@ const UNITS = {
     // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
     // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
     cost: { fron: 130, goetterblut: 10 },
-    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    unterhalt: 18, // Fron pro Minute, solange sie lebt (0.31: 24 -> 18, Designzahl)
     buildTime: 190,
     kampf: 'nah',
     weapon: { range: 25, damage: 26, cooldown: 8 },
@@ -1139,8 +1142,8 @@ const KARTEN = { klassisch: KLASSISCH, flusstal: FLUSSTAL };
  * waehlt sie hier mit karteWaehlen() dazu passend.
  */
 const KARTE = { schluessel: 'klassisch', ...KLASSISCH };
-function karteWaehlen(schluessel) {
-  Object.assign(KARTE, { schluessel }, KARTEN[schluessel] || KLASSISCH);
+function karteWaehlen(schluessel, daten = null) {
+  Object.assign(KARTE, { schluessel, wald: [], wiesen: [], furten: [] }, daten || KARTEN[schluessel] || KLASSISCH);
   return KARTE;
 }
 
@@ -1456,11 +1459,15 @@ const PER_MIN = 600 * 1000;
 function createWorld(opts = {}) {
   const f0 = opts.factions?.[0] ?? 'mensch';
   const f1 = opts.factions?.[1] ?? 'gott';
-  const karte = KARTEN[opts.karte] ? opts.karte : 'klassisch';
+  // Eine der festen Karten -- oder eigene Daten (Zufallskarte, Editor),
+  // gleiches Format wie KARTEN in defs.js, gepruefte mit kartenFehler().
+  const karte = opts.karteDaten ? opts.karte || 'eigen' : KARTEN[opts.karte] ? opts.karte : 'klassisch';
+  const daten = opts.karteDaten || KARTEN[karte];
   const world = {
     tick: 0,
     seed: opts.seed ?? 12345,
-    karte, // Schluessel in KARTEN
+    karte, // Schluessel in KARTEN, sonst 'zufall' oder 'eigen'
+    karteDaten: daten, // die Kartendaten selbst (unveraenderlich)
     nextId: 1,
     entities: [],
     players: [
@@ -1470,7 +1477,7 @@ function createWorld(opts = {}) {
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
     baubeginnRunde: 0, // Vorrang beim gleichzeitigen Baubeginn, siehe erschaffen()
-    hindernisse: opts.empty ? [] : KARTEN[karte].hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
+    hindernisse: opts.empty ? [] : daten.hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
     regions: [],
     pending: [],
@@ -1495,7 +1502,7 @@ function setupMap(world) {
   }
   if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
 
-  for (const a of KARTEN[world.karte].adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
+  for (const a of world.karteDaten.adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
 }
 
 function clamp(v) {
@@ -1549,6 +1556,7 @@ function spawnUnit(world, player, type, x, y) {
     reihe: [], // weitere Auftraege, der Reihe nach (Shift beim Setzen)
     wege: [], // weitere Wegpunkte [x, y, angriff], der Reihe nach (Shift beim Bewegen)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
+    ziel: 0, // gezielter Angriff: Id des Ziels, bis es faellt
     befX: x | 0, // Ziel des letzten Bewegungsbefehls -- wer dasselbe hat, gehoert zur Gruppe
     befY: y | 0,
     seit: world.tick, // fuer die Erfahrung
@@ -1607,6 +1615,7 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
     e.auftrag = site.id;
     e.reihe = [];
     e.wege = [];
+    e.ziel = 0;
     e.tx = site.x;
     e.ty = site.y;
     e.arrived = false;
@@ -1772,6 +1781,7 @@ function applyCommand(world, c) {
             continue;
           }
           e.wege = [];
+          e.ziel = 0;
           e.tx = c.x | 0;
           e.ty = c.y | 0;
           e.befX = e.tx;
@@ -1781,6 +1791,37 @@ function applyCommand(world, c) {
           e.auftrag = 0; // ein neuer Befehl ersetzt den Bauauftrag
           e.reihe = [];
         }
+      }
+    } else if (c.type === 'angreifen') {
+      // Gezielter Angriff auf eine feindliche Entity -- verfolgen, bis sie faellt.
+      const t = byId(world, c.id);
+      if (t && !t.dead && t.player !== c.player) {
+        for (let k = 0; k < c.ids.length; k++) {
+          const e = byId(world, c.ids[k]);
+          if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || !UNITS[e.type].weapon || !erreicht(e, t)) continue;
+          e.ziel = t.id;
+          e.tx = e.befX = t.x;
+          e.ty = e.befY = t.y;
+          e.arrived = false;
+          e.aggro = false;
+          e.auftrag = 0;
+          e.reihe = [];
+          e.wege = [];
+        }
+      }
+    } else if (c.type === 'stopp') {
+      // Stehen bleiben: kein Ziel, kein Auftrag, keine Wege.
+      for (let k = 0; k < c.ids.length; k++) {
+        const e = byId(world, c.ids[k]);
+        if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player) continue;
+        e.tx = e.befX = e.x;
+        e.ty = e.befY = e.y;
+        e.arrived = true;
+        e.aggro = false;
+        e.ziel = 0;
+        e.auftrag = 0;
+        e.reihe = [];
+        e.wege = [];
       }
     } else if (c.type === 'build') {
       // Ein Bauplan; mit ids bekommen die genannten Erbauer den Auftrag dafuer
@@ -2565,6 +2606,25 @@ function moveUnits(world) {
     gx[i] = e.tx;
     gy[i] = e.ty;
     const w = UNITS[e.type].weapon;
+    if (e.ziel) {
+      // Gezielter Angriff: dem Ziel nach, in Reichweite stehen bleiben
+      const t = byId(world, e.ziel);
+      if (!t || t.dead) {
+        e.ziel = 0;
+        e.tx = e.befX = gx[i] = e.x;
+        e.ty = e.befY = gy[i] = e.y;
+        e.arrived = true;
+        continue;
+      }
+      e.tx = gx[i] = t.x;
+      e.ty = gy[i] = t.y;
+      const nah = reichweite(e, t) - 10;
+      if (dist2(e.x, e.y, t.x, t.y) <= nah * nah) {
+        gx[i] = e.x;
+        gy[i] = e.y;
+      }
+      continue;
+    }
     if (!w || !(e.arrived || e.aggro) || e.auftrag) continue; // wer baut, jagt nicht
     const leine = e.arrived ? LEASH + w.range : MAP * 2;
     const o = chaseTarget(alle, alleRaster, e, w.range + CHASE, leine);
@@ -2805,7 +2865,16 @@ function combat(world) {
     }
     // Schiessende Gebaeude brauchen Gegenwart -- gedrosselt schwaecher, ohne gar nicht.
     if (e.kind === 'building' && !e.powered) continue;
-    const target = nearestEnemy(alle, alleRaster, e);
+    // Gezielter Angriff geht vor, sobald das Ziel in Reichweite ist
+    let target = null;
+    if (e.kind === 'unit' && e.ziel) {
+      const t = byId(world, e.ziel);
+      if (t && !t.dead) {
+        const r = reichweite(e, t);
+        if (dist2(e.x, e.y, t.x, t.y) <= r * r) target = t;
+      }
+    }
+    if (!target) target = nearestEnemy(alle, alleRaster, e);
     if (!target) continue;
 
     let dmg = target.kind === 'building' && def.weapon.gebaeude ? def.weapon.gebaeude : def.weapon.damage;
@@ -3014,6 +3083,7 @@ function hash(world) {
       for (const id of e.reihe) mix(id);
       mix(e.seit);
       mix(e.befX);
+      mix(e.ziel);
       mix(e.wege.length);
       for (let k = 0; k < e.wege.length; k++) mix(e.wege[k][0] * 3 + e.wege[k][1] * 7 + e.wege[k][2]);
       mix(e.befY);
@@ -3176,6 +3246,279 @@ function vermutetesHaupt(k, haupt) {
 /** Steht hier ein bekanntes gegnerisches Gebaeude im Weg (fuer Bauplaetze)? */
 function bekanntBei(k, x, y, r) {
   return k.gebaeude.some((b) => dist2(x, y, b.x, b.y) < (r + BUILDINGS[b.type].radius) ** 2);
+}
+
+
+/* ---------------------------------- */
+
+// Kartenbau: Zufallskarten und die Pruefung eigener Karten. Deterministisch
+// wie die Simulation (nur Integer, rng() mit eigenem Seed) -- dieselbe Zahl
+// ergibt auf jedem Rechner dieselbe Karte, Wiederholungen bleiben gueltig.
+//
+// Jede Karte ist punktsymmetrisch um die Mitte: Was auf der einen Haelfte
+// liegt, liegt gespiegelt auf der anderen. Beide Sitzplaetze spielen damit
+// dieselbe Karte, nur gedreht -- fair, ohne dass man es pruefen muss.
+
+
+
+// Hauptgebaeude stehen fest an zwei Ecken (siehe setupMap in sim.js).
+const BASIS = [
+  { x: 3000, y: 3000 },
+  { x: MAP - 3000, y: MAP - 3000 },
+];
+// Um jede Basis bleibt so viel Platz frei (dm): Grunddomaene des Hauptgebaeudes.
+const BASIS_FREI = 4300;
+
+const kbSpiegel = (o) => ({ ...o, x: MAP - o.x, y: MAP - o.y });
+/** Liste mit Spiegelbildern; was genau auf der Mitte liegt, nur einmal. */
+function spiegelPaare(liste) {
+  const out = [];
+  for (const o of liste) {
+    out.push(o);
+    if (o.x * 2 !== MAP || o.y * 2 !== MAP) out.push(kbSpiegel(o));
+  }
+  return out;
+}
+
+/** Leere Karte -- Ausgangspunkt fuer den Editor. Fuenf Adern je Basis wie auf der klassischen Karte. */
+function leereKarte(name = 'Eigene Karte') {
+  return {
+    name,
+    hindernisse: [],
+    adern: spiegelPaare(BASIS_ADERN),
+    wald: [],
+    wiesen: [],
+    furten: [],
+  };
+}
+const BASIS_ADERN = [
+  { x: 4800, y: 2200, kind: 'fron' },
+  { x: 2200, y: 4800, kind: 'fron' },
+  { x: 6200, y: 4500, kind: 'fron' },
+  { x: 6700, y: 2100, kind: 'fron' },
+  { x: 2100, y: 6700, kind: 'fron' },
+];
+
+// ------------------------------------------------------------ Pruefung
+
+/**
+ * Was an einer Karte nicht stimmt, als Liste von Saetzen; leer heisst
+ * spielbar. Prueft Symmetrie, freie Startbasen, freie Adern und ob man von
+ * Basis zu Basis kommt.
+ */
+function kartenFehler(k) {
+  const fehler = [];
+  for (const [name, liste] of [['Hindernis', k.hindernisse], ['Ader', k.adern]]) {
+    for (const o of liste) {
+      if (o.x < 0 || o.y < 0 || o.x > MAP || o.y > MAP) fehler.push(`${name} ausserhalb der Karte bei ${o.x},${o.y}`);
+      if (!liste.some((p) => p.x === MAP - o.x && p.y === MAP - o.y && (p.kind || p.art) === (o.kind || o.art))) {
+        fehler.push(`${name} bei ${o.x},${o.y} hat kein Spiegelbild`);
+      }
+    }
+  }
+  for (const b of BASIS) {
+    if (k.hindernisse.some((h) => (h.x - b.x) ** 2 + (h.y - b.y) ** 2 < (h.r + 1800) ** 2)) {
+      fehler.push('Ein Hindernis steht in der Startbasis');
+      break;
+    }
+  }
+  for (const d of k.adern) {
+    if (k.hindernisse.some((h) => (d.x - h.x) ** 2 + (d.y - h.y) ** 2 < (h.r + 150) ** 2)) {
+      fehler.push(`Ader bei ${d.x},${d.y} liegt in einem Hindernis`);
+    }
+  }
+  if (k.adern.filter((d) => d.kind === 'fron').length < 6) fehler.push('Zu wenige Fron-Adern (mindestens drei je Seite)');
+  if (!verbunden(k.hindernisse, BASIS[0], BASIS[1])) fehler.push('Von Basis zu Basis gibt es keinen Weg');
+  return fehler;
+}
+
+/** Gibt es einen Weg zwischen zwei Punkten? Breitensuche ueber das Wegegitter. */
+function verbunden(hindernisse, a, b) {
+  const N = MAP / ZELLE;
+  const { frei } = wegGitter(hindernisse);
+  const start = ((a.y / ZELLE) | 0) * N + ((a.x / ZELLE) | 0);
+  const ziel = ((b.y / ZELLE) | 0) * N + ((b.x / ZELLE) | 0);
+  if (!frei[start] || !frei[ziel]) return false;
+  const gesehen = new Uint8Array(N * N);
+  const schlange = [start];
+  gesehen[start] = 1;
+  for (let i = 0; i < schlange.length; i++) {
+    const c = schlange[i];
+    if (c === ziel) return true;
+    const cx = c % N;
+    const cy = (c / N) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      const n = ny * N + nx;
+      if (gesehen[n] || !frei[n]) continue;
+      gesehen[n] = 1;
+      schlange.push(n);
+    }
+  }
+  return false;
+}
+
+// ------------------------------------------------------------ Bausteine
+
+/** Kreiskette entlang eines Linienzugs (Fluss oder Grat), ohne Kreise nahe den Luecken. */
+function kette(punkte, r, abstand, art, luecken = [], frei = 0) {
+  const out = [];
+  for (let i = 0; i + 1 < punkte.length; i++) {
+    const [x0, y0] = punkte[i];
+    const [x1, y1] = punkte[i + 1];
+    const l = isqrt((x1 - x0) ** 2 + (y1 - y0) ** 2);
+    const n = Math.max(1, ((l + (abstand >> 1)) / abstand) | 0);
+    const bis = i + 2 === punkte.length ? n : n - 1;
+    for (let k = 0; k <= bis; k++) {
+      const x = (x0 + ((x1 - x0) * k) / n) | 0;
+      const y = (y0 + ((y1 - y0) * k) / n) | 0;
+      if (luecken.some((f) => (f.x - x) ** 2 + (f.y - y) ** 2 < frei * frei)) continue;
+      const h = { x, y, r, art };
+      if (art === 'see' && frei) h.fluss = true;
+      out.push(h);
+    }
+  }
+  return out;
+}
+
+// ------------------------------------------------------------ Zufallskarten
+
+/**
+ * Eine Zufallskarte zur Zahl seed. Gebaut wird eine Haelfte, gespiegelt die
+ * andere; misslingt die Pruefung (kein Weg, Ader im Fels), wird mit dem
+ * naechsten Zufall neu gebaut.
+ */
+function zufallsKarte(seed) {
+  const z = { seed: seed | 0 || 1 };
+  for (let versuch = 0; versuch < 40; versuch++) {
+    const k = baueZufallsKarte(z, seed);
+    if (!kartenFehler(k).length) return k;
+  }
+  // Notfall: eine Karte ohne Hindernisse ist immer spielbar
+  const k = leereKarte('Zufall ' + seed);
+  k.adern = k.adern.concat(spiegelPaare([{ x: 10000, y: 6500, kind: 'fron' }]), [{ x: 10000, y: 10000, kind: 'goetterblut' }]);
+  return k;
+}
+
+const kbZufall = (z, von, bis) => von + (rng(z) % (bis - von + 1));
+const kbFrei = (k, x, y, r) =>
+  x > 400 && y > 400 && x < MAP - 400 && y < MAP - 400 &&
+  !BASIS.some((b) => (x - b.x) ** 2 + (y - b.y) ** 2 < (r + BASIS_FREI) ** 2) &&
+  !k.hindernisse.some((h) => (x - h.x) ** 2 + (y - h.y) ** 2 < (r + h.r + 300) ** 2);
+
+function baueZufallsKarte(z, seed) {
+  const k = { name: 'Zufall ' + seed, hindernisse: [], adern: [], wald: [], wiesen: [], furten: [] };
+  const haelfte = []; // Hindernisse der einen Haelfte, gespiegelt am Ende
+  const ziel = { hindernisse: haelfte };
+
+  // Fluss quer durch die Mitte, mit Furten (in jeder zweiten Karte)
+  const mitFluss = kbZufall(z, 0, 9) < 5;
+  if (mitFluss) {
+    const y0 = kbZufall(z, 9000, 15000);
+    const punkte = [[0, y0]];
+    const n = 4;
+    for (let i = 1; i < n; i++) {
+      const x = ((10000 * i) / n) | 0;
+      const y = (y0 + ((10000 - y0) * i) / n + kbZufall(z, -1200, 1200)) | 0;
+      punkte.push([x, y]);
+    }
+    punkte.push([9650, 9800]);
+    // eine Furt nahe dem Rand, manchmal eine zweite naeher zur Mitte
+    const furten = [];
+    const i1 = 1;
+    furten.push({ x: (punkte[0][0] + punkte[i1][0]) >> 1, y: (punkte[0][1] + punkte[i1][1]) >> 1 });
+    if (kbZufall(z, 0, 1)) furten.push({ x: punkte[2][0], y: punkte[2][1] });
+    haelfte.push(...kette(punkte, 300, 400, 'see', furten, 520));
+    k.furten.push(...spiegelPaare(furten));
+  }
+  // Mitte: Felsring, See oder Fluss
+  const mitte = mitFluss ? 'fluss' : ['ring', 'see', 'offen'][kbZufall(z, 0, 2)];
+  if (mitte === 'fluss') {
+    k.hindernisse.push({ x: 10000, y: 10000, r: 300, art: 'see', fluss: true });
+  } else if (mitte === 'ring') {
+    const r = kbZufall(z, 1100, 1500);
+    for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) k.hindernisse.push({ x: 10000 + dx, y: 10000 + dy, r: 480, art: 'fels' });
+  } else if (mitte === 'see') {
+    k.hindernisse.push({ x: 10000, y: 10000, r: kbZufall(z, 700, 1200), art: 'see' });
+  }
+  // Grate
+  for (let i = kbZufall(z, 1, 3); i > 0; i--) {
+    for (let t = 0; t < 12; t++) {
+      const x0 = kbZufall(z, 1000, 15000);
+      const y0 = kbZufall(z, 1000, 15000);
+      const w = kbZufall(z, 0, 359);
+      const l = kbZufall(z, 2500, 6000);
+      const x1 = x0 + (((l * cosDeg(w)) / 1000) | 0);
+      const y1 = y0 + (((l * sinDeg(w)) / 1000) | 0);
+      if (!kbFrei(ziel, x0, y0, 600) || !kbFrei(ziel, x1, y1, 600) || !kbFrei(ziel, (x0 + x1) >> 1, (y0 + y1) >> 1, 600)) continue;
+      const n = Math.max(4, (l / 450) | 0);
+      const luecke = kbZufall(z, 1, n - 2);
+      const teile = kette([[x0, y0], [x1, y1]], kbZufall(z, 330, 450), (l / n) | 0, 'fels');
+      haelfte.push(...teile.filter((_, j) => j !== luecke && j !== luecke + 1));
+      break;
+    }
+  }
+  // Felsgruppen und Seen
+  for (let i = kbZufall(z, 2, 4); i > 0; i--) {
+    for (let t = 0; t < 12; t++) {
+      const x = kbZufall(z, 1500, 17000);
+      const y = kbZufall(z, 1500, 17000);
+      if (!kbFrei(ziel, x, y, 1200)) continue;
+      for (let j = kbZufall(z, 2, 4); j > 0; j--) {
+        haelfte.push({ x: x + kbZufall(z, -700, 700), y: y + kbZufall(z, -700, 700), r: kbZufall(z, 450, 850), art: 'fels' });
+      }
+      break;
+    }
+  }
+  for (let i = kbZufall(z, 0, 2); i > 0; i--) {
+    for (let t = 0; t < 12; t++) {
+      const r = kbZufall(z, 700, 1400);
+      const x = kbZufall(z, 1500, 17000);
+      const y = kbZufall(z, 1500, 17000);
+      if (!kbFrei(ziel, x, y, r)) continue;
+      haelfte.push({ x, y, r, art: 'see' });
+      break;
+    }
+  }
+  k.hindernisse.push(...spiegelPaare(haelfte));
+
+  // Adern: die fuenf an der Basis, weitere auf der Karte, Goetterblut
+  const adern = BASIS_ADERN.slice();
+  const aderFrei = (x, y) =>
+    kbFrei(k, x, y, 200) && !adern.some((d) => (d.x - x) ** 2 + (d.y - y) ** 2 < 2200 * 2200) &&
+    !adern.some((d) => (MAP - d.x - x) ** 2 + (MAP - d.y - y) ** 2 < 2200 * 2200) &&
+    (x + y < MAP - 1500 || x + y > MAP + 1500); // nicht zu nah an der Mittellinie, sonst stoesst sie an ihr Spiegelbild
+  let fron = kbZufall(z, 3, 5);
+  for (let t = 0; t < 200 && fron > 0; t++) {
+    const x = kbZufall(z, 1000, 19000);
+    const y = kbZufall(z, 1000, 19000);
+    if (!aderFrei(x, y)) continue;
+    adern.push({ x, y, kind: 'fron' });
+    fron--;
+  }
+  const mitteFrei = mitte === 'ring' || mitte === 'offen';
+  if (mitteFrei) k.adern.push({ x: 10000, y: 10000, kind: 'goetterblut' });
+  let blut = mitteFrei ? kbZufall(z, 0, 1) : 1;
+  for (let t = 0; t < 200 && blut > 0; t++) {
+    const x = kbZufall(z, 1500, 18500);
+    const y = kbZufall(z, 1500, 18500);
+    if (!aderFrei(x, y)) continue;
+    // Goetterblut liegt nicht vor der eigenen Haustuer
+    const dA = (x - BASIS[0].x) ** 2 + (y - BASIS[0].y) ** 2;
+    if (dA < 9000 * 9000) continue;
+    adern.push({ x, y, kind: 'goetterblut' });
+    blut--;
+  }
+  k.adern.push(...spiegelPaare(adern));
+
+  // Optik: Wald und Wiesen
+  for (let i = kbZufall(z, 3, 6); i > 0; i--) k.wald.push({ x: kbZufall(z, 1000, 19000), y: kbZufall(z, 1000, 9500), r: kbZufall(z, 1500, 3200) });
+  for (let i = kbZufall(z, 1, 3); i > 0; i--) k.wiesen.push({ x: kbZufall(z, 1000, 19000), y: kbZufall(z, 1000, 9500), r: kbZufall(z, 1500, 3000) });
+  k.wald = spiegelPaare(k.wald);
+  k.wiesen = spiegelPaare(k.wiesen);
+  return k;
 }
 
 
@@ -4720,13 +5063,70 @@ const ICONS = {
     <path d="M17 14 C19 15, 20 17, 20 20" fill="none" stroke="${IC_G_HELL}" stroke-width="1.8" stroke-linecap="round"/>
     <path d="M20 11 C23 13, 23 18, 23 21" fill="none" stroke="${IC_G}" stroke-width="1.8" stroke-linecap="round"/>
   </svg>`,
+
+  // ----------------------------------------------------------- Bedienung
+  ton: `<svg viewBox="0 0 24 24">
+    <!-- Lautsprecher aktiv: Schallaustritt mit zwei goldenen Schallwellen -->
+    <path d="M4 9 L8 9 L13 4 L13 20 L8 15 L4 15 Z" fill="#243b53" stroke="${IC_M}" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M16 8 C17.8 9.5, 17.8 14.5, 16 16" fill="none" stroke="${IC_M_HELL}" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M19 5 C22.2 7.8, 22.2 16.2, 19 19" fill="none" stroke="${IC_M}" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  stumm: `<svg viewBox="0 0 24 24">
+    <!-- Lautsprecher stummgeschaltet mit roter Diagonalsperre -->
+    <path d="M4 9 L8 9 L13 4 L13 20 L8 15 L4 15 Z" fill="#1b2533" stroke="#64748b" stroke-width="1.6" stroke-linejoin="round"/>
+    <line x1="3" y1="3" x2="21" y2="21" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="16.5" y1="9.5" x2="20.5" y2="13.5" stroke="#ef4444" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="20.5" y1="9.5" x2="16.5" y2="13.5" stroke="#ef4444" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  hilfe: `<svg viewBox="0 0 24 24">
+    <!-- Hilfesymbol: Runde Schutzmünze mit leuchtendem Fragezeichen -->
+    <circle cx="12" cy="12" r="9.5" fill="#102a43" stroke="${IC_M}" stroke-width="1.6"/>
+    <path d="M9.5 8.5 C9.5 6.6, 10.8 5.2, 12.4 5.2 C14.0 5.2, 15.2 6.4, 15.2 7.8 C15.2 9.4, 13.6 10.4, 12.4 11.5 V13.2" fill="none" stroke="${IC_M_HELL}" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="12.4" cy="16.8" r="1.3" fill="${IC_M_HELL}"/>
+  </svg>`,
+
+  wiederholung: `<svg viewBox="0 0 24 24">
+    <!-- Wiederholung / Replay: Kreispfeil um Wiedergabe-Kern -->
+    <path d="M12 4 A8 8 0 1 1 5.6 7.4" fill="none" stroke="${IC_M}" stroke-width="2.2" stroke-linecap="round"/>
+    <polygon points="2,7 6.5,2.5 7,7.8" fill="${IC_M_HELL}"/>
+    <!-- Abspielkern -->
+    <circle cx="12" cy="12" r="3.2" fill="#243b53" stroke="${IC_M_HELL}" stroke-width="1.2"/>
+    <polygon points="11,10.2 14.2,12 11,13.8" fill="${IC_M_HELL}"/>
+  </svg>`,
+
+  sammelpunkt: `<svg viewBox="0 0 24 24">
+    <!-- Sammelpunkt: Bannerstandarte mit Zielkreis am Boden -->
+    <path d="M5 21 L5 3" stroke="${IC_SILBER}" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="5,2 3.8,4.5 6.2,4.5" fill="${IC_M}"/>
+    <!-- Schwalbenschwanz-Fahne nach rechts wehend -->
+    <path d="M5 4 L19 8.5 L15 11 L19 13.5 L5 13.5 Z" fill="${IC_M}" stroke="${IC_M_HELL}" stroke-width="1" stroke-linejoin="round"/>
+    <circle cx="9.5" cy="8.8" r="1.4" fill="${IC_M_HELL}"/>
+    <!-- Konzentrische Zielmarkierung am Boden -->
+    <ellipse cx="6" cy="20.5" rx="4.5" ry="1.8" fill="none" stroke="${IC_M_HELL}" stroke-width="1.4" stroke-dasharray="2 1.5"/>
+  </svg>`,
+
+  steuergruppe: `<svg viewBox="0 0 24 24">
+    <!-- Steuergruppe: Formations-Banner mit Gruppenleiter-Standarte -->
+    <rect x="3" y="9" width="5.5" height="9" rx="1.5" fill="#243b53" stroke="${IC_M}" stroke-width="1.2"/>
+    <rect x="15.5" y="9" width="5.5" height="9" rx="1.5" fill="#243b53" stroke="${IC_M}" stroke-width="1.2"/>
+    <!-- Zentrales Fuehrungsbanner -->
+    <rect x="8.5" y="4" width="7" height="12" rx="1.8" fill="#102a43" stroke="${IC_M_HELL}" stroke-width="1.5"/>
+    <path d="M12 6.5 L12 11.5 M10 8 L12 6.5 L14 8" stroke="${IC_M_HELL}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="2" y1="20" x2="22" y2="20" stroke="${IC_M}" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="5.7" cy="13" r="1" fill="${IC_M}"/>
+    <circle cx="18.3" cy="13" r="1" fill="${IC_M}"/>
+  </svg>`,
 };
+
 
 
 /* ---------------------------------- */
 
 // Gemeinsame Texte fuer beide Oberflaechen (2D und 3D). Liest den Zustand,
 // aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
+
 
 
 
@@ -4892,6 +5292,95 @@ function ressourcenHtml(world, player) {
   );
 }
 
+// ------------------------------------------------------------ Karten: fest, Zufall, eigene
+
+const KARTEN_SPEICHER = 'dreiReiche.karten';
+
+/** Vom Editor gewaehlte Karte (einmalig), sonst die klassische. */
+function vorgewaehlteKarte() {
+  try {
+    const k = localStorage.getItem('dreiReiche.karteWahl');
+    if (k) {
+      localStorage.removeItem('dreiReiche.karteWahl');
+      return k;
+    }
+  } catch {
+    /* ohne Speicher eben die Vorgabe */
+  }
+  return 'klassisch';
+}
+
+/** Eigene Karten aus dem Speicher des Browsers (vom Editor oder geladen). */
+function eigeneKarten() {
+  try {
+    const l = JSON.parse(localStorage.getItem(KARTEN_SPEICHER) || '[]');
+    return Array.isArray(l) ? l : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Eine eigene Karte speichern (gleicher Name ersetzt); liefert ihre Nummer. */
+function eigeneKarteSpeichern(daten) {
+  const l = eigeneKarten().filter((k) => k.name !== daten.name);
+  l.push(daten);
+  try {
+    localStorage.setItem(KARTEN_SPEICHER, JSON.stringify(l));
+  } catch {
+    /* ohne Speicher nur fuer diese Sitzung */
+  }
+  return l.length - 1;
+}
+
+/**
+ * Welche Karte gespielt wird: { schluessel, daten }. schluessel ist ein
+ * Name aus KARTEN, 'zufall' (neu gebaut zur Zahl seed) oder 'eigen:<Nummer>';
+ * eine Wiederholung bringt ihre Karte selbst mit.
+ */
+function karteFuerSpiel(schluessel, wdh, seed) {
+  if (wdh) return { schluessel: wdh.karte, daten: wdh.karteDaten || KARTEN[wdh.karte] || KARTEN.klassisch };
+  if (schluessel === 'zufall') return { schluessel: 'zufall', daten: zufallsKarte(seed) };
+  if (schluessel.startsWith('eigen:')) {
+    const d = eigeneKarten()[Number(schluessel.slice(6))];
+    if (d && !kartenFehler(d).length) return { schluessel: 'eigen', daten: d };
+  }
+  return KARTEN[schluessel] ? { schluessel, daten: KARTEN[schluessel] } : { schluessel: 'klassisch', daten: KARTEN.klassisch };
+}
+
+/** Kartenwahl fuer den Startbildschirm: feste Karten, Zufall, eigene, laden, Editor. */
+function kartenWahlHtml(gewaehlt) {
+  const knopf = (wert, name) =>
+    `<label><input type="radio" name="karte" value="${wert}"${wert === gewaehlt ? ' checked' : ''}> ${name}</label>`;
+  const eigene = eigeneKarten().map((k, i) => knopf('eigen:' + i, '✎ ' + k.name)).join('');
+  return `<div class="stil">Karte:
+      ${Object.keys(KARTEN).map((k) => knopf(k, KARTEN[k].name)).join('')}
+      ${knopf('zufall', '⚄ Zufall — jedes Spiel neu')}
+      ${eigene}
+    </div>
+    <div class="stil">Eigene Karte: <a class="btn" href="karteneditor.html">Karteneditor öffnen</a>
+      laden: <input type="file" id="karteDatei" accept=".json,application/json"> <span id="karteMeldung"></span></div>`;
+}
+
+/** Eine Kartendatei laden, pruefen und speichern; ruft fertig(meldung) auf. */
+function karteDateiLaden(eingabe, fertig) {
+  const datei = eingabe.files && eingabe.files[0];
+  if (!datei) return;
+  datei.text().then((text) => {
+    let d;
+    try {
+      d = JSON.parse(text);
+    } catch {
+      return fertig('Keine Karte (kein JSON).');
+    }
+    if (!d || !Array.isArray(d.hindernisse) || !Array.isArray(d.adern)) return fertig('Keine Karte der drei Reiche.');
+    const fehler = kartenFehler(d);
+    if (fehler.length) return fertig('Nicht spielbar: ' + fehler[0]);
+    d.name = d.name || datei.name.replace(/\.json$/, '');
+    eigeneKarteSpeichern(d);
+    fertig('');
+  });
+}
+
 // ------------------------------------------------------------ Steuergruppen
 
 /**
@@ -4943,6 +5432,27 @@ function heerAuswahl(world, ich) {
   return world.entities
     .filter((e) => !e.dead && e.kind === 'unit' && e.player === ich && UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander)
     .map((e) => e.id);
+}
+
+/**
+ * Feind unter dem Mauszeiger (Weltkoordinaten, Toleranz in dm), den man sehen
+ * darf -- Ziel fuer einen gezielten Angriff. Einheiten vor Gebaeuden.
+ */
+function feindBei(world, x, y, toleranz, ich, sichtbar) {
+  let best = null;
+  let bestD = Infinity;
+  for (const e of world.entities) {
+    if (e.dead || e.player === ich || !sichtbar(e)) continue;
+    const r = (e.kind === 'unit' ? UNITS[e.type].radius : BUILDINGS[e.type].radius) + toleranz;
+    const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+    if (d > r * r) continue;
+    const rang = e.kind === 'unit' ? 0 : 1;
+    if (!best || rang < best.rang || (rang === best.rang && d < bestD)) {
+      best = { e, rang };
+      bestD = d;
+    }
+  }
+  return best ? best.e : null;
 }
 
 /** Eigene Arbeiter, die nichts tun: kein Auftrag, keine Reihe, angekommen. */
@@ -6173,14 +6683,28 @@ out vec4 vCol;
 out float vTiefe;
 out vec3 vTeam;
 out vec2 vWelt;
+out vec3 vNor;
+out vec2 vWasserInfo; // x: istWasser, y: Zeit/Phase
+out vec3 vObjPos;
+out float vWeltY;
 void main() {
   vTeam = iC.rgb;
   float c = cos(iA.w), s = sin(iA.w);
   vec3 a = aPos;
-  // Schritt & Gangart:
-  // 1. Waldgott: schwebender Mantel mit Wurzeln, organisches Brustkorb-Atmen
+
   float istWaldgott = (aCol.a > 0.03 && aCol.a < 0.08) ? 1.0 : 0.0;
-  if (istWaldgott > 0.5) {
+  float istWasser = (aCol.a > 0.74 && aCol.a < 0.80) ? 1.0 : 0.0;
+  vWasserInfo = vec2(istWasser, iC.w);
+
+  if (istWasser > 0.5) {
+    // Sanfte vertikale Wellenbewegung im Wasser
+    vec2 wp = iA.xz + vec2(c * a.x + s * a.z, -s * a.x + c * a.z) * iB.x;
+    float t = iC.w * 1.8;
+    float w1 = sin(wp.x * 0.28 + wp.y * 0.22 + t * 2.0) * 0.06;
+    float w2 = cos(wp.x * 0.18 - wp.y * 0.32 + t * 1.5) * 0.04;
+    a.y += w1 + w2;
+  } else if (istWaldgott > 0.5) {
+    // 1. Waldgott: schwebender Mantel mit Wurzeln, organisches Brustkorb-Atmen
     float saum = max(0.0, 0.85 - a.y);
     a.z += iC.w * 0.22 * saum;
     a.x += sin(iC.w * 3.14159 + a.y * 3.5) * 0.03 * saum;
@@ -6227,12 +6751,18 @@ void main() {
   vec3 p = a * vec3(iB.x, iB.x * iB.y, iB.x);
   vec3 r = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z) + iA.xyz;
   vec3 n = normalize(vec3(c * aNor.x + s * aNor.z, aNor.y / max(iB.y, 0.05), -s * aNor.x + c * aNor.z));
+  vNor = n;
+  vObjPos = aPos;
+  vWeltY = r.y;
 
   // Selbstleuchtende Teile behalten ihre eigene Farbe, ohne Fraktionsfarbe.
-  float team = aCol.a > 1.5 ? 0.0 : aCol.a;
+  float team = (aCol.a > 1.5 || istWasser > 0.5) ? 0.0 : aCol.a;
   vec3 col = mix(aCol.rgb, iC.rgb, team) * iB.z;
 
-  if (aCol.a > 1.5) {
+  if (istWasser > 0.5) {
+    // Wasser erhaelt die Basisfarbe direkt; Schattierung & Glanz erfolgen im Fragment-Shader
+    vCol = vec4(col, iB.w);
+  } else if (aCol.a > 1.5) {
     // Magisch gluehende Elemente (Augen, Kristalle, Glutherz) pulsieren im Atemrhythmus
     float puls = 1.0 + 0.22 * sin(iC.w * 3.14159265);
     vCol = vec4(col * 1.55 * puls, iB.w);
@@ -6256,6 +6786,11 @@ in vec4 vCol;
 in float vTiefe;
 in vec3 vTeam;
 in vec2 vWelt;
+in vec3 vNor;
+in vec2 vWasserInfo;
+in vec3 vObjPos;
+in float vWeltY;
+uniform vec3 uLicht;
 uniform vec3 uNebel;
 uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
 uniform sampler2D uSicht; // Nebel des Krieges: 1 sichtbar, 0.47 erkundet, 0 unbekannt
@@ -6266,6 +6801,102 @@ void main() {
     o = vec4(mix(vTeam, vec3(1.0), 0.3), 0.5);
     return;
   }
+
+  // 1. Weiche Schatten unter Einheiten und Gebaeuden (flache, halbtransparente dunkle Scheiben)
+  float istSchatten = (max(vCol.r, max(vCol.g, vCol.b)) < 0.02 && vCol.a < 0.45 && abs(vNor.y) > 0.85) ? 1.0 : 0.0;
+  if (istSchatten > 0.5) {
+    float rDist = length(vObjPos.xz);
+    float weich = smoothstep(1.0, 0.22, rDist);
+    o = vec4(vec3(0.0), vCol.a * weich);
+    return;
+  }
+
+  vec3 farbe = vCol.rgb;
+
+  // 2. Dynamische Wasseroberflaeche: bewegte Wellen, Glanz, Schaumkronen, Reflexion
+  if (vWasserInfo.x > 0.5) {
+    float t = vWasserInfo.y * 1.6;
+    vec2 wp = vWelt * 0.22;
+
+    float a1 = wp.x * 0.85 + wp.y * 0.52 + t * 2.2;
+    float a2 = -wp.x * 0.48 + wp.y * 0.88 + t * 1.7;
+    float a3 = wp.x * 1.65 - wp.y * 1.42 + t * 3.4;
+
+    float s1 = sin(a1), c1 = cos(a1);
+    float s2 = sin(a2), c2 = cos(a2);
+    float s3 = sin(a3), c3 = cos(a3);
+
+    float dHdx = 0.85 * c1 * 0.14 - 0.48 * c2 * 0.09 + 1.65 * c3 * 0.05;
+    float dHdz = 0.52 * c1 * 0.14 + 0.88 * c2 * 0.09 - 1.42 * c3 * 0.05;
+
+    vec3 wN = normalize(vec3(-dHdx * 3.2, 1.0, -dHdz * 3.2));
+    vec3 blick = normalize(vec3(0.08, 1.35, 0.95));
+
+    // Reflektierter Sonnenstrahl & scharfer Glanzpunkt
+    vec3 refLicht = reflect(-uLicht, wN);
+    float spec = pow(max(dot(refLicht, blick), 0.0), 36.0);
+    float glanz = spec * 1.8;
+    float specBreit = pow(max(dot(refLicht, blick), 0.0), 8.0) * 0.35;
+
+    // Weiche Fresnel-Reflexion des Himmels
+    float fresnel = pow(1.0 - max(dot(wN, blick), 0.0), 2.5);
+
+    vec3 tiefesWasser = farbe * 0.75;
+    vec3 himmelSpiegel = vec3(0.32, 0.62, 0.78);
+    vec3 basisWasser = mix(tiefesWasser, himmelSpiegel, fresnel * 0.65);
+
+    // Zarte Schaumkronen auf hohen Wellenkaemmen
+    float schaumKamm = max(0.0, s1 * 0.5 + s2 * 0.35 + s3 * 0.15 - 0.68) * 2.2;
+    vec3 schaum = vec3(0.88, 0.94, 0.98) * schaumKamm * 0.45;
+
+    vec3 sonnenGlanz = vec3(1.0, 0.95, 0.82) * (glanz + specBreit);
+    farbe = basisWasser + sonnenGlanz + schaum;
+  } else {
+    // 3. Feste Oberflaechen: Kontaktschatten, Spalt-AO und prozedurale Texturen (60 FPS stabil)
+    float bodenDist = max(0.0, vWeltY);
+    // Kontaktschatten: Objekte dunkeln am Boden sanft ab (feste Erdverbundenheit)
+    float kontaktAO = clamp(smoothstep(0.0, 0.65, bodenDist) * 0.32 + 0.68, 0.60, 1.0);
+    // Spalt-AO: Abwaerts zeigende / tiefere Nischen werden schattiert
+    float spaltAO = clamp(vNor.y * 0.22 + 0.78, 0.58, 1.0);
+    float ao = kontaktAO * spaltAO;
+
+    // Prozedurale Oberflaechenstruktur (Holzmaserung, Stein, Rinde, Fell)
+    // Nur fuer normale Materialien, nicht fuer selbstleuchtende Magieteile
+    if (vCol.a <= 1.5) {
+      vec3 p = vObjPos;
+      float rausch = 0.0;
+
+      // A. Holz & Rinde (warme Brauntoene: r > b, g > b)
+      if (farbe.r > farbe.b * 1.25 && farbe.g > farbe.b * 1.05) {
+        float maser = sin(p.y * 22.0 + sin(p.x * 12.0 + p.z * 12.0) * 1.6);
+        float feinfaser = cos(p.y * 48.0 + p.x * 18.0);
+        rausch = (maser * 0.65 + feinfaser * 0.35) * 0.065;
+      }
+      // B. Stein & Metall (neutrale Grautoene: r ~= g ~= b)
+      else if (abs(farbe.r - farbe.g) < 0.08 && abs(farbe.g - farbe.b) * 0.9 < 0.08) {
+        float korn1 = sin(p.x * 30.0 + p.y * 26.0);
+        float korn2 = cos(p.z * 32.0 - p.y * 22.0);
+        rausch = (korn1 * 0.5 + korn2 * 0.5) * 0.055;
+      }
+      // C. Fell & organisches Gewebe (Pelz von Woelfen, Reittieren etc.)
+      else if (farbe.r > 0.12 && farbe.g < farbe.r * 1.1) {
+        float fell1 = sin((p.x + p.y + p.z) * 42.0);
+        float fell2 = cos((p.x - p.y + p.z) * 36.0);
+        rausch = (fell1 * 0.55 + fell2 * 0.45) * 0.045;
+      }
+      // D. Laub & Wiese (Gruentoene)
+      else if (farbe.g > farbe.r * 1.08 && farbe.g > farbe.b * 1.08) {
+        float blatt = sin(p.x * 25.0 + p.z * 25.0) * cos(p.y * 25.0);
+        rausch = blatt * 0.05;
+      }
+      else {
+        rausch = (sin(p.x * 22.0) * cos(p.y * 22.0 + p.z * 18.0)) * 0.035;
+      }
+
+      farbe = clamp(farbe * (1.0 + rausch) * ao, 0.0, 1.0);
+    }
+  }
+
   float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
   // Weiche, runde Nebelraender statt blockiger Rasterkanten
   vec2 uv = clamp(vWelt / uKarte, 0.0, 1.0);
@@ -6277,7 +6908,7 @@ void main() {
   float s3 = texture(uSicht, uv + vec2(0.0, d.y)).r;
   float s4 = texture(uSicht, uv - vec2(0.0, d.y)).r;
   float sicht = (s0 * 2.0 + s1 + s2 + s3 + s4) * (1.0 / 6.0);
-  o = vec4(mix(vCol.rgb, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
+  o = vec4(mix(farbe, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
 }`;
 const VS_LINIE = `#version 300 es
 layout(location=0) in vec3 aPos;
@@ -8983,6 +9614,81 @@ function spaehpostenModell() {
 MODELLE_DEF.rabe = rabeModell();
 MODELLE_DEF.spaehposten = spaehpostenModell();
 
+/** Schilf: Schilfrohr und samtige Rohrkolben an den Ufern von Seen und Fluessen. */
+function schilfModell() {
+  const t = [];
+  const GRUEN1 = '#4a622a';
+  const GRUEN2 = '#5d7835';
+  const GRUEN3 = '#3b5020';
+  const STROH = '#7e7846';
+  const KOLBEN = '#3d2516';
+  const KOLBEN_H = '#523420';
+  const SCHLICK = '#2b261d';
+
+  // 1. Feuchter Wurzelsockel / Erdhuegel im Wasser
+  t.push(
+    ['z', [0.35, 0.55, 0.12, 6], [0, 0.05, 0], SCHLICK],
+    ['k', [0.32, 5], [0.08, 0.06, -0.05], SCHLICK]
+  );
+
+  // 2. Halme mit Rohrkolben (verschiedene Hoehen und Neigungen)
+  const halme = [
+    // [x, z, h, rOben, rUnten, neigX, neigZ, farbe, mitKolben]
+    [0.00, 0.00, 1.85, 0.022, 0.045, 0.04, -0.05, GRUEN1, true],
+    [0.15, -0.08, 1.65, 0.020, 0.040, -0.08, 0.06, GRUEN2, true],
+    [-0.14, 0.10, 1.95, 0.022, 0.045, 0.06, 0.08, GRUEN1, true],
+    [0.08, 0.18, 1.45, 0.018, 0.038, 0.12, -0.06, STROH, true],
+    [-0.18, -0.12, 1.55, 0.020, 0.040, -0.09, -0.09, GRUEN3, false],
+    [0.22, 0.12, 1.30, 0.018, 0.035, 0.15, 0.08, GRUEN2, false],
+    [-0.08, -0.22, 1.40, 0.018, 0.035, -0.14, 0.04, STROH, false],
+    [0.25, -0.15, 1.20, 0.016, 0.032, -0.12, -0.12, GRUEN1, false],
+  ];
+
+  for (const [hx, hz, hh, ro, ru, nx, nz, col, kolb] of halme) {
+    t.push(['z', [ro, ru, hh, 5], [hx, hh * 0.48, hz], col, 0, [nx, 0, nz]]);
+
+    if (kolb) {
+      const yKolb = hh * 0.82;
+      t.push(['z', [0.052, 0.055, 0.38, 6], [hx + nx * yKolb, yKolb, hz + nz * yKolb], KOLBEN, 0, [nx, 0, nz]]);
+      t.push(['k', [0.054, 5], [hx + nx * (yKolb + 0.19), yKolb + 0.19, hz + nz * (yKolb + 0.19)], KOLBEN_H, 0]);
+      t.push(['k', [0.054, 5], [hx + nx * (yKolb - 0.19), yKolb - 0.19, hz + nz * (yKolb - 0.19)], KOLBEN, 0]);
+      const ySpitze = yKolb + 0.28;
+      t.push(['z', [0, 0.018, 0.22, 4], [hx + nx * ySpitze, ySpitze, hz + nz * ySpitze], STROH, 0, [nx, 0, nz]]);
+    }
+  }
+
+  // 3. Ausladende Schilfblaetter
+  const blaetter = [
+    [0.10, 0.05, 1.10, 0.05, 0.28, 0.20, GRUEN2],
+    [-0.12, 0.08, 1.25, 0.06, -0.25, 0.22, GRUEN1],
+    [0.05, -0.12, 1.05, 0.05, 0.18, -0.30, GRUEN3],
+    [-0.15, -0.06, 1.15, 0.05, -0.32, -0.18, STROH],
+    [0.18, 0.14, 0.95, 0.045, 0.35, 0.15, GRUEN2],
+    [-0.05, 0.20, 0.90, 0.045, -0.12, 0.38, GRUEN1],
+  ];
+
+  for (const [bx, bz, bh, bb, rx, rz, bcol] of blaetter) {
+    t.push(['q', [bb, bh, 0.015], [bx, bh * 0.45, bz], bcol, 0, [rx, Math.atan2(bz, bx), rz]]);
+  }
+
+  return t;
+}
+
+/** Wasser: Mehrteilige Scheiben-Geometrie fuer Seen und Fluesse (Materialkennung team=0.77 fuer den Shader). */
+function wasserModell() {
+  const WASSER_FARBE = '#1b4b68';
+  const WASSER_MAT = 0.77;
+  return [
+    ['s', [1.0, 48], [0, 0, 0], WASSER_FARBE, WASSER_MAT],
+    ['s', [0.65, 36], [0, 0.01, 0], '#245a7c', WASSER_MAT],
+    ['s', [0.35, 24], [0, 0.02, 0], '#2d688c', WASSER_MAT],
+  ];
+}
+
+MODELLE_DEF.schilf = schilfModell();
+MODELLE_DEF.wasser = wasserModell();
+
+
 
 
 
@@ -9191,10 +9897,12 @@ function baueBoden() {
   return ladeModell(new Float32Array(v));
 }
 
-// Deko: Baeume je nach Karte (wird nach Kartenwechsel von ui3d.js neu gerufen)
+// Deko: Baeume und Schilf je nach Karte (wird nach Kartenwechsel von ui3d.js neu gerufen)
 let DEKO = [];
+let DEKO_SCHILF = [];
 function baueDeko() {
   DEKO.length = 0;
+  DEKO_SCHILF.length = 0;
   let s = 12345;
   const r = () => ((s = (Math.imul(s, 1103515245) + 12345) | 0) >>> 8) / 16777216;
 
@@ -9218,6 +9926,58 @@ function baueDeko() {
     return false;
   }
 
+  // 1. Schilf an den Ufern von Seen und Fluessen
+  for (const h of hindernisse) {
+    if (h.art === 'see') {
+      const cx = h.x * DM;
+      const cz = h.y * DM;
+      const cr = h.r * DM;
+      const anzahl = h.fluss ? Math.floor(6 + r() * 5) : Math.floor(8 + r() * 6);
+
+      for (let k = 0; k < anzahl; k++) {
+        const wnk = (k / anzahl) * Math.PI * 2 + (r() - 0.5) * 0.45;
+        const dist = cr * (0.95 + r() * 0.12);
+        const px = cx + Math.cos(wnk) * dist;
+        const pz = cz + Math.sin(wnk) * dist;
+
+        if (px < 40 || px > 1960 || pz < 40 || pz > 1960) continue;
+        if (Math.hypot(px - 300, pz - 300) < 310 || Math.hypot(px - 1700, pz - 1700) < 310) continue;
+
+        let naheFurt = false;
+        for (const f of furten) {
+          if (Math.hypot(px - f.x * DM, pz - f.y * DM) < 52) {
+            naheFurt = true;
+            break;
+          }
+        }
+        if (naheFurt) continue;
+
+        let imTiefenWasser = false;
+        for (const o of hindernisse) {
+          if (o !== h && o.art === 'see') {
+            if (Math.hypot(px - o.x * DM, pz - o.y * DM) < o.r * DM * 0.86) {
+              imTiefenWasser = true;
+              break;
+            }
+          }
+        }
+        if (imTiefenWasser) continue;
+
+        let aufFels = false;
+        for (const o of hindernisse) {
+          if (o.art === 'fels' && Math.hypot(px - o.x * DM, pz - o.y * DM) < o.r * DM + 6) {
+            aufFels = true;
+            break;
+          }
+        }
+        if (aufFels) continue;
+
+        DEKO_SCHILF.push([px, pz, 1.1 + r() * 0.7, r() * 6.28]);
+      }
+    }
+  }
+
+  // 2. Baeume
   if (istFlusstal) {
     // Flusstal: Dichter Wald in den Wald-Zonen laut KARTE.wald
     for (const w of waldKreise) {
@@ -9296,23 +10056,38 @@ function zeichneGelaende(world, now) {
   gl.depthMask(false);
 
   const hindernisse = world.hindernisse || [];
+  const zeit = (now || 0) * 0.001;
 
   // 1. Seen und Fluesse
   for (const h of hindernisse) {
     if (h.art === 'see') {
       const rM = h.r * DM;
       if (h.fluss) {
-        // Fluss: zusammenhaengendes tiefes Wasser ohne zerschneidende Uferringe
-        instanz('scheibe', h.x * DM, 0.12, h.y * DM, 0, rM * 0.99, [0.10, 0.27, 0.40], 1, 1, 0.96);
-        // Schimmernde Stroemungsoberflaeche
-        const puls = 0.94 + 0.06 * Math.sin((now || 0) * 0.003 + h.x * 0.05 + h.y * 0.05);
-        instanz('scheibe', h.x * DM, 0.14, h.y * DM, ((now || 0) * 0.001) % 6.28, rM * 0.93, [0.16, 0.36, 0.48], 1, puls, 0.72);
+        // Flussbett: dunkler Kies- und Schlickgrund
+        instanz('scheibe', h.x * DM, 0.08, h.y * DM, 0, rM * 1.02, [0.18, 0.22, 0.16], 1, 1, 0.95);
+        if (MODELLE.wasser) {
+          // Strömende Wasseroberfläche mit prozeduralen Wellen & Sonnenglanz
+          instanz('wasser', h.x * DM, 0.13, h.y * DM, 0, rM * 0.98, [0.12, 0.32, 0.46], 1, 1, 0.94, zeit);
+          // Versetzte Strömungskräuselung
+          instanz('wasser', h.x * DM, 0.15, h.y * DM, (zeit * 0.25) % 6.28, rM * 0.94, [0.18, 0.42, 0.54], 1, 1, 0.78, zeit + 2.0);
+        } else {
+          instanz('scheibe', h.x * DM, 0.12, h.y * DM, 0, rM * 0.99, [0.10, 0.27, 0.40], 1, 1, 0.96);
+          const puls = 0.94 + 0.06 * Math.sin(zeit * 3.0 + h.x * 0.05 + h.y * 0.05);
+          instanz('scheibe', h.x * DM, 0.14, h.y * DM, (zeit * 1.0) % 6.28, rM * 0.93, [0.16, 0.36, 0.48], 1, puls, 0.72);
+        }
       } else {
-        // Standsee: Ufersaum (feuchter Sand/Schilf) und tiefes Wasser
-        instanz('scheibe', h.x * DM, 0.08, h.y * DM, 0, rM * 1.04, [0.28, 0.26, 0.19], 1, 1, 0.9);
-        instanz('scheibe', h.x * DM, 0.12, h.y * DM, 0, rM * 0.98, [0.11, 0.27, 0.39], 1, 1, 0.94);
-        const puls = 0.95 + 0.05 * Math.sin((now || 0) * 0.002 + h.x);
-        instanz('scheibe', h.x * DM, 0.15, h.y * DM, ((now || 0) * 0.0003) % 6.28, rM * 0.95, [0.18, 0.38, 0.48], 1, puls, 0.7);
+        // Standsee: Ufersaum (feuchter Sand/Schlick)
+        instanz('scheibe', h.x * DM, 0.07, h.y * DM, 0, rM * 1.04, [0.26, 0.24, 0.18], 1, 1, 0.92);
+        if (MODELLE.wasser) {
+          // Tiefes Wasser mit sanften Wellen und Glanz
+          instanz('wasser', h.x * DM, 0.12, h.y * DM, 0, rM * 0.98, [0.10, 0.28, 0.40], 1, 1, 0.94, zeit * 0.6);
+          // Schimmernde Oberflaeche
+          instanz('wasser', h.x * DM, 0.14, h.y * DM, (zeit * 0.08) % 6.28, rM * 0.95, [0.16, 0.38, 0.49], 1, 1, 0.75, zeit * 0.6 + 1.5);
+        } else {
+          instanz('scheibe', h.x * DM, 0.12, h.y * DM, 0, rM * 0.98, [0.11, 0.27, 0.39], 1, 1, 0.94);
+          const puls = 0.95 + 0.05 * Math.sin(zeit * 2.0 + h.x);
+          instanz('scheibe', h.x * DM, 0.15, h.y * DM, (zeit * 0.3) % 6.28, rM * 0.95, [0.18, 0.38, 0.48], 1, puls, 0.7);
+        }
       }
     }
   }
@@ -9320,10 +10095,11 @@ function zeichneGelaende(world, now) {
   // 2. Furten: flache Kiesbaenke mit sanftem Uebertritt
   const furten = (KARTE && KARTE.furten) || [];
   for (const f of furten) {
-    instanz('scheibe', f.x * DM, 0.08, f.y * DM, 0, 48, [0.44, 0.38, 0.28], 1, 1, 0.85);
+    instanz('scheibe', f.x * DM, 0.09, f.y * DM, 0, 48, [0.44, 0.38, 0.28], 1, 1, 0.85);
   }
 
   zeichneInstanzen(MODELLE.scheibe);
+  if (MODELLE.wasser) zeichneInstanzen(MODELLE.wasser);
   gl.depthMask(true);
 
   // 3. Felsen: kantige Felsformationen
@@ -9343,7 +10119,16 @@ function zeichneGelaende(world, now) {
 
   // 5. Deko-Baeume (aus gewaehlter Karte via baueDeko)
   for (const [x, z, s, r] of DEKO) instanz('baum', x, 0, z, r, s, [1, 1, 1]);
+
+  // 6. Schilf an Ufern von Seen und Fluessen
+  if (MODELLE.schilf) {
+    for (const [x, z, s, r] of DEKO_SCHILF) {
+      instanz('schilf', x, 0.05, z, r, s, [1, 1, 1]);
+    }
+    zeichneInstanzen(MODELLE.schilf);
+  }
 }
+
 
 
 /* ---------------------------------- */
@@ -9377,7 +10162,7 @@ let meFaction = 'mensch';
 let world, ai, aiMe;
 let gegnerStil = 'standard';
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
-let karteSchluessel = 'klassisch'; // Karte, im Startbildschirm waehlbar
+let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 let paused = true;
 let speed = 1;
 let acc = 0;
@@ -9480,19 +10265,21 @@ function neu(f, zuschauen = false, wdh = null) {
   }
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  if (KARTE.schluessel !== karteSchluessel) {
-    karteWaehlen(karteSchluessel);
+  const seed = wdh ? wdh.seed : (Date.now() / 1000) | 0;
+  const karte = karteFuerSpiel(karteSchluessel, wdh, seed);
+  if (KARTE.schluessel !== karte.schluessel || KARTE.name !== karte.daten.name) {
+    karteWaehlen(karte.schluessel, karte.daten);
     if (typeof baueBoden === 'function') bodenModell = baueBoden(); // src/gelaende3d.js liest KARTE
     if (typeof baueDeko === 'function') baueDeko(); // Baeume, Pfad je Karte (src/gelaende3d.js, Gemini)
   }
-  world = createWorld({ seed: wdh ? wdh.seed : (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
+  world = createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
   nebel = neuerNebel(!zuschauen && !wdh, ME);
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karteSchluessel, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
   verlauf = neuerVerlauf();
   endeGezeigt = false;
   sel = [];
@@ -9681,7 +10468,10 @@ cv3.addEventListener('mousedown', (e) => {
     placing = null;
     zielen = null;
     if (sel.length) {
+      // Rechtsklick auf einen sichtbaren Feind: gezielter Angriff
+      const feind = angriff ? null : feindBei(world, p.x, p.y, 40, ME, (o) => !verborgen(o));
       if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y, anhaengen: e.shiftKey });
+      else if (feind) issue(world, { type: 'angreifen', player: ME, ids: sel.slice(), id: feind.id });
       else befehl3(p.x, p.y, e.shiftKey);
     }
     angriff = false;
@@ -9814,6 +10604,7 @@ addEventListener('keydown', (e) => {
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
   if (e.key === 'm') stummSchalten(fx);
   if (e.key === '.') naechsterUntaetiger();
+  if (e.key === 's' && sel.length) issue(world, { type: 'stopp', player: ME, ids: sel.slice() });
   if (e.key === 'F2') {
     e.preventDefault();
     sel = heerAuswahl(world, ME);
@@ -10591,11 +11382,7 @@ function introHtml3() {
         .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
         .join('')}
     </div>
-    <div class="stil">Karte:
-      ${Object.keys(KARTEN)
-        .map((k) => `<label><input type="radio" name="karte" value="${k}"${k === karteSchluessel ? ' checked' : ''}> ${KARTEN[k].name}</label>`)
-        .join('')}
-    </div>
+    ${kartenWahlHtml(karteSchluessel)}
 ${wiederholungWahlHtml()}
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
@@ -10648,6 +11435,19 @@ function startbildschirm() {
   document.getElementById('introSchau').onclick = () => starte3('mensch', true);
   const datei = document.getElementById('wiederholungDatei');
   if (datei) datei.onchange = () => wiederholungLaden(datei);
+  const kDatei = document.getElementById('karteDatei');
+  if (kDatei) {
+    kDatei.onchange = () =>
+      karteDateiLaden(kDatei, (meldung) => {
+        if (meldung) {
+          const m = document.getElementById('karteMeldung');
+          if (m) m.textContent = meldung;
+        } else {
+          karteSchluessel = 'eigen:' + (eigeneKarten().length - 1);
+          startbildschirm();
+        }
+      });
+  }
   paused = true;
 }
 

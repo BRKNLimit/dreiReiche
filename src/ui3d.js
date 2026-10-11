@@ -27,7 +27,7 @@ let meFaction = 'mensch';
 let world, ai, aiMe;
 let gegnerStil = 'standard';
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
-let karteSchluessel = 'klassisch'; // Karte, im Startbildschirm waehlbar
+let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 let paused = true;
 let speed = 1;
 let acc = 0;
@@ -130,19 +130,21 @@ function neu(f, zuschauen = false, wdh = null) {
   }
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  if (KARTE.schluessel !== karteSchluessel) {
-    karteWaehlen(karteSchluessel);
+  const seed = wdh ? wdh.seed : (Date.now() / 1000) | 0;
+  const karte = karteFuerSpiel(karteSchluessel, wdh, seed);
+  if (KARTE.schluessel !== karte.schluessel || KARTE.name !== karte.daten.name) {
+    karteWaehlen(karte.schluessel, karte.daten);
     if (typeof baueBoden === 'function') bodenModell = baueBoden(); // src/gelaende3d.js liest KARTE
     if (typeof baueDeko === 'function') baueDeko(); // Baeume, Pfad je Karte (src/gelaende3d.js, Gemini)
   }
-  world = createWorld({ seed: wdh ? wdh.seed : (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
+  world = createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
   nebel = neuerNebel(!zuschauen && !wdh, ME);
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karteSchluessel, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
   verlauf = neuerVerlauf();
   endeGezeigt = false;
   sel = [];
@@ -331,7 +333,10 @@ cv3.addEventListener('mousedown', (e) => {
     placing = null;
     zielen = null;
     if (sel.length) {
+      // Rechtsklick auf einen sichtbaren Feind: gezielter Angriff
+      const feind = angriff ? null : feindBei(world, p.x, p.y, 40, ME, (o) => !verborgen(o));
       if (angriff) issue(world, { type: 'attack', player: ME, ids: sel.slice(), x: p.x, y: p.y, anhaengen: e.shiftKey });
+      else if (feind) issue(world, { type: 'angreifen', player: ME, ids: sel.slice(), id: feind.id });
       else befehl3(p.x, p.y, e.shiftKey);
     }
     angriff = false;
@@ -464,6 +469,7 @@ addEventListener('keydown', (e) => {
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
   if (e.key === 'm') stummSchalten(fx);
   if (e.key === '.') naechsterUntaetiger();
+  if (e.key === 's' && sel.length) issue(world, { type: 'stopp', player: ME, ids: sel.slice() });
   if (e.key === 'F2') {
     e.preventDefault();
     sel = heerAuswahl(world, ME);
@@ -1241,11 +1247,7 @@ function introHtml3() {
         .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
         .join('')}
     </div>
-    <div class="stil">Karte:
-      ${Object.keys(KARTEN)
-        .map((k) => `<label><input type="radio" name="karte" value="${k}"${k === karteSchluessel ? ' checked' : ''}> ${KARTEN[k].name}</label>`)
-        .join('')}
-    </div>
+    ${kartenWahlHtml(karteSchluessel)}
 ${wiederholungWahlHtml()}
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
@@ -1298,6 +1300,19 @@ function startbildschirm() {
   document.getElementById('introSchau').onclick = () => starte3('mensch', true);
   const datei = document.getElementById('wiederholungDatei');
   if (datei) datei.onchange = () => wiederholungLaden(datei);
+  const kDatei = document.getElementById('karteDatei');
+  if (kDatei) {
+    kDatei.onchange = () =>
+      karteDateiLaden(kDatei, (meldung) => {
+        if (meldung) {
+          const m = document.getElementById('karteMeldung');
+          if (m) m.textContent = meldung;
+        } else {
+          karteSchluessel = 'eigen:' + (eigeneKarten().length - 1);
+          startbildschirm();
+        }
+      });
+  }
   paused = true;
 }
 

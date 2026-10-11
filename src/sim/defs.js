@@ -411,7 +411,7 @@ export const UNITS = {
     radius: 24,
     speed: 30,
     cost: { fron: 40 },
-    unterhalt: 4, // Fron pro Minute, solange sie lebt
+    unterhalt: 3, // Fron pro Minute, solange sie lebt (0.31: 4 -> 3, Designzahl)
     buildTime: 80,
     worker: true,
     // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
@@ -427,7 +427,7 @@ export const UNITS = {
     radius: 26,
     speed: 30,
     cost: { fron: 45 },
-    unterhalt: 9, // Fron pro Minute, solange sie lebt
+    unterhalt: 7, // Fron pro Minute, solange sie lebt (0.31: 9 -> 7, Designzahl)
     buildTime: 80,
     kampf: 'nah',
     weapon: { range: 20, damage: 9, cooldown: 6 },
@@ -441,7 +441,7 @@ export const UNITS = {
     radius: 24,
     speed: 32,
     cost: { fron: 55 },
-    unterhalt: 10, // Fron pro Minute, solange sie lebt
+    unterhalt: 8, // Fron pro Minute, solange sie lebt (0.31: 10 -> 8, Designzahl)
     buildTime: 100,
     kampf: 'fern',
     weapon: { range: 480, damage: 13, cooldown: 8 },
@@ -456,7 +456,7 @@ export const UNITS = {
     // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
     // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
     cost: { fron: 130, goetterblut: 10 },
-    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    unterhalt: 18, // Fron pro Minute, solange sie lebt (0.31: 24 -> 18, Designzahl)
     buildTime: 190,
     kampf: 'nah',
     weapon: { range: 25, damage: 26, cooldown: 8 },
@@ -915,8 +915,8 @@ export const KARTEN = { klassisch: KLASSISCH, flusstal: FLUSSTAL };
  * waehlt sie hier mit karteWaehlen() dazu passend.
  */
 export const KARTE = { schluessel: 'klassisch', ...KLASSISCH };
-export function karteWaehlen(schluessel) {
-  Object.assign(KARTE, { schluessel }, KARTEN[schluessel] || KLASSISCH);
+export function karteWaehlen(schluessel, daten = null) {
+  Object.assign(KARTE, { schluessel, wald: [], wiesen: [], furten: [] }, daten || KARTEN[schluessel] || KLASSISCH);
   return KARTE;
 }
 

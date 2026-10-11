@@ -15,7 +15,7 @@ let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
 let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
-let karteSchluessel = 'klassisch'; // Karte, im Startbildschirm waehlbar
+let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 const ME = 0;
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
@@ -77,8 +77,10 @@ function neu(f, zuschauen = false, wdh = null) {
   }
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  karteWaehlen(karteSchluessel);
-  world = createWorld({ seed: wdh ? wdh.seed : (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
+  const seed = wdh ? wdh.seed : (Date.now() / 1000) | 0;
+  const karte = karteFuerSpiel(karteSchluessel, wdh, seed);
+  karteWaehlen(karte.schluessel, karte.daten);
+  world = createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
@@ -86,7 +88,7 @@ function neu(f, zuschauen = false, wdh = null) {
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karteSchluessel, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
   verlauf = neuerVerlauf();
   endeGezeigt = false;
   angriff = false;
@@ -130,7 +132,10 @@ cv.addEventListener('mousedown', (e) => {
     placing = null;
     angriff = false;
     zielen = null;
-    if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0, e.shiftKey);
+    // Rechtsklick auf einen sichtbaren Feind: gezielter Angriff
+    const feind = sel.length ? feindBei(world, s2wx(mx), s2wy(my), 8 / cam.z, ME, (o) => !verborgen(o)) : null;
+    if (feind) issue(world, { type: 'angreifen', player: ME, ids: sel.slice(), id: feind.id });
+    else if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0, e.shiftKey);
     return;
   }
   if (e.button === 1) {
@@ -272,6 +277,7 @@ addEventListener('keydown', (e) => {
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
   if (e.key === 'm') stummSchalten(fx);
   if (e.key === '.') naechsterUntaetiger();
+  if (e.key === 's' && sel.length) issue(world, { type: 'stopp', player: ME, ids: sel.slice() });
   if (e.key === 'F2') {
     e.preventDefault();
     sel = heerAuswahl(world, ME);
@@ -1323,11 +1329,7 @@ function introHtml() {
         .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
         .join('')}
     </div>
-    <div class="stil">Karte:
-      ${Object.keys(KARTEN)
-        .map((k) => `<label><input type="radio" name="karte" value="${k}"${k === karteSchluessel ? ' checked' : ''}> ${KARTEN[k].name}</label>`)
-        .join('')}
-    </div>
+    ${kartenWahlHtml(karteSchluessel)}
 ${wiederholungWahlHtml()}
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
@@ -1380,6 +1382,19 @@ function startbildschirm() {
   document.getElementById('introSchau').onclick = () => starte('mensch', true);
   const datei = document.getElementById('wiederholungDatei');
   if (datei) datei.onchange = () => wiederholungLaden(datei);
+  const kDatei = document.getElementById('karteDatei');
+  if (kDatei) {
+    kDatei.onchange = () =>
+      karteDateiLaden(kDatei, (meldung) => {
+        if (meldung) {
+          const m = document.getElementById('karteMeldung');
+          if (m) m.textContent = meldung;
+        } else {
+          karteSchluessel = 'eigen:' + (eigeneKarten().length - 1);
+          startbildschirm();
+        }
+      });
+  }
   paused = true;
 }
 

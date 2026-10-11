@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.30
+# Die drei Reiche — Prototyp 0.31
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -46,7 +46,12 @@ Gegenwart-Überschuss, Götterblut, Fron.
 | `M` | Ton an/aus |
 | Icon in der Leiste unten | Je Einheitentyp der Auswahl ein Icon mit Anzahl; ein Klick behält nur diesen Typ |
 | Bauleiste überfahren | Info-Karte: Kosten, Bauzeit, Gegenwart, Wirkung, Sperre. Die Bauleiste erscheint nur, wenn ein Erbauer gewählt ist |
-| Rechtsklick | Bewegen (Einheiten stellen Feinde erst am Ziel) |
+| Rechtsklick | Bewegen (Einheiten stellen Feinde erst am Ziel) · auf einen Feind: gezielt angreifen |
+| `Shift`+Rechtsklick | Wegpunkt anhängen (auch mit `A`) |
+| `S` | Stopp |
+| `F2` | ganzes Heer wählen |
+| `.` | nächster untätiger Arbeiter (Knopf unten rechts zeigt die Anzahl) |
+| Rechtsklick auf die Minikarte | Auswahl dorthin schicken |
 | `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |
 | Mittlere Maustaste | Karte schieben · Mausrad zoomen |
 | Erbauer gewählt, `1`–`0` | Gebäude wählen, dann Linksklick setzen (`3` Anker, `5` Förderbau auf Götterblut, `6` `7` Schreine, `8` Verteidigung, `9` Forschung, `0` Spähposten der Menschen) |

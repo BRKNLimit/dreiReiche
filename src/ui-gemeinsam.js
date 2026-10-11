@@ -8,6 +8,7 @@ import {
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
+import { zufallsKarte, kartenFehler } from './sim/kartenbau.js';
 
 const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
@@ -171,6 +172,95 @@ export function ressourcenHtml(world, player) {
   );
 }
 
+// ------------------------------------------------------------ Karten: fest, Zufall, eigene
+
+const KARTEN_SPEICHER = 'dreiReiche.karten';
+
+/** Vom Editor gewaehlte Karte (einmalig), sonst die klassische. */
+export function vorgewaehlteKarte() {
+  try {
+    const k = localStorage.getItem('dreiReiche.karteWahl');
+    if (k) {
+      localStorage.removeItem('dreiReiche.karteWahl');
+      return k;
+    }
+  } catch {
+    /* ohne Speicher eben die Vorgabe */
+  }
+  return 'klassisch';
+}
+
+/** Eigene Karten aus dem Speicher des Browsers (vom Editor oder geladen). */
+export function eigeneKarten() {
+  try {
+    const l = JSON.parse(localStorage.getItem(KARTEN_SPEICHER) || '[]');
+    return Array.isArray(l) ? l : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Eine eigene Karte speichern (gleicher Name ersetzt); liefert ihre Nummer. */
+export function eigeneKarteSpeichern(daten) {
+  const l = eigeneKarten().filter((k) => k.name !== daten.name);
+  l.push(daten);
+  try {
+    localStorage.setItem(KARTEN_SPEICHER, JSON.stringify(l));
+  } catch {
+    /* ohne Speicher nur fuer diese Sitzung */
+  }
+  return l.length - 1;
+}
+
+/**
+ * Welche Karte gespielt wird: { schluessel, daten }. schluessel ist ein
+ * Name aus KARTEN, 'zufall' (neu gebaut zur Zahl seed) oder 'eigen:<Nummer>';
+ * eine Wiederholung bringt ihre Karte selbst mit.
+ */
+export function karteFuerSpiel(schluessel, wdh, seed) {
+  if (wdh) return { schluessel: wdh.karte, daten: wdh.karteDaten || KARTEN[wdh.karte] || KARTEN.klassisch };
+  if (schluessel === 'zufall') return { schluessel: 'zufall', daten: zufallsKarte(seed) };
+  if (schluessel.startsWith('eigen:')) {
+    const d = eigeneKarten()[Number(schluessel.slice(6))];
+    if (d && !kartenFehler(d).length) return { schluessel: 'eigen', daten: d };
+  }
+  return KARTEN[schluessel] ? { schluessel, daten: KARTEN[schluessel] } : { schluessel: 'klassisch', daten: KARTEN.klassisch };
+}
+
+/** Kartenwahl fuer den Startbildschirm: feste Karten, Zufall, eigene, laden, Editor. */
+export function kartenWahlHtml(gewaehlt) {
+  const knopf = (wert, name) =>
+    `<label><input type="radio" name="karte" value="${wert}"${wert === gewaehlt ? ' checked' : ''}> ${name}</label>`;
+  const eigene = eigeneKarten().map((k, i) => knopf('eigen:' + i, '✎ ' + k.name)).join('');
+  return `<div class="stil">Karte:
+      ${Object.keys(KARTEN).map((k) => knopf(k, KARTEN[k].name)).join('')}
+      ${knopf('zufall', '⚄ Zufall — jedes Spiel neu')}
+      ${eigene}
+    </div>
+    <div class="stil">Eigene Karte: <a class="btn" href="karteneditor.html">Karteneditor öffnen</a>
+      laden: <input type="file" id="karteDatei" accept=".json,application/json"> <span id="karteMeldung"></span></div>`;
+}
+
+/** Eine Kartendatei laden, pruefen und speichern; ruft fertig(meldung) auf. */
+export function karteDateiLaden(eingabe, fertig) {
+  const datei = eingabe.files && eingabe.files[0];
+  if (!datei) return;
+  datei.text().then((text) => {
+    let d;
+    try {
+      d = JSON.parse(text);
+    } catch {
+      return fertig('Keine Karte (kein JSON).');
+    }
+    if (!d || !Array.isArray(d.hindernisse) || !Array.isArray(d.adern)) return fertig('Keine Karte der drei Reiche.');
+    const fehler = kartenFehler(d);
+    if (fehler.length) return fertig('Nicht spielbar: ' + fehler[0]);
+    d.name = d.name || datei.name.replace(/\.json$/, '');
+    eigeneKarteSpeichern(d);
+    fertig('');
+  });
+}
+
 // ------------------------------------------------------------ Steuergruppen
 
 /**
@@ -222,6 +312,27 @@ export function heerAuswahl(world, ich) {
   return world.entities
     .filter((e) => !e.dead && e.kind === 'unit' && e.player === ich && UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander)
     .map((e) => e.id);
+}
+
+/**
+ * Feind unter dem Mauszeiger (Weltkoordinaten, Toleranz in dm), den man sehen
+ * darf -- Ziel fuer einen gezielten Angriff. Einheiten vor Gebaeuden.
+ */
+export function feindBei(world, x, y, toleranz, ich, sichtbar) {
+  let best = null;
+  let bestD = Infinity;
+  for (const e of world.entities) {
+    if (e.dead || e.player === ich || !sichtbar(e)) continue;
+    const r = (e.kind === 'unit' ? UNITS[e.type].radius : BUILDINGS[e.type].radius) + toleranz;
+    const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+    if (d > r * r) continue;
+    const rang = e.kind === 'unit' ? 0 : 1;
+    if (!best || rang < best.rang || (rang === best.rang && d < bestD)) {
+      best = { e, rang };
+      bestD = d;
+    }
+  }
+  return best ? best.e : null;
 }
 
 /** Eigene Arbeiter, die nichts tun: kein Auftrag, keine Reihe, angekommen. */

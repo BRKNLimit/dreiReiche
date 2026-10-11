@@ -140,6 +140,7 @@
   .ikon .kosten { position: absolute; left: 3px; bottom: 1px; font-size: 9px; color: var(--dim); }
   .ikon kbd { position: absolute; right: 3px; top: 1px; margin: 0; font-size: 9px; }
   .ikon.zu { opacity: .4; }
+  .ikon[hidden] { display: none; }
   .warn { display: flex; align-items: center; gap: 6px; }
   #hud .warn { margin-top: 8px; font-size: 11px; }
   #hud .warn svg { width: 14px; height: 14px; flex: none; }
@@ -243,7 +244,9 @@
   <dt>Linksklick, Ziehen</dt><dd>wählen</dd>
   <dt>Icon unten</dt><dd>nur diesen Typ aus der Auswahl behalten</dd>
   <dt>Rechtsklick</dt><dd>bewegen · mit Erbauern auf Plan/Baustelle: bauen, reparieren</dd>
+  <dt>Rechtsklick auf Feind</dt><dd>gezielt angreifen, verfolgen bis er fällt</dd>
   <dt>A, Klick</dt><dd>Angriffsbewegung</dd>
+  <dt>S</dt><dd>Stopp</dd>
   <dt>Shift+Rechtsklick</dt><dd>Wegpunkt anhängen (auch mit A)</dd>
   <dt>Strg+1–0, 1–0</dt><dd>Steuergruppe setzen, abrufen (zweimal: hinspringen)</dd>
   <dt>1–0</dt><dd>bauen (Erbauer gewählt, Gruppe leer) · mit Shift: weitere in die Reihe</dd>
@@ -263,7 +266,7 @@
 </dl></div>
 </div>
 <script>
-const SPIEL_STAND = '1fe4762ac3';
+const SPIEL_STAND = '17cb3a0358';
 
 /* ---------------------------------- */
 
@@ -677,7 +680,7 @@ const UNITS = {
     radius: 24,
     speed: 30,
     cost: { fron: 40 },
-    unterhalt: 4, // Fron pro Minute, solange sie lebt
+    unterhalt: 3, // Fron pro Minute, solange sie lebt (0.31: 4 -> 3, Designzahl)
     buildTime: 80,
     worker: true,
     // Baut wie der Kommandant, nur schwaecher -- auch ausserhalb der Domaene.
@@ -693,7 +696,7 @@ const UNITS = {
     radius: 26,
     speed: 30,
     cost: { fron: 45 },
-    unterhalt: 9, // Fron pro Minute, solange sie lebt
+    unterhalt: 7, // Fron pro Minute, solange sie lebt (0.31: 9 -> 7, Designzahl)
     buildTime: 80,
     kampf: 'nah',
     weapon: { range: 20, damage: 9, cooldown: 6 },
@@ -707,7 +710,7 @@ const UNITS = {
     radius: 24,
     speed: 32,
     cost: { fron: 55 },
-    unterhalt: 10, // Fron pro Minute, solange sie lebt
+    unterhalt: 8, // Fron pro Minute, solange sie lebt (0.31: 10 -> 8, Designzahl)
     buildTime: 100,
     kampf: 'fern',
     weapon: { range: 480, damage: 13, cooldown: 8 },
@@ -722,7 +725,7 @@ const UNITS = {
     // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
     // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
     cost: { fron: 130, goetterblut: 10 },
-    unterhalt: 24, // Fron pro Minute, solange sie lebt
+    unterhalt: 18, // Fron pro Minute, solange sie lebt (0.31: 24 -> 18, Designzahl)
     buildTime: 190,
     kampf: 'nah',
     weapon: { range: 25, damage: 26, cooldown: 8 },
@@ -1179,8 +1182,8 @@ const KARTEN = { klassisch: KLASSISCH, flusstal: FLUSSTAL };
  * waehlt sie hier mit karteWaehlen() dazu passend.
  */
 const KARTE = { schluessel: 'klassisch', ...KLASSISCH };
-function karteWaehlen(schluessel) {
-  Object.assign(KARTE, { schluessel }, KARTEN[schluessel] || KLASSISCH);
+function karteWaehlen(schluessel, daten = null) {
+  Object.assign(KARTE, { schluessel, wald: [], wiesen: [], furten: [] }, daten || KARTEN[schluessel] || KLASSISCH);
   return KARTE;
 }
 
@@ -1496,11 +1499,15 @@ const PER_MIN = 600 * 1000;
 function createWorld(opts = {}) {
   const f0 = opts.factions?.[0] ?? 'mensch';
   const f1 = opts.factions?.[1] ?? 'gott';
-  const karte = KARTEN[opts.karte] ? opts.karte : 'klassisch';
+  // Eine der festen Karten -- oder eigene Daten (Zufallskarte, Editor),
+  // gleiches Format wie KARTEN in defs.js, gepruefte mit kartenFehler().
+  const karte = opts.karteDaten ? opts.karte || 'eigen' : KARTEN[opts.karte] ? opts.karte : 'klassisch';
+  const daten = opts.karteDaten || KARTEN[karte];
   const world = {
     tick: 0,
     seed: opts.seed ?? 12345,
-    karte, // Schluessel in KARTEN
+    karte, // Schluessel in KARTEN, sonst 'zufall' oder 'eigen'
+    karteDaten: daten, // die Kartendaten selbst (unveraenderlich)
     nextId: 1,
     entities: [],
     players: [
@@ -1510,7 +1517,7 @@ function createWorld(opts = {}) {
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
     baubeginnRunde: 0, // Vorrang beim gleichzeitigen Baubeginn, siehe erschaffen()
-    hindernisse: opts.empty ? [] : KARTEN[karte].hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
+    hindernisse: opts.empty ? [] : daten.hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
     regions: [],
     pending: [],
@@ -1535,7 +1542,7 @@ function setupMap(world) {
   }
   if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
 
-  for (const a of KARTEN[world.karte].adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
+  for (const a of world.karteDaten.adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
 }
 
 function clamp(v) {
@@ -1589,6 +1596,7 @@ function spawnUnit(world, player, type, x, y) {
     reihe: [], // weitere Auftraege, der Reihe nach (Shift beim Setzen)
     wege: [], // weitere Wegpunkte [x, y, angriff], der Reihe nach (Shift beim Bewegen)
     aggro: false, // Angriffsbewegung: unterwegs jeden Feind in der Naehe stellen
+    ziel: 0, // gezielter Angriff: Id des Ziels, bis es faellt
     befX: x | 0, // Ziel des letzten Bewegungsbefehls -- wer dasselbe hat, gehoert zur Gruppe
     befY: y | 0,
     seit: world.tick, // fuer die Erfahrung
@@ -1647,6 +1655,7 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
     e.auftrag = site.id;
     e.reihe = [];
     e.wege = [];
+    e.ziel = 0;
     e.tx = site.x;
     e.ty = site.y;
     e.arrived = false;
@@ -1812,6 +1821,7 @@ function applyCommand(world, c) {
             continue;
           }
           e.wege = [];
+          e.ziel = 0;
           e.tx = c.x | 0;
           e.ty = c.y | 0;
           e.befX = e.tx;
@@ -1821,6 +1831,37 @@ function applyCommand(world, c) {
           e.auftrag = 0; // ein neuer Befehl ersetzt den Bauauftrag
           e.reihe = [];
         }
+      }
+    } else if (c.type === 'angreifen') {
+      // Gezielter Angriff auf eine feindliche Entity -- verfolgen, bis sie faellt.
+      const t = byId(world, c.id);
+      if (t && !t.dead && t.player !== c.player) {
+        for (let k = 0; k < c.ids.length; k++) {
+          const e = byId(world, c.ids[k]);
+          if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || !UNITS[e.type].weapon || !erreicht(e, t)) continue;
+          e.ziel = t.id;
+          e.tx = e.befX = t.x;
+          e.ty = e.befY = t.y;
+          e.arrived = false;
+          e.aggro = false;
+          e.auftrag = 0;
+          e.reihe = [];
+          e.wege = [];
+        }
+      }
+    } else if (c.type === 'stopp') {
+      // Stehen bleiben: kein Ziel, kein Auftrag, keine Wege.
+      for (let k = 0; k < c.ids.length; k++) {
+        const e = byId(world, c.ids[k]);
+        if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player) continue;
+        e.tx = e.befX = e.x;
+        e.ty = e.befY = e.y;
+        e.arrived = true;
+        e.aggro = false;
+        e.ziel = 0;
+        e.auftrag = 0;
+        e.reihe = [];
+        e.wege = [];
       }
     } else if (c.type === 'build') {
       // Ein Bauplan; mit ids bekommen die genannten Erbauer den Auftrag dafuer
@@ -2605,6 +2646,25 @@ function moveUnits(world) {
     gx[i] = e.tx;
     gy[i] = e.ty;
     const w = UNITS[e.type].weapon;
+    if (e.ziel) {
+      // Gezielter Angriff: dem Ziel nach, in Reichweite stehen bleiben
+      const t = byId(world, e.ziel);
+      if (!t || t.dead) {
+        e.ziel = 0;
+        e.tx = e.befX = gx[i] = e.x;
+        e.ty = e.befY = gy[i] = e.y;
+        e.arrived = true;
+        continue;
+      }
+      e.tx = gx[i] = t.x;
+      e.ty = gy[i] = t.y;
+      const nah = reichweite(e, t) - 10;
+      if (dist2(e.x, e.y, t.x, t.y) <= nah * nah) {
+        gx[i] = e.x;
+        gy[i] = e.y;
+      }
+      continue;
+    }
     if (!w || !(e.arrived || e.aggro) || e.auftrag) continue; // wer baut, jagt nicht
     const leine = e.arrived ? LEASH + w.range : MAP * 2;
     const o = chaseTarget(alle, alleRaster, e, w.range + CHASE, leine);
@@ -2845,7 +2905,16 @@ function combat(world) {
     }
     // Schiessende Gebaeude brauchen Gegenwart -- gedrosselt schwaecher, ohne gar nicht.
     if (e.kind === 'building' && !e.powered) continue;
-    const target = nearestEnemy(alle, alleRaster, e);
+    // Gezielter Angriff geht vor, sobald das Ziel in Reichweite ist
+    let target = null;
+    if (e.kind === 'unit' && e.ziel) {
+      const t = byId(world, e.ziel);
+      if (t && !t.dead) {
+        const r = reichweite(e, t);
+        if (dist2(e.x, e.y, t.x, t.y) <= r * r) target = t;
+      }
+    }
+    if (!target) target = nearestEnemy(alle, alleRaster, e);
     if (!target) continue;
 
     let dmg = target.kind === 'building' && def.weapon.gebaeude ? def.weapon.gebaeude : def.weapon.damage;
@@ -3054,6 +3123,7 @@ function hash(world) {
       for (const id of e.reihe) mix(id);
       mix(e.seit);
       mix(e.befX);
+      mix(e.ziel);
       mix(e.wege.length);
       for (let k = 0; k < e.wege.length; k++) mix(e.wege[k][0] * 3 + e.wege[k][1] * 7 + e.wege[k][2]);
       mix(e.befY);
@@ -3216,6 +3286,279 @@ function vermutetesHaupt(k, haupt) {
 /** Steht hier ein bekanntes gegnerisches Gebaeude im Weg (fuer Bauplaetze)? */
 function bekanntBei(k, x, y, r) {
   return k.gebaeude.some((b) => dist2(x, y, b.x, b.y) < (r + BUILDINGS[b.type].radius) ** 2);
+}
+
+
+/* ---------------------------------- */
+
+// Kartenbau: Zufallskarten und die Pruefung eigener Karten. Deterministisch
+// wie die Simulation (nur Integer, rng() mit eigenem Seed) -- dieselbe Zahl
+// ergibt auf jedem Rechner dieselbe Karte, Wiederholungen bleiben gueltig.
+//
+// Jede Karte ist punktsymmetrisch um die Mitte: Was auf der einen Haelfte
+// liegt, liegt gespiegelt auf der anderen. Beide Sitzplaetze spielen damit
+// dieselbe Karte, nur gedreht -- fair, ohne dass man es pruefen muss.
+
+
+
+// Hauptgebaeude stehen fest an zwei Ecken (siehe setupMap in sim.js).
+const BASIS = [
+  { x: 3000, y: 3000 },
+  { x: MAP - 3000, y: MAP - 3000 },
+];
+// Um jede Basis bleibt so viel Platz frei (dm): Grunddomaene des Hauptgebaeudes.
+const BASIS_FREI = 4300;
+
+const kbSpiegel = (o) => ({ ...o, x: MAP - o.x, y: MAP - o.y });
+/** Liste mit Spiegelbildern; was genau auf der Mitte liegt, nur einmal. */
+function spiegelPaare(liste) {
+  const out = [];
+  for (const o of liste) {
+    out.push(o);
+    if (o.x * 2 !== MAP || o.y * 2 !== MAP) out.push(kbSpiegel(o));
+  }
+  return out;
+}
+
+/** Leere Karte -- Ausgangspunkt fuer den Editor. Fuenf Adern je Basis wie auf der klassischen Karte. */
+function leereKarte(name = 'Eigene Karte') {
+  return {
+    name,
+    hindernisse: [],
+    adern: spiegelPaare(BASIS_ADERN),
+    wald: [],
+    wiesen: [],
+    furten: [],
+  };
+}
+const BASIS_ADERN = [
+  { x: 4800, y: 2200, kind: 'fron' },
+  { x: 2200, y: 4800, kind: 'fron' },
+  { x: 6200, y: 4500, kind: 'fron' },
+  { x: 6700, y: 2100, kind: 'fron' },
+  { x: 2100, y: 6700, kind: 'fron' },
+];
+
+// ------------------------------------------------------------ Pruefung
+
+/**
+ * Was an einer Karte nicht stimmt, als Liste von Saetzen; leer heisst
+ * spielbar. Prueft Symmetrie, freie Startbasen, freie Adern und ob man von
+ * Basis zu Basis kommt.
+ */
+function kartenFehler(k) {
+  const fehler = [];
+  for (const [name, liste] of [['Hindernis', k.hindernisse], ['Ader', k.adern]]) {
+    for (const o of liste) {
+      if (o.x < 0 || o.y < 0 || o.x > MAP || o.y > MAP) fehler.push(`${name} ausserhalb der Karte bei ${o.x},${o.y}`);
+      if (!liste.some((p) => p.x === MAP - o.x && p.y === MAP - o.y && (p.kind || p.art) === (o.kind || o.art))) {
+        fehler.push(`${name} bei ${o.x},${o.y} hat kein Spiegelbild`);
+      }
+    }
+  }
+  for (const b of BASIS) {
+    if (k.hindernisse.some((h) => (h.x - b.x) ** 2 + (h.y - b.y) ** 2 < (h.r + 1800) ** 2)) {
+      fehler.push('Ein Hindernis steht in der Startbasis');
+      break;
+    }
+  }
+  for (const d of k.adern) {
+    if (k.hindernisse.some((h) => (d.x - h.x) ** 2 + (d.y - h.y) ** 2 < (h.r + 150) ** 2)) {
+      fehler.push(`Ader bei ${d.x},${d.y} liegt in einem Hindernis`);
+    }
+  }
+  if (k.adern.filter((d) => d.kind === 'fron').length < 6) fehler.push('Zu wenige Fron-Adern (mindestens drei je Seite)');
+  if (!verbunden(k.hindernisse, BASIS[0], BASIS[1])) fehler.push('Von Basis zu Basis gibt es keinen Weg');
+  return fehler;
+}
+
+/** Gibt es einen Weg zwischen zwei Punkten? Breitensuche ueber das Wegegitter. */
+function verbunden(hindernisse, a, b) {
+  const N = MAP / ZELLE;
+  const { frei } = wegGitter(hindernisse);
+  const start = ((a.y / ZELLE) | 0) * N + ((a.x / ZELLE) | 0);
+  const ziel = ((b.y / ZELLE) | 0) * N + ((b.x / ZELLE) | 0);
+  if (!frei[start] || !frei[ziel]) return false;
+  const gesehen = new Uint8Array(N * N);
+  const schlange = [start];
+  gesehen[start] = 1;
+  for (let i = 0; i < schlange.length; i++) {
+    const c = schlange[i];
+    if (c === ziel) return true;
+    const cx = c % N;
+    const cy = (c / N) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      const n = ny * N + nx;
+      if (gesehen[n] || !frei[n]) continue;
+      gesehen[n] = 1;
+      schlange.push(n);
+    }
+  }
+  return false;
+}
+
+// ------------------------------------------------------------ Bausteine
+
+/** Kreiskette entlang eines Linienzugs (Fluss oder Grat), ohne Kreise nahe den Luecken. */
+function kette(punkte, r, abstand, art, luecken = [], frei = 0) {
+  const out = [];
+  for (let i = 0; i + 1 < punkte.length; i++) {
+    const [x0, y0] = punkte[i];
+    const [x1, y1] = punkte[i + 1];
+    const l = isqrt((x1 - x0) ** 2 + (y1 - y0) ** 2);
+    const n = Math.max(1, ((l + (abstand >> 1)) / abstand) | 0);
+    const bis = i + 2 === punkte.length ? n : n - 1;
+    for (let k = 0; k <= bis; k++) {
+      const x = (x0 + ((x1 - x0) * k) / n) | 0;
+      const y = (y0 + ((y1 - y0) * k) / n) | 0;
+      if (luecken.some((f) => (f.x - x) ** 2 + (f.y - y) ** 2 < frei * frei)) continue;
+      const h = { x, y, r, art };
+      if (art === 'see' && frei) h.fluss = true;
+      out.push(h);
+    }
+  }
+  return out;
+}
+
+// ------------------------------------------------------------ Zufallskarten
+
+/**
+ * Eine Zufallskarte zur Zahl seed. Gebaut wird eine Haelfte, gespiegelt die
+ * andere; misslingt die Pruefung (kein Weg, Ader im Fels), wird mit dem
+ * naechsten Zufall neu gebaut.
+ */
+function zufallsKarte(seed) {
+  const z = { seed: seed | 0 || 1 };
+  for (let versuch = 0; versuch < 40; versuch++) {
+    const k = baueZufallsKarte(z, seed);
+    if (!kartenFehler(k).length) return k;
+  }
+  // Notfall: eine Karte ohne Hindernisse ist immer spielbar
+  const k = leereKarte('Zufall ' + seed);
+  k.adern = k.adern.concat(spiegelPaare([{ x: 10000, y: 6500, kind: 'fron' }]), [{ x: 10000, y: 10000, kind: 'goetterblut' }]);
+  return k;
+}
+
+const kbZufall = (z, von, bis) => von + (rng(z) % (bis - von + 1));
+const kbFrei = (k, x, y, r) =>
+  x > 400 && y > 400 && x < MAP - 400 && y < MAP - 400 &&
+  !BASIS.some((b) => (x - b.x) ** 2 + (y - b.y) ** 2 < (r + BASIS_FREI) ** 2) &&
+  !k.hindernisse.some((h) => (x - h.x) ** 2 + (y - h.y) ** 2 < (r + h.r + 300) ** 2);
+
+function baueZufallsKarte(z, seed) {
+  const k = { name: 'Zufall ' + seed, hindernisse: [], adern: [], wald: [], wiesen: [], furten: [] };
+  const haelfte = []; // Hindernisse der einen Haelfte, gespiegelt am Ende
+  const ziel = { hindernisse: haelfte };
+
+  // Fluss quer durch die Mitte, mit Furten (in jeder zweiten Karte)
+  const mitFluss = kbZufall(z, 0, 9) < 5;
+  if (mitFluss) {
+    const y0 = kbZufall(z, 9000, 15000);
+    const punkte = [[0, y0]];
+    const n = 4;
+    for (let i = 1; i < n; i++) {
+      const x = ((10000 * i) / n) | 0;
+      const y = (y0 + ((10000 - y0) * i) / n + kbZufall(z, -1200, 1200)) | 0;
+      punkte.push([x, y]);
+    }
+    punkte.push([9650, 9800]);
+    // eine Furt nahe dem Rand, manchmal eine zweite naeher zur Mitte
+    const furten = [];
+    const i1 = 1;
+    furten.push({ x: (punkte[0][0] + punkte[i1][0]) >> 1, y: (punkte[0][1] + punkte[i1][1]) >> 1 });
+    if (kbZufall(z, 0, 1)) furten.push({ x: punkte[2][0], y: punkte[2][1] });
+    haelfte.push(...kette(punkte, 300, 400, 'see', furten, 520));
+    k.furten.push(...spiegelPaare(furten));
+  }
+  // Mitte: Felsring, See oder Fluss
+  const mitte = mitFluss ? 'fluss' : ['ring', 'see', 'offen'][kbZufall(z, 0, 2)];
+  if (mitte === 'fluss') {
+    k.hindernisse.push({ x: 10000, y: 10000, r: 300, art: 'see', fluss: true });
+  } else if (mitte === 'ring') {
+    const r = kbZufall(z, 1100, 1500);
+    for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) k.hindernisse.push({ x: 10000 + dx, y: 10000 + dy, r: 480, art: 'fels' });
+  } else if (mitte === 'see') {
+    k.hindernisse.push({ x: 10000, y: 10000, r: kbZufall(z, 700, 1200), art: 'see' });
+  }
+  // Grate
+  for (let i = kbZufall(z, 1, 3); i > 0; i--) {
+    for (let t = 0; t < 12; t++) {
+      const x0 = kbZufall(z, 1000, 15000);
+      const y0 = kbZufall(z, 1000, 15000);
+      const w = kbZufall(z, 0, 359);
+      const l = kbZufall(z, 2500, 6000);
+      const x1 = x0 + (((l * cosDeg(w)) / 1000) | 0);
+      const y1 = y0 + (((l * sinDeg(w)) / 1000) | 0);
+      if (!kbFrei(ziel, x0, y0, 600) || !kbFrei(ziel, x1, y1, 600) || !kbFrei(ziel, (x0 + x1) >> 1, (y0 + y1) >> 1, 600)) continue;
+      const n = Math.max(4, (l / 450) | 0);
+      const luecke = kbZufall(z, 1, n - 2);
+      const teile = kette([[x0, y0], [x1, y1]], kbZufall(z, 330, 450), (l / n) | 0, 'fels');
+      haelfte.push(...teile.filter((_, j) => j !== luecke && j !== luecke + 1));
+      break;
+    }
+  }
+  // Felsgruppen und Seen
+  for (let i = kbZufall(z, 2, 4); i > 0; i--) {
+    for (let t = 0; t < 12; t++) {
+      const x = kbZufall(z, 1500, 17000);
+      const y = kbZufall(z, 1500, 17000);
+      if (!kbFrei(ziel, x, y, 1200)) continue;
+      for (let j = kbZufall(z, 2, 4); j > 0; j--) {
+        haelfte.push({ x: x + kbZufall(z, -700, 700), y: y + kbZufall(z, -700, 700), r: kbZufall(z, 450, 850), art: 'fels' });
+      }
+      break;
+    }
+  }
+  for (let i = kbZufall(z, 0, 2); i > 0; i--) {
+    for (let t = 0; t < 12; t++) {
+      const r = kbZufall(z, 700, 1400);
+      const x = kbZufall(z, 1500, 17000);
+      const y = kbZufall(z, 1500, 17000);
+      if (!kbFrei(ziel, x, y, r)) continue;
+      haelfte.push({ x, y, r, art: 'see' });
+      break;
+    }
+  }
+  k.hindernisse.push(...spiegelPaare(haelfte));
+
+  // Adern: die fuenf an der Basis, weitere auf der Karte, Goetterblut
+  const adern = BASIS_ADERN.slice();
+  const aderFrei = (x, y) =>
+    kbFrei(k, x, y, 200) && !adern.some((d) => (d.x - x) ** 2 + (d.y - y) ** 2 < 2200 * 2200) &&
+    !adern.some((d) => (MAP - d.x - x) ** 2 + (MAP - d.y - y) ** 2 < 2200 * 2200) &&
+    (x + y < MAP - 1500 || x + y > MAP + 1500); // nicht zu nah an der Mittellinie, sonst stoesst sie an ihr Spiegelbild
+  let fron = kbZufall(z, 3, 5);
+  for (let t = 0; t < 200 && fron > 0; t++) {
+    const x = kbZufall(z, 1000, 19000);
+    const y = kbZufall(z, 1000, 19000);
+    if (!aderFrei(x, y)) continue;
+    adern.push({ x, y, kind: 'fron' });
+    fron--;
+  }
+  const mitteFrei = mitte === 'ring' || mitte === 'offen';
+  if (mitteFrei) k.adern.push({ x: 10000, y: 10000, kind: 'goetterblut' });
+  let blut = mitteFrei ? kbZufall(z, 0, 1) : 1;
+  for (let t = 0; t < 200 && blut > 0; t++) {
+    const x = kbZufall(z, 1500, 18500);
+    const y = kbZufall(z, 1500, 18500);
+    if (!aderFrei(x, y)) continue;
+    // Goetterblut liegt nicht vor der eigenen Haustuer
+    const dA = (x - BASIS[0].x) ** 2 + (y - BASIS[0].y) ** 2;
+    if (dA < 9000 * 9000) continue;
+    adern.push({ x, y, kind: 'goetterblut' });
+    blut--;
+  }
+  k.adern.push(...spiegelPaare(adern));
+
+  // Optik: Wald und Wiesen
+  for (let i = kbZufall(z, 3, 6); i > 0; i--) k.wald.push({ x: kbZufall(z, 1000, 19000), y: kbZufall(z, 1000, 9500), r: kbZufall(z, 1500, 3200) });
+  for (let i = kbZufall(z, 1, 3); i > 0; i--) k.wiesen.push({ x: kbZufall(z, 1000, 19000), y: kbZufall(z, 1000, 9500), r: kbZufall(z, 1500, 3000) });
+  k.wald = spiegelPaare(k.wald);
+  k.wiesen = spiegelPaare(k.wiesen);
+  return k;
 }
 
 
@@ -4760,7 +5103,63 @@ const ICONS = {
     <path d="M17 14 C19 15, 20 17, 20 20" fill="none" stroke="${IC_G_HELL}" stroke-width="1.8" stroke-linecap="round"/>
     <path d="M20 11 C23 13, 23 18, 23 21" fill="none" stroke="${IC_G}" stroke-width="1.8" stroke-linecap="round"/>
   </svg>`,
+
+  // ----------------------------------------------------------- Bedienung
+  ton: `<svg viewBox="0 0 24 24">
+    <!-- Lautsprecher aktiv: Schallaustritt mit zwei goldenen Schallwellen -->
+    <path d="M4 9 L8 9 L13 4 L13 20 L8 15 L4 15 Z" fill="#243b53" stroke="${IC_M}" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M16 8 C17.8 9.5, 17.8 14.5, 16 16" fill="none" stroke="${IC_M_HELL}" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M19 5 C22.2 7.8, 22.2 16.2, 19 19" fill="none" stroke="${IC_M}" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  stumm: `<svg viewBox="0 0 24 24">
+    <!-- Lautsprecher stummgeschaltet mit roter Diagonalsperre -->
+    <path d="M4 9 L8 9 L13 4 L13 20 L8 15 L4 15 Z" fill="#1b2533" stroke="#64748b" stroke-width="1.6" stroke-linejoin="round"/>
+    <line x1="3" y1="3" x2="21" y2="21" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="16.5" y1="9.5" x2="20.5" y2="13.5" stroke="#ef4444" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="20.5" y1="9.5" x2="16.5" y2="13.5" stroke="#ef4444" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  hilfe: `<svg viewBox="0 0 24 24">
+    <!-- Hilfesymbol: Runde Schutzmünze mit leuchtendem Fragezeichen -->
+    <circle cx="12" cy="12" r="9.5" fill="#102a43" stroke="${IC_M}" stroke-width="1.6"/>
+    <path d="M9.5 8.5 C9.5 6.6, 10.8 5.2, 12.4 5.2 C14.0 5.2, 15.2 6.4, 15.2 7.8 C15.2 9.4, 13.6 10.4, 12.4 11.5 V13.2" fill="none" stroke="${IC_M_HELL}" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="12.4" cy="16.8" r="1.3" fill="${IC_M_HELL}"/>
+  </svg>`,
+
+  wiederholung: `<svg viewBox="0 0 24 24">
+    <!-- Wiederholung / Replay: Kreispfeil um Wiedergabe-Kern -->
+    <path d="M12 4 A8 8 0 1 1 5.6 7.4" fill="none" stroke="${IC_M}" stroke-width="2.2" stroke-linecap="round"/>
+    <polygon points="2,7 6.5,2.5 7,7.8" fill="${IC_M_HELL}"/>
+    <!-- Abspielkern -->
+    <circle cx="12" cy="12" r="3.2" fill="#243b53" stroke="${IC_M_HELL}" stroke-width="1.2"/>
+    <polygon points="11,10.2 14.2,12 11,13.8" fill="${IC_M_HELL}"/>
+  </svg>`,
+
+  sammelpunkt: `<svg viewBox="0 0 24 24">
+    <!-- Sammelpunkt: Bannerstandarte mit Zielkreis am Boden -->
+    <path d="M5 21 L5 3" stroke="${IC_SILBER}" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="5,2 3.8,4.5 6.2,4.5" fill="${IC_M}"/>
+    <!-- Schwalbenschwanz-Fahne nach rechts wehend -->
+    <path d="M5 4 L19 8.5 L15 11 L19 13.5 L5 13.5 Z" fill="${IC_M}" stroke="${IC_M_HELL}" stroke-width="1" stroke-linejoin="round"/>
+    <circle cx="9.5" cy="8.8" r="1.4" fill="${IC_M_HELL}"/>
+    <!-- Konzentrische Zielmarkierung am Boden -->
+    <ellipse cx="6" cy="20.5" rx="4.5" ry="1.8" fill="none" stroke="${IC_M_HELL}" stroke-width="1.4" stroke-dasharray="2 1.5"/>
+  </svg>`,
+
+  steuergruppe: `<svg viewBox="0 0 24 24">
+    <!-- Steuergruppe: Formations-Banner mit Gruppenleiter-Standarte -->
+    <rect x="3" y="9" width="5.5" height="9" rx="1.5" fill="#243b53" stroke="${IC_M}" stroke-width="1.2"/>
+    <rect x="15.5" y="9" width="5.5" height="9" rx="1.5" fill="#243b53" stroke="${IC_M}" stroke-width="1.2"/>
+    <!-- Zentrales Fuehrungsbanner -->
+    <rect x="8.5" y="4" width="7" height="12" rx="1.8" fill="#102a43" stroke="${IC_M_HELL}" stroke-width="1.5"/>
+    <path d="M12 6.5 L12 11.5 M10 8 L12 6.5 L14 8" stroke="${IC_M_HELL}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="2" y1="20" x2="22" y2="20" stroke="${IC_M}" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="5.7" cy="13" r="1" fill="${IC_M}"/>
+    <circle cx="18.3" cy="13" r="1" fill="${IC_M}"/>
+  </svg>`,
 };
+
 
 
 /* ---------------------------------- */
@@ -4788,6 +5187,7 @@ if (typeof MODELLE_DEF !== 'undefined') {
 
 // Gemeinsame Texte fuer beide Oberflaechen (2D und 3D). Liest den Zustand,
 // aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
+
 
 
 
@@ -4953,6 +5353,95 @@ function ressourcenHtml(world, player) {
   );
 }
 
+// ------------------------------------------------------------ Karten: fest, Zufall, eigene
+
+const KARTEN_SPEICHER = 'dreiReiche.karten';
+
+/** Vom Editor gewaehlte Karte (einmalig), sonst die klassische. */
+function vorgewaehlteKarte() {
+  try {
+    const k = localStorage.getItem('dreiReiche.karteWahl');
+    if (k) {
+      localStorage.removeItem('dreiReiche.karteWahl');
+      return k;
+    }
+  } catch {
+    /* ohne Speicher eben die Vorgabe */
+  }
+  return 'klassisch';
+}
+
+/** Eigene Karten aus dem Speicher des Browsers (vom Editor oder geladen). */
+function eigeneKarten() {
+  try {
+    const l = JSON.parse(localStorage.getItem(KARTEN_SPEICHER) || '[]');
+    return Array.isArray(l) ? l : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Eine eigene Karte speichern (gleicher Name ersetzt); liefert ihre Nummer. */
+function eigeneKarteSpeichern(daten) {
+  const l = eigeneKarten().filter((k) => k.name !== daten.name);
+  l.push(daten);
+  try {
+    localStorage.setItem(KARTEN_SPEICHER, JSON.stringify(l));
+  } catch {
+    /* ohne Speicher nur fuer diese Sitzung */
+  }
+  return l.length - 1;
+}
+
+/**
+ * Welche Karte gespielt wird: { schluessel, daten }. schluessel ist ein
+ * Name aus KARTEN, 'zufall' (neu gebaut zur Zahl seed) oder 'eigen:<Nummer>';
+ * eine Wiederholung bringt ihre Karte selbst mit.
+ */
+function karteFuerSpiel(schluessel, wdh, seed) {
+  if (wdh) return { schluessel: wdh.karte, daten: wdh.karteDaten || KARTEN[wdh.karte] || KARTEN.klassisch };
+  if (schluessel === 'zufall') return { schluessel: 'zufall', daten: zufallsKarte(seed) };
+  if (schluessel.startsWith('eigen:')) {
+    const d = eigeneKarten()[Number(schluessel.slice(6))];
+    if (d && !kartenFehler(d).length) return { schluessel: 'eigen', daten: d };
+  }
+  return KARTEN[schluessel] ? { schluessel, daten: KARTEN[schluessel] } : { schluessel: 'klassisch', daten: KARTEN.klassisch };
+}
+
+/** Kartenwahl fuer den Startbildschirm: feste Karten, Zufall, eigene, laden, Editor. */
+function kartenWahlHtml(gewaehlt) {
+  const knopf = (wert, name) =>
+    `<label><input type="radio" name="karte" value="${wert}"${wert === gewaehlt ? ' checked' : ''}> ${name}</label>`;
+  const eigene = eigeneKarten().map((k, i) => knopf('eigen:' + i, '✎ ' + k.name)).join('');
+  return `<div class="stil">Karte:
+      ${Object.keys(KARTEN).map((k) => knopf(k, KARTEN[k].name)).join('')}
+      ${knopf('zufall', '⚄ Zufall — jedes Spiel neu')}
+      ${eigene}
+    </div>
+    <div class="stil">Eigene Karte: <a class="btn" href="karteneditor.html">Karteneditor öffnen</a>
+      laden: <input type="file" id="karteDatei" accept=".json,application/json"> <span id="karteMeldung"></span></div>`;
+}
+
+/** Eine Kartendatei laden, pruefen und speichern; ruft fertig(meldung) auf. */
+function karteDateiLaden(eingabe, fertig) {
+  const datei = eingabe.files && eingabe.files[0];
+  if (!datei) return;
+  datei.text().then((text) => {
+    let d;
+    try {
+      d = JSON.parse(text);
+    } catch {
+      return fertig('Keine Karte (kein JSON).');
+    }
+    if (!d || !Array.isArray(d.hindernisse) || !Array.isArray(d.adern)) return fertig('Keine Karte der drei Reiche.');
+    const fehler = kartenFehler(d);
+    if (fehler.length) return fertig('Nicht spielbar: ' + fehler[0]);
+    d.name = d.name || datei.name.replace(/\.json$/, '');
+    eigeneKarteSpeichern(d);
+    fertig('');
+  });
+}
+
 // ------------------------------------------------------------ Steuergruppen
 
 /**
@@ -5004,6 +5493,27 @@ function heerAuswahl(world, ich) {
   return world.entities
     .filter((e) => !e.dead && e.kind === 'unit' && e.player === ich && UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander)
     .map((e) => e.id);
+}
+
+/**
+ * Feind unter dem Mauszeiger (Weltkoordinaten, Toleranz in dm), den man sehen
+ * darf -- Ziel fuer einen gezielten Angriff. Einheiten vor Gebaeuden.
+ */
+function feindBei(world, x, y, toleranz, ich, sichtbar) {
+  let best = null;
+  let bestD = Infinity;
+  for (const e of world.entities) {
+    if (e.dead || e.player === ich || !sichtbar(e)) continue;
+    const r = (e.kind === 'unit' ? UNITS[e.type].radius : BUILDINGS[e.type].radius) + toleranz;
+    const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+    if (d > r * r) continue;
+    const rang = e.kind === 'unit' ? 0 : 1;
+    if (!best || rang < best.rang || (rang === best.rang && d < bestD)) {
+      best = { e, rang };
+      bestD = d;
+    }
+  }
+  return best ? best.e : null;
 }
 
 /** Eigene Arbeiter, die nichts tun: kein Auftrag, keine Reihe, angekommen. */
@@ -7345,7 +7855,7 @@ let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
 let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
-let karteSchluessel = 'klassisch'; // Karte, im Startbildschirm waehlbar
+let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 const ME = 0;
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
@@ -7407,8 +7917,10 @@ function neu(f, zuschauen = false, wdh = null) {
   }
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
-  karteWaehlen(karteSchluessel);
-  world = createWorld({ seed: wdh ? wdh.seed : (Date.now() / 1000) | 0, factions: [f, gegner], karte: karteSchluessel });
+  const seed = wdh ? wdh.seed : (Date.now() / 1000) | 0;
+  const karte = karteFuerSpiel(karteSchluessel, wdh, seed);
+  karteWaehlen(karte.schluessel, karte.daten);
+  world = createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
   ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
@@ -7416,7 +7928,7 @@ function neu(f, zuschauen = false, wdh = null) {
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karteSchluessel, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
   verlauf = neuerVerlauf();
   endeGezeigt = false;
   angriff = false;
@@ -7460,7 +7972,10 @@ cv.addEventListener('mousedown', (e) => {
     placing = null;
     angriff = false;
     zielen = null;
-    if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0, e.shiftKey);
+    // Rechtsklick auf einen sichtbaren Feind: gezielter Angriff
+    const feind = sel.length ? feindBei(world, s2wx(mx), s2wy(my), 8 / cam.z, ME, (o) => !verborgen(o)) : null;
+    if (feind) issue(world, { type: 'angreifen', player: ME, ids: sel.slice(), id: feind.id });
+    else if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0, e.shiftKey);
     return;
   }
   if (e.button === 1) {
@@ -7602,6 +8117,7 @@ addEventListener('keydown', (e) => {
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
   if (e.key === 'm') stummSchalten(fx);
   if (e.key === '.') naechsterUntaetiger();
+  if (e.key === 's' && sel.length) issue(world, { type: 'stopp', player: ME, ids: sel.slice() });
   if (e.key === 'F2') {
     e.preventDefault();
     sel = heerAuswahl(world, ME);
@@ -8653,11 +9169,7 @@ function introHtml() {
         .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
         .join('')}
     </div>
-    <div class="stil">Karte:
-      ${Object.keys(KARTEN)
-        .map((k) => `<label><input type="radio" name="karte" value="${k}"${k === karteSchluessel ? ' checked' : ''}> ${KARTEN[k].name}</label>`)
-        .join('')}
-    </div>
+    ${kartenWahlHtml(karteSchluessel)}
 ${wiederholungWahlHtml()}
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
@@ -8710,6 +9222,19 @@ function startbildschirm() {
   document.getElementById('introSchau').onclick = () => starte('mensch', true);
   const datei = document.getElementById('wiederholungDatei');
   if (datei) datei.onchange = () => wiederholungLaden(datei);
+  const kDatei = document.getElementById('karteDatei');
+  if (kDatei) {
+    kDatei.onchange = () =>
+      karteDateiLaden(kDatei, (meldung) => {
+        if (meldung) {
+          const m = document.getElementById('karteMeldung');
+          if (m) m.textContent = meldung;
+        } else {
+          karteSchluessel = 'eigen:' + (eigeneKarten().length - 1);
+          startbildschirm();
+        }
+      });
+  }
   paused = true;
 }
 

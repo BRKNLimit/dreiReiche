@@ -5,6 +5,7 @@
 //   dist/resonit.html         2D-Ansicht   (src/shell.html)
 //   dist/drei-reiche-3d.html  3D-Ansicht   (src/shell3d.html)
 //   dist/galerie.html         Modell-Galerie fuer die Stil-Auswahl (src/galerie.html)
+//   dist/karteneditor.html    Karteneditor (src/editorshell.html)
 //
 // Die Reihenfolge zaehlt: spaetere Dateien nutzen Bezeichner der frueheren.
 
@@ -23,7 +24,7 @@ function strip(src) {
     .replace(/^\s*export\s*\{[^}]*\};?\s*$/gm, '');
 }
 
-const SIM = ['src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/kunde.js', 'src/sim/ai.js'];
+const SIM = ['src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/kunde.js', 'src/sim/kartenbau.js', 'src/sim/ai.js'];
 const SEITEN = [
   ['src/shell.html', [...SIM, 'src/icons.js', 'src/platzhalter.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/aufnahme.js', 'src/gelaende2d.js', 'src/figuren2d.js', 'src/ui.js'], 'dist/resonit.html'],
   [
@@ -32,6 +33,7 @@ const SEITEN = [
     'dist/drei-reiche-3d.html',
   ],
   ['src/galerie.html', ['src/sim/defs.js', 'src/icons.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/galerie.js'], 'dist/galerie.html'],
+  ['src/editorshell.html', [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/gelaende2d.js', 'src/editor.js'], 'dist/karteneditor.html'],
 ];
 
 await mkdir(join(root, 'dist'), { recursive: true });

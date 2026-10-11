@@ -1924,3 +1924,80 @@ test('Wegpunkte: mit Shift angehaengte Ziele laeuft die Einheit der Reihe nach a
   step(w);
   assert.equal(s.wege.length, 0, 'ohne Shift: neue Wege ersetzen die alten');
 });
+
+// ---------------------------------------------------- Gezielter Angriff, Stopp
+
+test('Gezielter Angriff: verfolgt das gewaehlte Ziel und schiesst zuerst darauf', () => {
+  const w = bare();
+  const j = spawnUnit(w, 0, 'jaeger', 5000, 5000);
+  const nah = spawnUnit(w, 1, 'rabe', 5000 + 600, 5000); // naeher, kaempft nicht, aber nicht gewaehlt
+  const fern = spawnUnit(w, 1, 'waldgeist', 7000, 5000);
+  nah.hp = 100000;
+  j.hp = j.maxHp = 100000; // das Duell selbst ist hier nicht die Frage
+  issue(w, { type: 'angreifen', player: 0, ids: [j.id], id: fern.id });
+  for (let i = 0; i < 800 && !fern.dead; i++) {
+    step(w);
+    nah.tx = nah.x; // der Rabe bleibt stehen
+    nah.ty = nah.y;
+  }
+  assert.ok(fern.dead, 'das gewaehlte Ziel faellt');
+  step(w);
+  assert.equal(j.ziel, 0, 'Ziel weg: Auftrag erledigt');
+});
+
+test('Stopp: die Einheit bleibt stehen und vergisst Wege und Ziel', () => {
+  const w = bare();
+  const s = spawnUnit(w, 0, 'soldat', 5000, 5000);
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: 9000, y: 5000 });
+  for (let i = 0; i < 5; i++) step(w);
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: 9000, y: 9000, anhaengen: true });
+  step(w);
+  issue(w, { type: 'stopp', player: 0, ids: [s.id] });
+  step(w);
+  const x = s.x;
+  for (let i = 0; i < 20; i++) step(w);
+  assert.equal(s.x, x, 'steht');
+  assert.equal(s.wege.length, 0);
+});
+
+// ---------------------------------------------------- Zufalls- und eigene Karten
+
+test('Zufallskarten: spielbar, symmetrisch, gleiche Zahl gleiche Karte', async () => {
+  const { zufallsKarte, kartenFehler } = await import('../src/sim/kartenbau.js');
+  for (let s = 1; s <= 40; s++) {
+    const k = zufallsKarte(s);
+    assert.deepEqual(kartenFehler(k), [], 'Karte ' + s);
+    assert.ok(k.hindernisse.length > 0, 'Karte ' + s + ' hat Gelaende');
+  }
+  assert.deepEqual(zufallsKarte(7), zufallsKarte(7));
+  assert.notDeepEqual(zufallsKarte(7).hindernisse, zufallsKarte(8).hindernisse);
+  for (const k of Object.values(KARTEN)) assert.deepEqual(kartenFehler(k), [], k.name);
+});
+
+test('Eigene Karte: Pruefung findet, was nicht stimmt', async () => {
+  const { leereKarte, kartenFehler, spiegelPaare } = await import('../src/sim/kartenbau.js');
+  const k = leereKarte();
+  assert.deepEqual(kartenFehler(k), []);
+  assert.ok(kartenFehler({ ...k, hindernisse: [{ x: 9000, y: 9000, r: 500, art: 'fels' }] }).some((f) => f.includes('Spiegelbild')));
+  assert.ok(kartenFehler({ ...k, hindernisse: spiegelPaare([{ x: 3200, y: 3000, r: 500, art: 'fels' }]) }).some((f) => f.includes('Startbasis')));
+  // Eine Mauer quer ueber die Karte: kein Weg
+  const mauer = [];
+  for (let i = 0; i <= 20; i++) mauer.push({ x: i * 1000, y: 20000 - i * 1000, r: 600, art: 'fels' });
+  assert.ok(kartenFehler({ ...k, hindernisse: mauer }).some((f) => f.includes('keinen Weg')));
+});
+
+test('Zufallskarte: eine KI-Partie laeuft und bleibt deterministisch', async () => {
+  const { zufallsKarte } = await import('../src/sim/kartenbau.js');
+  const lauf = () => {
+    const w = createWorld({ seed: 9, karte: 'zufall', karteDaten: zufallsKarte(1234) });
+    const ais = [createAI(0, 1), createAI(1, 2)];
+    for (let i = 0; i < 3000; i++) {
+      stepAI(ais[0], w);
+      stepAI(ais[1], w);
+      step(w);
+    }
+    assert.ok(w.entities.filter((e) => e.kind === 'building').length > 10, 'beide bauen');
+    return hash(w);
+  };
+  assert.equal(lauf(), lauf());
+});

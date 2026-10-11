@@ -110,6 +110,7 @@ if (isMainThread) {
   const maxMin = Number(process.argv[3] ?? 45);
   const filter = process.argv[4] ?? '';
   const stile = process.argv[5] === 'stile';
+  const stufen = process.argv[5] === 'stufen';
   const names = Object.keys(CONFIGS).filter((n) => n.includes(filter));
   const seeds = SEEDS.slice(0, nSeeds);
   const limit = Math.max(1, availableParallelism() - 1);
@@ -130,7 +131,7 @@ if (isMainThread) {
       const step = () => {
         if (next >= jobs.length) return resolve();
         const job = jobs[next++];
-        const w = new Worker(new URL(import.meta.url), { workerData: { ...job, maxMin, stile } });
+        const w = new Worker(new URL(import.meta.url), { workerData: { ...job, maxMin, stile, stufen } });
         (teile[job.name] = teile[job.name] || []).push({ ab: job.ab, r: null });
         const platz = teile[job.name][teile[job.name].length - 1];
         w.on('message', (r) => (platz.r = r));
@@ -187,6 +188,11 @@ if (isMainThread) {
       ` ${r.blutInfo}`
     );
     console.log(' '.repeat(35) + r.games.join(' '));
+    if (stufen && names.length === 1) {
+      // Siegquote der staerkeren Stufe je Paarung, ueber beide Fraktionen und Sitzplaetze
+      console.log('');
+      for (const [k, z] of Object.entries(r.paar)) console.log(`  ${k.padEnd(16)} ${Math.round((100 * z.m) / z.n)} % von ${z.n}`);
+    }
     if (stile && names.length === 1) {
       // Matrix: Zeilen = Stil der Menschen, Spalten = Stil des Gottes, Siegquote Menschen
       const st = ['sturm', 'standard', 'burg'];
@@ -202,7 +208,7 @@ if (isMainThread) {
     }
   }
 } else {
-  const { name, seeds, ab, maxMin, stile } = workerData;
+  const { name, seeds, ab, maxMin, stile, stufen } = workerData;
   const { createWorld, step } = await import('../src/sim/sim.js');
   const { createAI, stepAI, STILE } = await import('../src/sim/ai.js');
   const stilNamen = Object.keys(STILE);
@@ -252,7 +258,12 @@ if (isMainThread) {
       ['gott', 'mensch'],
     ]) {
       const w = createWorld({ factions: f, seed });
-      const ais = [createAI(0, seed, st[f[0]]), createAI(1, seed + 1, st[f[1]])];
+      // Mit "stufen": je Seed eine Paarung -- schwer gegen mittel, mittel gegen leicht --,
+      // die staerkere Stufe wechselt die Fraktion mit dem Sitzplatz.
+      const paarung = [['schwer', 'mittel'], ['mittel', 'leicht']][(ab + k) % 2];
+      const sf = f[0] === 'mensch' ? 0 : 1; // Sitz der Menschen
+      const stufeVon = (p) => (!stufen ? 'mittel' : (p === sf) === ((ab + k) % 4 < 2) ? paarung[0] : paarung[1]);
+      const ais = [createAI(0, seed, st[f[0]], stufeVon(0)), createAI(1, seed + 1, st[f[1]], stufeVon(1))];
       const erst = [-1, -1];
       while (!w.over && w.tick < maxMin * 600) {
         stepAI(ais[0], w);
@@ -267,10 +278,11 @@ if (isMainThread) {
         continue;
       }
       const fac = w.players[w.winner].faction;
-      const pk = st.mensch + '/' + st.gott;
+      // Bei "stufen": paar zaehlt Siege der staerkeren Stufe je Paarung (Feld m).
+      const pk = stufen ? paarung.join(' > ') : st.mensch + '/' + st.gott;
       paar[pk] = paar[pk] || { m: 0, n: 0 };
       paar[pk].n++;
-      if (fac === 'mensch') paar[pk].m++;
+      if (stufen ? stufeVon(w.winner) === paarung[0] : fac === 'mensch') paar[pk].m++;
       games.push((fac === 'mensch' ? 'M' : 'G') + min);
       if (fac === 'mensch') m++;
       else g++;

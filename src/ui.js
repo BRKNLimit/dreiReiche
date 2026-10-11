@@ -13,6 +13,7 @@ let angriff = false; // A gedrueckt: naechster Klick ist eine Angriffsbewegung
 let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
 let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
+let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
 const ME = 0;
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
@@ -48,7 +49,7 @@ function neu(f, zuschauen = false) {
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
   world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
-  ai = createAI(1, world.seed, gegnerStil);
+  ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
   nebel = neuerNebel(!zuschauen);
@@ -869,7 +870,7 @@ function drawHud() {
 
   document.getElementById('ressourcen').innerHTML = ressourcenHtml(world, ME);
   document.getElementById('hud').innerHTML = `
-    <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}</div>
+    <div class="fac">${FACTIONS[meFaction].name}${aiMe ? ' · Zuschauen' : ''} · Gegner ${gegnerStil}, ${gegnerStufe}</div>
     <div class="res">
       ${fronBilanz()}
       ${skillZeile(world, ME)}
@@ -1143,6 +1144,11 @@ function introHtml() {
         .map((s) => `<label><input type="radio" name="stil" value="${s}"${s === gegnerStil ? ' checked' : ''}> ${STIL_NAMEN[s]}</label>`)
         .join('')}
     </div>
+    <div class="stil">Schwierigkeit:
+      ${Object.keys(STUFEN)
+        .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
+        .join('')}
+    </div>
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
       <button id="introGott">Als Gott spielen</button>
@@ -1150,9 +1156,16 @@ function introHtml() {
     </div>`;
 }
 const STIL_NAMEN = { sturm: 'Sturm — greift früh an', standard: 'Standard', burg: 'Burg — baut aus, greift spät an' };
+const STUFEN_NAMEN = {
+  leicht: 'Leicht — reagiert langsam, baut wenig aus',
+  mittel: 'Mittel',
+  schwer: 'Schwer — schnell, baut früh aus',
+};
 function starte(f, zuschauen) {
   const gewaehlt = document.querySelector?.('#intro input[name="stil"]:checked');
   if (gewaehlt) gegnerStil = gewaehlt.value;
+  const stufe = document.querySelector?.('#intro input[name="stufe"]:checked');
+  if (stufe) gegnerStufe = stufe.value;
   document.getElementById('intro').style.display = 'none';
   paused = false;
   neu(f, zuschauen);

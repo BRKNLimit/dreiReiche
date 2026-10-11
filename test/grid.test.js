@@ -29,7 +29,7 @@ import {
 } from '../src/sim/sim.js';
 import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN, KARTE } from '../src/sim/defs.js';
 import { wegGitter, ZELLE } from '../src/sim/weg.js';
-import { createAI, stepAI } from '../src/sim/ai.js';
+import { createAI, stepAI, STUFEN } from '../src/sim/ai.js';
 
 function bare(f0 = 'mensch', f1 = 'gott') {
   return createWorld({ empty: true, factions: [f0, f1] });
@@ -437,6 +437,21 @@ test('beide KIs bauen eine Wirtschaft und beide Einheitentypen', () => {
   }
   for (let p = 0; p < 2; p++) {
     assert.ok(typen[p].size >= 2, `Spieler ${p} baut mehr als einen Typ: ${[...typen[p]]}`);
+  }
+});
+
+test('KI-Stufen: alle drei spielen, schwer entscheidet am oeftesten', () => {
+  assert.deepEqual(Object.keys(STUFEN), ['leicht', 'mittel', 'schwer']);
+  assert.ok(STUFEN.schwer.takt < STUFEN.mittel.takt && STUFEN.mittel.takt < STUFEN.leicht.takt);
+  for (const stufe of Object.keys(STUFEN)) {
+    const w = createWorld({ seed: 3 });
+    const ais = [createAI(0, 1, 'standard', stufe), createAI(1, 2, 'standard', stufe)];
+    for (let i = 0; i < 1500; i++) {
+      stepAI(ais[0], w);
+      stepAI(ais[1], w);
+      step(w);
+    }
+    assert.ok(w.entities.filter((e) => e.player === 0 && e.kind === 'building').length > 3, stufe + ' baut');
   }
 });
 

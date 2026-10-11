@@ -3,6 +3,21 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.24 — Schwierigkeitsgrade
+
+- Gegner-KI in drei Stufen (`STUFEN` in `ai.js`), nur über Verhalten,
+  ohne Boni bei Ressourcen oder Werten:
+  - **Leicht:** entscheidet halb so oft, 70 % der Arbeiter, zweite Fabrik ab
+    Minute 8, keine dritte, baut kaum aus, erster Turm ab Minute 10, keine
+    Fähigkeiten, keine Reparatur, greift seltener an.
+  - **Mittel:** die KI bis 0.23.
+  - **Schwer:** entscheidet doppelt so oft, 130 % der Arbeiter, Fabriken ab
+    Minute 4 und 8, baut ab Minute 6 und 11 aus, greift früher an.
+- Auswahl auf dem Startbildschirm beider Ansichten, HUD nennt sie.
+- `tools/sweep.mjs … stufen` lässt die Stufen gegeneinander spielen.
+- Messung (32 Seeds, beide Fraktionen und Sitzplätze): Schwer schlägt
+  Mittel in 90 %, Mittel schlägt Leicht in 93 % der entschiedenen Partien.
+
 ## 0.23 — Nebel des Krieges
 
 - Jede Einheit und jedes Gebäude sieht in einem Umkreis (`sicht` in

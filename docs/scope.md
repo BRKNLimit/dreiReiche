@@ -544,6 +544,24 @@ grün). *Karte und Werte sind Designzahlen.*
   machen Basen schwer einnehmbar; die KI wartet dann bis zur Unterhaltsgrenze.
   Ob das Spieler auch so erleben, zeigt nur Spielen.
 
+### 17. Schwierigkeitsgrade (Stand 0.24)
+
+> **Vorgabe des Nutzers:** Leicht, mittel, schwer — selbst abschätzen, ob
+> die bisherige KI mittel oder schwer ist.
+
+**Einschätzung:** Die bisherige KI ist *mittel*. Sie baut solide aus, macht
+aber taktische Fehler — Wellen in befestigte Basen, Verteidigung, die
+tröpfchenweise anrückt. Erfahrene RTS-Spieler dürften sie schlagen.
+
+Die Stufen unterscheiden sich nur im Verhalten (Reaktionszeit, Arbeiter,
+Tempo des Ausbaus, Türme, Fähigkeiten, Reparatur, Angriffslust), nicht in
+Ressourcen oder Werten. `node tools/sweep.mjs 32 45 Ausgang stufen`:
+
+| Paarung | Siegquote der Stärkeren | entschieden |
+| --- | --- | --- |
+| schwer gegen mittel | 90 % | 29 von 32 |
+| mittel gegen leicht | 93 % | 28 von 32 |
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

@@ -67,16 +67,43 @@ const ANKER_HOECHSTENS = 8;
 // Wie weit "hinten" fuer die KI reicht: Umkreis um das eigene Hauptgebaeude.
 const HINTEN = 3000;
 
-export function createAI(player = 1, seed = 1, stil = 'standard') {
+/**
+ * Schwierigkeitsgrade -- nur Verhalten, keine Boni bei Ressourcen oder Werten.
+ *   takt:       Ticks zwischen zwei Entscheidungen (Reaktionszeit)
+ *   arbeiter:   Promille der Arbeiter-Baukraft, die gehalten wird
+ *   fabriken:   Minuten, ab denen die zweite und dritte Fabrik kommen
+ *   ausbau:     Minuten, ab denen das vierte und fuenfte Fron-Vorkommen dran sind
+ *   turmAb:     ab dieser Minute der erste Turm
+ *   satt:       Unterhalt in Promille der Foerderung, ab dem das Heer losgeht
+ *   welle:      Promille des Wellenwerts aus dem Stil
+ *   faehigkeiten, reparatur: setzt sie ein bzw. repariert
+ * "mittel" ist die KI bis Version 0.23.
+ */
+export const STUFEN = {
+  leicht: {
+    takt: 44, arbeiter: 700, fabriken: [8, 99], ausbau: [12, 99], turmAb: 10, satt: 950, welle: 1500,
+    faehigkeiten: false, reparatur: false,
+  },
+  mittel: {
+    takt: 22, arbeiter: 1000, fabriken: [6, 11], ausbau: [9, 15], turmAb: 3, satt: 800, welle: 1000,
+    faehigkeiten: true, reparatur: true,
+  },
+  schwer: {
+    takt: 11, arbeiter: 1300, fabriken: [4, 8], ausbau: [6, 11], turmAb: 3, satt: 700, welle: 900,
+    faehigkeiten: true, reparatur: true,
+  },
+};
+
+export function createAI(player = 1, seed = 1, stil = 'standard', stufe = 'mittel') {
   return {
     player, next: 20, welle: 0, zug: 0, seed: seed | 0, unterwegs: [], welleZiel: 0, stil: STILE[stil],
-    letzterBau: null, gesperrt: [],
+    stufe: STUFEN[stufe], letzterBau: null, gesperrt: [],
   };
 }
 
 export function stepAI(ai, world) {
   if (world.over || world.tick < ai.next) return;
-  ai.next = world.tick + 22;
+  ai.next = world.tick + ai.stufe.takt;
 
   const p = world.players[ai.player];
   const plan = PLAN[p.faction];
@@ -108,7 +135,9 @@ export function stepAI(ai, world) {
   //     naechsten; gibt es keine, reparieren sie ein sicheres beschaedigtes
   //     Gebaeude; sonst zurueck zum Hauptgebaeude.
   const baustellen = offen.filter((b) => sicher(b, 1200)).sort((a, b) => a.id - b.id);
-  const kaputt = bauten.filter((b) => b.done && b.hp < b.maxHp && sicher(b, 1200)).sort((a, b) => a.id - b.id);
+  const kaputt = ai.stufe.reparatur
+    ? bauten.filter((b) => b.done && b.hp < b.maxHp && sicher(b, 1200)).sort((a, b) => a.id - b.id)
+    : [];
   const ziele = baustellen.length ? baustellen : kaputt;
   for (const u of arbeiter.slice().sort((a, b) => a.id - b.id)) {
     if (u.auftrag && (baustellen.some((b) => b.id === u.auftrag) || kaputt.some((b) => b.id === u.auftrag))) continue;
@@ -167,8 +196,10 @@ export function stepAI(ai, world) {
   // Wer keine Fabrik hat, baut sie zuerst nach der ersten Foerderung -- ohne
   // Armee ist jede Wirtschaft nur Beute.
   // Fabriken nach Spielzeit, nicht nach Vorrat: wer spart, soll nicht weniger bauen.
-  const fabrikZiel = 1 + (minute >= 6 ? 1 : 0) + (minute >= 11 ? 1 : 0);
-  const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= 9 ? 1 : 0) + (minute >= 15 ? 1 : 0);
+  const [fab2, fab3] = ai.stufe.fabriken;
+  const [aus4, aus5] = ai.stufe.ausbau;
+  const fabrikZiel = 1 + (minute >= fab2 ? 1 : 0) + (minute >= fab3 ? 1 : 0);
+  const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= aus4 ? 1 : 0) + (minute >= aus5 ? 1 : 0);
   const ader = freieAder(world, haupt, 'fron');
 
   // Goetterblut liegt in der Mitte. Ein Schacht braucht Gegenwart, also muss
@@ -187,7 +218,7 @@ export function stepAI(ai, world) {
   // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
   // Verteidigung und Forschung: je eins frueh, je ein zweites ab Minute 12.
   // Der Turm kommt vor der Forschung -- er haelt allein eine fruehe Welle auf.
-  const turmZiel = minute >= 12 ? 2 : minute >= 3 ? 1 : 0;
+  const turmZiel = minute >= Math.max(12, ai.stufe.turmAb) ? 2 : minute >= ai.stufe.turmAb ? 1 : 0;
   const forschungZiel = minute >= 12 ? 2 : minute >= 4 ? 1 : 0;
   const naechster =
     ader && zahl(plan.fron) < fronZiel
@@ -315,7 +346,8 @@ export function stepAI(ai, world) {
   //    wird fuer den naechsten Bau gespart.
   // Ist das Heer kleiner als eine Welle, wird nicht gespart: ohne Truppen ist
   // jede Wirtschaft nur Beute (und der Kommandant schutzlos).
-  const heerSchwach = minute >= 5 && wert(kaempfer) < ai.stil.welle;
+  const wellenWert = ((ai.stil.welle * ai.stufe.welle) / 1000) | 0;
+  const heerSchwach = minute >= 5 && wert(kaempfer) < wellenWert;
   // Fehlt Gegenwart fuer den naechsten Bau, wird zuerst fuer die Quelle gespart.
   const sparen = heerSchwach
     ? 0
@@ -331,7 +363,7 @@ export function stepAI(ai, world) {
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
   // Arbeiter nach Baukraft: Bauern bauen schwaecher als Dryaden, also mehr davon.
-  const zielKraft = 1600 + (minute >= 6 ? 1200 : 0) + (minute >= 12 ? 1200 : 0);
+  const zielKraft = (((1600 + (minute >= 6 ? 1200 : 0) + (minute >= 12 ? 1200 : 0)) * ai.stufe.arbeiter) / 1000) | 0;
   const arbeiterZiel = Math.ceil(zielKraft / UNITS[plan.bauer].build.power);
   let arbeiterBestellt = arbeiter.length;
   for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
@@ -381,7 +413,7 @@ export function stepAI(ai, world) {
   //     Tempo), wenn genug eigene Kaempfer bei ihm stehen und Feinde nahe
   //     sind; Heilung, wenn viele Verletzte bei ihm sind; das Rudel, wenn
   //     Feinde nahe sind; ein Griff auf den dichtesten Haufen Feinde.
-  for (const id of kdt ? faehigkeitenVon(world, ai.player) : []) {
+  for (const id of kdt && ai.stufe.faehigkeiten ? faehigkeitenVon(world, ai.player) : []) {
     if (faehigkeitWarten(world, ai.player, id)) continue;
     const f = FAEHIGKEITEN[id];
     const wirken = (x, y) => issue(world, { type: 'faehigkeit', player: ai.player, faehigkeit: id, x, y });
@@ -463,10 +495,10 @@ export function stepAI(ai, world) {
   // Ausser das Heer ist satt: Der Unterhalt frisst die Foerderung fast ganz,
   // es waechst nicht mehr. Dann bringt Warten nichts, und es geht los.
   const gegnerDaheim = heimHeer(world, ai.player);
-  const satt = minute >= 8 && unterhaltProMin(world, ai.player) * 10 >= foerderungProMin(world, ai.player) * 8;
+  const satt = minute >= 8 && unterhaltProMin(world, ai.player) * 1000 >= foerderungProMin(world, ai.player) * ai.stufe.satt;
   const genug = satt
-    ? ai.stil.welle
-    : Math.max(ai.stil.welle, ((gegnerDaheim * 12) / 10) | 0);
+    ? wellenWert
+    : Math.max(wellenWert, ((gegnerDaheim * 12) / 10) | 0);
   if (!bedrohung && wert(daheimStehend) >= genug && angriff) {
     ai.welle++;
     ai.welleZiel = angriff.id;

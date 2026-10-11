@@ -641,15 +641,15 @@ test('Schlachtruf: eigene Einheiten nahe dem Helden schlagen haerter, dann kling
   w.players[0].gelernt.push('heldenmut', 'schlachtruf');
   const nah = spawnUnit(w, 0, 'soldat', held.x + 200, held.y);
   const fern = spawnUnit(w, 0, 'soldat', held.x + 5000, held.y);
-  issue(w, { type: 'faehigkeit', player: 0, x: 0, y: 0 });
+  issue(w, { type: 'faehigkeit', player: 0, faehigkeit: 'schlachtruf', x: 0, y: 0 });
   step(w);
   const f = FAEHIGKEITEN.schlachtruf;
   assert.ok(nah.rufBis > w.tick && nah.rufWert === f.wert);
   assert.equal(fern.rufBis, 0);
-  const bereit = w.players[0].faehigkeitBereit;
-  issue(w, { type: 'faehigkeit', player: 0, x: 0, y: 0 });
+  const bereit = w.players[0].faehigkeitBereit[0];
+  issue(w, { type: 'faehigkeit', player: 0, faehigkeit: 'schlachtruf', x: 0, y: 0 });
   step(w);
-  assert.equal(w.players[0].faehigkeitBereit, bereit, 'waehrend des Abklingens wirkungslos');
+  assert.equal(w.players[0].faehigkeitBereit[0], bereit, 'waehrend des Abklingens wirkungslos');
 });
 
 test('Wurzelgriff: Feinde im Umkreis bleiben stehen, aber nur in Reichweite', () => {
@@ -663,7 +663,7 @@ test('Wurzelgriff: Feinde im Umkreis bleiben stehen, aber nur in Reichweite', ()
   const feind = spawnUnit(w, 1, 'soldat', ziel.x, ziel.y);
   feind.cooldown = 1e9;
   issue(w, { type: 'move', player: 1, ids: [feind.id], x: ziel.x + 3000, y: ziel.y });
-  issue(w, { type: 'faehigkeit', player: 0, x: ziel.x, y: ziel.y });
+  issue(w, { type: 'faehigkeit', player: 0, faehigkeit: 'wurzelgriff', x: ziel.x, y: ziel.y });
   step(w);
   const x = feind.x;
   for (let i = 0; i < 20; i++) step(w);
@@ -675,9 +675,92 @@ test('Wurzelgriff: Feinde im Umkreis bleiben stehen, aber nur in Reichweite', ()
   spawnBuilding(w2, 0, 'herzbaum', 3000, 3000, true);
   spawnKommandant(w2, 0);
   w2.players[0].gelernt.push('rinde', 'wurzelgriff');
-  issue(w2, { type: 'faehigkeit', player: 0, x: 15000, y: 15000 });
+  issue(w2, { type: 'faehigkeit', player: 0, faehigkeit: 'wurzelgriff', x: 15000, y: 15000 });
   step(w2);
-  assert.equal(w2.players[0].faehigkeitBereit, 0, 'ausser Reichweite wirkungslos');
+  assert.equal(w2.players[0].faehigkeitBereit[0], 0, 'ausser Reichweite wirkungslos');
+});
+
+/** Welt mit Kommandant und gelernten Skills; gibt Welt und Kommandant zurueck. */
+function mitKommandant(f, gelernt) {
+  const w = bare(f, f === 'mensch' ? 'gott' : 'mensch');
+  spawnBuilding(w, 0, f === 'mensch' ? 'halle' : 'herzbaum', 3000, 3000, true);
+  spawnKommandant(w, 0);
+  w.players[0].gelernt.push(...gelernt);
+  return { w, k: w.entities.find((e) => e.kind === 'unit' && UNITS[e.type].commander) };
+}
+
+test('jeder Kommandant hat drei Faehigkeiten, jede ein eigener Skill', () => {
+  for (const f of ['mensch', 'gott']) {
+    const ids = FACTIONS[f].faehigkeiten;
+    assert.equal(ids.length, 3);
+    for (const id of ids) {
+      assert.ok(FAEHIGKEITEN[id], id);
+      assert.ok(Object.values(SKILLS).some((s) => s.faction === f && s.faehigkeit === id), id + ' im Skillbaum');
+    }
+  }
+});
+
+test('ungelernt wirkt keine Faehigkeit', () => {
+  const { w, k } = mitKommandant('mensch', ['heldenmut']);
+  const nah = spawnUnit(w, 0, 'soldat', k.x + 200, k.y);
+  issue(w, { type: 'faehigkeit', player: 0, faehigkeit: 'schlachtruf', x: 0, y: 0 });
+  step(w);
+  assert.equal(nah.rufBis, 0);
+});
+
+test('Schildwall: eigene Einheiten nahe dem Helden nehmen weniger Schaden', () => {
+  const { w, k } = mitKommandant('mensch', ['heldenmut', 'schildwall']);
+  const s = spawnUnit(w, 0, 'soldat', k.x + 300, k.y);
+  issue(w, { type: 'faehigkeit', player: 0, faehigkeit: 'schildwall', x: 0, y: 0 });
+  step(w);
+  assert.ok(s.wehrBis > w.tick);
+  s.arrived = false;
+  s.tx = s.x;
+  s.ty = s.y;
+  s.cooldown = 1e9;
+  const wolf = spawnUnit(w, 1, 'wolf', s.x + 60, s.y);
+  wolf.arrived = false;
+  wolf.tx = wolf.x;
+  wolf.ty = wolf.y;
+  const hp = s.hp;
+  step(w);
+  const d = UNITS.wolf.weapon.damage;
+  assert.equal(hp - s.hp, ((d * (1000 - FAEHIGKEITEN.schildwall.wert)) / 1000) | 0);
+});
+
+test('Ansturm: eigene Einheiten nahe dem Helden laufen schneller', () => {
+  const { w, k } = mitKommandant('mensch', ['heldenmut', 'schlachtruf', 'ansturm']);
+  const s = spawnUnit(w, 0, 'soldat', k.x + 300, k.y);
+  issue(w, { type: 'faehigkeit', player: 0, faehigkeit: 'ansturm', x: 0, y: 0 });
+  step(w);
+  issue(w, { type: 'move', player: 0, ids: [s.id], x: s.x, y: s.y + 5000 });
+  step(w);
+  const y0 = s.y;
+  step(w);
+  assert.equal(s.y - y0, ((UNITS.soldat.speed * (1000 + FAEHIGKEITEN.ansturm.wert)) / 1000) | 0);
+});
+
+test('Lebenssaft: eigene Einheiten nahe dem Waldgott bekommen Leben zurueck', () => {
+  const { w, k } = mitKommandant('gott', ['rinde', 'lebenssaft']);
+  const wolf = spawnUnit(w, 0, 'wolf', k.x + 300, k.y);
+  wolf.hp = 100;
+  issue(w, { type: 'faehigkeit', player: 0, faehigkeit: 'lebenssaft', x: 0, y: 0 });
+  step(w);
+  assert.equal(wolf.hp, 100 + FAEHIGKEITEN.lebenssaft.wert);
+});
+
+test('Rudelruf: Woelfe erscheinen, kosten keinen Unterhalt und vergehen', () => {
+  const { w } = mitKommandant('gott', ['rinde', 'wurzelgriff', 'rudelruf']);
+  w.players[0].fron = 1000;
+  issue(w, { type: 'faehigkeit', player: 0, faehigkeit: 'rudelruf', x: 0, y: 0 });
+  step(w);
+  const f = FAEHIGKEITEN.rudelruf;
+  const rudel = w.entities.filter((e) => e.type === f.einheit && e.player === 0);
+  assert.equal(rudel.length, f.anzahl);
+  for (let i = 0; i < 600; i++) step(w);
+  assert.equal(w.players[0].fron, 1000, 'kein Unterhalt');
+  for (let i = 0; i < f.dauer; i++) step(w);
+  assert.equal(w.entities.filter((e) => e.type === f.einheit && !e.dead).length, 0, 'vergangen');
 });
 
 test('ohne Skillbaum (RULES.skills aus) ist alles frei', () => {

@@ -73,6 +73,7 @@ export const FACTIONS = {
     // Radius steht bei Bauende fest. Planbar, sofort, ueberall gleich.
     growth: { start: 2600, max: 2600, perTick: 0 },
     kommandant: 'held',
+    faehigkeiten: ['schlachtruf', 'schildwall', 'ansturm'], // Reihenfolge = Tasten Q, W, E
   },
   gott: {
     name: 'Wald- und Wiesengott',
@@ -82,6 +83,7 @@ export const FACTIONS = {
     // start 950 statt 900: bei 160 KI-Partien ausgeglichen (docs/scope.md).
     growth: { start: 950, max: 5200, perTick: 1 },
     kommandant: 'waldgott',
+    faehigkeiten: ['wurzelgriff', 'lebenssaft', 'rudelruf'],
   },
 };
 
@@ -592,6 +594,14 @@ export const SKILLS = {
     faction: 'mensch', ast: 'kommandant', name: 'Schlachtruf', kosten: 2, braucht: ['heldenmut'], faehigkeit: 'schlachtruf',
     desc: 'Der Held reißt alle um sich mit.',
   },
+  schildwall: {
+    faction: 'mensch', ast: 'kommandant', name: 'Schildwall', kosten: 2, braucht: ['heldenmut'], faehigkeit: 'schildwall',
+    desc: 'Auf seinen Ruf schließen sich die Reihen.',
+  },
+  ansturm: {
+    faction: 'mensch', ast: 'kommandant', name: 'Ansturm', kosten: 2, braucht: ['schlachtruf'], faehigkeit: 'ansturm',
+    desc: 'Der Held stürmt voran, und alle folgen.',
+  },
 
   // --------------------------------------------------------------- Gott
   waldgeister: {
@@ -638,18 +648,36 @@ export const SKILLS = {
     faction: 'gott', ast: 'kommandant', name: 'Wurzelgriff', kosten: 2, braucht: ['rinde'], faehigkeit: 'wurzelgriff',
     desc: 'Wurzeln brechen aus dem Boden und halten Feinde fest.',
   },
+  lebenssaft: {
+    faction: 'gott', ast: 'kommandant', name: 'Lebenssaft', kosten: 2, braucht: ['rinde'], faehigkeit: 'lebenssaft',
+    desc: 'Der Wald gibt seinen Geschöpfen Kraft zurück.',
+  },
+  rudelruf: {
+    faction: 'gott', ast: 'kommandant', name: 'Rudelruf', kosten: 2, braucht: ['wurzelgriff'], faehigkeit: 'rudelruf',
+    desc: 'Ein Heulen, und das Rudel kommt.',
+  },
 };
 
-// Aktive Faehigkeiten der Kommandanten, freigeschaltet im Skillbaum.
-//   art 'ruf':   eigene Einheiten im Umkreis um den Kommandanten teilen
-//                dauer Ticks lang wert Promille mehr Schaden aus
-//   art 'griff': feindliche Einheiten im Umkreis um einen Zielpunkt
-//                (hoechstens reichweite vom Kommandanten) koennen sich dauer
-//                Ticks lang nicht bewegen -- kaempfen aber weiter
+// Aktive Faehigkeiten der Kommandanten, je drei, freigeschaltet im
+// Skillbaum (FACTIONS[...].faehigkeiten nennt sie in Tastenreihenfolge).
+//   art 'ruf':     eigene Einheiten im Umkreis um den Kommandanten teilen
+//                  dauer Ticks lang wert Promille mehr Schaden aus
+//   art 'wehr':    ... nehmen dauer Ticks lang wert Promille weniger Schaden
+//   art 'tempo':   ... laufen dauer Ticks lang wert Promille schneller
+//   art 'heilung': ... bekommen sofort wert LP zurueck
+//   art 'griff':   feindliche Einheiten im Umkreis um einen Zielpunkt
+//                  (hoechstens reichweite vom Kommandanten) koennen sich dauer
+//                  Ticks lang nicht bewegen -- kaempfen aber weiter
+//   art 'rufen':   anzahl Einheiten vom Typ einheit erscheinen beim
+//                  Kommandanten, ohne Unterhalt, und vergehen nach dauer Ticks
 // abklingen: Ticks bis zum naechsten Einsatz.
 export const FAEHIGKEITEN = {
   schlachtruf: { name: 'Schlachtruf', art: 'ruf', radius: 900, dauer: 150, wert: 300, abklingen: 900 },
+  schildwall: { name: 'Schildwall', art: 'wehr', radius: 900, dauer: 150, wert: 350, abklingen: 900 },
+  ansturm: { name: 'Ansturm', art: 'tempo', radius: 900, dauer: 100, wert: 500, abklingen: 700 },
   wurzelgriff: { name: 'Wurzelgriff', art: 'griff', reichweite: 1600, radius: 600, dauer: 80, abklingen: 700 },
+  lebenssaft: { name: 'Lebenssaft', art: 'heilung', radius: 900, wert: 300, abklingen: 900 },
+  rudelruf: { name: 'Rudelruf', art: 'rufen', einheit: 'wolf', anzahl: 3, dauer: 400, abklingen: 1200 },
 };
 
 export const START_FRON = 1100;

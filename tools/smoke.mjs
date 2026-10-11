@@ -83,6 +83,7 @@ const nodes = {
   skills: makeEl('skills'),
   karte: makeEl('karte'),
   ressourcen: makeEl('ressourcen'),
+  faehigkeiten: makeEl('faehigkeiten'),
 };
 
 globalThis.document = {

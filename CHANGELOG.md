@@ -3,6 +3,22 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.20 — Drei Fähigkeiten je Kommandant
+
+- Jeder Kommandant hat drei aktive Fähigkeiten, jede ein eigener Skill im
+  Kommandanten-Ast:
+  - **Held:** Schlachtruf (+30 % Schaden, 15 s), Schildwall (−35 %
+    genommener Schaden, 15 s), Ansturm (+50 % Tempo, 10 s) — jeweils für
+    eigene Einheiten im Umkreis von 90 m.
+  - **Waldgott:** Wurzelgriff (Feinde um einen Zielpunkt stehen 8 s fest),
+    Lebenssaft (eigene Einheiten im Umkreis bekommen 300 LP zurück),
+    Rudelruf (drei Wölfe für 40 s, ohne Unterhalt).
+- Ist der eigene Kommandant gewählt, erscheinen drei Knöpfe mit Zustand
+  (bereit, Abklingzeit, im Skillbaum gesperrt); Tasten `Q` `W` `E`.
+  `F` entfällt. Jede Fähigkeit hat ihre eigene Abklingzeit und Farbe.
+- KI lernt die neuen Fähigkeiten zuletzt und setzt alle sechs ein.
+- Messung (127 Partien): Menschen 59 : Gott 68, Ø 26 min.
+
 ## 0.19 — Ressourcenleiste, Silhouetten, große Ents
 
 - **Ressourcenleiste** nach dem Entwurf des Nutzers in beiden Ansichten:

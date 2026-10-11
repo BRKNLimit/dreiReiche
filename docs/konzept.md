@@ -145,8 +145,9 @@ Ursprünglich ohne Tech-Tree geplant; auf Wunsch des Nutzers gibt es jetzt
 einen **Skillbaum** je Fraktion. Punkte kommen mit der Zeit, schneller mit
 Forschungsgebäuden, nicht aus Ressourcen — wer früh angreift, hat wenige, wer lange lebt, viele. Er hat vier
 Äste: Einheiten (Fernkämpfer und schwere Einheiten), Gebäude (die Schreine),
-Verbesserungen des ganzen Volkes und den Kommandanten mit einer aktiven
-Fähigkeit. Grundeinheiten, Förderung, Fabriken und Anker sind ab Minute eins
+Verbesserungen des ganzen Volkes und den Kommandanten mit drei aktiven
+Fähigkeiten (Held: Schlachtruf, Schildwall, Ansturm; Waldgott: Wurzelgriff,
+Lebenssaft, Rudelruf). Grundeinheiten, Förderung, Fabriken und Anker sind ab Minute eins
 da. Keine Zeitalter. Eskalation kommt weiter aus dem Götterblut — die
 schweren Einheiten brauchen beides, den Skill und die Ader.
 

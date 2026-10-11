@@ -4,7 +4,7 @@
 
 import {
   issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, buffAt, rng, cosDeg, sinDeg,
-  unterhaltProMin, foerderungProMin, gesperrt, kannLernen, faehigkeitVon,
+  unterhaltProMin, foerderungProMin, gesperrt, kannLernen, faehigkeitenVon, faehigkeitWarten,
 } from './sim.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
 
@@ -27,11 +27,11 @@ const PLAN = {
 const LERNEN = {
   mensch: [
     'bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte',
-    'kapellenbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold',
+    'kapellenbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'ansturm',
   ],
   gott: [
     'waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss',
-    'steine', 'ents', 'borke', 'keimkraft', 'genuegsamkeit',
+    'steine', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf',
   ],
 };
 
@@ -361,30 +361,33 @@ export function stepAI(ai, world) {
     kdt &&
     (kdt.hp * 2 < kdt.maxHp || (feindeBei(world, ai.player, kdt, 1200) >= 2 && !inDomain(world, ai.player, kdt.x, kdt.y)));
 
-  // 6a. Faehigkeit des Kommandanten: ein Ruf, wenn genug eigene Kaempfer
-  //     bei ihm stehen und Feinde nahe sind; ein Griff auf den dichtesten
-  //     Haufen Feinde in Reichweite.
-  const faeh = kdt && world.tick >= p.faehigkeitBereit ? faehigkeitVon(world, ai.player) : null;
-  if (faeh) {
-    const f = FAEHIGKEITEN[faeh];
-    if (f.art === 'ruf') {
-      const eigene = kaempfer.filter((u) => dist2(u.x, u.y, kdt.x, kdt.y) <= f.radius * f.radius).length;
-      if (eigene >= 5 && feindeBei(world, ai.player, kdt, f.radius) >= 3) {
-        issue(world, { type: 'faehigkeit', player: ai.player, x: kdt.x, y: kdt.y });
-      }
-    } else {
+  // 6a. Faehigkeiten des Kommandanten, sobald bereit: Rufe (Zorn, Wehr,
+  //     Tempo), wenn genug eigene Kaempfer bei ihm stehen und Feinde nahe
+  //     sind; Heilung, wenn viele Verletzte bei ihm sind; das Rudel, wenn
+  //     Feinde nahe sind; ein Griff auf den dichtesten Haufen Feinde.
+  for (const id of kdt ? faehigkeitenVon(world, ai.player) : []) {
+    if (faehigkeitWarten(world, ai.player, id)) continue;
+    const f = FAEHIGKEITEN[id];
+    const wirken = (x, y) => issue(world, { type: 'faehigkeit', player: ai.player, faehigkeit: id, x, y });
+    const nah = (u, r) => dist2(u.x, u.y, kdt.x, kdt.y) <= r * r;
+    if (f.art === 'griff') {
       let best = null;
       let bestN = 3;
       for (const o of world.entities) {
-        if (o.dead || o.player === ai.player || o.kind !== 'unit') continue;
-        if (dist2(o.x, o.y, kdt.x, kdt.y) > f.reichweite * f.reichweite) continue;
+        if (o.dead || o.player === ai.player || o.kind !== 'unit' || !nah(o, f.reichweite)) continue;
         const n = feindeBei(world, ai.player, o, f.radius);
         if (n > bestN) {
           bestN = n;
           best = o;
         }
       }
-      if (best) issue(world, { type: 'faehigkeit', player: ai.player, x: best.x, y: best.y });
+      if (best) wirken(best.x, best.y);
+    } else if (f.art === 'heilung') {
+      if (einheiten.filter((u) => nah(u, f.radius) && u.hp * 10 < u.maxHp * 7).length >= 4) wirken(kdt.x, kdt.y);
+    } else if (f.art === 'rufen') {
+      if (feindeBei(world, ai.player, kdt, 1200) >= 3) wirken(kdt.x, kdt.y);
+    } else if (kaempfer.filter((u) => nah(u, f.radius)).length >= 5 && feindeBei(world, ai.player, kdt, f.radius) >= 3) {
+      wirken(kdt.x, kdt.y);
     }
   }
 

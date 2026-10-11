@@ -67,8 +67,8 @@ export function createWorld(opts = {}) {
     nextId: 1,
     entities: [],
     players: [
-      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0, reparaturAcc: 0 },
-      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: 0, forschung: 0, reparaturAcc: 0 },
+      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 },
+      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 },
     ],
     deposits: [],
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -167,6 +167,12 @@ export function spawnUnit(world, player, type, x, y) {
     rufBis: 0, // Schlachtruf wirkt bis zu diesem Tick
     rufWert: 0,
     gebundenBis: 0, // Wurzelgriff haelt fest bis zu diesem Tick
+    wehrBis: 0, // Schildwall
+    wehrWert: 0,
+    tempoBis: 0, // Ansturm
+    tempoWert: 0,
+    vergehtBei: 0, // herbeigerufene Einheiten vergehen bei diesem Tick (0 = nie)
+    beschworen: false, // herbeigerufen: kein Unterhalt
     cooldown: 0,
     dead: false,
   };
@@ -294,7 +300,7 @@ function applyCommand(world, c) {
     } else if (c.type === 'lernen') {
       if (kannLernen(world, c.player, c.skill)) world.players[c.player].gelernt.push(c.skill);
     } else if (c.type === 'faehigkeit') {
-      wirke(world, c.player, c.x | 0, c.y | 0);
+      wirke(world, c.player, c.faehigkeit, c.x | 0, c.y | 0);
     } else if (c.type === 'produce') {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
@@ -493,35 +499,68 @@ export function kannLernen(world, player, id) {
   return skillFrei(world, player) >= s.kosten;
 }
 
-/** Die aktive Faehigkeit des Kommandanten, sobald gelernt, sonst null. */
-export function faehigkeitVon(world, player) {
-  const g = world.players[player].gelernt;
-  for (let i = 0; i < g.length; i++) if (SKILLS[g[i]].faehigkeit) return SKILLS[g[i]].faehigkeit;
-  return null;
+/** Gelernte Faehigkeiten des Kommandanten, in der Reihenfolge der Fraktion. */
+export function faehigkeitenVon(world, player) {
+  const pl = world.players[player];
+  return FACTIONS[pl.faction].faehigkeiten.filter((id) => pl.gelernt.some((g) => SKILLS[g].faehigkeit === id));
+}
+
+/** Ticks, bis eine Faehigkeit wieder bereit ist; 0 = bereit. */
+export function faehigkeitWarten(world, player, id) {
+  const pl = world.players[player];
+  const slot = FACTIONS[pl.faction].faehigkeiten.indexOf(id);
+  return slot < 0 ? 0 : Math.max(0, pl.faehigkeitBereit[slot] - world.tick);
 }
 
 /**
- * Der Kommandant setzt seine Faehigkeit ein. Ein Ruf wirkt um ihn selbst,
- * ein Griff um einen Zielpunkt in Reichweite. Danach klingt sie ab.
+ * Der Kommandant setzt eine gelernte Faehigkeit ein. Ein Griff wirkt um einen
+ * Zielpunkt in Reichweite, alles andere um ihn selbst. Danach klingt sie ab.
  */
-function wirke(world, player, x, y) {
-  const id = faehigkeitVon(world, player);
-  const k = kommandantVon(world, player);
+function wirke(world, player, id, x, y) {
   const pl = world.players[player];
-  if (!id || !k || world.tick < pl.faehigkeitBereit) return;
+  const slot = FACTIONS[pl.faction].faehigkeiten.indexOf(id);
+  const k = kommandantVon(world, player);
+  if (slot < 0 || !k || world.tick < pl.faehigkeitBereit[slot] || !faehigkeitenVon(world, player).includes(id)) return;
   const f = FAEHIGKEITEN[id];
-  if (f.art === 'ruf') {
+  if (f.art === 'griff') {
+    if (dist2(k.x, k.y, x, y) > f.reichweite * f.reichweite) return;
+  } else {
     x = k.x;
     y = k.y;
-  } else if (dist2(k.x, k.y, x, y) > f.reichweite * f.reichweite) return;
-  pl.faehigkeitBereit = world.tick + f.abklingen;
+  }
+  pl.faehigkeitBereit[slot] = world.tick + f.abklingen;
+  if (f.art === 'rufen') {
+    // Vor dem Kommandanten, Richtung Kartenmitte, nebeneinander -- punktsymmetrisch.
+    let dx = (MAP >> 1) - k.x;
+    let dy = (MAP >> 1) - k.y;
+    const d = isqrt(dx * dx + dy * dy) || 1;
+    const abst = UNITS[k.type].radius + UNITS[f.einheit].radius + 40;
+    for (let n = 0; n < f.anzahl; n++) {
+      const quer = (n - ((f.anzahl - 1) >> 1)) * (UNITS[f.einheit].radius * 2 + 20);
+      const u = spawnUnit(world, player, f.einheit, clamp(k.x + (((dx * abst - dy * quer) / d) | 0)), clamp(k.y + (((dy * abst + dx * quer) / d) | 0)));
+      u.vergehtBei = world.tick + f.dauer;
+      u.beschworen = true;
+    }
+    world.events.push({ t: 'faehigkeit', art: f.art, player, x, y, r: abst * 2 });
+    return;
+  }
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.kind !== 'unit' || dist2(e.x, e.y, x, y) > f.radius * f.radius) continue;
-    if (f.art === 'ruf' && e.player === player) {
-      e.rufBis = world.tick + f.dauer;
-      e.rufWert = f.wert;
-    } else if (f.art === 'griff' && e.player !== player) {
+    if (e.player === player) {
+      if (f.art === 'ruf') {
+        e.rufBis = world.tick + f.dauer;
+        e.rufWert = f.wert;
+      } else if (f.art === 'wehr') {
+        e.wehrBis = world.tick + f.dauer;
+        e.wehrWert = f.wert;
+      } else if (f.art === 'tempo') {
+        e.tempoBis = world.tick + f.dauer;
+        e.tempoWert = f.wert;
+      } else if (f.art === 'heilung') {
+        e.hp = Math.min(e.maxHp, e.hp + f.wert);
+      }
+    } else if (f.art === 'griff') {
       e.gebundenBis = world.tick + f.dauer;
     }
   }
@@ -770,7 +809,7 @@ export function step(world) {
   for (let p = 0; p < world.players.length; p++) weniger.push(1000 - bonus(world, p, 'unterhalt'));
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
-    if (e.dead || e.kind !== 'unit') continue;
+    if (e.dead || e.kind !== 'unit' || e.beschworen) continue;
     const u = UNITS[e.type].unterhalt;
     if (u) world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * weniger[e.player];
   }
@@ -914,7 +953,8 @@ function moveUnits(world) {
   for (let i = 0; i < us.length; i++) {
     const e = us[i];
     if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
-    const speed = UNITS[e.type].speed;
+    let speed = UNITS[e.type].speed;
+    if (e.tempoBis > world.tick) speed = ((speed * (1000 + e.tempoWert)) / 1000) | 0; // Ansturm
     const dx = gx[i] - e.x;
     const dy = gy[i] - e.y;
     const d = isqrt(dx * dx + dy * dy);
@@ -1081,6 +1121,7 @@ function combat(world) {
       let sch = bonus(world, t.player, 'schutz');
       if (UNITS[t.type].commander) sch += bonus(world, t.player, 'kdtSchutz');
       if (sch) dmg = ((dmg * (1000 - sch)) / 1000) | 0;
+      if (t.wehrBis > world.tick) dmg = ((dmg * (1000 - t.wehrWert)) / 1000) | 0; // Schildwall
     }
     t.hp -= dmg;
   }
@@ -1133,6 +1174,13 @@ function nearestEnemy(world, e) {
 }
 
 function cleanup(world) {
+  // Herbeigerufene Einheiten vergehen nach ihrer Zeit.
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || !e.vergehtBei || world.tick < e.vergehtBei) continue;
+    e.dead = true;
+    world.events.push({ t: 'died', id: e.id, kind: e.kind, type: e.type, player: e.player, x: e.x, y: e.y });
+  }
   let any = false;
   for (let i = 0; i < world.entities.length; i++) {
     if (world.entities[i].dead) {
@@ -1232,6 +1280,9 @@ export function hash(world) {
       mix(e.seit);
       mix(e.rufBis);
       mix(e.gebundenBis);
+      mix(e.wehrBis);
+      mix(e.tempoBis);
+      mix(e.vergehtBei);
     } else {
       mix(e.doneAt);
       mix(e.progress);
@@ -1247,7 +1298,7 @@ export function hash(world) {
     mix(world.players[p].fronAcc || 0);
     mix(world.players[p].blutAcc || 0);
     mix(world.players[p].unterhaltAcc || 0);
-    mix(world.players[p].faehigkeitBereit);
+    for (const t of world.players[p].faehigkeitBereit) mix(t);
     mix(world.players[p].forschung);
     mix(world.players[p].reparaturAcc);
     for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);

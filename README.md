@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.19
+# Die drei Reiche — Prototyp 0.20
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -13,7 +13,7 @@ Verbesserungen und eine Fähigkeit des Kommandanten frei.
 ## Loslegen
 
 ```bash
-npm test          # 89 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
+npm test          # 95 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -51,7 +51,7 @@ Götterblut, Fron.
 | Gebäude anklicken, `Entf` | Abreißen: Baustelle ¾, fertig ½ der Kosten zurück |
 | `K` | Kommandant wählen und hinspringen |
 | `T` | Skillbaum: freie Punkte, ein Klick lernt; Gesperrtes ist ausgegraut |
-| `F` | Fähigkeit des Kommandanten: Schlachtruf sofort, Wurzelgriff mit Linksklick aufs Ziel |
+| Kommandant gewählt: `Q` `W` `E` oder Knöpfe | Seine drei Fähigkeiten (im Skillbaum freischalten); Wurzelgriff mit Linksklick aufs Ziel |
 | `I` | Auswertung: Reibung, Kampfort, Anker, Götterblut (am Ende automatisch) |
 | Leertaste | Pause · `+` / `−` Tempo |
 | Knöpfe unten rechts | Seite wechseln und neu starten · „Zuschauen“: KI gegen KI |

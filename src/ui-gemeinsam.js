@@ -3,7 +3,7 @@
 
 import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN } from './sim/defs.js';
 import {
-  erfahrung, skillFrei, kannLernen, faehigkeitVon, gesperrt, forschungProTick,
+  erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
   gridReport, foerderungProMin, unterhaltProMin,
 } from './sim/sim.js';
 
@@ -178,6 +178,9 @@ export function auswahlKopf(world, e) {
   const erf = erfahrungText(world, e);
   if (erf) teile.push(erf);
   if (e.kind === 'unit' && e.rufBis > world.tick) teile.push('Schlachtruf');
+  if (e.kind === 'unit' && e.wehrBis > world.tick) teile.push('Schildwall');
+  if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');
+  if (e.kind === 'unit' && e.beschworen) teile.push(`vergeht in ${sekunden(e.vergehtBei - world.tick)}`);
   if (e.kind === 'unit' && e.gebundenBis > world.tick) teile.push('festgehalten');
   return `<b>${def.name}</b> — ${teile.join(' · ')}`;
 }
@@ -187,10 +190,36 @@ export function auswahlKopf(world, e) {
 /** Was eine Faehigkeit tut, Zahlen aus den Daten. */
 export function faehigkeitText(id) {
   const f = FAEHIGKEITEN[id];
-  if (f.art === 'ruf') {
-    return `${f.name}: Eigene Einheiten im Umkreis von ${meterText(f.radius)} teilen ${sekunden(f.dauer)} lang ${prozent(f.wert)} mehr Schaden aus. Alle ${sekunden(f.abklingen)}.`;
-  }
-  return `${f.name}: Feinde im Umkreis von ${meterText(f.radius)} um einen Punkt (bis ${meterText(f.reichweite)} vom Kommandanten) stehen ${sekunden(f.dauer)} lang fest. Alle ${sekunden(f.abklingen)}.`;
+  const um = `Eigene Einheiten im Umkreis von ${meterText(f.radius)}`;
+  const was = {
+    ruf: () => `${um} teilen ${sekunden(f.dauer)} lang ${prozent(f.wert)} mehr Schaden aus.`,
+    wehr: () => `${um} nehmen ${sekunden(f.dauer)} lang ${prozent(f.wert)} weniger Schaden.`,
+    tempo: () => `${um} laufen ${sekunden(f.dauer)} lang ${prozent(f.wert)} schneller.`,
+    heilung: () => `${um} bekommen sofort ${f.wert} LP zurück.`,
+    griff: () => `Feinde im Umkreis von ${meterText(f.radius)} um einen Punkt (bis ${meterText(f.reichweite)} vom Kommandanten) stehen ${sekunden(f.dauer)} lang fest.`,
+    rufen: () => `${f.anzahl} ${UNITS[f.einheit].name === 'Wolf' ? 'Wölfe' : UNITS[f.einheit].name} erscheinen für ${sekunden(f.dauer)}, ohne Unterhalt.`,
+  }[f.art]();
+  return `${f.name}: ${was} Alle ${sekunden(f.abklingen)}.`;
+}
+
+/**
+ * Knoepfe fuer die drei Faehigkeiten des Kommandanten: Taste, Name und
+ * Zustand (bereit, Abklingzeit oder noch im Skillbaum gesperrt).
+ */
+export function faehigkeitenHtml(world, player) {
+  const ids = FACTIONS[world.players[player].faction].faehigkeiten;
+  const gelernt = faehigkeitenVon(world, player);
+  return ids
+    .map((id, i) => {
+      const f = FAEHIGKEITEN[id];
+      const kann = gelernt.includes(id);
+      const warten = kann ? faehigkeitWarten(world, player, id) : 0;
+      const zustand = !kann ? 'Skillbaum' : warten ? sekunden(warten) : 'bereit';
+      const klasse = !kann ? 'zu' : warten ? 'wartet' : 'bereit';
+      return `<button class="faeh ${klasse}" data-faeh="${id}" title="${faehigkeitText(id)}"${kann && !warten ? '' : ' disabled'}>
+        <kbd>${'QWE'[i]}</kbd> ${f.name}<small>${zustand}</small></button>`;
+    })
+    .join('');
 }
 
 /** Was ein Skill bewirkt, Zahlen aus den Daten. */
@@ -249,10 +278,7 @@ export function skillZeile(world, player) {
   return `<b>Skillpunkte <kbd>T</kbd></b><span${frei > 0 ? ' class="hell"' : ''}>${frei} frei · nächster in ${bis}</span>`;
 }
 
-/** HUD-Zeile: Faehigkeit des Kommandanten, sobald gelernt. */
-export function faehigkeitZeile(world, player) {
-  const id = faehigkeitVon(world, player);
-  if (!id) return '';
-  const rest = world.players[player].faehigkeitBereit - world.tick;
-  return `<b>${FAEHIGKEITEN[id].name} <kbd>F</kbd></b><span${rest <= 0 ? ' class="hell"' : ''}>${rest <= 0 ? 'bereit' : 'in ' + sekunden(rest)}</span>`;
+/** Farbe einer Faehigkeit fuer Ringe und Markierungen. */
+export function faehigkeitFarbe(art) {
+  return { ruf: '#f5b23c', wehr: '#8ab4ff', tempo: '#e8f0d8', heilung: '#7ddc7a', griff: '#9a7a4a', rufen: '#c9a0e0' }[art];
 }

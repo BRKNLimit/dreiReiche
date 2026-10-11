@@ -106,6 +106,20 @@
   .zeile.zu { color: var(--dim); }
   .warn { color: var(--bad); }
   #builds button small { color: var(--dim); font-size: 10px; margin-left: 4px; }
+  /* Faehigkeiten des Kommandanten */
+  #faehigkeiten {
+    position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); z-index: 14;
+    display: flex; gap: 8px;
+  }
+  #faehigkeiten[hidden] { display: none; }
+  #faehigkeiten .faeh {
+    display: grid; gap: 2px; min-width: 120px; text-align: left; padding: 7px 10px;
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+  }
+  #faehigkeiten .faeh small { color: var(--dim); font-size: 10px; }
+  #faehigkeiten .faeh.bereit { border-color: var(--accent); cursor: pointer; }
+  #faehigkeiten .faeh.bereit small { color: var(--accent); }
+  #faehigkeiten .faeh.zu { opacity: .45; }
   /* Skillbaum */
   #skills {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20;
@@ -144,12 +158,13 @@
   <span class="hint">
     Linksklick wählt · Rechtsklick bewegt · <b>A</b>+Klick greift an · Pfeiltasten / mittlere Taste schieben ·
     Mausrad zoomt · <b>1</b>–<b>9</b> bauen · <b>Q</b>–<b>R</b> Einheiten ·
-    <b>K</b> Kommandant · <b>T</b> Skillbaum · <b>F</b> Fähigkeit · Leertaste Pause · +/− Tempo
+    <b>K</b> Kommandant · <b>T</b> Skillbaum · Kommandant gewählt: <b>Q</b>–<b>E</b> Fähigkeiten · Leertaste Pause · +/− Tempo
   </span>
 </div>
 <div id="intro"></div>
 <div id="skills" hidden></div>
 <div id="karte" hidden></div>
+<div id="faehigkeiten" hidden></div>
 <div id="nogl"><p>Dieser Browser kann kein WebGL 2 — die 2D-Ansicht läuft trotzdem:
   <a class="btn" href="resonit.html">2D-Ansicht öffnen</a></p></div>
 <script>

@@ -16,7 +16,7 @@ let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 const ME = 0;
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
-let zielen = false; // F bei einem Griff: naechster Klick ist das Ziel
+let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
 const wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
@@ -56,7 +56,7 @@ function neu(f, zuschauen = false) {
   placing = null;
   skillsOffen = false;
   skillSig = '';
-  zielen = false;
+  zielen = null;
   wirkungen.length = 0;
   flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
   cam.x = 3000;
@@ -85,7 +85,7 @@ cv.addEventListener('mousedown', (e) => {
   if (e.button === 2) {
     placing = null;
     angriff = false;
-    zielen = false;
+    zielen = null;
     if (sel.length) befehl(s2wx(mx) | 0, s2wy(my) | 0);
     return;
   }
@@ -94,8 +94,8 @@ cv.addEventListener('mousedown', (e) => {
     return;
   }
   if (zielen) {
-    issue(world, { type: 'faehigkeit', player: ME, x: s2wx(mx) | 0, y: s2wy(my) | 0 });
-    zielen = false;
+    issue(world, { type: 'faehigkeit', player: ME, faehigkeit: zielen, x: s2wx(mx) | 0, y: s2wy(my) | 0 });
+    zielen = null;
     return;
   }
   if (placing) {
@@ -178,12 +178,18 @@ addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     placing = null;
     angriff = false;
-    zielen = false;
+    zielen = null;
     skillsOffen = false;
     sel = [];
   }
   if (e.key === 't') skillsOffen = !skillsOffen;
-  if (e.key === 'f') faehigkeit();
+  // Kommandant gewaehlt: Q, W, E loesen seine Faehigkeiten aus.
+  const kdtGewaehlt = kommandantVon(world, ME);
+  const fi = 'qwe'.indexOf(e.key);
+  if (fi >= 0 && kdtGewaehlt && sel.includes(kdtGewaehlt.id)) {
+    wirkeFaehigkeit(FACTIONS[meFaction].faehigkeiten[fi]);
+    return;
+  }
   if (e.key === 'a' && sel.some((id) => byId(world, id)?.kind === 'unit')) {
     angriff = true;
     placing = null;
@@ -217,17 +223,34 @@ addEventListener('keydown', (e) => {
   }
 });
 
-/** F: Faehigkeit des Kommandanten. Ein Ruf wirkt sofort, ein Griff braucht ein Ziel. */
-function faehigkeit() {
-  const id = faehigkeitVon(world, ME);
-  if (!id) return;
-  if (FAEHIGKEITEN[id].art === 'ruf') {
-    issue(world, { type: 'faehigkeit', player: ME, x: 0, y: 0 });
-  } else {
-    zielen = true;
+/** Faehigkeit des Kommandanten ausloesen: ein Griff braucht ein Ziel, alles andere wirkt sofort. */
+function wirkeFaehigkeit(id) {
+  if (!faehigkeitenVon(world, ME).includes(id) || faehigkeitWarten(world, ME, id)) return;
+  if (FAEHIGKEITEN[id].art === 'griff') {
+    zielen = id;
     placing = null;
     angriff = false;
+  } else {
+    issue(world, { type: 'faehigkeit', player: ME, faehigkeit: id, x: 0, y: 0 });
   }
+}
+
+// Knoepfe der Faehigkeiten: ein Klick loest aus.
+document.getElementById('faehigkeiten').onclick = (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-faeh]') : null;
+  if (b && world) wirkeFaehigkeit(b.dataset.faeh);
+};
+let faehHtml = '';
+
+/** Knoepfe zeigen, solange der eigene Kommandant gewaehlt ist. */
+function faehPanel() {
+  const k = kommandantVon(world, ME);
+  const html = k && sel.includes(k.id) ? faehigkeitenHtml(world, ME) : '';
+  if (html === faehHtml) return;
+  faehHtml = html;
+  const el = document.getElementById('faehigkeiten');
+  el.innerHTML = html;
+  el.hidden = !html;
 }
 
 // Skillbaum: ein Klick auf einen lernbaren Skill lernt ihn.
@@ -341,6 +364,7 @@ function draw() {
   if (placing) drawGhost();
   drawHud();
   skillPanel();
+  faehPanel();
   infoKarte();
   drawMini();
 }
@@ -380,7 +404,7 @@ function drawWirkungen() {
   ctx.lineWidth = 2;
   for (const w of wirkungen) {
     const t = 1 - (w.bis - world.tick) / 12;
-    ctx.strokeStyle = w.art === 'ruf' ? COL.gold : '#9a7a4a';
+    ctx.strokeStyle = faehigkeitFarbe(w.art);
     ctx.globalAlpha = 1 - t;
     ctx.beginPath();
     ctx.arc(w2sx(w.x), w2sy(w.y), w.r * cam.z * (0.4 + 0.6 * t), 0, Math.PI * 2);
@@ -390,14 +414,19 @@ function drawWirkungen() {
   ctx.lineWidth = 1.5;
   for (const e of world.entities) {
     if (e.dead || e.kind !== 'unit') continue;
-    const ruf = e.rufBis > world.tick;
-    const fest = e.gebundenBis > world.tick;
-    if (!ruf && !fest) continue;
-    ctx.strokeStyle = fest ? '#9a7a4a' : COL.gold;
+    const art = markierung(e);
+    if (!art) continue;
+    ctx.strokeStyle = faehigkeitFarbe(art);
     ctx.beginPath();
     ctx.arc(w2sx(e.x), w2sy(e.y), Math.max(4, UNITS[e.type].radius * cam.z) + 3, 0, Math.PI * 2);
     ctx.stroke();
   }
+}
+
+/** Welche Faehigkeit wirkt gerade auf einer Einheit (fuer ihre Markierung)? */
+function markierung(e) {
+  const t = world.tick;
+  return e.gebundenBis > t ? 'griff' : e.wehrBis > t ? 'wehr' : e.rufBis > t ? 'ruf' : e.tempoBis > t ? 'tempo' : e.beschworen ? 'rufen' : null;
 }
 
 function drawGrid(W, H) {
@@ -650,7 +679,7 @@ function drawEntities() {
 function drawSelection() {
   if (zielen) {
     // Griff scharf: Wirkungskreis am Mauszeiger, rot ausser Reichweite.
-    const f = FAEHIGKEITEN[faehigkeitVon(world, ME)];
+    const f = FAEHIGKEITEN[zielen];
     const k = kommandantVon(world, ME);
     const drin = k && (hover.x - k.x) ** 2 + (hover.y - k.y) ** 2 <= f.reichweite ** 2;
     ctx.strokeStyle = drin ? '#9a7a4a' : COL.bad;
@@ -782,7 +811,6 @@ function drawHud() {
     <div class="res">
       ${fronBilanz()}
       ${skillZeile(world, ME)}
-      ${faehigkeitZeile(world, ME)}
       <b>Einheiten</b><span>${world.entities.filter((e) => e.kind === 'unit' && e.player === ME).length}</span>
       ${kommandantZeile()}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''} ×${speed}</span>
@@ -1036,7 +1064,8 @@ function introHtml() {
     vorn kämpft, entscheidest du.</p>
     <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
     Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
-    Schreine, Verbesserungen und eine Fähigkeit des Kommandanten frei (<kbd>F</kbd>). Wer lange lebt,
+    Schreine, Verbesserungen und drei Fähigkeiten des Kommandanten frei — Kommandant wählen, dann
+    <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,
     sammelt ein wenig Erfahrung.</p>
     <p class="achten">Die Domäne ist das Werkzeug, nicht das Ziel: Wann fordert sie eine Entscheidung — und wann nervt sie?</p>
     <div class="stil">Gegner:

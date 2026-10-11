@@ -122,6 +122,16 @@ sichtbare Kante darf nicht mehr als etwa 10 % vom Kreis abweichen.
    das Warum.
 7. Trag jede Arbeitsrunde in `docs/grafik/protokoll.md` ein: was, warum,
    wie geprüft.
+8. **Nur Grafik, kein Spieldesign.** Keine neuen Völker, Einheiten, Werte
+   oder Regeln, auch nicht als Entwurf auf `gemini/grafik` — das
+   entscheiden der Nutzer und Claude. Ideen gern als kurze Notiz in
+   `wuensche.md`.
+9. **Shader im echten Browser prüfen:** Die Smoke-Tests haben kein echtes
+   WebGL. Nach Änderungen an Shadern `dist/drei-reiche-3d.html` einmal im
+   Browser öffnen und die Konsole auf Fehler ansehen.
+10. **Begriffe:** Nie „Das Dritte Reich“ (auch nicht als Wortspiel auf „Die
+    drei Reiche“) — der Ausdruck steht im Deutschen für den
+    Nationalsozialismus.
 
 ## Stil (Vorgaben des Nutzers)
 

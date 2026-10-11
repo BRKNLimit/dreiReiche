@@ -108,6 +108,19 @@ export const ICONS = {
     <circle cx="12" cy="6" r="1.5" fill="#fef08a"/>
   </svg>`,
 
+  rabe: `<svg viewBox="0 0 24 24">
+    <!-- Gott-Späher: Rabe im Flug mit weit gespreizten Schwingen und goldenem Auge -->
+    <path d="M12 7 C14 5, 17 6, 22 4 C20 8, 18 11, 14 13 L15 16 C15 17, 13 19, 12 21 C11 19, 9 17, 9 16 L10 13 C6 11, 4 8, 2 4 C7 6, 10 5, 12 7 Z" fill="#15121e" stroke="${IC_G}" stroke-width="1.3" stroke-linejoin="round"/>
+    <!-- Handschwingen / Federfächer -->
+    <path d="M4 6.5 C8 8.5, 11 8, 12 9 C13 8, 16 8.5, 20 6.5" fill="none" stroke="${IC_G_HELL}" stroke-width="0.9"/>
+    <!-- Kopf und Schnabel -->
+    <path d="M12 4 L14 7 L10 7 Z" fill="#1c1924"/>
+    <path d="M12 2 L13.5 5 L10.5 5 Z" fill="#181615" stroke="${IC_G}" stroke-width="0.5"/>
+    <!-- Glänzendes Bernsteinauge -->
+    <circle cx="12" cy="5.8" r="1.1" fill="#facc15"/>
+    <circle cx="12" cy="5.8" r="0.4" fill="#ffffff"/>
+  </svg>`,
+
   wolf: `<svg viewBox="0 0 24 24">
     <!-- Wolfskopf im Profil mit spitzen Ohren und fletschender Schnauze -->
     <path d="M3 17 L6 13 L5 7 L9 9 L15 6 L14 10 L20 13 L21 16 L17 15 L14 19 L8 19 L4 21 Z" fill="#1e293b" stroke="${IC_G}" stroke-width="1.5" stroke-linejoin="round"/>
@@ -196,6 +209,27 @@ export const ICONS = {
     <path d="M10.5 21 V18 C10.5 17.2 11.2 16.5 12 16.5 C12.8 16.5 13.5 17.2 13.5 18 V21" fill="#102a43"/>
     <!-- Wimpel auf der Zinne -->
     <path d="M15 4 V1.5 L18 2.8 L15 3.8" fill="${IC_M}"/>
+  </svg>`,
+
+  spaehposten: `<svg viewBox="0 0 24 24">
+    <!-- Vierbeiniger hölzerner Hochsitz mit Ausguck, Dach und Fernrohr -->
+    <!-- Stützpfosten und Querstreben -->
+    <path d="M5 22 L7.5 12 M19 22 L16.5 12" stroke="${IC_HOLZ}" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M6 17 L18 17 M7 14 L17 14" stroke="${IC_HOLZ_D}" stroke-width="1.2"/>
+    <!-- Leiter mittig -->
+    <line x1="12" y1="12" x2="12" y2="22" stroke="${IC_HOLZ_D}" stroke-width="1.2" stroke-dasharray="1.2 2"/>
+    <!-- Ausguck-Plattform und Brüstung -->
+    <rect x="5.5" y="9.5" width="13" height="3" fill="#243b53" stroke="${IC_M}" stroke-width="1.2" rx="0.5"/>
+    <!-- Messing-Fernrohr auf der Brüstung -->
+    <path d="M13 10 L19 6.5" stroke="${IC_M_HELL}" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="19.5" cy="6.2" r="1.1" fill="#fff" opacity="0.9"/>
+    <!-- 4 Eckpfosten zum Dach -->
+    <line x1="7" y1="9.5" x2="7" y2="6.5" stroke="${IC_HOLZ}" stroke-width="1.3"/>
+    <line x1="17" y1="9.5" x2="17" y2="6.5" stroke="${IC_HOLZ}" stroke-width="1.3"/>
+    <!-- Walmdach mit Giebel -->
+    <polygon points="5,6.5 12,2 19,6.5" fill="#8c3528" stroke="${IC_M}" stroke-width="1.2" stroke-linejoin="round"/>
+    <!-- Laterne am Ausguck -->
+    <circle cx="8" cy="11" r="1.3" fill="#ffd54f"/>
   </svg>`,
 
   schmiede: `<svg viewBox="0 0 24 24">

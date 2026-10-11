@@ -96,6 +96,19 @@ geprüft (Tests, Galerie, Spiel).
     - Modelle in der Galerie erhalten eine lebendige Schritt- und Atemphase (`schritt = Math.sin(now * 0.003)`).
 - **Wie geprüft:** `npm test` (117/117 Tests grün), `npm run smoke` (2D, 3D und Galerie mit 1000 Frames fehlerfrei) und Verifikation aller Vertexbudgets via Node.
 
+### Runde 8: Rabe & Spähposten (Modelle & Icons) und Nacharbeiten
+- **Nacharbeiten aus Claudes Rückmeldung:**
+  - **`src/galerie.js`:** `zeichneInstanzen(MODELLE.scheibe)` wiederhergestellt, damit die Boden-Scheiben gezeichnet und ihre Instanzenlisten aufgeräumt werden. Schritt-Phase wird nur an Einheiten und Waldgott übergeben (`ansicht === 'waldgott' || ansicht === 'einheiten'`), Gebäude und Deko bleiben in der Galerie starr.
+  - **`src/render3d.js`:** Das thorakale Atmen im Vertex-Shader (`atmen * brust`) wurde über `aCol.a > 0.03 && aCol.a < 0.08` streng auf Waldgotts Gewand begrenzt. Hohe Gebäude und große Einheiten (Ent, Wurzelbrecher) atmen beim Gehen nicht mehr mit.
+- **Rabe (`rabe`, Gott-Späher):**
+  - **Modell (`src/modelle3d.js`):** Dunkler Rabe im Segelflug mit stromlinienförmigem Rumpf, Nackengefieder, kräftig gebogenem Schnabel, zwei leuchtenden Bernstein-Augen (`GLUEHT`), zweistufig geschwungenen Schwingen mit Handschwingen und aerodynamischen Federfahnen, gefächertem Stoßgefieder und angelegten Krallen. 1.266 Ecken (Budget: 6.000).
+  - **Icon (`src/icons.js`):** Fliegender Rabe mit weit gespreizten Schwingen, Federfächern, Fraktionskontur und glänzendem Auge.
+- **Spähposten (`spaehposten`, Menschen-Aufklärung):**
+  - **Modell (`src/modelle3d.js`):** Solider Hochsitz auf vier Steinfundamenten, 4 schräg gestellte Hartholzsäulen mit X-Verstrebungen, 6-sprossige Leiter, umlaufende Ausguckbrüstung, Walmdach mit Firstspitze, montiertes Messing-Fernrohr (`GLUEHT`), hängende Laterne (`GLUEHT`) und Goldwimpel der Menschen. 2.010 Ecken (Budget: 9.000).
+  - **Icon (`src/icons.js`):** Holzhochsitz auf vier Pfosten mit Leiter, Plattform, rotem Walmdach, Laterne und auskragendem Fernrohr.
+- **Wie geprüft:** `npm test` (126/126 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames und 44 Icons fehlerfrei).
+
+
 
 
 

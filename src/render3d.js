@@ -241,9 +241,10 @@ void main() {
   a.x += sin(iC.w * 3.14159 + a.y * 3.5) * 0.04 * saum;
   a.y += abs(iC.w) * 0.05 * saum;
 
-  // 2. Organisches Atmen des Brustbereichs (Heben und Weiten von Gewand & Brustkorb)
+  // 2. Organisches Atmen des Brustbereichs (nur Waldgott: Gewand mit team 0.04..0.08)
+  float istWaldgott = (aCol.a > 0.03 && aCol.a < 0.08) ? 1.0 : 0.0;
   float atmen = sin(iC.w * 3.14159265);
-  float brust = smoothstep(1.5, 2.7, a.y) * smoothstep(4.2, 2.7, a.y);
+  float brust = smoothstep(1.5, 2.7, a.y) * smoothstep(4.2, 2.7, a.y) * istWaldgott;
   a.x += aNor.x * atmen * 0.025 * brust;
   a.z += aNor.z * atmen * 0.035 * brust;
 

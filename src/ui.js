@@ -19,6 +19,8 @@ let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
 const wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
+let nebel = neuerNebel(true); // Nebel des Krieges; beim Zuschauen aus
+const verborgen = (e) => e.player !== ME && !sieht(nebel, e.x, e.y);
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
@@ -49,6 +51,7 @@ function neu(f, zuschauen = false) {
   ai = createAI(1, world.seed, gegnerStil);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
+  nebel = neuerNebel(!zuschauen);
   angriff = false;
   zeigeAuswertung = false;
   stats = neueStats();
@@ -352,6 +355,7 @@ function draw() {
   const H = cv.clientHeight;
   ctx.fillStyle = COL.bg;
   ctx.fillRect(0, 0, W, H);
+  nebelAktualisieren(nebel, world, ME);
 
   drawGrid(W, H);
   drawCleared();
@@ -361,6 +365,7 @@ function draw() {
   drawSchreine();
   drawEntities();
   drawWirkungen();
+  drawNebel();
   drawSelection();
   if (placing) drawGhost();
   drawHud();
@@ -368,6 +373,34 @@ function draw() {
   faehPanel();
   infoKarte();
   drawMini();
+}
+
+// Nebel als kleines Bild (eine Zelle = ein Pixel), weich hochskaliert.
+const nebelBild = document.createElement ? document.createElement('canvas') : null;
+const nebelHell = new Uint8Array(NEBEL_N * NEBEL_N);
+
+/** Nebel ueber die Karte legen: unbekannt fast schwarz, erkundet gedaempft. */
+function nebelMalen(ziel, x, y, groesse) {
+  if (!nebel.an || !nebelBild) return;
+  nebelBild.width = NEBEL_N;
+  nebelBild.height = NEBEL_N;
+  const nctx = nebelBild.getContext('2d');
+  const img = nctx.createImageData(NEBEL_N, NEBEL_N);
+  if (!img || !img.data) return;
+  nebelHelligkeit(nebel, nebelHell);
+  for (let i = 0; i < nebelHell.length; i++) {
+    img.data[i * 4] = 11;
+    img.data[i * 4 + 1] = 13;
+    img.data[i * 4 + 2] = 8;
+    img.data[i * 4 + 3] = nebelHell[i] === 255 ? 0 : nebelHell[i] ? 115 : 225;
+  }
+  nctx.putImageData(img, 0, 0);
+  ziel.imageSmoothingEnabled = true;
+  ziel.drawImage(nebelBild, x, y, groesse, groesse);
+}
+
+function drawNebel() {
+  nebelMalen(ctx, w2sx(0), w2sy(0), MAP * cam.z);
 }
 
 /** Info-Karte: Gebaeude unter der Maus in der Bauleiste, sonst das, was gerade gesetzt wird. */
@@ -386,7 +419,7 @@ function drawSchreine() {
   ctx.lineWidth = 1;
   ctx.setLineDash([6, 6]);
   for (const e of world.entities) {
-    if (e.dead || e.kind !== 'building' || !e.done) continue;
+    if (e.dead || e.kind !== 'building' || !e.done || verborgen(e)) continue;
     const buff = BUILDINGS[e.type].buff;
     if (!buff) continue;
     ctx.strokeStyle = FACTIONS[world.players[e.player].faction].color;
@@ -414,7 +447,7 @@ function drawWirkungen() {
   ctx.globalAlpha = 1;
   ctx.lineWidth = 1.5;
   for (const e of world.entities) {
-    if (e.dead || e.kind !== 'unit') continue;
+    if (e.dead || e.kind !== 'unit' || verborgen(e)) continue;
     const art = markierung(e);
     if (!art) continue;
     ctx.strokeStyle = faehigkeitFarbe(art);
@@ -465,7 +498,8 @@ function drawDomains() {
   for (let p = 0; p < 2; p++) {
     const col = FACTIONS[world.players[p].faction].color;
     const anker = world.entities.filter(
-      (e) => !e.dead && e.player === p && e.kind === 'building' && anchorRadius(world, e) > 0
+      (e) => !e.dead && e.player === p && e.kind === 'building' && anchorRadius(world, e) > 0 &&
+        (p === ME || !nebel.an || nebel.bekannt.has(e.id))
     );
     if (!anker.length) continue;
 
@@ -581,7 +615,18 @@ function drawDeposits() {
 }
 
 function drawEntities() {
+  // Gegnerische Gebaeude im Nebel: dort, wo man sie zuletzt gesehen hat.
+  ctx.globalAlpha = 0.4;
+  for (const b of nebel.bekannt.values()) {
+    if (sieht(nebel, b.x, b.y)) continue;
+    const r = Math.max(4, BUILDINGS[b.type].radius * cam.z);
+    ctx.strokeStyle = FACTIONS[world.players[b.player].faction].color;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(w2sx(b.x) - r, w2sy(b.y) - r, r * 2, r * 2);
+  }
+  ctx.globalAlpha = 1;
   for (const e of world.entities) {
+    if (verborgen(e)) continue;
     const col = FACTIONS[world.players[e.player].faction].color;
     const x = w2sx(e.x);
     const y = w2sy(e.y);
@@ -682,7 +727,7 @@ function drawEntities() {
     if (ev.t !== 'shot') continue;
     const a = byId(world, ev.from);
     const b = byId(world, ev.to);
-    if (!a || !b) continue;
+    if (!a || !b || (verborgen(a) && verborgen(b))) continue;
     ctx.moveTo(w2sx(a.x), w2sy(a.y));
     ctx.lineTo(w2sx(b.x), w2sy(b.y));
   }
@@ -1030,6 +1075,7 @@ function drawMini() {
     mctx.globalAlpha = 0.18;
     for (const e of world.entities) {
       if (e.player !== p || e.kind !== 'building') continue;
+      if (p !== ME && nebel.an && !nebel.bekannt.has(e.id)) continue;
       const r = anchorRadius(world, e);
       if (!r) continue;
       mctx.beginPath();
@@ -1038,11 +1084,12 @@ function drawMini() {
     }
     mctx.globalAlpha = 1;
     for (const e of world.entities) {
-      if (e.player !== p) continue;
+      if (e.player !== p || verborgen(e)) continue;
       const sz = e.kind === 'building' ? 3 : 2;
       mctx.fillRect(e.x * s - sz / 2, e.y * s - sz / 2, sz, sz);
     }
   }
+  nebelMalen(mctx, 0, 0, mini.width);
   mctx.strokeStyle = '#4a5442';
   mctx.strokeRect(
     (cam.x - cv.clientWidth / 2 / cam.z) * s,

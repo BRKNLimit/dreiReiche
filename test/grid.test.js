@@ -24,9 +24,11 @@ import {
   gesperrt,
   kannLernen,
   spawnKommandant,
+  sichtGitter,
+  sichtweite,
 } from '../src/sim/sim.js';
 import { FACTIONS, BUILDINGS, UNITS, RULES, MAP, SKILLS, FAEHIGKEITEN, KARTE } from '../src/sim/defs.js';
-import { wegGitter } from '../src/sim/weg.js';
+import { wegGitter, ZELLE } from '../src/sim/weg.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
 
 function bare(f0 = 'mensch', f1 = 'gott') {
@@ -1245,6 +1247,30 @@ test('Wegfindung: durch das Tor im Grat zur Mitte', () => {
   let t = 0;
   for (; t < 2000 && !u.arrived; t++) step(w);
   assert.ok(u.arrived, 'kommt an: ' + u.x + ',' + u.y);
+});
+
+// ---------------------------------------------------- Nebel des Krieges
+
+const zelleBei = (x, y) => ((y / ZELLE) | 0) * (MAP / ZELLE) + ((x / ZELLE) | 0);
+
+test('Nebel: man sieht um eigene Einheiten, nicht weiter', () => {
+  const w = bare();
+  const u = spawnUnit(w, 0, 'soldat', 5000, 5000);
+  const g = sichtGitter(w, 0);
+  const r = sichtweite(u);
+  assert.equal(g[zelleBei(5000, 5000)], 1);
+  assert.equal(g[zelleBei(5000 + r - 150, 5000)], 1, 'am Rand der Sichtweite');
+  assert.equal(g[zelleBei(5000 + r + 300, 5000)], 0, 'dahinter Nebel');
+  assert.equal(sichtGitter(w, 1)[zelleBei(5000, 5000)], 0, 'der Gegner sieht dort nichts');
+});
+
+test('Nebel: Tuerme und Hauptgebaeude sehen weiter als Einheiten, Baustellen weniger', () => {
+  const w = bare();
+  const turm = spawnBuilding(w, 0, 'wachturm', 5000, 5000, true);
+  const site = spawnBuilding(w, 0, 'wachturm', 9000, 5000, false);
+  const s = spawnUnit(w, 0, 'soldat', 13000, 5000);
+  assert.ok(sichtweite(turm) > sichtweite(s));
+  assert.ok(sichtweite(site) < sichtweite(s));
 });
 
 // ---------------------------------------------------- Verfolgung

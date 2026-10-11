@@ -2,7 +2,7 @@
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
 
 import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES, RESOURCES, SKILLS, FAEHIGKEITEN, KARTE } from './defs.js';
-import { wegGitter, wegpunkt } from './weg.js';
+import { wegGitter, wegpunkt, ZELLE } from './weg.js';
 
 // ---------------------------------------------------------------- Mathematik
 
@@ -338,6 +338,41 @@ export function tryPlace(world, player, type, x, y) {
   const b = spawnBuilding(world, player, type, x, y, false);
   if (dep) dep.takenBy = b.id;
   return b;
+}
+
+/** Sichtweite einer Einheit oder eines Gebaeudes im Nebel des Krieges. */
+export function sichtweite(e) {
+  const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
+  if (e.kind === 'building' && !e.done) return 400;
+  return def.sicht || (e.kind === 'unit' ? 900 : 700);
+}
+
+/**
+ * Was ein Spieler gerade sieht: 1 je Zelle (dasselbe Gitter wie die
+ * Wegfindung), deren Mitte in Sichtweite einer eigenen Einheit oder eines
+ * eigenen Gebaeudes liegt. Die Simulation selbst kennt keinen Nebel -- das
+ * ist eine Sicht fuer Oberflaechen und eine spaetere, ehrliche KI.
+ */
+export function sichtGitter(world, player) {
+  const n = MAP / ZELLE;
+  const g = new Uint8Array(n * n);
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.player !== player) continue;
+    const r = sichtweite(e);
+    const x0 = Math.max(0, ((e.x - r) / ZELLE) | 0);
+    const x1 = Math.min(n - 1, ((e.x + r) / ZELLE) | 0);
+    const y0 = Math.max(0, ((e.y - r) / ZELLE) | 0);
+    const y1 = Math.min(n - 1, ((e.y + r) / ZELLE) | 0);
+    for (let cy = y0; cy <= y1; cy++) {
+      const my = cy * ZELLE + (ZELLE >> 1) - e.y;
+      for (let cx = x0; cx <= x1; cx++) {
+        const mx = cx * ZELLE + (ZELLE >> 1) - e.x;
+        if (mx * mx + my * my <= r * r) g[cy * n + cx] = 1;
+      }
+    }
+  }
+  return g;
 }
 
 /** Ueberschneidet ein Kreis (x, y, r) einen Felsen oder See? */

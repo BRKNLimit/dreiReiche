@@ -78,8 +78,8 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 
 ## Bewusst weggelassen (v1)
 
-Höhen im Gelände, Fog of War, Todesgott,
-Bergung der Gefallenen, Belagerung, Netzwerk.
+Höhen im Gelände, Todesgott, Bergung der Gefallenen, Netzwerk. Die KI
+sieht durch den Nebel des Krieges (er ist nur eine Sicht der Oberfläche).
 Siehe `docs/scope.md`.
 
 ## Teststrategie

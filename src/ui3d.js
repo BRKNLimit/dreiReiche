@@ -36,6 +36,10 @@ let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
 let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
+let nebel = neuerNebel(true); // Nebel des Krieges; beim Zuschauen aus
+const verborgen = (e) => e.player !== ME && !sieht(nebel, e.x, e.y);
+const nebelHell = new Uint8Array(NEBEL_N * NEBEL_N);
+let nebelTex = null;
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
 let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
@@ -624,6 +628,7 @@ uniform vec3 uLicht;
 out vec4 vCol;
 out float vTiefe;
 out vec3 vTeam;
+out vec2 vWelt;
 void main() {
   vTeam = iC.rgb;
   float c = cos(iA.w), s = sin(iA.w);
@@ -643,14 +648,18 @@ void main() {
   vCol = vec4(col * licht, iB.w);
   gl_Position = uVP * vec4(r, 1.0);
   vTiefe = gl_Position.w;
+  vWelt = r.xz;
 }`;
 const FS = `#version 300 es
 precision mediump float;
 in vec4 vCol;
 in float vTiefe;
 in vec3 vTeam;
+in vec2 vWelt;
 uniform vec3 uNebel;
 uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
+uniform sampler2D uSicht; // Nebel des Krieges: 1 sichtbar, 0.47 erkundet, 0 unbekannt
+uniform float uKarte; // Kantenlaenge der Karte in Metern
 out vec4 o;
 void main() {
   if (uRoentgen > 0.5) {
@@ -658,7 +667,8 @@ void main() {
     return;
   }
   float f = clamp((vTiefe - 700.0) / 1600.0, 0.0, 0.55);
-  o = vec4(mix(vCol.rgb, uNebel, f), vCol.a);
+  float sicht = texture(uSicht, vWelt / uKarte).r;
+  o = vec4(mix(vCol.rgb, uNebel, f) * mix(0.16, 1.0, sicht), vCol.a);
 }`;
 const VS_LINIE = `#version 300 es
 layout(location=0) in vec3 aPos;
@@ -792,6 +802,12 @@ function initGL() {
   PROG_L = programm(VS_LINIE, FS_LINIE);
   for (const [k, teile] of Object.entries(MODELLE_DEF)) MODELLE[k] = ladeModell(baueModell(teile));
   bodenModell = baueBoden();
+  nebelTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, nebelTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   linienVao = gl.createVertexArray();
   gl.bindVertexArray(linienVao);
   linienPuffer = gl.createBuffer();
@@ -867,6 +883,7 @@ function neu(f, zuschauen = false) {
   world = createWorld({ seed: (Date.now() / 1000) | 0, factions: [f, gegner] });
   ai = createAI(1, world.seed, gegnerStil);
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
+  nebel = neuerNebel(!zuschauen);
   sel = [];
   placing = null;
   angriff = false;
@@ -1216,6 +1233,7 @@ function tick() {
               ? 'kugel'
               : 'blitz';
       const dauer = art === 'blitz' ? 0.22 : art === 'stein' ? 0.9 : 0.4;
+      if (verborgen(a) && verborgen(b)) continue;
       schuesse.push({ a: ev.from, b: ev.to, ax: a.x, ay: a.y, bx: b.x, by: b.y, farbe: teamFarbe(a.player), t: dauer, dauer, art });
       // Schuetzen schauen zum Ziel
       if (a.kind === 'unit') {
@@ -1294,6 +1312,14 @@ function zeichne(now, dt) {
   const ll = Math.hypot(...l);
   gl.uniform3f(gl.getUniformLocation(PROG, 'uLicht'), l[0] / ll, l[1] / ll, l[2] / ll);
   gl.uniform3f(gl.getUniformLocation(PROG, 'uNebel'), ...NEBEL);
+  // Nebel des Krieges als Textur, eine Zelle je Texel
+  nebelAktualisieren(nebel, world, ME);
+  nebelHelligkeit(nebel, nebelHell);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, nebelTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, NEBEL_N, NEBEL_N, 0, gl.RED, gl.UNSIGNED_BYTE, nebelHell);
+  gl.uniform1i(gl.getUniformLocation(PROG, 'uSicht'), 0);
+  gl.uniform1f(gl.getUniformLocation(PROG, 'uKarte'), MAP * DM);
 
   // Boden
   bodenModell.inst.push(0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0);
@@ -1309,6 +1335,7 @@ function zeichne(now, dt) {
   // macht Bodenkontakt und Tiefe lesbar.
   gl.depthMask(false);
   for (const e of world.entities) {
+    if (verborgen(e)) continue;
     const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
     const [x, y] = lage(e);
     const r = def.radius * DM * (e.kind === 'unit' ? 1.05 * ZEIGE_EINHEIT : 1.25 * ZEIGE_GEBAEUDE);
@@ -1341,7 +1368,14 @@ function zeichne(now, dt) {
 
   // Gebaeude und Einheiten
   const t = now / 1000;
+  // Gegnerische Gebaeude im Nebel: dort, wo man sie zuletzt gesehen hat, matt.
+  for (const b of nebel.bekannt.values()) {
+    if (sieht(nebel, b.x, b.y)) continue;
+    const r = BUILDINGS[b.type].radius * DM * ZEIGE_GEBAEUDE;
+    instanz(b.type, b.x * DM, 0, b.y * DM, (b.id % 4) * (Math.PI / 2) + 0.4, r, teamFarbe(b.player), 1, 0.6);
+  }
   for (const e of world.entities) {
+    if (verborgen(e)) continue;
     const team = teamFarbe(e.player);
     if (e.kind === 'building') {
       const def = BUILDINGS[e.type];
@@ -1430,7 +1464,9 @@ function zeichneDomaenen() {
   gl.depthMask(false);
   const randBreite = Math.max(1.2, kam.dist * 0.006);
   for (let p = 0; p < 2; p++) {
-    const anker = world.entities.filter((e) => e.player === p && e.kind === 'building' && anchorRadius(world, e) > 0);
+    const anker = world.entities.filter(
+      (e) => e.player === p && e.kind === 'building' && anchorRadius(world, e) > 0 && (p === ME || !nebel.an || nebel.bekannt.has(e.id))
+    );
     if (!anker.length) continue;
     const team = teamFarbe(p);
     const kreise = (plus, alpha) => {
@@ -1524,7 +1560,7 @@ function zeichneWirkungen() {
   octx.lineWidth = 1;
   octx.setLineDash([6, 6]);
   for (const e of world.entities) {
-    if (e.dead || e.kind !== 'building' || !e.done || !BUILDINGS[e.type].buff) continue;
+    if (e.dead || e.kind !== 'building' || !e.done || !BUILDINGS[e.type].buff || verborgen(e)) continue;
     octx.strokeStyle = FACTIONS[world.players[e.player].faction].color;
     octx.globalAlpha = e.powered ? 0.5 : 0.18;
     bodenKreis(e.x, e.y, BUILDINGS[e.type].buff.radius);
@@ -1541,7 +1577,7 @@ function zeichneWirkungen() {
   octx.globalAlpha = 1;
   octx.lineWidth = 1.5;
   for (const e of world.entities) {
-    if (e.dead || e.kind !== 'unit') continue;
+    if (e.dead || e.kind !== 'unit' || verborgen(e)) continue;
     const t = world.tick;
     const art = e.gebundenBis > t ? 'griff' : e.wehrBis > t ? 'wehr' : e.rufBis > t ? 'ruf' : e.tempoBis > t ? 'tempo' : e.beschworen ? 'rufen' : null;
     if (!art) continue;
@@ -1592,6 +1628,7 @@ function zeichneUeberlagerung(now) {
   }
   // Lebensbalken: beschaedigt, ausgewaehlt oder Kommandant; Baufortschritt
   for (const e of world.entities) {
+    if (verborgen(e)) continue;
     const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
     const zeigen = e.hp < e.maxHp || sel.includes(e.id) || def.commander || (e.kind === 'building' && !e.done);
     if (!zeigen) continue;
@@ -1708,6 +1745,7 @@ function zeichneMini() {
     mctx3.globalAlpha = 0.18;
     for (const e of world.entities) {
       if (e.player !== p || e.kind !== 'building') continue;
+      if (p !== ME && nebel.an && !nebel.bekannt.has(e.id)) continue;
       const r = anchorRadius(world, e);
       if (!r) continue;
       mctx3.beginPath();
@@ -1716,9 +1754,18 @@ function zeichneMini() {
     }
     mctx3.globalAlpha = 1;
     for (const e of world.entities) {
-      if (e.player !== p) continue;
+      if (e.player !== p || verborgen(e)) continue;
       const sz = e.kind === 'building' ? 4 : UNITS[e.type].commander ? 6 : 2.5;
       mctx3.fillRect(e.x * s - sz / 2, e.y * s - sz / 2, sz, sz);
+    }
+  }
+  // Nebel auf der Minikarte: Zelle fuer Zelle abgedunkelt
+  if (nebel.an) {
+    const z = W / NEBEL_N;
+    for (let i = 0; i < nebelHell.length; i++) {
+      if (nebelHell[i] === 255) continue;
+      mctx3.fillStyle = nebelHell[i] ? 'rgba(11,13,8,0.45)' : 'rgba(11,13,8,0.88)';
+      mctx3.fillRect((i % NEBEL_N) * z, ((i / NEBEL_N) | 0) * z, z + 0.5, z + 0.5);
     }
   }
   // Kamera-Ziel

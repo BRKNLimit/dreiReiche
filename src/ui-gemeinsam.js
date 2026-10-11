@@ -1,15 +1,55 @@
 // Gemeinsame Texte fuer beide Oberflaechen (2D und 3D). Liest den Zustand,
 // aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
 
-import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN } from './sim/defs.js';
+import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP } from './sim/defs.js';
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
-  gridReport, foerderungProMin, unterhaltProMin,
+  gridReport, foerderungProMin, unterhaltProMin, sichtGitter,
 } from './sim/sim.js';
+import { ZELLE } from './sim/weg.js';
 
 const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
+
+// ------------------------------------------------------------ Nebel des Krieges
+// Die Simulation sieht alles; der Nebel ist eine Sicht der Oberflaeche:
+// sichtbar, erkundet (schon einmal gesehen) oder unbekannt. Gegnerische
+// Gebaeude bleiben dort, wo man sie zuletzt gesehen hat.
+export const NEBEL_N = MAP / ZELLE;
+
+export function neuerNebel(an) {
+  return { an, sicht: new Uint8Array(NEBEL_N * NEBEL_N), erkundet: new Uint8Array(NEBEL_N * NEBEL_N), bekannt: new Map() };
+}
+
+/** Sicht neu berechnen, Erkundetes und zuletzt gesehene Gebaeude nachfuehren. */
+export function nebelAktualisieren(nebel, world, player) {
+  if (!nebel.an) return;
+  nebel.sicht = sichtGitter(world, player);
+  for (let i = 0; i < nebel.sicht.length; i++) if (nebel.sicht[i]) nebel.erkundet[i] = 1;
+  const lebend = new Set();
+  for (const e of world.entities) {
+    if (e.dead || e.player === player || e.kind !== 'building') continue;
+    lebend.add(e.id);
+    if (sieht(nebel, e.x, e.y)) nebel.bekannt.set(e.id, { id: e.id, type: e.type, player: e.player, x: e.x, y: e.y, done: e.done });
+  }
+  // Gesehen, dass es weg ist: vergessen.
+  for (const [id, b] of nebel.bekannt) if (!lebend.has(id) && sieht(nebel, b.x, b.y)) nebel.bekannt.delete(id);
+}
+
+/** Liegt der Punkt gerade in eigener Sicht? Ohne Nebel immer. */
+export function sieht(nebel, x, y) {
+  if (!nebel.an) return true;
+  const cx = Math.min(NEBEL_N - 1, Math.max(0, (x / ZELLE) | 0));
+  const cy = Math.min(NEBEL_N - 1, Math.max(0, (y / ZELLE) | 0));
+  return nebel.sicht[cy * NEBEL_N + cx] === 1;
+}
+
+/** Helligkeit je Zelle, 0..255: sichtbar 255, erkundet 120, unbekannt 0. */
+export function nebelHelligkeit(nebel, ziel) {
+  for (let i = 0; i < ziel.length; i++) ziel[i] = !nebel.an || nebel.sicht[i] ? 255 : nebel.erkundet[i] ? 120 : 0;
+  return ziel;
+}
 
 // ------------------------------------------------------------ Ressourcenleiste
 // Nach dem Entwurf des Nutzers: dunkle Leiste oben links, rechts rund

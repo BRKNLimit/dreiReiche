@@ -3,6 +3,19 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.23 — Nebel des Krieges
+
+- Jede Einheit und jedes Gebäude sieht in einem Umkreis (`sicht` in
+  `defs.js`; Einheiten 90 m, Gebäude 70 m, Baustellen 40 m; Türme 120 m,
+  Hauptgebäude 130 m, Fernkämpfer und Kommandanten 100 m).
+- `sichtGitter()` in der Simulation liefert, was ein Spieler sieht; die
+  Simulation selbst bleibt ohne Nebel.
+- Beide Ansichten: Unbekanntes ist fast schwarz, Erkundetes gedämpft,
+  Sichtbares klar. Gegnerische Einheiten nur in Sicht; gegnerische Gebäude
+  dort, wo man sie zuletzt gesehen hat (matt); gegnerische Domänen nur von
+  bekannten Ankern. Minikarte ebenso. In 3D als Textur im Shader.
+- Beim Zuschauen ist der Nebel aus. Die KI sieht weiter alles.
+
 ## 0.22 — Karte mit Felsen und Seen, Wegfindung
 
 - **Neue Karte** (`KARTE` in `defs.js`, punktsymmetrisch): vor jeder Basis

@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.22
+# Die drei Reiche — Prototyp 0.23
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -13,7 +13,7 @@ Verbesserungen und eine Fähigkeit des Kommandanten frei.
 ## Loslegen
 
 ```bash
-npm test          # 105 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
+npm test          # 107 Tests: Ankerregel, Domäne, Drosselleiter, Götterblut, Unterhalt, Erfahrung, Skillbaum, KI, Fairness
 npm run bundle    # baut dist/resonit.html und dist/drei-reiche-3d.html
 npm run smoke     # fährt beide Oberflächen headless je 1000 Frames
 npm run match     # KI gegen KI, beide Sitzplätze: node tools/match.mjs [seeds] [minuten]
@@ -119,6 +119,8 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 - Abriss mit Teilerstattung
 - Karte mit Felsgraten, Felsring um die Mitte und Seen; Wegfindung über
   Flussfelder, Gebäude umgleiten Einheiten seitlich
+- Nebel des Krieges: Sichtweite je Einheit und Gebäude, Erkundetes bleibt
+  gedämpft, gegnerische Gebäude bleiben, wo man sie zuletzt sah
 - Einheiten verfolgen Feinde nahe ihres Befehlspunkts (an der Leine),
   Angriffsbewegung verfolgt auch unterwegs
 - Faire Simulation: Befehle reihum, Kampf gleichzeitig, punktsymmetrische
@@ -134,7 +136,7 @@ Eine dritte Fraktion ist eine dritte Zeile. Siehe `docs/konzept.md`.
 
 ## Was bewusst fehlt
 
-Höhen im Gelände, Fog of War, Todesgott, Bergung,
+Höhen im Gelände, Todesgott, Bergung,
 Netzwerk. Siehe `docs/scope.md` — dort stehen auch die offenen Balance-Befunde.
 
 ## Struktur

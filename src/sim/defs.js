@@ -87,12 +87,15 @@ export const FACTIONS = {
   },
 };
 
+// sicht: Sichtweite im Nebel des Krieges, Dezimeter (sonst Einheiten 900,
+// fertige Gebaeude 700, Baustellen 400).
 // desc: ein, zwei Saetze fuer die Info-Karte; Zahlen setzt die Oberflaeche
 // aus den Daten dazu, damit der Text nie veraltet.
 export const BUILDINGS = {
   // --------------------------------------------------------------- Menschen
   halle: {
     name: 'Thingstätte',
+    sicht: 1300, // Sichtweite (Nebel des Krieges)
     desc: 'Hauptgebäude der Menschen. Fällt sie, ist die Partie verloren. Trägt die Startbasis und bildet Bauern und Soldaten aus.',
     // Grunddomaene: deckt die ganze Startbasis mit ihren drei Steinhaufen --
     // Anker braucht man zum Ausgreifen, nicht fuer Strom daheim.
@@ -110,6 +113,7 @@ export const BUILDINGS = {
   },
   grenzstein: {
     name: 'Grenzstein',
+    sicht: 900, // Sichtweite (Nebel des Krieges)
     desc: 'Anker: dehnt die Domäne aus, sofort in voller Größe. Nur in der Domäne fließt Gegenwart.',
     short: 'GRZ',
     faction: 'mensch',
@@ -121,6 +125,7 @@ export const BUILDINGS = {
   },
   wachturm: {
     name: 'Wachturm',
+    sicht: 1200, // Sichtweite (Nebel des Krieges)
     desc: 'Verteidigung: Schützen schießen Pfeile auf Feinde in Reichweite. Braucht Gegenwart — ohne schweigt er.',
     short: 'WTM',
     faction: 'mensch',
@@ -236,6 +241,7 @@ export const BUILDINGS = {
   // --------------------------------------------------------------- Gott
   herzbaum: {
     name: 'Herzbaum',
+    sicht: 1300, // Sichtweite (Nebel des Krieges)
     desc: 'Hauptgebäude des Gottes. Fällt er, ist die Partie verloren. Seine Domäne wächst mit der Zeit; er ruft Dryaden und Wölfe.',
     anchorMin: 4000, // wie die Thingstaette; waechst darueber hinaus bis max
     short: 'HRZ',
@@ -251,6 +257,7 @@ export const BUILDINGS = {
   },
   hain: {
     name: 'Hain',
+    sicht: 900, // Sichtweite (Nebel des Krieges)
     desc: 'Anker: dehnt die Domäne aus — klein am Anfang, wächst mit der Zeit. Nur auf ungerodetem Boden.',
     short: 'HAI',
     faction: 'gott',
@@ -263,6 +270,7 @@ export const BUILDINGS = {
   },
   waechterbaum: {
     name: 'Wächterbaum',
+    sicht: 1200, // Sichtweite (Nebel des Krieges)
     desc: 'Verteidigung: schleudert Dornen auf Feinde in Reichweite. Braucht Gegenwart — ohne schläft er.',
     short: 'WBA',
     faction: 'gott',
@@ -412,6 +420,7 @@ export const UNITS = {
   },
   jaeger: {
     name: 'Jäger',
+    sicht: 1000, // Sichtweite (Nebel des Krieges)
     desc: 'Fernkämpfer: schießt aus der zweiten Reihe, hält wenig aus.',
     faction: 'mensch',
     hp: 180,
@@ -449,6 +458,7 @@ export const UNITS = {
   //          ausserhalb der Domaene, so entstehen Aussenposten.
   held: {
     name: 'Held',
+    sicht: 1000, // Sichtweite (Nebel des Krieges)
     desc: 'Kommandant der Menschen: baut mit voller Kraft und kämpft stark. Einmalig — fällt er, ist die Partie verloren.',
     faction: 'mensch',
     hp: 6000,
@@ -466,6 +476,7 @@ export const UNITS = {
   // Wenige, teuer, langsam ausgebildet -- jede einzelne zaehlt.
   waldgott: {
     name: 'Waldgott',
+    sicht: 1000, // Sichtweite (Nebel des Krieges)
     desc: 'Der Gott selbst: baut mit voller Kraft und kämpft stark. Einmalig — fällt er, ist die Partie verloren.',
     faction: 'gott',
     hp: 6000,
@@ -508,6 +519,7 @@ export const UNITS = {
   },
   waldgeist: {
     name: 'Waldgeist',
+    sicht: 1000, // Sichtweite (Nebel des Krieges)
     desc: 'Fernkämpfer: wirft Licht aus großer Entfernung.',
     faction: 'gott',
     hp: 480,
@@ -535,6 +547,7 @@ export const UNITS = {
   // Belagerung: wenig gegen Einheiten, viel gegen Gebaeude.
   katapult: {
     name: 'Katapult',
+    sicht: 700, // Sichtweite (Nebel des Krieges)
     desc: 'Belagerung: wirft Steine weiter, als ein Turm schießt. Gegen Einheiten fast nutzlos, langsam und verwundbar.',
     faction: 'mensch',
     hp: 500,

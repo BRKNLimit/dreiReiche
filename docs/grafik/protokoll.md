@@ -145,6 +145,19 @@ geprüft (Tests, Galerie, Spiel).
     - `held`: Königlicher Großhelm mit Krone, Visierkreuz, Helmbusch und Löwen-Schulterstücken.
 - **Wie geprüft:** `npm test` (126 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames ohne jegliche Fehler oder Warnungen).
 
+### Runde 10: Auftrag 3, Aufgabe 1 — Karte „Flusstal“ (2D & 3D), Fluss mit Strömung, Furten und Zonen
+- **Was war schwach:** Die neue Karte „Flusstal“ (`KARTEN.flusstal`) wurde nur als Seenkette dargestellt (mit Uferringen, die das Wasser zerschnitten); Marschpfade liefen starr diagonal mitten durch den Fluss; Furten waren unsichtbar; Deko-Bäume standen starr auf Klassisch-Positionen und berücksichtigten die Flusstal-Waldzonen nicht.
+- **Was wurde geändert:**
+  - **2D-Draufsicht (`src/gelaende2d.js`):**
+    - `drawGrid`: Erkennt die aktive Karte. Zeichnet sanfte, blumenbestandene Wiesen-Zonen (`KARTE.wiesen`) und dunkle Moos-/Nadelwaldzonen (`KARTE.wald`). Auf Flusstal führen die Marschpfade von den Basen über die beiden Furten (`KARTE.furten`) statt quer durch das Wasser.
+    - `drawHindernisse`: Der Fluss wird nicht mehr als Aneinanderreihung einzelner Scheiben gezeichnet, sondern als geschwungenes, zusammenhängendes Flussband mit Ufersaum, Flussbett, tiefer Strömungsrinne und animierten Schaum-/Wellenlinien entlang der Flussachse. An den Furten werden kiesige Übergänge mit Trittsteinen dargestellt. Alle sichtbaren Uferkanten weichen weniger als 8 % von den Simulationskreisen ab.
+  - **3D-Ansicht (`src/gelaende3d.js`):**
+    - `baueBoden`: Berechnet für Flusstal den dunklen Waldboden in `KARTE.wald`, sonnige Blumenwiesen in `KARTE.wiesen`, Kiesbetten an den Furten und den über die Furten führenden Marschpfad.
+    - `baueDeko`: Exportierte Funktion, die von `ui3d.js` bei Kartenwechsel aufgerufen wird. Auf Flusstal werden die dichten Wälder in `KARTE.wald` mit Bäumen bestückt; Felsen, Gewässer (Fluss & Seen), Basen, Furten und Pfade werden strikt gemieden (0 Bäume im Wasser oder auf Fels).
+    - `zeichneGelaende`: Flusskreise werden als nahtloses Gewässer mit Schimmer gezeichnet (ohne schneidende Uferringe). An den Furten liegen seichte Kiesbänke knapp unter der Wasseroberfläche.
+- **Wie geprüft:** `npm test` (132/132 Tests grün, inkl. Flusstal-KI-Partien), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei).
+
+
 
 
 

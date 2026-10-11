@@ -74,6 +74,8 @@
   #intro .kampagne { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 12px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
   #intro .kampagne b { color: var(--accent); margin-right: 6px; }
   #intro .kampagne button:disabled { opacity: .45; cursor: default; }
+  #intro .kampagne + .kampagne { margin-top: 6px; }
+  #intro .kampagne.gott b, #intro .vorwort.gott h1 { color: #7fb069; }
   .ziele { background: rgba(20, 22, 16, .82); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 4px; padding: 6px 9px; margin: 6px 0; max-width: 340px; font-size: 12px; pointer-events: none; }
   .ziele b { display: block; color: var(--accent); margin-bottom: 3px; }
   .ziele .ok { color: var(--dim); text-decoration: line-through; }
@@ -6487,15 +6489,14 @@ function wiederholungWahlHtml() {
 
 /* ---------------------------------- */
 
-// Kampagne "Die Rodung": vier Missionen aus Sicht der Menschen, die in den
-// Wald des Gottes vordringen. Nur Oberflaeche -- die Simulation kennt keine
+// Kampagnen: "Die Rodung" (vier Missionen aus Sicht der Menschen, die in
+// den Wald des Gottes vordringen) und "Der Zorn des Waldes" (drei aus Sicht
+// des Gottes, der sie wieder vertreibt). Nur Oberflaeche -- die Simulation kennt keine
 // Missionen. Eine Mission legt fest, auf welcher Karte gegen welche KI
 // gespielt wird, baut vor dem ersten Tick die Startlage auf (aufbau, darf
 // die Welt veraendern -- deterministisch, darum auch in Wiederholungen
 // gleich) und prueft ihre Ziele in jedem Bild.
 
-
-const FORTSCHRITT = 'dreiReiche.kampagne';
 
 /** Fertiges Gebaeude setzen; Foerderbauten belegen ihre Ader. */
 function kmBaue(world, p, typ, x, y) {
@@ -6516,7 +6517,8 @@ function uhr(t) {
 }
 
 const kmZahl = (world, p, typ, fertig = true) => world.entities.filter((e) => !e.dead && e.player === p && e.type === typ && (!fertig || e.kind !== 'building' || e.done)).length;
-const MISSIONEN = [
+
+const RODUNG = [
   {
     id: 'fuss-fassen',
     titel: 'Fuß fassen',
@@ -6637,7 +6639,7 @@ const MISSIONEN = [
       <b>Besiege den Waldgott oder zerstöre den Herzbaum.</b> Nimm Ballisten mit.`,
     nachwort: `Der Wald schweigt. Wo der Herzbaum stand, wächst im Frühjahr Gras.
       Die Ältesten sagen, ein Gott stirbt nicht — er wartet. <b>Ende der Kampagne.</b>
-      Danke fürs Spielen!`,
+      Wie es aus seiner Sicht aussah, erzählt „Der Zorn des Waldes“.`,
     aufbau(world) {
       world.players[0].fron = 2000;
       // Der Gott hat sich eingegraben: Waechterbaeume am Weg zum Herzbaum, Quellen fuer ihre Kraft
@@ -6650,22 +6652,125 @@ const MISSIONEN = [
     sieg: 'standard',
   },
 ];
+
+// Holzfaeller am Grat (Lernmission Gott): Saegewerk auf der Mittelader, Grenzstein, zwei Soldaten
+const GRAT = [10000, 7400];
+// Saegewerke an der Siedlung der Menschen (gespiegelte Adern der Startbasis)
+const SIEDLUNG_SAEGEN = [[15200, 17800], [17800, 15200], [13800, 15500]];
+
+const ZORN = [
+  {
+    id: 'erwachen',
+    titel: 'Erwachen',
+    volk: 'gott',
+    karte: 'klassisch',
+    stil: 'burg',
+    stufe: 'leicht',
+    ki: false, // die Menschen ahnen nichts
+    vorwort: `Hundert Winter hast du geschlafen, unter Moos und Wurzeln. Jetzt weckt
+      dich ein Geräusch, das du nicht kennst: Äxte. Am Grat haben Menschen ein
+      Sägewerk gebaut, mitten auf deinem Stein. <b>Sammle deine Kraft, rufe deine
+      Geschöpfe und vertreibe die Holzfäller.</b> Ich zeige dir, wie.`,
+    nachwort: `Das Sägewerk brennt, die Holzfäller fliehen über den Grat. Aber
+      hinter ihnen, in der Ebene, rauchen hundert Schornsteine. Sie werden
+      wiederkommen — mit mehr Äxten.`,
+    aufbau(world) {
+      const w = kmBaue(world, 1, 'saege', GRAT[0], GRAT[1]);
+      const g = spawnBuilding(world, 1, 'grenzstein', GRAT[0] - 700, GRAT[1] - 300, true);
+      const a = spawnUnit(world, 1, 'soldat', GRAT[0] - 300, GRAT[1] - 400);
+      const b = spawnUnit(world, 1, 'soldat', GRAT[0] + 200, GRAT[1] - 450);
+      world.vorposten = [w.id, g.id, a.id, b.id];
+    },
+    ziele: [
+      { text: 'Wähle den Waldgott (Taste <kbd>K</kbd>)', erfuellt: (w, ich, c) => c.sel.some((id) => w.entities.find((e) => e.id === id && e.type === 'waldgott')) },
+      { text: 'Errichte eine Moosgrube auf einer Steinader (Waldgott wählen, <kbd>2</kbd>, Klick auf eine Ader)', erfuellt: (w, ich) => kmZahl(w, ich, 'moos') >= 1 },
+      { text: 'Pflanze einen Hain (Taste <kbd>3</kbd>) — deine Domäne wächst mit seinem Alter', erfuellt: (w, ich) => kmZahl(w, ich, 'hain') >= 1 },
+      { text: 'Rufe drei Dryaden (Herzbaum anklicken, Dryaden-Icon unten)', erfuellt: (w, ich) => kmZahl(w, ich, 'dryade') >= 3 },
+      { text: 'Rufe zwei Wölfe', erfuellt: (w, ich) => kmZahl(w, ich, 'wolf') >= 2 },
+      { text: 'Fasse deine Geschöpfe zur Steuergruppe 1 zusammen (wählen, <kbd>Strg</kbd>+<kbd>1</kbd>)', erfuellt: (w, ich, c) => (c.gruppen['1'] || []).length >= 4 },
+      { text: 'Vertreibe die Holzfäller vom Grat (Rechtsklick auf einen Feind greift ihn gezielt an)', erfuellt: (w) => (w.vorposten || []).every((id) => !w.entities.some((e) => e.id === id && !e.dead)) },
+    ],
+    sieg: 'ziele',
+  },
+  {
+    id: 'axt-und-feuer',
+    titel: 'Axt und Feuer',
+    volk: 'gott',
+    karte: 'klassisch',
+    stil: 'standard',
+    stufe: 'leicht',
+    vorwort: `Sie sind wiedergekommen. An ihrer Siedlung kreischen drei Sägewerke
+      Tag und Nacht, und jeder Stamm, der fällt, ist ein Stück von dir.
+      <b>Zerstöre die drei Sägewerke an der Siedlung der Menschen.</b> Ein Rabe
+      (Herzbaum) findet sie im Nebel.`,
+    nachwort: `Stille an der Siedlung. Doch die Menschen lernen schnell: Sie bauen
+      Türme aus Stein und schicken Boten in die Ebene. Bald kommt ihr Held — mit
+      allem, was sie haben.`,
+    aufbau(world) {
+      world.players[0].fron += 400;
+      world.saegen = SIEDLUNG_SAEGEN.map(([x, y]) => kmBaue(world, 1, 'saege', x, y).id);
+    },
+    ziele: [
+      {
+        text: 'Zerstöre die drei Sägewerke an der Siedlung der Menschen',
+        erfuellt: (w) => (w.saegen || []).every((id) => !w.entities.some((e) => e.id === id && !e.dead)),
+        zaehler: (w) => `${(w.saegen || []).filter((id) => !w.entities.some((e) => e.id === id && !e.dead)).length}/3`,
+      },
+    ],
+    sieg: 'ziele',
+  },
+  {
+    id: 'zorn-des-waldes',
+    titel: 'Der Zorn des Waldes',
+    volk: 'gott',
+    karte: 'klassisch',
+    stil: 'burg',
+    stufe: 'leicht',
+    vorwort: `Der Held der Menschen hat sich eingegraben: vier Wachtürme aus Stein, eine
+      Garnison, eine Kapelle, eine Schmiede, die Tag und Nacht glüht. Sie glauben, Mauern halten
+      einen Wald auf. <b>Besiege den Helden oder zerstöre die Thingstätte.</b>
+      Ents brechen Mauern, Wurzelbrecher erst recht.`,
+    nachwort: `Wo die Thingstätte stand, sprießen im Frühjahr Birken. Die Menschen
+      erzählen sich noch lange von dem Winter, in dem der Wald zurückkam.
+      <b>Ende der Kampagne.</b> Danke fürs Spielen!`,
+    aufbau(world) {
+      world.players[0].fron = 2000;
+      for (const [x, y] of [[15600, 15900], [15900, 15600], [16400, 14600], [14600, 16400]]) kmBaue(world, 1, 'wachturm', x, y);
+      // und eine Garnison
+      for (let i = 0; i < 8; i++) spawnUnit(world, 1, 'soldat', 15300 - (i % 4) * 90, 15300 - ((i / 4) | 0) * 90);
+      for (let i = 0; i < 4; i++) spawnUnit(world, 1, 'jaeger', 15600 - i * 90, 15050);
+      kmBaue(world, 1, 'schmiede', 17600, 15900);
+      kmBaue(world, 1, 'kapelle', 16400, 16400);
+      kmBaue(world, 1, 'kaserne', 15900, 17600);
+    },
+    ziele: [{ text: 'Besiege den Helden oder zerstöre die Thingstätte', erfuellt: (w, ich) => w.over && w.winner === ich }],
+    sieg: 'standard',
+  },
+];
+const KAMPAGNEN = [
+  { id: 'rodung', titel: 'Die Rodung', volk: 'mensch', missionen: RODUNG, speicher: 'dreiReiche.kampagne', niederlage: 'Der Held ist gefallen — oder die Thingstätte.' },
+  { id: 'zorn', titel: 'Der Zorn des Waldes', volk: 'gott', missionen: ZORN, speicher: 'dreiReiche.kampagne.zorn', niederlage: 'Der Waldgott ist gefallen — oder der Herzbaum.' },
+];
+for (const k of KAMPAGNEN) for (const m of k.missionen) m.kampagne = k;
+const MISSIONEN = KAMPAGNEN.flatMap((k) => k.missionen);
 function missionVon(id) {
   return MISSIONEN.find((m) => m.id === id) || null;
 }
+const nummer = (m) => m.kampagne.missionen.indexOf(m);
+const naechsteVon = (m) => m.kampagne.missionen[nummer(m) + 1] || null;
 
-/** Wie viele Missionen geschafft sind (die naechste ist freigeschaltet). */
-function kampagneStand() {
+/** Wie viele Missionen einer Kampagne geschafft sind (die naechste ist freigeschaltet). */
+function kampagneStand(k = KAMPAGNEN[0]) {
   try {
-    return Number(localStorage.getItem(FORTSCHRITT)) || 0;
+    return Number(localStorage.getItem(k.speicher)) || 0;
   } catch {
     return 0;
   }
 }
 function missionGeschafft(m) {
-  const i = MISSIONEN.indexOf(m);
+  const i = nummer(m);
   try {
-    if (i + 1 > kampagneStand()) localStorage.setItem(FORTSCHRITT, String(i + 1));
+    if (i + 1 > kampagneStand(m.kampagne)) localStorage.setItem(m.kampagne.speicher, String(i + 1));
   } catch {
     /* ohne Speicher eben nicht freigeschaltet */
   }
@@ -6682,16 +6787,17 @@ function missionPruefen(m, stand, world, ich, kontext) {
   return stand.every(Boolean);
 }
 
-/** Abschnitt fuer den Startbildschirm. */
+/** Abschnitt fuer den Startbildschirm: je Kampagne eine Zeile. */
 function kampagneHtml() {
-  const fertig = kampagneStand();
-  return `<div class="kampagne"><b>Kampagne „Die Rodung“</b>
-    ${MISSIONEN.map((m, i) => `<button data-mission="${m.id}"${i > fertig ? ' disabled' : ''}>${i < fertig ? '✔' : i === fertig ? '▶' : '🔒'} ${i + 1}. ${m.titel}</button>`).join('')}
+  return KAMPAGNEN.map((k) => {
+    const fertig = kampagneStand(k);
+    return `<div class="kampagne ${k.volk}"><b>${k.volk === 'gott' ? '🌳' : '⚔'} ${k.titel}</b>
+    ${k.missionen.map((m, i) => `<button data-mission="${m.id}"${i > fertig ? ' disabled' : ''}>${i < fertig ? '✔' : i === fertig ? '▶' : '🔒'} ${i + 1}. ${m.titel}</button>`).join('')}
   </div>`;
+  }).join('');
 }
 function vorwortHtml(m) {
-  const i = MISSIONEN.indexOf(m);
-  return `<div class="vorwort"><div class="kapitel">Kampagne „Die Rodung“ · Mission ${i + 1} von ${MISSIONEN.length}</div>
+  return `<div class="vorwort ${m.volk}"><div class="kapitel">Kampagne „${m.kampagne.titel}“ · Mission ${nummer(m) + 1} von ${m.kampagne.missionen.length}</div>
     <h1>${m.titel}</h1>
     <p>${m.vorwort}</p>
     <div class="go"><button id="missionLos">Los</button><button id="missionZurueck">Zurück</button></div></div>`;
@@ -6703,18 +6809,18 @@ function zieleHtml(m, stand, world) {
   return `<div class="ziele"><b>${m.titel}</b>${m.ziele
     .map((z, i) => {
       if (i > aktuell && aktuell >= 0) return '';
-      const rest = z.zeit && !stand[i] ? ` <span class="zeit">${uhr(z.zeit - world.tick)}</span>` : '';
+      const rest = z.zeit && !stand[i] ? ` <span class="zeit">${uhr(z.zeit - world.tick)}</span>` : z.zaehler && !stand[i] ? ` <span class="zeit">${z.zaehler(world)}</span>` : '';
       return `<div class="${stand[i] ? 'ok' : 'jetzt'}">${stand[i] ? '✔' : '○'} ${z.text}${rest}</div>`;
     })
     .join('')}${m.hinweis && m.hinweis(world) ? `<div class="hinweis">${m.hinweis(world)}</div>` : ''}</div>`;
 }
 function missionEndeHtml(m, gewonnen) {
-  const i = MISSIONEN.indexOf(m);
-  const naechste = MISSIONEN[i + 1];
+  const i = nummer(m);
+  const naechste = naechsteVon(m);
   return gewonnen
-    ? `<div class="vorwort"><div class="kapitel">Mission ${i + 1} geschafft</div><h1>${m.titel}</h1><p>${m.nachwort}</p>
+    ? `<div class="vorwort ${m.volk}"><div class="kapitel">Mission ${i + 1} geschafft</div><h1>${m.titel}</h1><p>${m.nachwort}</p>
       <div class="go">${naechste ? `<button id="missionWeiter">Weiter: ${naechste.titel}</button>` : ''}<button id="endeKarte">Karte ansehen</button><button id="endeNochmal">Hauptmenü</button></div></div>`
-    : `<div class="vorwort"><div class="kapitel">Mission ${i + 1} verloren</div><h1>${m.titel}</h1><p>Der Held ist gefallen — oder die Siedlung. Versuch es noch einmal.</p>
+    : `<div class="vorwort ${m.volk}"><div class="kapitel">Mission ${i + 1} verloren</div><h1>${m.titel}</h1><p>${m.kampagne.niederlage} Versuch es noch einmal.</p>
       <div class="go"><button id="missionNochmal">Nochmal</button><button id="endeKarte">Karte ansehen</button><button id="endeNochmal">Hauptmenü</button></div></div>`;
 }
 
@@ -6746,8 +6852,7 @@ function missionEndeZeigen(el, m, gewonnen, k) {
   if (gewonnen) missionGeschafft(m);
   el.innerHTML = missionEndeHtml(m, gewonnen);
   el.style.display = '';
-  const naechste = MISSIONEN[MISSIONEN.indexOf(m) + 1];
-  knopfAn('missionWeiter', () => k.waehle(naechste));
+  knopfAn('missionWeiter', () => k.waehle(naechsteVon(m)));
   knopfAn('missionNochmal', () => k.waehle(m));
   knopfAn('endeKarte', () => (el.style.display = 'none'));
   knopfAn('endeNochmal', k.menue);

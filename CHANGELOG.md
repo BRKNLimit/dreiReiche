@@ -3,7 +3,7 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
-## 0.33 — Kampagne „Die Rodung“
+## 0.33 — Zwei Kampagnen: „Die Rodung“ und „Der Zorn des Waldes“
 
 - **Kampagne** mit vier Missionen aus Sicht der Menschen, ganz oben im
   Startbildschirm. Jede Mission hat ein Vorwort, Ziele mit Haken im HUD und
@@ -20,12 +20,22 @@ Tabellen in `docs/scope.md`.
      Götterblut sammeln (Gott: Standard, mittel).
   4. **Der Waldgott** — der Gott hat sich mit vier Wächterbäumen, zwei
      Quellgründen und einem Steinkreis eingegraben (Burg, mittel).
+- **Zweite Kampagne „Der Zorn des Waldes“** aus Sicht des Gottes, drei
+  Missionen:
+  1. **Erwachen** — Lernmission: Waldgott wählen, Moosgrube, Hain,
+     Dryaden, Wölfe, Steuergruppe, dann die Holzfäller am Grat vertreiben.
+  2. **Axt und Feuer** — die drei Sägewerke an der Siedlung der Menschen
+     zerstören (Zähler im HUD; Menschen: Standard, leicht).
+  3. **Der Zorn des Waldes** — die befestigte Siedlung (vier Türme,
+     Garnison, Kapelle, Schmiede) fällen (Burg, leicht).
 - Missionen sind reine Oberfläche (`src/kampagne.js`): Startlage und
   Wellen entstehen deterministisch, Wiederholungen einer Mission spielen
   darum genau gleich ab.
 - Abgestimmt mit der KI auf der Spielerseite (6 Seeds, Designzahlen):
   Wer nichts tut, verliert Mission 2 nach gut 8 Minuten, die KI hält sie
-  6 von 6; Mission 3 schafft die KI 3 von 6, Mission 4 2 von 6.
+  6 von 6; Mission 3 schafft die KI 3 von 6, Mission 4 2 von 6. Gott:
+  „Axt und Feuer“ 4 von 6, das Finale 6 von 6 (auf „mittel“ nur 1 von 6 —
+  die Garnison macht es auf „leicht“ trotzdem lang, 26–58 min).
 - **Notfix 3D:** Seit Geminis Wasser (Aufgabe 6) startete die 3D-Ansicht
   nicht mehr — eine Shader-Uniform hatte im Vertex- und Fragment-Shader
   verschiedene Genauigkeit. Behoben (ein Wort in `src/render3d.js`), und

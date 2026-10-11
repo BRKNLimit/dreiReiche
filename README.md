@@ -37,10 +37,11 @@ Gegenwart-Überschuss, Götterblut, Fron.
 
 ## Kampagne
 
-Ganz oben im Startbildschirm: **Kampagne „Die Rodung“**, vier Missionen
-aus Sicht der Menschen — von der Lernmission bis zum Kampf gegen den
-eingegrabenen Waldgott. Ziele stehen links oben im HUD, geschaffte
-Missionen schalten die nächste frei.
+Ganz oben im Startbildschirm: **„Die Rodung“**, vier Missionen aus Sicht
+der Menschen — von der Lernmission bis zum Kampf gegen den eingegrabenen
+Waldgott — und **„Der Zorn des Waldes“**, drei Missionen aus Sicht des
+Gottes. Ziele stehen links oben im HUD, geschaffte Missionen schalten die
+nächste frei.
 
 ## Karten
 

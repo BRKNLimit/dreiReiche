@@ -10,6 +10,7 @@ const gl = leinwand.getContext('webgl2', { antialias: true, stencil: true });
 const TEAMFARBE = { mensch: HEX('#d8b06a'), gott: HEX('#8fb86a') };
 const WEISS = [1, 1, 1];
 let ansicht = 'waldgott';
+let gehenAktiv = false;
 let schilderSig = '';
 let festerWinkel = null; // aus dem Anker (#einheiten&winkel=0.5 oder #einheiten/winkel=0.5): stehendes Bild fuer Vergleiche
 const masse = {}; // Modell -> { hoehe, breite } fuer die Kamera
@@ -33,7 +34,20 @@ function eintraege() {
     return Object.keys(WALDGOTT_VARIANTEN).map((n) => ({ key: 'variante:' + n, name: n, team: TEAMFARBE.gott }));
   }
   if (ansicht === 'einheiten') {
-    return Object.keys(UNITS).map((k) => ({ key: k, name: UNITS[k].name, team: TEAMFARBE[UNITS[k].faction] }));
+    const res = [];
+    for (const k of Object.keys(UNITS)) {
+      if (k === 'waldgeist') {
+        res.push(
+          { key: 'waldgeist_fruehling', name: 'Waldgeist (Frühling)', team: TEAMFARBE.gott },
+          { key: 'waldgeist_sommer', name: 'Waldgeist (Sommer)', team: TEAMFARBE.gott },
+          { key: 'waldgeist_herbst', name: 'Waldgeist (Herbst)', team: TEAMFARBE.gott },
+          { key: 'waldgeist_winter', name: 'Waldgeist (Winter)', team: TEAMFARBE.gott }
+        );
+      } else {
+        res.push({ key: k, name: UNITS[k].name, team: TEAMFARBE[UNITS[k].faction] });
+      }
+    }
+    return res;
   }
   if (ansicht === 'gebaeude') {
     return Object.keys(BUILDINGS).map((k) => ({ key: k, name: BUILDINGS[k].name, team: TEAMFARBE[BUILDINGS[k].faction] }));
@@ -123,8 +137,12 @@ function bild(now) {
     // Boden-Scheibe als Standflaeche
     instanz('scheibe', 0, 0, 0, 0, m.breite * 1.3, [0.2, 0.25, 0.16], 1, 1, 1);
     zeichneInstanzen(MODELLE.scheibe);
-    // Nur lebendige Einheiten und Waldgott atmen/bewegen sich; Gebaeude und Karte bleiben starr
-    const schritt = (ansicht === 'waldgott' || ansicht === 'einheiten') ? Math.sin(now * 0.003) : 0;
+    // Im Stand stehen alle Modelle still, nur der Waldgott atmet sanft;
+    // echter Gang wird ueber den Knopf 'Gehen' zugeschaltet.
+    const istWaldgott = ansicht === 'waldgott' || e.key === 'waldgott' || e.key.startsWith('variante:');
+    const schritt = (ansicht === 'waldgott' || ansicht === 'einheiten')
+      ? (gehenAktiv ? Math.sin(now * 0.003) : (istWaldgott ? Math.sin(now * 0.002) * 0.5 : 0))
+      : 0;
     instanz(e.key, 0, 0, 0, drehung, 1, e.team, 1, 1, 1, schritt);
     zeichneInstanzen(MODELLE[e.key]);
   });
@@ -160,6 +178,14 @@ function wechsle(neu) {
 let sichtTex = null;
 function start() {
   for (const b of document.querySelectorAll('#kopf [data-ansicht]')) b.onclick = () => wechsle(b.dataset.ansicht);
+  const btnGehen = document.getElementById('btn-gehen');
+  if (btnGehen) {
+    btnGehen.onclick = () => {
+      gehenAktiv = !gehenAktiv;
+      btnGehen.textContent = 'Gehen: ' + (gehenAktiv ? 'An' : 'Aus');
+      btnGehen.className = gehenAktiv ? 'an' : '';
+    };
+  }
   if (!gl) {
     document.getElementById('nogl').style.display = 'flex';
     return;

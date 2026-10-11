@@ -75,26 +75,48 @@ export const ICONS = {
   </svg>`,
 
   katapult: `<svg viewBox="0 0 24 24">
-    <!-- Fahrgestell / Räder -->
-    <line x1="2" y1="18.5" x2="22" y2="18.5" stroke="${IC_HOLZ}" stroke-width="2.2" stroke-linecap="round"/>
-    <circle cx="5.5" cy="19" r="2.5" fill="#334e68" stroke="${IC_M}" stroke-width="1.4"/>
-    <circle cx="18.5" cy="19" r="2.5" fill="#334e68" stroke="${IC_M}" stroke-width="1.4"/>
-    <!-- Stützrahmen -->
-    <path d="M8 18 L12 9 L15 18" stroke="${IC_HOLZ}" stroke-width="2" fill="none" stroke-linejoin="round"/>
-    <!-- Wurfarm und Korb mit Stein -->
-    <line x1="7" y1="14" x2="19" y2="5" stroke="${IC_M}" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="20" cy="4" r="2.2" fill="${IC_STEIN}" stroke="${IC_SILBER}" stroke-width="0.6"/>
-    <rect x="5.5" y="13" width="3" height="3" rx="0.5" fill="${IC_STEIN_D}"/>
+    <!-- Schwere Belagerungs-Balliste auf Rädern -->
+    <!-- Räder und Achse -->
+    <rect x="1" y="14" width="2.5" height="7" rx="1.2" fill="#243b53" stroke="${IC_M}" stroke-width="1.1"/>
+    <rect x="20.5" y="14" width="2.5" height="7" rx="1.2" fill="#243b53" stroke="${IC_M}" stroke-width="1.1"/>
+    <rect x="3" y="16.5" width="18" height="2" rx="0.6" fill="${IC_HOLZ}" stroke="${IC_HOLZ_D}" stroke-width="0.5"/>
+    <!-- Holzstollen & Schussrahmen -->
+    <rect x="10.8" y="3" width="2.4" height="15.5" rx="0.6" fill="${IC_HOLZ}" stroke="${IC_HOLZ_D}" stroke-width="0.5"/>
+    <path d="M4 6.5 L20 6.5" stroke="${IC_HOLZ_D}" stroke-width="2.2" stroke-linecap="round"/>
+    <!-- Geschwungene Bogenarme mit Goldbeschlag -->
+    <path d="M5.5 7.5 C1.5 6, 0.5 11, 2.5 14" fill="none" stroke="${IC_M}" stroke-width="2" stroke-linecap="round"/>
+    <path d="M18.5 7.5 C22.5 6, 23.5 11, 21.5 14" fill="none" stroke="${IC_M}" stroke-width="2" stroke-linecap="round"/>
+    <!-- Gespannte Sehne -->
+    <path d="M2.5 14 L12 15 L21.5 14" fill="none" stroke="${IC_SILBER}" stroke-width="1.2" stroke-linejoin="round"/>
+    <!-- Wuchtiger Bolzen mit gehärteter Stahlspitze und Befiederung -->
+    <line x1="12" y1="2" x2="12" y2="15" stroke="${IC_SILBER}" stroke-width="1.8"/>
+    <path d="M12 0.8 L9.8 4 L14.2 4 Z" fill="${IC_SILBER}" stroke="${IC_SILBER_D}" stroke-width="0.4"/>
+    <path d="M10.2 13.5 L12 12 L13.8 13.5" fill="none" stroke="${IC_M_HELL}" stroke-width="1.3"/>
+    <!-- Spannwinde & Sperrrad -->
+    <circle cx="12" cy="16.5" r="1.5" fill="${IC_M}" stroke="${IC_M_HELL}" stroke-width="0.5"/>
   </svg>`,
 
   held: `<svg viewBox="0 0 24 24">
-    <!-- Ritterhelm mit goldener Krone und Schirm -->
-    <path d="M6 13 C6 8, 8 5, 12 5 C16 5, 18 8, 18 13 L18 16 C18 19, 15 20, 12 20 C9 20, 6 19, 6 16 Z" fill="${IC_SILBER}" stroke="${IC_SILBER_D}" stroke-width="0.8"/>
-    <!-- Sehschlitze / Visier -->
-    <path d="M8.5 12.5 H15.5 M12 11 V16" stroke="#102a43" stroke-width="1.4" stroke-linecap="round"/>
-    <!-- Goldene Krone auf dem Scheitel -->
-    <path d="M6.5 6 L8.5 3 L12 5 L15.5 3 L17.5 6 Z" fill="${IC_M}" stroke="${IC_M_HELL}" stroke-width="0.5"/>
-    <circle cx="12" cy="5" r="1" fill="#fff"/>
+    <!-- Prunkvoller königlicher Großhelm mit Krone, Federbusch und Löwen-Schulterstücken -->
+    <!-- Roter Wappenmantel / Umhang im Hintergrund -->
+    <path d="M3 21 C5 17, 19 17, 21 21" stroke="#8c2f2f" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <!-- Goldene Löwen-Schulterstücke (Spalier) -->
+    <path d="M3 16 C3 13.5, 6 13.5, 7.5 15 C6.5 18, 4.5 20, 2 21 C2.5 18.5, 2.8 17, 3 16 Z" fill="${IC_M}" stroke="${IC_M_HELL}" stroke-width="0.6"/>
+    <path d="M21 16 C21 13.5, 18 13.5, 16.5 15 C17.5 18, 19.5 20, 22 21 C21.5 18.5, 21.2 17, 21 16 Z" fill="${IC_M}" stroke="${IC_M_HELL}" stroke-width="0.6"/>
+    <!-- Helmkalotte aus poliertem Plattenstahl -->
+    <path d="M7 10 C7 5.5, 17 5.5, 17 10 L17.2 15 C17.2 18, 15 19.5, 12 19.5 C9 19.5, 6.8 18, 6.8 15 Z" fill="${IC_SILBER}" stroke="${IC_SILBER_D}" stroke-width="0.8"/>
+    <!-- Visier mit Kreuz-Verstärkung in Gold und Sehschlitzen -->
+    <path d="M7.5 12.5 H16.5" stroke="${IC_M}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M12 10.5 V16.5" stroke="${IC_M}" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="8.2" y1="12.5" x2="11.2" y2="12.5" stroke="#102a43" stroke-width="1.1"/>
+    <line x1="12.8" y1="12.5" x2="15.8" y2="12.5" stroke="#102a43" stroke-width="1.1"/>
+    <circle cx="10" cy="15" r="0.4" fill="#102a43"/>
+    <circle cx="14" cy="15" r="0.4" fill="#102a43"/>
+    <!-- Prunkvolle goldene Königskrone auf dem Scheitel -->
+    <path d="M6.2 8.5 L7.8 5 L10 7 L12 3.8 L14 7 L16.2 5 L17.8 8.5 Z" fill="${IC_M}" stroke="${IC_M_HELL}" stroke-width="0.6"/>
+    <circle cx="12" cy="5.2" r="0.8" fill="#ffffff"/>
+    <!-- Roter Helmbusch / Helmzier nach hinten fließend -->
+    <path d="M12 3.5 C12 0.8, 14.5 0.5, 16.5 1.5 C15.5 2.5, 13.5 2.8, 12.5 3.5" fill="#dc2626"/>
   </svg>`,
 
   // --------------------------------------------------------- Einheiten: Gott

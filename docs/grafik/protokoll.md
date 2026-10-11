@@ -108,6 +108,44 @@ geprüft (Tests, Galerie, Spiel).
   - **Icon (`src/icons.js`):** Holzhochsitz auf vier Pfosten mit Leiter, Plattform, rotem Walmdach, Laterne und auskragendem Fernrohr.
 - **Wie geprüft:** `npm test` (126/126 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames und 44 Icons fehlerfrei).
 
+### Runde 9: Auftrag 2 — Alle Modelle, Animationen und Icons auf G.2-Niveau
+- **Auftrag von Claude (`docs/grafik/auftrag-2.md`):** Vollständige Überarbeitung sämtlicher Einheiten, Gebäude, Shader-Animationen und Icons nach dem Maßstab von Waldgott G.2 Glutherz und Rabe.
+- **Was wurde geändert:**
+  - **1. Galerie Stillstand & Gehen-Schalter (`src/galerie.html`, `src/galerie.js`):**
+    - Galerie-Modelle stehen standardmäßig still (`schritt = 0`); nur der Waldgott atmet sanft im Stand.
+    - Neuer Button `#btn-gehen` ("Gehen: Aus" / "Gehen: An") schaltet die Gehanimation aller Einheiten auf Wunsch ein/aus.
+    - In der Galerie-Ansicht "Einheiten" werden die vier Jahreszeiten des Waldgeists (`waldgeist_fruehling`, `waldgeist_sommer`, `waldgeist_herbst`, `waldgeist_winter`) übersichtlich nebeneinander präsentiert.
+  - **2. Shader: Gliedmaßen-Gehanimation statt Betrunkenheits-Schwanken (`src/render3d.js`):**
+    - Ganzkörper-Wackeln und globale Rumpfdrehung wurden vollständig entfernt.
+    - Atmung und Saumwehen sind isoliert auf den Waldgott beschränkt (`istWaldgott > 0.5`).
+    - Bei `schritt != 0` führt der Vertex-Shader artikulierte Gliedmaßen-Bewegungen aus:
+      - Zweibeiner: Beine schwingen gegenläufig vor und zurück mit natürlichem Fußhub (`yLift`); Arme schwingen im Gegentakt mit.
+      - Vierbeiner: Diagonale Schrittfolge (Trott / Kreuzgang) für Vorder- und Hinterbeine.
+  - **3. Menschen-Einheiten (`src/modelle3d.js`):**
+    - `bauer`: Filzhut, Tunika, Beine mit Bundschuhen, geschwungene Sense mit Klinge und Weizenähre (1.506 Ecken).
+    - `soldat`: Gambeson, Kettenhemd, Eisenharnisch, Eisenhut, Dreiecksschild mit Goldrand, stählernes Ritterschwert (2.034 Ecken).
+    - `jaeger`: Grüner Jagdrock, Gamaschen, Federhut, Pfeilköcher auf dem Rücken, geschnitzter Langbogen mit Sehne (1.938 Ecken).
+    - `soeldner`: Brünne, Plattenbrust, Schaller-Helm mit Sehschlitzen, wuchtige Hellebarde mit Axtblatt und Hakenspitze (1.818 Ecken).
+  - **4. Kommandant Held (`held`):**
+    - Feldherr in vergoldeter Plattenrüstung, Löwen-Schulterstücken, Wappenrock, rotem Umhang, Großhelm mit offener Königskrone, rotem Helmbusch und zweihändigem Runenschwert mit glühendem Knauf (2.298 Ecken).
+  - **5. Gott-Einheiten (`src/modelle3d.js`):**
+    - `dryade`: Zierliche Baumnymphe aus Birkenholz, Rankenkleid, Blattkrone und glühenden Waldsporen (1.470 Ecken).
+    - `wolf`: Anatomischer Raubtierbau mit Rippenbogen, Pfotenläufen, Kiefer, Fangzähnen und Bernsteinaugen (1.440 Ecken).
+    - `ent`: Uralter Wanderbaum mit knorrigem Stamm, Astfingern, Moosschultern und leuchtenden Augenhöhlen (2.286 Ecken).
+    - `wurzelbrecher`: Gewaltiges Belagerungsmonstrum auf 4 Pfahlwurzeln mit Rammbalken-Schädel und Erdherz (2.340 Ecken).
+    - `waldgeist`: 4 Jahreszeiten-Paletten (Frühling, Sommer, Herbst, Winter) mit Blüten, Früchten, Herbstlaub oder Eiskristallen (je 1.704 Ecken).
+  - **6. Belagerungs-Balliste (`katapult`):**
+    - Schweres Belagerungsgeschütz auf 4 Speichenrädern nach `Balliste-Vorlage.jpg` mit Längsholm, Führungsschiene, Bogenarmen, gespannter Sehne, Riesen-Bolzen und Spannwinde (2.352 Ecken).
+  - **7. Alle 20 Gebäude beider Fraktionen auf G.2-Niveau:**
+    - Menschen: `halle`, `grenzstein`, `wachturm`, `schmiede`, `saege`, `kaserne`, `schacht`, `banner`, `kapelle`, `skriptorium`.
+    - Gott: `herzbaum`, `hain`, `waechterbaum`, `quelle`, `moos`, `dickicht`, `blutwurz`, `dornenschrein`, `eiche`, `steinkreis`.
+    - Jedes Gebäude mit sauberem Sockel, Fachwerk/Megalithen, Schindeln/Laubkronen und Glühelementen unter 9.000 Ecken (1.500–3.600 Ecken).
+  - **8. Icons (`src/icons.js`):**
+    - `katapult`: Fahrbare Balliste mit Rädern, Bogenarmen, Sehne, Bolzen und Winde.
+    - `held`: Königlicher Großhelm mit Krone, Visierkreuz, Helmbusch und Löwen-Schulterstücken.
+- **Wie geprüft:** `npm test` (126 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames ohne jegliche Fehler oder Warnungen).
+
+
 
 
 

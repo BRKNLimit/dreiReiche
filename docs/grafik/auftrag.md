@@ -1,7 +1,7 @@
 # Masterprompt für Gemini
 
 Diesen Text als erste Nachricht an Gemini geben. Gemini CLI im Ordner
-`C:Userslars2DocumentsdreiReichedrei-reicheesonit-gemini` starten — das
+`C:\Users\lars2\Documents\dreiReiche\drei-reiche\resonit-gemini` starten — das
 ist Geminis eigener Arbeitsordner auf dem Branch `gemini/grafik` (Claude
 arbeitet daneben in `resonit` auf `main`). Hat Gemini keinen Zugriff aufs Repo, siehe
 „Ohne Repo-Zugriff“ ganz unten.

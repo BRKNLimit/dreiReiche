@@ -45,4 +45,14 @@ geprüft (Tests, Galerie, Spiel).
     - `blutAder`: Tiefschwarzer Obsidianspalt mit leuchtenden roten Kristallspitzen (`GLUEHT`).
 - **Wie geprüft:** `npm test` und `npm run smoke` (1000 Frames im Headless WebGL) ohne Fehler bestanden; alle Modelle halten ihr Ecken-Budget ein.
 
+### Runde 4: Organische 2D-Karte und Kartenästhetik (Aufgabe 4)
+- **Was war schwach:** In der 2D-Draufsicht lag ein starres Koordinaten-Rasternetz über der gesamten Ansicht; der Boden war strukturlos; Felsen und Seen waren rein mathematische Kreise; Rodungsflächen wirkten starr kreisförmig.
+- **Was wurde geändert:** In `src/gelaende2d.js`:
+  - **Boden & Pfade (`drawGrid`):** Das starre Gitternetz wurde entfernt. Stattdessen gibt es einen echten Wiesenuntergrund, einen sichtbaren ausgetretenen Marschpfad zwischen den Basen und einen kartografischen Rahmen mit doppelter Zierleiste.
+  - **Seen (`drawHindernisse`):** Geschwungene Uferkonturen mit Schilfsaum, Wassertiefe und Innenkern (unter 8 % Abweichung vom Simulationskreis).
+  - **Felsen (`drawHindernisse`):** Kantige, polygonale Felsformationen mit Gratlinien, Facetten-Schattierung und Sonnenkanten.
+  - **Gerodete Flächen (`drawCleared`):** Natürlich ausgefranste Rodungsinseln mit organischem Rand.
+- **Wie geprüft:** `npm test` und `npm run smoke` (1000 Frames im Headless Canvas) fehlerfrei; alle sichtbaren Kanten entsprechen den mathematischen Kollisionskreisen bis auf < 8 %.
+
+
 

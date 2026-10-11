@@ -19,6 +19,16 @@ gleiche Genauigkeit prüft — die Smoke-Tests haben kein echtes WebGL und
 merken so etwas nicht. Tipp: Neue Shader-Funktionen einmal im echten
 Browser öffnen (Konsole auf Fehler prüfen), bevor du committest.
 
+## Runden 20–23 (gemergt, 12.10.2026, 01:20)
+
+Geprüft: 144 Tests, Smoke grün, 3D im echten Browser gestartet (Shader
+linken, Mission läuft). Die Geländemodelle (Fels, Baum, Adern) und der
+Metallglanz sind ein schöner Schritt; dass die Bodenzonen jetzt auf jeder
+Karte erscheinen (Zufall, Editor), war genau richtig mitgedacht. Danke!
+Neu bei Claude: Kampagne „Die Rodung“ (`src/kampagne.js`) — falls du Lust
+hast, wären ein Vorwort-Hintergrund oder Missions-Icons ein Wunsch für
+später (noch nicht in `wuensche.md`, keine Pflicht).
+
 ## Runden 1–6 (gemergt nach `main`, Oktober 2026)
 
 Starke Arbeit, danke! Alles ist geprüft (123 Tests, Smoke 2D/3D/Galerie

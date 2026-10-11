@@ -285,6 +285,80 @@ geprüft (Tests, Galerie, Spiel).
     - Alle Boden- und Geländelayer (Boden 0.0, Rodung 0.05, Schatten 0.06, Uferschlick 0.08, Furten 0.09, Tiefwasser 0.12, Wellenkamm 0.14) sind mit festem vertikalem Abstand gestaffelt, sodass Null Z-Fighting oder Flackern auftritt.
 - **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (1000 Frames 2D, 1000 Frames 3D im Spielmodus, Galerie-Smoke-Test fehlerfrei; 60 FPS stabil).
 
+### Runde 20: High-Res Modell- und Shader-Upgrade (src/modelle3d.js, src/render3d.js)
+- **Was war schwach:** Frühere Modelle waren funktionale Prototypen, nutzten ihr Eckenbudget (bis 6.000 je Einheit, bis 9.000 je Gebäude) kaum aus und wirkten teilweise blockartig. Zudem fehlte auf blanken Metallen und Goldornamenten das dynamische Lichtfunkeln im Sonnenlicht.
+- **Was wurde geändert:**
+  - **Menschliche Einheiten (`src/modelle3d.js`):**
+    - `held` (4.104 Ecken): Prunkvoller gotischer Ritterschmuck, Wappenschild mit goldenem Randbeschlag und Kreuzrelief, artikulierte Plattenpanzer-Gelenke, runengravierte Klinge, Goldkrone mit Rubinen und dreifach gestaffelter Helmfederbusch.
+    - `soldat` (2.478 Ecken): Genieteter Eisenhut mit Helmkamm, Kettenhaube mit Halsberg, Normannenschild mit Nietenband, gegurtetes Seitschwert mit Parierstange, Eschenspeer mit Schaftringen und rot-goldener Wimpelfahne.
+    - `bauer` (2.628 Ecken): Breitkrempiger geflochtener Strohhut mit Band, Leder-Arbeitsschürze, Werkzeuggürtel mit Rinderhorn-Wetzsteinhalter, Feldflasche und Saattasche, geschwungene Erntesense mit gedrehten Holzgriffen.
+    - `jaeger` (2.448 Ecken): Jägerkappe mit Fasanenfeder, geschlitzter Wams, lederne Armschutzmanschette, geschnitztes Jagdsignalhorn, Eiben-Reflexlangbogen mit Hornnocken und Sehnenwicklung, Pfeilköcher mit Befiederung.
+    - `soeldner` (2.436 Ecken): Geriefter Schallerhelm mit Klappvisier und beweglichem Kinnbart, geplättete Panzerhandschuhe und Eisenschuhe, massive Hellebarde mit Mond-Axtblatt, rückseitigem Reißdorn und Tüllen-Stoßklinge.
+    - `katapult` / Balliste (4.056 Ecken): Schwere vierrädrige Lafette mit Eichenradspeichen und eisernen Radkränzen, doppelte Torsions-Seilbündel in Bronzebeschlägen, Windenwelle mit Ratsche und Kurbel, Richtkeil.
+  - **Gott-Einheiten (`src/modelle3d.js`):**
+    - `dryade` (3.336 Ecken): Blütenkrone mit leuchtenden Pollenkelchen, laubbesetzte Rankenstola, zierliche Rindencorsage, geschnitzter Lebensholzstab mit schwebendem bernsteinglühendem Samenkern.
+    - `wolf` (1.884 Ecken): Geöffneter Kiefer mit elfenbeinfarbenen Fangzähnen, schattierte Pfotenballen und Krallen, buschiger Mähnenkragen in Farbschattierungen, dynamische Schweifkrümmung.
+    - `wurzelbrecher` (2.466 Ecken): Versteinerter Granit-Rammsporn mit Moospatina, krallenförmige Wurzelfüße, massiver Holzrippenkäfig um ein pulsierendes Magma-Glutherz, Dornenauswüchse.
+  - **Gebäude beider Reiche (`src/modelle3d.js`):**
+    - `halle` (1.632 Ecken): Gehölzte Steintreppe, Kreuzfachwerk, Giebelwappen, bernsteinfarben leuchtende Buntglasfenster, Kamin mit Schornstein und Glutpartikeln.
+    - `wachturm` (1.704 Ecken): Schießscharten mit Sturzbogen, auskragender Holzwehrgang mit Zinnen, vierseitiges Schindeldach, Signal-Feuerkorb mit Rauch/Glut.
+    - `schmiede` (924 Ecken): Gemauerte Esse mit glühendem Kohlenbett und Funken, Doppelhorn-Amboss auf Eichenklotz, Zange, Vorschlaghammer und zischender Wassereimer.
+    - `saege` (1.092 Ecken): 8-Schaufel-Wasserrad mit Kropfgerinne, Blockbandsägen-Rahmen über Holzrollengang, Schnittholzstapel und Kiefernstamm.
+    - `kaserne` (936 Ecken): Strohfechtpuppe auf Dreibeingestell, Waffenrack mit Spießen, Wachbalkon im Obergeschoss und Dachwimpel.
+    - `schacht` (1.230 Ecken): Bergwerks-Fördergerüst aus Rüstbalken mit Speichenrad, Schachtkabel, Erzkübel mit leuchtenden Götterblutkristallen und Lorenspurgleise.
+    - `herzbaum` (3.900 Ecken): 8 mächtige Stützwurzeln auf Moosfindlingen, goldene Lebenssaftadern, pulsierende Herzkammer, vielschichtiges Blätterdach mit Blütenlaternen.
+    - `waechterbaum` (1.500 Ecken): Knorriges Baumgesicht mit glimmenden Bernsteinaugen, dornenbesetzte Katapultkrone, ausladender Wurzelwall.
+    - `quelle` (1.764 Ecken): Steingefasstes Stufenbecken, schimmerndes Quellwasser mit Seerosen, 6 uralte Runenmenhire.
+    - `moos` (1.296 Ecken): Schattierte Torfterrassen, samtige Moosdecken, biolumineszente Pilzkolonien mit schwebenden Sporen.
+    - `dickicht` (1.404 Ecken): Dornenverhau mit Astbögen, gehörnter Schädel-Totem mit glühenden Seelenaugen.
+    - `blutwurz` (1.014 Ecken): Raubwurzeln, die gigantische facettierte Götterblutkristalle umschlingen.
+    - `dornenschrein` (1.452 Ecken): Spitz zulaufende Dornenbögen, Altarbecken mit schwebenden Flammenzungen.
+    - `steinkreis` (1.356 Ecken): 8 Megalithen mit leuchtenden Ritzungen, Dolmen-Opferaltar mit schwebender azurblauer Magiesphäre.
+    - `eiche` (2.154 Ecken): Ältestengesicht im Eichenstamm, vielteilige Laubkrone mit goldenen Weisheitslaternen.
+  - **Shader-Upgrade (`src/render3d.js`):**
+    - **Blinn-Phong Glanzlicht:** Spekularer Schimmer auf Waffen (Klingen, Tüllen, Spitzen), Rüstungseisen (Helme, Kürasse, Schilde) und Edelmetall (Krone, Wappenornamente, göttliche Relikte).
+    - Berücksichtigt Ambient Occlusion, sodass Scharten und Vertiefungen matt bleiben, während exponierte Rundungen im Sonnenlicht aufblitzen.
+- **Wie geprüft:** `npm test` (137/137 Tests grün, Eckenbudgets strikt eingehalten), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
+
+### Runde 21: High-Res Geländemodelle (Fels, Baum, Adern, Staubwolke) & Galerie-Animationen (src/modelle3d.js, src/gelaende3d.js, src/galerie.js)
+- **Was war schwach:** Während Einheiten und Gebäude bereits hochauflösend überarbeitet wurden, bestanden Geländeelemente (`fels`, `baum`, `fronAder`, `blutAder`, `staubwolke`) noch aus groben 6-Teile-Primitiven. In der Galerie unter „Effekte“ stand das Wasser zudem still, da `schritt` (Zeitphase) nur in den Einheiten- und Waldgott-Ansichten übergeben wurde.
+- **Was wurde geändert:**
+  - **Gelände- und Umgebungsmodelle (`src/modelle3d.js`):**
+    - `felsModell` (804 Ecken, vorher 144): Granit-Felsmassiv mit steiler Schieferbruchwand, Quarzader-Einschlüssen, mehreren zerklüfteten Felszacken, Moosflechten in Fugen und einem Geröllsockel mit Felsblöcken. Der maximale Radius bleibt exakt bei $\le 0.96$, wodurch die $10\%$-Kollisionsgrenze strikt gewahrt bleibt.
+    - `baumModell` (2.082 Ecken, vorher 144): Majestätischer Waldbaum mit 5 knorrigen Stützwurzeln, wetterseitigem Moosbelag am Stamm, organischem Stammknick, 4 ausladenden Astgabeln und 9-teiliger gestaffelter Laubkrone.
+    - `fronAderModell` (840 Ecken, vorher 156): Steinbruch- und Schürfstätte mit Eichenholz-Stützbalken, Querträgern, Abraumrutsche, angelehnter Bergmanns-Spitzhacke und funkelnden Eisenerznuggets mit Reflexionsglanz.
+    - `blutAderModell` (1.932 Ecken, vorher 156): Aufgerissener Obsidiankrater mit kochendem Götterblutsee, umschlungen von 6 dornigen Raubwurzeln mit Saftadern, 7 säulenförmigen Götterblut-Kristallspitzen und schwebenden Splittern im magischen Auftrieb.
+    - `staubwolkeModell` (336 Ecken, vorher 72): 5-teilig bauschende Staubwolke mit abgestuften Erdtönen für Geschosseinschläge und Gebäudeeinstürze.
+  - **Geländeanpassung (`src/gelaende3d.js`):**
+    - Marschpfade blenden beim Annähern an Wasserflächen (`uferFade`) und Felsbarrieren (`felsFade`) organisch aus, um unschöne Überschneidungen auf Zufallskarten oder Uferlinien auszuschließen.
+  - **Galerie (`src/galerie.js`):**
+    - In der Ansicht „Effekte“ wird dem Modell nun die dynamische Zeitphase übergeben, sodass die Wasseroberfläche lebendig wellt und schimmert und Magieeffekte sanft pulsieren.
+- **Wie geprüft:** `npm test` (137/137 Tests grün, alle Modelle innerhalb des Budgets), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
+
+### Runde 22: High-Res Upgrade der Schreine, Anker und Kultbauten (src/modelle3d.js)
+- **Was war schwach:** Die Kult- und Ankerbauten (`grenzstein`, `banner`, `kapelle`, `skriptorium`, `hain`) waren mit 450–1.100 Ecken im Vergleich zu den Hauptgebäuden noch relativ sparsam modelliert.
+- **Was wurde geändert:**
+  - `grenzsteinModell` (1.752 Ecken, vorher 684): Getrepptes Achteck-Fundament mit Pflasterung, 4 markante Grenzpfosten mit durchhängenden schweren Eisenketten, wuchtiger Obelisk mit geschmiedeten Nietklammern, beidseitig gemeißelte und golden glimmende Schutzrunen sowie gusseiserner Standartenausleger mit wehendem Reichswimpel.
+  - `bannerModell` (1.320 Ecken, vorher 564): Dreistufiges Werksteinfundament mit zwei lodernden Kohlen-Feuerkörben auf Schmiedeeisenständern, trophäenartiges Waffengestell am Sockel (Normannenschild und Breitschwert), massiver Bannerbaum mit Messingbeschlägen und prächtiges, herabwallendes Kriegsbanner mit goldenen Saumquasten und weißem Kreuzwappen.
+  - `kapelleModell` (1.248 Ecken, vorher 600): Gotisches Gotteshaus mit 6 abgetreppten Strebepfeilern, spitzbogigem Portal mit eisenbeschlagener Eichentür, leuchtender Fensterrose, 4 seitlichen Lanzettfenstern, steilem Schieferdach und offenem gotischen Glockenturm mit Bronzeglocke und Turmkreuz.
+  - `skriptoriumModell` (948 Ecken, vorher 474): Achteckiges Quadermauerwerk mit Fachwerk-Erker, Butzenscheibenfenster, beleuchtetem Lesepult mit aufgeschlagenem Folianten, Walmdach und angebautem rundem Bibliotheksturm mit eiserner Schreibfeder-Wetterfahne sowie Bücherregalnische mit ledergebundenen Büchern.
+  - `hainModell` (2.232 Ecken, vorher 1.116): Drei knorrige, miteinander verwobene Urweiden mit mächtigen Stützwurzeln, Astgabeln und kaskadierenden Kronen mit Feen-Glanzlichtern; im Zentrum ein steingefasster Quellsee mit blühenden Seerosengruppen und einem schwebenden, grün-weiß leuchtenden Lebenskristall.
+- **Wie geprüft:** `npm test` (137/137 Tests grün, Eckenbudgets strikt eingehalten), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
+
+### Runde 23: Universelle Zonen- und Geländegenerierung im 3D-Boden (src/gelaende3d.js)
+- **Was war schwach:** Die Schattierung von Wald-, Wiesen- und Furtenzonen in `baueBoden()` hing an der Bedingung `if (istFlusstal)`. Eigene Karten aus Claudes neuem Karteneditor oder prozedurale Zufallskarten mit Wiesen- oder Waldzonen wurden dadurch ohne die entsprechenden Bodenverfärbungen gezeichnet, falls der Kartenschlüssel nicht explizit 'flusstal' hieß.
+- **Was wurde geändert:**
+  - In `src/gelaende3d.js` (`baueBoden`) wurden die Zonenprüfungen vollständig entkoppelt:
+    - Waldzonen werden gerendert, sobald `waldKreise.length > 0` ist.
+    - Wiesen/Lichtungen werden gerendert, sobald `wiesenKreise.length > 0` ist.
+    - Kiesige Furten werden gerendert, sobald `furten.length > 0` ist.
+    - Jede Karte — ob 'klassisch', 'flusstal', 'zufall' oder 'eigene' — erhält damit nahtlos und automatisch ihre korrekten Bodenfarben, Moosböden, sonnigen Wiesen und Furtübergänge.
+- **Wie geprüft:** `npm test` (137/137 Tests grün), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
+
+
+
+
+
 
 
 

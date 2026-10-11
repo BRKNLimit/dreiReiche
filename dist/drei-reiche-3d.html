@@ -71,6 +71,21 @@
   #intro > * { max-width: 620px; }
   #intro h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
   #intro p { margin: 8px 0; }
+  #intro .kampagne { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 12px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+  #intro .kampagne b { color: var(--accent); margin-right: 6px; }
+  #intro .kampagne button:disabled { opacity: .45; cursor: default; }
+  .ziele { background: rgba(20, 22, 16, .82); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 4px; padding: 6px 9px; margin: 6px 0; max-width: 340px; font-size: 12px; pointer-events: none; }
+  .ziele b { display: block; color: var(--accent); margin-bottom: 3px; }
+  .ziele .ok { color: var(--dim); text-decoration: line-through; }
+  .ziele .jetzt { color: var(--text); }
+  .ziele .zeit { color: var(--accent); font-weight: 600; }
+  .ziele .hinweis { margin-top: 4px; color: #e08a5f; font-weight: 600; }
+  #intro .vorwort { max-width: 560px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 22px 4px; }
+  #intro .vorwort .kapitel { color: var(--dim); text-transform: uppercase; letter-spacing: .14em; font-size: 11px; margin-bottom: 6px; }
+  #intro .vorwort h1 { font-size: 30px; color: var(--accent); font-weight: 600; margin-bottom: 12px; }
+  #intro .vorwort p { font-size: 15px; line-height: 1.65; font-family: Georgia, 'Times New Roman', serif; }
+  #intro .vorwort .go { margin-top: 18px; }
+  .ziele kbd, #intro kbd { font-size: 11px; }
   #intro .frage { color: var(--accent); }
   #intro .stil { display: flex; gap: 14px; flex-wrap: wrap; color: var(--dim); margin-top: 10px; }
   #intro .stil label { color: var(--text); cursor: pointer; }
@@ -6472,6 +6487,275 @@ function wiederholungWahlHtml() {
 
 /* ---------------------------------- */
 
+// Kampagne "Die Rodung": vier Missionen aus Sicht der Menschen, die in den
+// Wald des Gottes vordringen. Nur Oberflaeche -- die Simulation kennt keine
+// Missionen. Eine Mission legt fest, auf welcher Karte gegen welche KI
+// gespielt wird, baut vor dem ersten Tick die Startlage auf (aufbau, darf
+// die Welt veraendern -- deterministisch, darum auch in Wiederholungen
+// gleich) und prueft ihre Ziele in jedem Bild.
+
+
+const FORTSCHRITT = 'dreiReiche.kampagne';
+
+/** Fertiges Gebaeude setzen; Foerderbauten belegen ihre Ader. */
+function kmBaue(world, p, typ, x, y) {
+  const b = spawnBuilding(world, p, typ, x, y, true);
+  if (BUILDINGS[typ].needs) {
+    const d = findDeposit(world, x, y, BUILDINGS[typ].needs);
+    if (d) d.takenBy = b.id;
+  }
+  return b;
+}
+// Mission 2 -- Designzahlen, mit der KI auf beiden Seiten abgestimmt (siehe CHANGELOG 0.33)
+const WUT = { fron: 900, soldaten: 6, jaeger: 2, ersteWelle: 600, wellenTakt: 1200, wellen: 5 };
+
+/** Ticks als m:ss */
+function uhr(t) {
+  const s = Math.max(0, Math.ceil(t / 10));
+  return ((s / 60) | 0) + ':' + String(s % 60).padStart(2, '0');
+}
+
+const kmZahl = (world, p, typ, fertig = true) => world.entities.filter((e) => !e.dead && e.player === p && e.type === typ && (!fertig || e.kind !== 'building' || e.done)).length;
+const MISSIONEN = [
+  {
+    id: 'fuss-fassen',
+    titel: 'Fuß fassen',
+    volk: 'mensch',
+    karte: 'klassisch',
+    stil: 'burg',
+    stufe: 'leicht',
+    ki: false, // der Wald schlaeft noch
+    vorwort: `Der Winter war lang. Hinter dem Grat liegt der alte Wald, und mit ihm
+      Holz, Stein und Land für alle. Die Ältesten sagen, der Wald gehöre einem Gott.
+      Die Ältesten sagen viel. <b>Errichte eine Siedlung, bilde ein Heer aus und vertreibe
+      den Vorposten des Waldes.</b> Ich führe dich Schritt für Schritt.`,
+    nachwort: `Der Hain ist gefallen. Zum ersten Mal knackt der Wald nicht nur unter
+      den Äxten — er antwortet. In der Nacht heulen Wölfe, näher als je zuvor.`,
+    aufbau(world) {
+      // Vorposten des Gottes vor dem Grat: ein Hain, zwei Woelfe
+      spawnBuilding(world, 1, 'hain', 9200, 6800, true);
+      spawnUnit(world, 1, 'wolf', 9000, 7300);
+      spawnUnit(world, 1, 'wolf', 9500, 7200);
+      world.vorposten = world.entities.filter((e) => e.player === 1 && (e.type === 'hain' || e.type === 'wolf')).map((e) => e.id);
+    },
+    ziele: [
+      { text: 'Wähle deinen Helden (Taste <kbd>K</kbd>)', erfuellt: (w, ich, c) => c.sel.some((id) => w.entities.find((e) => e.id === id && e.type === 'held')) },
+      { text: 'Baue ein Sägewerk auf eine Steinader (Held wählen, <kbd>2</kbd>, Klick auf eine Ader)', erfuellt: (w, ich) => kmZahl(w, ich, 'saege') >= 1 },
+      { text: 'Bilde zwei Bauern aus (Thingstätte anklicken, Bauer-Icon unten)', erfuellt: (w, ich) => kmZahl(w, ich, 'bauer') >= 2 },
+      { text: 'Baue eine Kaserne (Taste <kbd>4</kbd>)', erfuellt: (w, ich) => kmZahl(w, ich, 'kaserne') >= 1 },
+      { text: 'Bilde sechs Soldaten aus', erfuellt: (w, ich) => kmZahl(w, ich, 'soldat') >= 6 },
+      { text: 'Fasse dein Heer zur Steuergruppe 1 zusammen (wählen, <kbd>Strg</kbd>+<kbd>1</kbd>)', erfuellt: (w, ich, c) => (c.gruppen['1'] || []).length >= 4 },
+      { text: 'Zerstöre den Vorposten des Waldes (Rechtsklick auf einen Feind greift ihn gezielt an)', erfuellt: (w) => (w.vorposten || []).every((id) => !w.entities.some((e) => e.id === id && !e.dead)) },
+    ],
+    sieg: 'ziele',
+  },
+  {
+    id: 'wut-des-waldes',
+    titel: 'Die Wut des Waldes',
+    volk: 'mensch',
+    karte: 'klassisch',
+    stil: 'sturm',
+    stufe: 'schwer',
+    vorwort: `Der Gott ist erwacht, und er greift an — Welle um Welle. Die Siedlung
+      steht, ein Turm ist bemannt, Verstärkung ist unterwegs.
+      <b>Halte zehn Minuten stand.</b> Fällt der Held, fällt die Siedlung.`,
+    nachwort: `Die Glocken läuten. Die Verstärkung ist da, und der Wald zieht sich
+      zurück — für jetzt. Aber am Fluss haben die Späher etwas gefunden: rote
+      Adern im Gestein, die in der Nacht glimmen.`,
+    aufbau(world) {
+      world.players[0].fron = WUT.fron;
+      kmBaue(world, 0, 'saege', 4800, 2200);
+      kmBaue(world, 0, 'saege', 2200, 4800);
+      kmBaue(world, 0, 'schmiede', 3100, 4400);
+      kmBaue(world, 0, 'kaserne', 4400, 3300);
+      kmBaue(world, 0, 'wachturm', 5200, 4600);
+      for (let i = 0; i < WUT.soldaten; i++) spawnUnit(world, 0, 'soldat', 4700 + (i % 4) * 90, 4700 + ((i / 4) | 0) * 90);
+      for (let i = 0; i < WUT.jaeger; i++) spawnUnit(world, 0, 'jaeger', 4400 + i * 90, 4950);
+      // Der Gott hat sich vorbereitet
+      kmBaue(world, 1, 'waechterbaum', 15800, 15500);
+      kmBaue(world, 1, 'waechterbaum', 15500, 15800);
+    },
+    // Wellen: zusaetzlich zur KI, herbeigerufen (kein Unterhalt), sie ziehen auf die Thingstaette
+    takt(world) {
+      const n = world.tick >= WUT.ersteWelle && (world.tick - WUT.ersteWelle) % WUT.wellenTakt === 0 ? (world.tick - WUT.ersteWelle) / WUT.wellenTakt + 1 : 0;
+      if (!n || n > WUT.wellen) return;
+      const ids = [];
+      const ruf = (typ, k) => {
+        for (let i = 0; i < k; i++) {
+          const u = spawnUnit(world, 1, typ, 14600 + (ids.length % 6) * 110, 15000 + ((ids.length / 6) | 0) * 110);
+          u.beschworen = true;
+          ids.push(u.id);
+        }
+      };
+      ruf('wolf', 2 + n);
+      ruf('dryade', n);
+      ruf('waldgeist', Math.max(0, n - 2));
+      ruf('ent', n >= 5 ? 1 : 0);
+      issue(world, { type: 'attack', player: 1, ids, x: 3000, y: 3000 });
+    },
+    hinweis(world) {
+      const seit = world.tick - WUT.ersteWelle;
+      const n = seit < 0 ? 0 : ((seit / WUT.wellenTakt) | 0) + 1; // Wellen bisher
+      const frisch = n && seit - (n - 1) * WUT.wellenTakt < 150; // die letzte kam vor weniger als 15 s
+      if (frisch) return n === WUT.wellen ? 'Die letzte Welle greift an!' : `Welle ${n} von ${WUT.wellen} greift an!`;
+      return n < WUT.wellen ? `Nächste Welle in ${uhr(WUT.ersteWelle + n * WUT.wellenTakt - world.tick)}` : '';
+    },
+    ziele: [{ text: 'Halte zehn Minuten stand', erfuellt: (w) => w.tick >= 6000, zeit: 6000 }],
+    sieg: 'ziele',
+  },
+  {
+    id: 'blut-der-goetter',
+    titel: 'Blut der Götter',
+    volk: 'mensch',
+    karte: 'flusstal',
+    stil: 'standard',
+    stufe: 'mittel',
+    vorwort: `Das Flusstal. Jenseits der Furten glimmt das Götterblut in den Wiesen —
+      der Stoff, aus dem Söldner gemacht werden und Belagerungsgerät. Der Gott
+      weiß, was dort liegt, und er wird es verteidigen.
+      <b>Errichte zwei Blutschächte und sammle 300 Götterblut.</b>`,
+    nachwort: `Rotes Gold füllt die Truhen. Mit ihm lassen sich Ballisten bauen, die
+      weiter schießen als jeder Wächterbaum. Es ist Zeit, den Gott selbst zu stellen.`,
+    aufbau(world) {
+      world.players[0].fron += 500;
+    },
+    ziele: [
+      { text: 'Errichte zwei Blutschächte auf Götterblut-Adern', erfuellt: (w, ich) => kmZahl(w, ich, 'schacht') >= 2 },
+      { text: 'Sammle 300 Götterblut', erfuellt: (w, ich) => w.players[ich].goetterblut >= 300 },
+    ],
+    sieg: 'ziele',
+  },
+  {
+    id: 'der-waldgott',
+    titel: 'Der Waldgott',
+    volk: 'mensch',
+    karte: 'klassisch',
+    stil: 'burg',
+    stufe: 'mittel',
+    vorwort: `Im Herzen des Waldes steht er: riesig, dunkel, mit glühenden Augen und
+      goldenen Klauen. Seine Wächterbäume säumen den Weg, sein Herzbaum pulsiert.
+      <b>Besiege den Waldgott oder zerstöre den Herzbaum.</b> Nimm Ballisten mit.`,
+    nachwort: `Der Wald schweigt. Wo der Herzbaum stand, wächst im Frühjahr Gras.
+      Die Ältesten sagen, ein Gott stirbt nicht — er wartet. <b>Ende der Kampagne.</b>
+      Danke fürs Spielen!`,
+    aufbau(world) {
+      world.players[0].fron = 2000;
+      // Der Gott hat sich eingegraben: Waechterbaeume am Weg zum Herzbaum, Quellen fuer ihre Kraft
+      for (const [x, y] of [[15600, 15900], [15900, 15600], [16400, 14600], [14600, 16400]]) kmBaue(world, 1, 'waechterbaum', x, y);
+      kmBaue(world, 1, 'quelle', 17600, 15900);
+      kmBaue(world, 1, 'quelle', 15900, 17600);
+      kmBaue(world, 1, 'steinkreis', 16400, 16400);
+    },
+    ziele: [{ text: 'Besiege den Waldgott oder zerstöre den Herzbaum', erfuellt: (w, ich) => w.over && w.winner === ich }],
+    sieg: 'standard',
+  },
+];
+function missionVon(id) {
+  return MISSIONEN.find((m) => m.id === id) || null;
+}
+
+/** Wie viele Missionen geschafft sind (die naechste ist freigeschaltet). */
+function kampagneStand() {
+  try {
+    return Number(localStorage.getItem(FORTSCHRITT)) || 0;
+  } catch {
+    return 0;
+  }
+}
+function missionGeschafft(m) {
+  const i = MISSIONEN.indexOf(m);
+  try {
+    if (i + 1 > kampagneStand()) localStorage.setItem(FORTSCHRITT, String(i + 1));
+  } catch {
+    /* ohne Speicher eben nicht freigeschaltet */
+  }
+}
+
+/** Ziele pruefen: welche erfuellt, ob die Mission gewonnen ist. Erledigt bleibt erledigt. */
+function missionPruefen(m, stand, world, ich, kontext) {
+  for (let i = 0; i < m.ziele.length; i++) {
+    if (stand[i]) continue;
+    // Der Reihe nach: erst wenn alle vorigen erledigt sind (wie in einer Lernmission)
+    if (i > 0 && !stand[i - 1]) break;
+    if (m.ziele[i].erfuellt(world, ich, kontext)) stand[i] = true;
+  }
+  return stand.every(Boolean);
+}
+
+/** Abschnitt fuer den Startbildschirm. */
+function kampagneHtml() {
+  const fertig = kampagneStand();
+  return `<div class="kampagne"><b>Kampagne „Die Rodung“</b>
+    ${MISSIONEN.map((m, i) => `<button data-mission="${m.id}"${i > fertig ? ' disabled' : ''}>${i < fertig ? '✔' : i === fertig ? '▶' : '🔒'} ${i + 1}. ${m.titel}</button>`).join('')}
+  </div>`;
+}
+function vorwortHtml(m) {
+  const i = MISSIONEN.indexOf(m);
+  return `<div class="vorwort"><div class="kapitel">Kampagne „Die Rodung“ · Mission ${i + 1} von ${MISSIONEN.length}</div>
+    <h1>${m.titel}</h1>
+    <p>${m.vorwort}</p>
+    <div class="go"><button id="missionLos">Los</button><button id="missionZurueck">Zurück</button></div></div>`;
+}
+
+/** Ziele im HUD: erledigt abgehakt, das aktuelle hervorgehoben. */
+function zieleHtml(m, stand, world) {
+  let aktuell = stand.findIndex((s) => !s);
+  return `<div class="ziele"><b>${m.titel}</b>${m.ziele
+    .map((z, i) => {
+      if (i > aktuell && aktuell >= 0) return '';
+      const rest = z.zeit && !stand[i] ? ` <span class="zeit">${uhr(z.zeit - world.tick)}</span>` : '';
+      return `<div class="${stand[i] ? 'ok' : 'jetzt'}">${stand[i] ? '✔' : '○'} ${z.text}${rest}</div>`;
+    })
+    .join('')}${m.hinweis && m.hinweis(world) ? `<div class="hinweis">${m.hinweis(world)}</div>` : ''}</div>`;
+}
+function missionEndeHtml(m, gewonnen) {
+  const i = MISSIONEN.indexOf(m);
+  const naechste = MISSIONEN[i + 1];
+  return gewonnen
+    ? `<div class="vorwort"><div class="kapitel">Mission ${i + 1} geschafft</div><h1>${m.titel}</h1><p>${m.nachwort}</p>
+      <div class="go">${naechste ? `<button id="missionWeiter">Weiter: ${naechste.titel}</button>` : ''}<button id="endeKarte">Karte ansehen</button><button id="endeNochmal">Hauptmenü</button></div></div>`
+    : `<div class="vorwort"><div class="kapitel">Mission ${i + 1} verloren</div><h1>${m.titel}</h1><p>Der Held ist gefallen — oder die Siedlung. Versuch es noch einmal.</p>
+      <div class="go"><button id="missionNochmal">Nochmal</button><button id="endeKarte">Karte ansehen</button><button id="endeNochmal">Hauptmenü</button></div></div>`;
+}
+
+// ------------------------------------------------------------ Verdrahtung (beide Oberflaechen)
+const knopfAn = (id, f) => {
+  const b = document.getElementById(id);
+  if (b) b.onclick = f;
+};
+
+/** Knoepfe der Kampagne im Startbildschirm: waehle(m) zeigt das Vorwort. */
+function kampagneVerdrahten(el, waehle) {
+  const knoepfe = el.querySelectorAll ? el.querySelectorAll('[data-mission]') : [];
+  for (const b of knoepfe) b.onclick = () => waehle(missionVon(b.dataset.mission));
+}
+
+/** Vorwort einer Mission ueber dem Spielfeld; los() startet sie, zurueck() geht zum Startbildschirm. */
+function vorwortZeigen(el, m, los, zurueck) {
+  el.innerHTML = vorwortHtml(m);
+  el.style.display = '';
+  knopfAn('missionLos', () => {
+    el.style.display = 'none';
+    los();
+  });
+  knopfAn('missionZurueck', zurueck);
+}
+
+/** Ende einer Mission: Nachwort oder Niederlage; k.waehle(m) zeigt ein Vorwort, k.menue den Startbildschirm. */
+function missionEndeZeigen(el, m, gewonnen, k) {
+  if (gewonnen) missionGeschafft(m);
+  el.innerHTML = missionEndeHtml(m, gewonnen);
+  el.style.display = '';
+  const naechste = MISSIONEN[MISSIONEN.indexOf(m) + 1];
+  knopfAn('missionWeiter', () => k.waehle(naechste));
+  knopfAn('missionNochmal', () => k.waehle(m));
+  knopfAn('endeKarte', () => (el.style.display = 'none'));
+  knopfAn('endeNochmal', k.menue);
+}
+
+
+/* ---------------------------------- */
+
 // Renderer der 3D-Ansicht: Mathematik, Geometrie aus Grundkoerpern, Shader, Instanzen.
 // Gehoert zur Grafik (siehe GEMINI.md). Wird von tools/bundle.mjs mit den
 // anderen Dateien zu einem Skript zusammengefuegt -- Bezeichner aus frueheren
@@ -6810,7 +7094,7 @@ in vec3 vNor;
 in vec2 vWasserInfo;
 in vec3 vObjPos;
 in float vWeltY;
-uniform vec3 uLicht;
+uniform highp vec3 uLicht; // highp wie im Vertex-Shader -- sonst bricht das Linken ab (Notfix Claude)
 uniform vec3 uNebel;
 uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
 uniform sampler2D uSicht; // Nebel des Krieges: 1 sichtbar, 0.47 erkundet, 0 unbekannt
@@ -10205,6 +10489,9 @@ let nebelTex = null;
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 let gruppen = {}; // Steuergruppen: Ziffer -> Ids
+let mission = null; // laufende Mission der Kampagne (src/kampagne.js), sonst null
+let missionStand = []; // erledigte Ziele der Mission
+let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
 let aufnahme = null; // laufende Aufnahme (src/aufnahme.js)
 let wiederholung = null; // abgespielte Wiederholung, sonst null
 let wdhZeiger = 0;
@@ -10278,12 +10565,23 @@ function aufBoden(sx, sy) {
 }
 
 // ------------------------------------------------------------ Spielstart
-function neu(f, zuschauen = false, wdh = null) {
+function neu(f, zuschauen = false, wdh = null, m = null) {
   // Wiederholung: dieselben Startwerte wie bei der Aufnahme
   if (wdh) {
     karteSchluessel = wdh.karte;
     gegnerStil = wdh.stil;
     gegnerStufe = wdh.stufe;
+  }
+  // Mission: Karte, Gegner und Volk legt sie fest (auch beim Abspielen)
+  if (wdh && wdh.mission) m = missionVon(wdh.mission);
+  mission = m;
+  missionStand = m ? m.ziele.map(() => false) : [];
+  missionGewonnen = false;
+  if (m) {
+    karteSchluessel = m.karte;
+    gegnerStil = m.stil;
+    gegnerStufe = m.stufe;
+    f = m.volk;
   }
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
@@ -10295,13 +10593,14 @@ function neu(f, zuschauen = false, wdh = null) {
     if (typeof baueDeko === 'function') baueDeko(); // Baeume, Pfad je Karte (src/gelaende3d.js, Gemini)
   }
   world = createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
-  ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
+  if (m) m.aufbau(world);
+  ai = m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
   nebel = neuerNebel(!zuschauen && !wdh, ME);
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null });
   verlauf = neuerVerlauf();
   endeGezeigt = false;
   sel = [];
@@ -10797,7 +11096,8 @@ function tick() {
   if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
   else if (aufnahme) aufnehmen(aufnahme, world);
   if (aiMe) stepAI(aiMe, world);
-  stepAI(ai, world);
+  if (ai) stepAI(ai, world);
+  if (mission && mission.takt) mission.takt(world); // Missionsereignisse, auch beim Abspielen
   step(world);
   verlaufFortschreiben(verlauf, world);
   if (wiederholung && world.tick >= wiederholung.ende && !world.over) paused = true;
@@ -10826,7 +11126,7 @@ function tick() {
 function frame(now) {
   const dt = Math.max(0, Math.min(250, now - last)); // nie rueckwaerts, nie mehr als eine Viertelsekunde
   last = now;
-  if (!paused && !world.over) {
+  if (!paused && !world.over && !missionGewonnen) {
     acc += dt * speed;
     let guard = 0;
     while (acc >= TICK_MS && guard++ < 12) {
@@ -10838,7 +11138,8 @@ function frame(now) {
   alphaTick = paused || world.over ? 1 : Math.min(1, acc / TICK_MS);
   kameraTasten(dt);
   effekteFortschreiben(fx, paused || world.over ? 0 : (dt * speed) / 1000, world, hoerer3d());
-  if (world.over && !endeGezeigt) zeigeEnde();
+  missionFortschritt();
+  if ((world.over || missionGewonnen) && !endeGezeigt) zeigeEnde();
   if (!document.hidden) {
     zeichne(now, dt);
     zeichneUeberlagerung(now);
@@ -11357,7 +11658,7 @@ function zeichneHud() {
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : ''}</span>
     </div>
-    ${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
+    ${mission ? zieleHtml(mission, missionStand, world) : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahl}
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}`;
 }
@@ -11412,6 +11713,7 @@ const STIL_NAMEN3 = { sturm: 'Sturm — greift früh an', standard: 'Standard', 
 function introHtml3() {
   return `<h1>Die drei Reiche — 3D</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
+    ${kampagneHtml()}
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
     (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
     ist die Partie verloren.</p>
@@ -11466,6 +11768,10 @@ function zeigeEnde() {
   endeGezeigt = true;
   if (aufnahme) aufnahmeAbschliessen(aufnahme, world);
   const el = document.getElementById('intro');
+  if (mission && !wiederholung) {
+    missionEndeZeigen(el, mission, missionGewonnen || world.winner === ME, { waehle: missionWaehlen, menue: startbildschirm });
+    return;
+  }
   el.innerHTML = siegHtml(world, verlauf, ME, !!aufnahme, !!wiederholung);
   el.style.display = '';
   const knopf = (id, f) => {
@@ -11477,6 +11783,22 @@ function zeigeEnde() {
   knopf('endeNochmal', () => startbildschirm());
 }
 
+// ------------------------------------------------------------ Kampagne (src/kampagne.js)
+/** Vorwort zeigen; "Los" startet die Mission. */
+function missionWaehlen(m) {
+  paused = true;
+  vorwortZeigen(document.getElementById('intro'), m, () => {
+    paused = false;
+    neu(m.volk, false, null, m);
+  }, startbildschirm);
+}
+
+/** Ziele pruefen (je Bild); sind alle erfuellt, ist die Mission gewonnen. */
+function missionFortschritt() {
+  if (!mission || wiederholung || world.over || missionGewonnen) return;
+  if (missionPruefen(mission, missionStand, world, ME, { sel, gruppen }) && mission.sieg === 'ziele') missionGewonnen = true;
+}
+
 /** Startbildschirm zeigen und verdrahten. */
 function startbildschirm() {
   const el = document.getElementById('intro');
@@ -11485,6 +11807,7 @@ function startbildschirm() {
   document.getElementById('introMensch').onclick = () => starte3('mensch', false);
   document.getElementById('introGott').onclick = () => starte3('gott', false);
   document.getElementById('introSchau').onclick = () => starte3('mensch', true);
+  kampagneVerdrahten(el, missionWaehlen);
   const datei = document.getElementById('wiederholungDatei');
   if (datei) datei.onchange = () => wiederholungLaden(datei);
   const kDatei = document.getElementById('karteDatei');

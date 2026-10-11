@@ -28,6 +28,9 @@ const verborgen = (e) => imNebel(nebel, e, ME);
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 let gruppen = {}; // Steuergruppen: Ziffer -> Ids
+let mission = null; // laufende Mission der Kampagne (src/kampagne.js), sonst null
+let missionStand = []; // erledigte Ziele der Mission
+let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
 let aufnahme = null; // laufende Aufnahme (src/aufnahme.js)
 let wiederholung = null; // abgespielte Wiederholung, sonst null
 let wdhZeiger = 0;
@@ -68,12 +71,23 @@ const COL = {
   blut: '#a86fb5',
 };
 
-function neu(f, zuschauen = false, wdh = null) {
+function neu(f, zuschauen = false, wdh = null, m = null) {
   // Wiederholung: dieselben Startwerte wie bei der Aufnahme
   if (wdh) {
     karteSchluessel = wdh.karte;
     gegnerStil = wdh.stil;
     gegnerStufe = wdh.stufe;
+  }
+  // Mission: Karte, Gegner und Volk legt sie fest (auch beim Abspielen)
+  if (wdh && wdh.mission) m = missionVon(wdh.mission);
+  mission = m;
+  missionStand = m ? m.ziele.map(() => false) : [];
+  missionGewonnen = false;
+  if (m) {
+    karteSchluessel = m.karte;
+    gegnerStil = m.stil;
+    gegnerStufe = m.stufe;
+    f = m.volk;
   }
   meFaction = f;
   const gegner = f === 'mensch' ? 'gott' : 'mensch';
@@ -81,14 +95,15 @@ function neu(f, zuschauen = false, wdh = null) {
   const karte = karteFuerSpiel(karteSchluessel, wdh, seed);
   karteWaehlen(karte.schluessel, karte.daten);
   world = createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
-  ai = createAI(1, world.seed, gegnerStil, gegnerStufe);
+  if (m) m.aufbau(world);
+  ai = m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
   // Zuschauen: dieselbe KI spielt auch die eigene Seite.
   aiMe = zuschauen ? createAI(0, world.seed + 1) : null;
   nebel = neuerNebel(!zuschauen && !wdh, ME);
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null });
   verlauf = neuerVerlauf();
   endeGezeigt = false;
   angriff = false;
@@ -530,14 +545,15 @@ function renderBar() {
 function frame(now) {
   const dt = Math.max(0, Math.min(250, now - last)); // nie rueckwaerts, nie mehr als eine Viertelsekunde
   last = now;
-  if (!paused && !world.over) {
+  if (!paused && !world.over && !missionGewonnen) {
     acc += dt * speed;
     let guard = 0;
     while (acc >= TICK_MS && guard++ < 12) {
       if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
       else if (aufnahme) aufnehmen(aufnahme, world);
       if (aiMe) stepAI(aiMe, world);
-      stepAI(ai, world);
+      if (ai) stepAI(ai, world);
+      if (mission && mission.takt) mission.takt(world); // Missionsereignisse, auch beim Abspielen
       step(world);
       verlaufFortschreiben(verlauf, world);
       if (wiederholung && world.tick >= wiederholung.ende && !world.over) paused = true;
@@ -549,7 +565,8 @@ function frame(now) {
     }
   }
   effekteFortschreiben(fx, paused ? 0 : (dt * speed) / 1000, world, hoerer2d());
-  if (world.over && !endeGezeigt) zeigeEnde();
+  missionFortschritt();
+  if ((world.over || missionGewonnen) && !endeGezeigt) zeigeEnde();
   draw();
   requestAnimationFrame(frame);
 }
@@ -1096,7 +1113,7 @@ function drawHud() {
       ${kommandantZeile()}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : ''}</span>
     </div>
-    ${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
+    ${mission ? zieleHtml(mission, missionStand, world) : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahlHtml()}
     ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
     ${world.over || zeigeAuswertung ? flaecheHtml() + auswertungHtml() : ''}`;
@@ -1322,6 +1339,7 @@ function introHtml() {
   const pw = (b) => Math.round(BUILDINGS[b].buff.wehr / 10) + ' %';
   return `<h1>Die drei Reiche</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
+    ${kampagneHtml()}
     <div class="cols">
       <div><h2 style="color:${FACTIONS.mensch.color}">Menschen</h2>
         <p>Viele günstige Einheiten: Bauern, Soldaten, Jäger, Söldner.
@@ -1391,6 +1409,10 @@ function zeigeEnde() {
   endeGezeigt = true;
   if (aufnahme) aufnahmeAbschliessen(aufnahme, world);
   const el = document.getElementById('intro');
+  if (mission && !wiederholung) {
+    missionEndeZeigen(el, mission, missionGewonnen || world.winner === ME, { waehle: missionWaehlen, menue: startbildschirm });
+    return;
+  }
   el.innerHTML = siegHtml(world, verlauf, ME, !!aufnahme, !!wiederholung);
   el.style.display = '';
   const knopf = (id, f) => {
@@ -1402,6 +1424,22 @@ function zeigeEnde() {
   knopf('endeNochmal', () => startbildschirm());
 }
 
+// ------------------------------------------------------------ Kampagne (src/kampagne.js)
+/** Vorwort zeigen; "Los" startet die Mission. */
+function missionWaehlen(m) {
+  paused = true;
+  vorwortZeigen(document.getElementById('intro'), m, () => {
+    paused = false;
+    neu(m.volk, false, null, m);
+  }, startbildschirm);
+}
+
+/** Ziele pruefen (je Bild); sind alle erfuellt, ist die Mission gewonnen. */
+function missionFortschritt() {
+  if (!mission || wiederholung || world.over || missionGewonnen) return;
+  if (missionPruefen(mission, missionStand, world, ME, { sel, gruppen }) && mission.sieg === 'ziele') missionGewonnen = true;
+}
+
 /** Startbildschirm zeigen und verdrahten. */
 function startbildschirm() {
   const el = document.getElementById('intro');
@@ -1410,6 +1448,7 @@ function startbildschirm() {
   document.getElementById('introMensch').onclick = () => starte('mensch', false);
   document.getElementById('introGott').onclick = () => starte('gott', false);
   document.getElementById('introSchau').onclick = () => starte('mensch', true);
+  kampagneVerdrahten(el, missionWaehlen);
   const datei = document.getElementById('wiederholungDatei');
   if (datei) datei.onchange = () => wiederholungLaden(datei);
   const kDatei = document.getElementById('karteDatei');

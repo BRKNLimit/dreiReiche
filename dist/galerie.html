@@ -1904,7 +1904,7 @@ in vec3 vNor;
 in vec2 vWasserInfo;
 in vec3 vObjPos;
 in float vWeltY;
-uniform vec3 uLicht;
+uniform highp vec3 uLicht; // highp wie im Vertex-Shader -- sonst bricht das Linken ab (Notfix Claude)
 uniform vec3 uNebel;
 uniform float uRoentgen; // 1: verdeckte Einheit als Umriss in Teamfarbe
 uniform sampler2D uSicht; // Nebel des Krieges: 1 sichtbar, 0.47 erkundet, 0 unbekannt

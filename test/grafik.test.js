@@ -63,3 +63,35 @@ test('Icons: Ressourcen, Einheiten, Gebaeude und Faehigkeiten, jedes ein sichere
     assert.ok(!/<script|on\w+=|href=["']?(https?:|\/\/)/i.test(svg), k + ': keine Skripte, Ereignisse oder externen Verweise');
   }
 });
+
+// WebGL verlangt fuer eine Uniform in Vertex- und Fragment-Shader dieselbe
+// Genauigkeit, sonst schlaegt das Linken fehl und die 3D-Ansicht startet nicht.
+// Die Smoke-Tests merken das nicht (sie haben kein echtes WebGL) -- darum hier.
+test('Shader: gemeinsame Uniforms haben in Vertex- und Fragment-Shader dieselbe Genauigkeit', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const quelle = await readFile(new URL('../src/render3d.js', import.meta.url), 'utf8');
+  const shader = {};
+  for (const m of quelle.matchAll(/const (\w+) = `(#version 300 es[\s\S]*?)`;/g)) shader[m[1]] = m[2];
+  const uniforms = (text, standard) => {
+    const def = /precision\s+(lowp|mediump|highp)\s+float\s*;/.exec(text);
+    const grund = def ? def[1] : standard;
+    const out = {};
+    for (const u of text.matchAll(/^\s*uniform\s+(?:(lowp|mediump|highp)\s+)?(\w+)\s+(\w+)/gm)) {
+      if (!/^(float|vec[234]|mat[234])$/.test(u[2])) continue; // nur Gleitkomma-Typen
+      out[u[3]] = u[1] || grund;
+    }
+    return out;
+  };
+  let paare = 0;
+  for (const vs of Object.keys(shader).filter((n) => n.startsWith('VS'))) {
+    const fs = 'FS' + vs.slice(2);
+    if (!shader[fs]) continue;
+    paare++;
+    const a = uniforms(shader[vs], 'highp');
+    const b = uniforms(shader[fs], null);
+    for (const name in a) {
+      if (name in b) assert.equal(b[name], a[name], `${vs}/${fs}: Uniform ${name} ist im Vertex-Shader ${a[name]}, im Fragment-Shader ${b[name]}`);
+    }
+  }
+  assert.ok(paare >= 1, 'keine Shader gefunden');
+});

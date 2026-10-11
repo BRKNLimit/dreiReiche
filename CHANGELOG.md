@@ -3,6 +3,35 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.33 — Kampagne „Die Rodung“
+
+- **Kampagne** mit vier Missionen aus Sicht der Menschen, ganz oben im
+  Startbildschirm. Jede Mission hat ein Vorwort, Ziele mit Haken im HUD und
+  ein Nachwort; geschaffte Missionen schalten die nächste frei (im Browser
+  gespeichert).
+  1. **Fuß fassen** — Lernmission ohne gegnerische KI: Held wählen,
+     Sägewerk, Bauern, Kaserne, Soldaten, Steuergruppe, dann den Vorposten
+     des Waldes (Hain und zwei Wölfe) zerstören. Die Ziele kommen der Reihe
+     nach.
+  2. **Die Wut des Waldes** — zehn Minuten standhalten: kleine Siedlung,
+     ein Turm, sechs Soldaten und zwei Jäger gegen den Gott (Sturm, schwer)
+     und fünf zusätzliche Angriffswellen mit Countdown im HUD.
+  3. **Blut der Götter** — Flusstal: zwei Blutschächte bauen und 300
+     Götterblut sammeln (Gott: Standard, mittel).
+  4. **Der Waldgott** — der Gott hat sich mit vier Wächterbäumen, zwei
+     Quellgründen und einem Steinkreis eingegraben (Burg, mittel).
+- Missionen sind reine Oberfläche (`src/kampagne.js`): Startlage und
+  Wellen entstehen deterministisch, Wiederholungen einer Mission spielen
+  darum genau gleich ab.
+- Abgestimmt mit der KI auf der Spielerseite (6 Seeds, Designzahlen):
+  Wer nichts tut, verliert Mission 2 nach gut 8 Minuten, die KI hält sie
+  6 von 6; Mission 3 schafft die KI 3 von 6, Mission 4 2 von 6.
+- **Notfix 3D:** Seit Geminis Wasser (Aufgabe 6) startete die 3D-Ansicht
+  nicht mehr — eine Shader-Uniform hatte im Vertex- und Fragment-Shader
+  verschiedene Genauigkeit. Behoben (ein Wort in `src/render3d.js`), und
+  ein neuer Test prüft das künftig, weil die Smoke-Tests kein echtes WebGL
+  haben.
+
 ## 0.32 — Zufallskarten und Karteneditor
 
 - **Zufallskarten:** Im Startbildschirm „⚄ Zufall“ — jedes Spiel eine neue

@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.32
+# Die drei Reiche — Prototyp 0.33
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -34,6 +34,13 @@ Pfeiltasten oder mittlere Maustaste schieben, Mausrad zoomt. Einheiten
 hinter Gebäuden bleiben als Umriss sichtbar. Sonst dieselbe Steuerung wie in
 der Draufsicht. Oben links die Ressourcenleiste: freie Skillpunkte,
 Gegenwart-Überschuss, Götterblut, Fron.
+
+## Kampagne
+
+Ganz oben im Startbildschirm: **Kampagne „Die Rodung“**, vier Missionen
+aus Sicht der Menschen — von der Lernmission bis zum Kampf gegen den
+eingegrabenen Waldgott. Ziele stehen links oben im HUD, geschaffte
+Missionen schalten die nächste frei.
 
 ## Karten
 

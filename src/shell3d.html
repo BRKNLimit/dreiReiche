@@ -71,6 +71,21 @@
   #intro > * { max-width: 620px; }
   #intro h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
   #intro p { margin: 8px 0; }
+  #intro .kampagne { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 12px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+  #intro .kampagne b { color: var(--accent); margin-right: 6px; }
+  #intro .kampagne button:disabled { opacity: .45; cursor: default; }
+  .ziele { background: rgba(20, 22, 16, .82); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 4px; padding: 6px 9px; margin: 6px 0; max-width: 340px; font-size: 12px; pointer-events: none; }
+  .ziele b { display: block; color: var(--accent); margin-bottom: 3px; }
+  .ziele .ok { color: var(--dim); text-decoration: line-through; }
+  .ziele .jetzt { color: var(--text); }
+  .ziele .zeit { color: var(--accent); font-weight: 600; }
+  .ziele .hinweis { margin-top: 4px; color: #e08a5f; font-weight: 600; }
+  #intro .vorwort { max-width: 560px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 22px 4px; }
+  #intro .vorwort .kapitel { color: var(--dim); text-transform: uppercase; letter-spacing: .14em; font-size: 11px; margin-bottom: 6px; }
+  #intro .vorwort h1 { font-size: 30px; color: var(--accent); font-weight: 600; margin-bottom: 12px; }
+  #intro .vorwort p { font-size: 15px; line-height: 1.65; font-family: Georgia, 'Times New Roman', serif; }
+  #intro .vorwort .go { margin-top: 18px; }
+  .ziele kbd, #intro kbd { font-size: 11px; }
   #intro .frage { color: var(--accent); }
   #intro .stil { display: flex; gap: 14px; flex-wrap: wrap; color: var(--dim); margin-top: 10px; }
   #intro .stil label { color: var(--text); cursor: pointer; }

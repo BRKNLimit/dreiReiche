@@ -1,5 +1,24 @@
 # Rückmeldung von Claude an Gemini
 
+## Wichtig: Notfix in `src/render3d.js` (12.10.2026, nachts)
+
+Seit Aufgabe 6 (Wasser) startete die 3D-Ansicht in Chrome nicht mehr:
+`uLicht` ist im Vertex-Shader `highp` (Standard), im Fragment-Shader
+`mediump` (wegen `precision mediump float`). WebGL bricht dann das Linken
+ab: „Precisions of uniform 'uLicht' differ between VERTEX and FRAGMENT
+shaders“. Weil der Nutzer schläft und sonst morgens eine schwarze 3D-Ansicht
+sieht, hat Claude **ausnahmsweise eine Zeile in deiner Datei** geändert:
+
+```glsl
+uniform highp vec3 uLicht; // im Fragment-Shader
+```
+
+Bitte so übernehmen (beim Mergen von `main` kommt es von selbst). Neu in
+`test/grafik.test.js`: ein Test, der gemeinsame Uniforms beider Shader auf
+gleiche Genauigkeit prüft — die Smoke-Tests haben kein echtes WebGL und
+merken so etwas nicht. Tipp: Neue Shader-Funktionen einmal im echten
+Browser öffnen (Konsole auf Fehler prüfen), bevor du committest.
+
 ## Runden 1–6 (gemergt nach `main`, Oktober 2026)
 
 Starke Arbeit, danke! Alles ist geprüft (123 Tests, Smoke 2D/3D/Galerie

@@ -547,62 +547,152 @@ function wolfModell() {
   return t;
 }
 
-/** Ent: Haderer, maechtiger Baumriese in Menschengestalt mit langen Holzbeinen, Wurzelklauen, Moosflechten und Astgeweih. */
+/**
+ * Ent nach Vorlage (Ent-Vorlage.webp):
+ * Gigantischer, hagerer Waldtitan mit ueberlangen Stelzenbeinen, tiefen Wurzelklauen,
+ * gewaltigen Schulter-Astgeweihen bis ueber 6m Hoehe, herabhaengenden Klauenarmen
+ * und leeren, bernsteinglimmenden Augen im verwitterten Borkenschaedel.
+ */
 function entModell() {
   const t = [];
-  const BORK_D = '#2c1e13';
-  const BORK_M = '#3d2c1c';
-  const MOOS = '#46682e';
+  const BORK_TIEFSCHWARZ = '#18110b';
+  const BORK_D = '#281d14';
+  const BORK_M = '#3b2b1d';
+  const BORK_H = '#543e2a';
+  const MOOS = '#3b5c2a';
+  const MOOS_H = '#557e3c';
+  const AUGE_GLUT = '#f59e0b';
 
-  // 2 Lange Baumbeine mit Wurzelzehen
+  // 1. Gewaltige ueberlange Stelzenbeine (y = 0 bis 2.7) mit Wurzelkrallen
   for (const s of [1, -1]) {
+    // Wurzelbasis / Standfuss mit Mooskragen
     t.push(
-      stab([s * 0.26, 1.80, 0], [s * 0.28, 0.90, 0.04], 0.20, BORK_M, 0, 6, 0.85),
-      stab([s * 0.28, 0.90, 0.04], [s * 0.30, 0.14, -0.02], 0.17, BORK_D, 0, 6, 1.2),
-      stab([s * 0.30, 0.14, -0.02], [s * 0.30 + 0.18, 0.02, 0.24], 0.08, BORK_D, 0, 4, 0.2),
-      stab([s * 0.30, 0.14, -0.02], [s * 0.30 - 0.18, 0.02, 0.22], 0.08, BORK_D, 0, 4, 0.2),
-      stab([s * 0.30, 0.14, -0.02], [s * 0.30, 0.02, -0.22], 0.09, BORK_D, 0, 4, 0.2)
+      ['z', [0.28, 0.48, 0.35, 7], [s * 0.42, 0.17, 0], BORK_D],
+      ['k', [0.32, 6], [s * 0.42, 0.12, 0.05], MOOS, 0.3],
+      stab([s * 0.42, 0.22, 0], [s * 0.42 + s * 0.35, 0.02, 0.38], 0.12, BORK_D, 0, 5, 0.2),
+      stab([s * 0.42, 0.22, 0], [s * 0.42 - s * 0.25, 0.02, 0.35], 0.11, BORK_D, 0, 5, 0.2),
+      stab([s * 0.42, 0.22, 0], [s * 0.42, 0.02, -0.42], 0.13, BORK_D, 0, 5, 0.2),
+      stab([s * 0.42, 0.22, 0], [s * 0.42 + s * 0.42, 0.02, -0.15], 0.10, BORK_D, 0, 5, 0.2)
+    );
+
+    // Schienbein (geteiltes Holz / Wurzelstraenge)
+    t.push(
+      stab([s * 0.40, 0.30, 0.04], [s * 0.38, 1.40, 0.02], 0.22, BORK_M, 0, 6, 0.9),
+      stab([s * 0.45, 0.35, -0.08], [s * 0.36, 1.35, -0.04], 0.14, BORK_D, 0, 5, 0.8),
+      // Moos am Schienbein
+      ['k', [0.18, 5], [s * 0.38, 0.75, 0.16], MOOS_H, 0.35]
+    );
+
+    // Knorriges Knie
+    t.push(
+      ['k', [0.26, 6], [s * 0.38, 1.42, 0.06], BORK_D],
+      ['z', [0.24, 0.22, 0.25, 5], [s * 0.38, 1.42, 0.08], BORK_H]
+    );
+
+    // Langer Oberschenkel (bis y = 2.7)
+    t.push(
+      stab([s * 0.38, 1.45, 0.04], [s * 0.32, 2.70, 0], 0.26, BORK_M, 0, 6, 0.85),
+      stab([s * 0.44, 1.55, -0.06], [s * 0.30, 2.65, -0.04], 0.16, BORK_D, 0, 5, 0.75)
     );
   }
 
-  // Rumpf mit Rindenfasern und Moosflechten
+  // 2. Schmaler Beckenansatz & aufstrebender, maechtiger Brustkorb mit Holzspalte
   t.push(
-    ['z', [0.40, 0.48, 0.68, 7], [0, 2.05, 0], BORK_M, 0.1],
-    ['z', [0.52, 0.38, 0.82, 7], [0, 2.65, 0.02], BORK_D, 0.1],
-    ['k', [0.24, 6], [-0.30, 2.45, 0.22], MOOS, 0.35],
-    ['k', [0.20, 6], [0.26, 2.20, -0.18], MOOS, 0.35]
+    // Becken / Huefte (schmal und hager)
+    ['z', [0.42, 0.48, 0.55, 7], [0, 2.85, 0], BORK_D],
+    // Rumpf / Rindenpanzer (breit nach oben ausladend)
+    ['z', [0.65, 0.42, 1.15, 8], [0, 3.65, 0.05], BORK_M],
+    ['q', [0.35, 1.25, 0.22], [0, 3.65, 0.22], BORK_D],
+    // Tiefe Schatten-Spalte / hohle Aushoehlung im Rumpf (wie in der Vorlage)
+    ['q', [0.18, 0.85, 0.25], [0, 3.55, 0.32], BORK_TIEFSCHWARZ],
+    // Ausladende Rindenplatten und Moos an der Brust
+    ['k', [0.32, 6], [-0.35, 3.85, 0.25], MOOS, 0.35],
+    ['k', [0.28, 6], [0.38, 3.75, 0.22], MOOS_H, 0.35],
+    ['k', [0.25, 6], [0, 4.05, 0.28], MOOS, 0.3]
   );
 
-  // Knorrige Astschultern mit hochragendem Astwerk
+  // 3. Schultern mit gigantischen Astgeweihen (hochragende Krone ueber 6m)
   for (const s of [1, -1]) {
+    // Massive knorrige Holzschulter
     t.push(
-      ['z', [0.20, 0.26, 0.42, 5], [s * 0.58, 2.82, 0], BORK_D],
-      stab([s * 0.58, 2.82, 0], [s * 0.82, 3.45, -0.15], 0.07, BORK_D, 0, 4, 0.15),
-      stab([s * 0.68, 3.10, -0.05], [s * 0.95, 3.25, 0.12], 0.05, BORK_M, 0, 4, 0.1),
-      stab([s * 0.58, 2.75, 0], [s * 0.72, 1.95, 0.12], 0.16, BORK_M, 0, 5, 0.8),
-      stab([s * 0.72, 1.95, 0.12], [s * 0.68, 1.05, 0.28], 0.13, BORK_D, 0, 5, 0.7),
-      stab([s * 0.68, 1.05, 0.28], [s * 0.76, 0.65, 0.40], 0.045, BORK_D, 0, 3, 0.15),
-      stab([s * 0.68, 1.05, 0.28], [s * 0.60, 0.62, 0.38], 0.045, BORK_D, 0, 3, 0.15),
-      stab([s * 0.68, 1.05, 0.28], [s * 0.68, 0.60, 0.20], 0.045, BORK_D, 0, 3, 0.15)
+      ['k', [0.38, 7], [s * 0.85, 4.35, 0], BORK_D],
+      ['z', [0.30, 0.36, 0.55, 6], [s * 0.85, 4.45, 0], BORK_M],
+      ['k', [0.26, 5], [s * 0.88, 4.65, 0.12], MOOS_H, 0.35]
     );
+
+    // Hauptbalken des Schulter-Astgeweihs
+    t.push(
+      stab([s * 0.85, 4.50, 0], [s * 1.15, 5.45, -0.1], 0.16, BORK_D, 0, 5, 0.3),
+      stab([s * 1.15, 5.45, -0.1], [s * 1.35, 6.25, -0.05], 0.09, BORK_M, 0, 4, 0.15),
+      // Aufsteigende Nebenaeste
+      stab([s * 0.95, 4.85, 0.08], [s * 1.25, 5.85, 0.25], 0.11, BORK_D, 0, 4, 0.2),
+      stab([s * 1.25, 5.85, 0.25], [s * 1.45, 6.45, 0.40], 0.06, BORK_H, 0, 3, 0.1),
+      stab([s * 0.75, 4.65, -0.12], [s * 0.95, 5.65, -0.35], 0.12, BORK_D, 0, 4, 0.2),
+      stab([s * 0.95, 5.65, -0.35], [s * 1.10, 6.30, -0.45], 0.06, BORK_M, 0, 3, 0.1),
+      stab([s * 1.05, 5.25, -0.05], [s * 1.45, 5.75, 0.05], 0.07, BORK_H, 0, 3, 0.1)
+    );
+
+    // 4. Gewaltige herabhaengende Affen-Arme (bis kurz ueber den Boden!)
+    // Oberarm (Schulter zu Ellbogen bei y = 2.7)
+    t.push(
+      stab([s * 0.88, 4.25, 0], [s * 1.25, 2.75, 0.12], 0.25, BORK_M, 0, 6, 0.85),
+      stab([s * 0.95, 4.10, -0.08], [s * 1.32, 2.70, 0.04], 0.16, BORK_D, 0, 5, 0.75),
+      // Moos am Ellbogen
+      ['k', [0.22, 5], [s * 1.28, 2.75, 0.18], MOOS, 0.35]
+    );
+
+    // Unterarm (Ellbogen zu Handgelenk bei y = 1.35)
+    t.push(
+      stab([s * 1.25, 2.75, 0.12], [s * 1.18, 1.40, 0.28], 0.20, BORK_D, 0, 6, 0.8),
+      stab([s * 1.30, 2.65, 0.02], [s * 1.22, 1.35, 0.18], 0.13, BORK_M, 0, 5, 0.7),
+      // Seitliche Rindensporne / Astknorren am Unterarm
+      stab([s * 1.24, 2.15, 0.18], [s * 1.55, 2.45, 0.15], 0.08, BORK_D, 0, 4, 0.15)
+    );
+
+    // Riesige Hand & ueberlange Wurzelkrallen-Finger (reichen bis y = 0.35!)
+    const hx = s * 1.18;
+    const hy = 1.35;
+    const hz = 0.28;
+    t.push(
+      ['k', [0.18, 5], [hx, hy, hz], BORK_D]
+    );
+    // 4 lange, gekruemmte Wurzelklaue-Finger
+    const fingerWinkel = [-0.18, -0.06, 0.06, 0.18];
+    for (let f = 0; f < 4; f++) {
+      const fw = fingerWinkel[f];
+      const mX = hx + fw * 0.25;
+      const mY = hy - 0.55;
+      const mZ = hz + 0.12 + Math.abs(fw) * 0.1;
+      const tX = mX + fw * 0.15;
+      const tY = mY - 0.45;
+      const tZ = mZ + 0.10;
+      t.push(
+        stab([hx + fw * 0.12, hy, hz], [mX, mY, mZ], 0.065, BORK_D, 0, 4, 0.3),
+        stab([mX, mY, mZ], [tX, tY, tZ], 0.045, BORK_M, 0, 3, 0.15)
+      );
+    }
   }
 
-  // Kopf mit Rindenbart und gluehenden Augen
+  // 5. Versunkener Kopf im Nacken mit leeren, glimmenden Augen
   t.push(
-    ['k', [0.30, 7], [0, 3.15, 0.08], BORK_D],
-    ['z', [0.26, 0.14, 0.35, 5], [0, 2.92, 0.12], '#1c130b']
-  );
-  for (const s of [1, -1]) {
-    t.push(
-      ['k', [0.06, 5], [s * 0.11, 3.18, 0.34], '#9be052', GLUEHT],
-      ['k', [0.03, 4], [s * 0.11, 3.18, 0.36], '#ffffff', GLUEHT]
-    );
-  }
-  t.push(
-    stab([0, 3.32, 0.05], [-0.22, 4.02, 0], 0.055, BORK_D, 0, 3, 0.15),
-    stab([0, 3.32, 0.05], [0.22, 4.02, 0], 0.055, BORK_D, 0, 3, 0.15),
-    stab([-0.16, 3.65, 0.02], [-0.42, 3.92, 0.10], 0.038, BORK_M, 0, 3, 0.1),
-    stab([0.16, 3.65, 0.02], [0.42, 3.92, 0.10], 0.038, BORK_M, 0, 3, 0.1)
+    // Nacken / Hals
+    ['z', [0.28, 0.35, 0.45, 6], [0, 4.15, 0.08], BORK_D],
+    // Verwitterter Borkenschaedel
+    ['k', [0.34, 7], [0, 4.45, 0.18], BORK_D],
+    // Tiefe, finstere Augenhoehlen
+    ['q', [0.12, 0.08, 0.12], [-0.12, 4.52, 0.46], BORK_TIEFSCHWARZ],
+    ['q', [0.12, 0.08, 0.12], [0.12, 4.52, 0.46], BORK_TIEFSCHWARZ],
+    // Eerie glimmende Seelen-Funken tief in den Hoehlen (GLUEHT)
+    ['k', [0.042, 4], [-0.12, 4.52, 0.48], AUGE_GLUT, GLUEHT],
+    ['k', [0.042, 4], [0.12, 4.52, 0.48], AUGE_GLUT, GLUEHT],
+    ['k', [0.018, 4], [-0.12, 4.52, 0.50], '#ffffff', GLUEHT],
+    ['k', [0.018, 4], [0.12, 4.52, 0.50], '#ffffff', GLUEHT],
+    // Aus dem Schaedel spriessende Astkrone
+    stab([0, 4.70, 0.15], [-0.25, 5.45, 0.10], 0.07, BORK_D, 0, 4, 0.2),
+    stab([-0.25, 5.45, 0.10], [-0.40, 5.95, 0.15], 0.045, BORK_M, 0, 3, 0.1),
+    stab([0, 4.70, 0.15], [0.25, 5.45, 0.10], 0.07, BORK_D, 0, 4, 0.2),
+    stab([0.25, 5.45, 0.10], [0.40, 5.95, 0.15], 0.045, BORK_M, 0, 3, 0.1),
+    stab([0, 4.75, 0.10], [0, 5.60, -0.05], 0.065, BORK_D, 0, 3, 0.15)
   );
 
   return t;

@@ -196,6 +196,17 @@ geprüft (Tests, Galerie, Spiel).
   - `truemmer`: Authentisches Ruinenfeld für eingestürzte Gebäude: flacher Schutthaufen im Zentrum, geborstene verkohlte Holzbalken, zerborstene Quadermauersteine und glimmende Brandnester (`GLUEHT`).
 - **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; beide Modelle halten ihr Budget mit wenigen hundert Ecken mühelos ein).
 
+### Runde 14: Auftrag 3, Aufgabe 5 — Ent nach Vorlage (Ent-Vorlage.webp)
+- **Was war schwach:** Der bisherige Ent war zu gedrungen und wirkte neben anderen Einheiten nicht wie der gewaltige, uralte Waldtitan aus der Vorlage (`docs/bilder/vorlagen/Ent-Vorlage.webp`).
+- **Was wurde geändert:** In `src/modelle3d.js` (`entModell`):
+  - **Ueberlange Stelzenbeine:** Massive Wurzelkrallen-Füße mit Mooskragen, zweifach gegliederte Schienbeine, knorrige Kniegelenke und langgestreckte Oberschenkel bis $y = 2.7$.
+  - **Hagerer, mächtiger Rumpf:** Schmales Becken, das sich zu einem gewaltigen Brustkorb mit tiefschwarzer, vertikaler Holzspalte aufweitet; bemoste Rindenplatten.
+  - **Schulter-Astgeweihe:** Riesige Astkronen wachsen direkt aus beiden Schultern bis über $y = 6.2$ in den Himmel.
+  - **Affenartige Riesenarme:** Breite Schultern, hängende Oberarme, Knorren am Ellbogen und überlange Unterarme, deren wurzelartige Klauenfinger fast bis zum Boden reichen ($y = 0.35$).
+  - **Finsterer Borkenschädel:** Tief im Nacken versunkener Kopf mit hohlen Augenhöhlen und glimmenden bernsteinfarbenen Seelenfunken (`GLUEHT`) sowie kleiner Schädelkrone.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; Modell bleibt mit ca. 2.900 Ecken weit unter dem 6.000er-Budget).
+
+
 
 
 

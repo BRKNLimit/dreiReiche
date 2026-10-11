@@ -19,6 +19,9 @@ Tabellen in `docs/scope.md`.
   Seiten, wer vorn liegt, steht hell.
 - Lernmission „Fuß fassen“: die Schmiede ist jetzt ein eigener Schritt —
   ohne ihre Gegenwart stand die Kaserne fast still.
+- **2D ⇄ 3D mitten in der Partie:** Der Knopf „3D“ bzw. „2D“ nimmt eine
+  laufende Partie mit (auch Missionen und Zuschauen) — Spielstand sichern,
+  andere Ansicht öffnen, dort sofort weiter, Kamera an derselben Stelle.
 - Endbildschirm: „Zufallskarte“ statt „zufall“.
 - **„✨ Neu in 0.37“** im Startbildschirm — einmal, bis man „Verstanden“
   klickt. Der Startbildschirm schneidet lange Inhalte oben nicht mehr ab.

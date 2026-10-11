@@ -217,6 +217,10 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   kam.dist = 300;
   kam.yaw = -Math.PI * 0.75;
   if (stand && stand.extra.kam) Object.assign(kam, stand.extra.kam);
+  else if (stand && stand.extra.cam) {
+    kam.x = stand.extra.cam.x * DM;
+    kam.z = stand.extra.cam.y * DM;
+  }
   if (ME === 1) {
     kam.x = MAP * DM - 420;
     kam.z = MAP * DM - 420;
@@ -1779,6 +1783,22 @@ function menueSchliessen() {
 }
 document.getElementById('menueKnopf').onclick = menueZeigen;
 
+// ------------------------------------------------------------ Ansicht wechseln
+// Laeuft eine eigene Partie, nimmt der Knopf 2D/3D sie mit: Spielstand
+// sichern, andere Seite mit #weiter oeffnen, dort sofort laden.
+document.getElementById('ansichtWechsel').onclick = (e) => {
+  const laeuft = world && !world.over && !wiederholung && !netz && !missionGewonnen && document.getElementById('intro').style.display === 'none';
+  if (!laeuft || !schnellSpeichern(standText())) return; // sonst einfach die andere Seite
+  e.preventDefault();
+  location.href = e.currentTarget.getAttribute('href') + '#weiter';
+};
+function vonAndererAnsichtWeiter() {
+  if (typeof location === 'undefined' || location.hash !== '#weiter') return;
+  if (typeof history !== 'undefined' && history.replaceState) history.replaceState(null, '', location.pathname + location.search);
+  const t = schnellLaden();
+  if (t) standLaden(t);
+}
+
 /** Startbildschirm zeigen und verdrahten. */
 function startbildschirm() {
   const el = document.getElementById('intro');
@@ -1863,5 +1883,6 @@ if (!gl) {
   startbildschirm();
   neu('mensch', true);
   paused = true;
+  vonAndererAnsichtWeiter();
   requestAnimationFrame(frame);
 }

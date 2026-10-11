@@ -1030,3 +1030,146 @@ export const WALDGOTT_VARIANTEN = {
 // Das vom Nutzer gewaehlte finale Spiel-Asset: G.2 Glutherz (High-Res)
 MODELLE_DEF.waldgott = WALDGOTT_VARIANTEN['G.2 — Glutherz (High-Res)'];
 
+/** Rabe: Gott-Späher. Kleiner schwarzer Rabe mit weit gespreizten Schwingen und goldenen Augen. */
+function rabeModell() {
+  const SCHWARZ1 = '#131118';
+  const SCHWARZ2 = '#1c1924';
+  const SCHWARZ3 = '#282333';
+  const SCHNABEL = '#181615';
+  const AUGE_G = '#ffa000';
+  const t = [];
+
+  // Rumpf & Brust
+  t.push(
+    ['z', [0.22, 0.36, 0.72, 8], [0, 0.44, -0.05], SCHWARZ1, 0.25, [-0.35, 0, 0]],
+    ['k', [0.32, 7], [0, 0.46, 0.12], SCHWARZ2, 0.25],
+    // Hals
+    ['z', [0.18, 0.24, 0.30, 6], [0, 0.60, 0.30], SCHWARZ1, 0.2, [0.45, 0, 0]],
+    // Kopf
+    ['k', [0.20, 7], [0, 0.70, 0.44], SCHWARZ2, 0.15],
+    // Kraeftiger Rabenschnabel (gebogen)
+    ['z', [0, 0.08, 0.36, 5], [0, 0.69, 0.70], SCHNABEL, 0, [Math.PI / 2 + 0.15, 0, 0]],
+    ['z', [0, 0.065, 0.28, 4], [0, 0.64, 0.66], SCHNABEL, 0, [Math.PI / 2, 0, 0]],
+    // Federschopf am Hinterkopf
+    ['z', [0, 0.09, 0.22, 4], [0, 0.77, 0.32], SCHWARZ3, 0.2, [-0.8, 0, 0]]
+  );
+
+  // Leuchtende Bernstein-Augen (wie beim Waldgott)
+  for (const s of [1, -1]) {
+    t.push(
+      ['k', [0.038, 5], [s * 0.12, 0.73, 0.50], AUGE_G, GLUEHT],
+      ['k', [0.018, 4], [s * 0.125, 0.73, 0.51], '#ffffff', GLUEHT]
+    );
+  }
+
+  // Schwingen: 2-stufig geschwungen mit Handschwingen und Federfahnen
+  for (const s of [1, -1]) {
+    t.push(stab([s * 0.18, 0.48, 0.15], [s * 0.75, 0.56, 0.12], [0.28, 0.08], SCHWARZ2, 0.25));
+    t.push(stab([s * 0.75, 0.56, 0.12], [s * 1.45, 0.52, -0.05], [0.24, 0.06], SCHWARZ1, 0.25));
+    t.push(stab([s * 1.45, 0.52, -0.05], [s * 2.15, 0.45, -0.25], [0.18, 0.04], SCHWARZ3, 0.25));
+
+    t.push(
+      ['q', [0.55, 0.03, 0.35], [s * 0.65, 0.52, -0.08], SCHWARZ1, 0.2, [0.15, 0, s * -0.1]],
+      ['q', [0.65, 0.03, 0.40], [s * 1.25, 0.48, -0.22], SCHWARZ2, 0.2, [0.15, 0, s * -0.15]],
+      ['q', [0.55, 0.03, 0.45], [s * 1.75, 0.44, -0.38], SCHWARZ3, 0.2, [0.15, 0, s * -0.2]]
+    );
+  }
+
+  // Stossgefieder (Faecher-Schwanz)
+  t.push(
+    ['q', [0.22, 0.03, 0.65], [0, 0.38, -0.62], SCHWARZ1, 0.2, [-0.22, 0, 0]],
+    ['q', [0.18, 0.03, 0.58], [0.14, 0.38, -0.58], SCHWARZ2, 0.2, [-0.22, 0, -0.2]],
+    ['q', [0.18, 0.03, 0.58], [-0.14, 0.38, -0.58], SCHWARZ2, 0.2, [-0.22, 0, 0.2]]
+  );
+
+  // Eingeholte Klauen am Bauch
+  for (const s of [1, -1]) {
+    t.push(['z', [0.03, 0.05, 0.22, 4], [s * 0.12, 0.25, -0.05], '#2a2218', 0, [0.8, 0, 0]]);
+  }
+
+  return t;
+}
+
+/** Spaehposten: Menschen-Hochsitz. Vierbeiniger Holzturm mit Bruestung, Leiter, Fernrohr und Laterne. */
+function spaehpostenModell() {
+  const HOLZ_D = '#4a331c';
+  const t = [];
+
+  // 1. Vier solide Stein-Fundamente und Pfosten
+  const pfeilerPos = [
+    [0.65, 0.65],
+    [-0.65, 0.65],
+    [0.65, -0.65],
+    [-0.65, -0.65]
+  ];
+  for (const [px, pz] of pfeilerPos) {
+    t.push(['z', [0.20, 0.26, 0.35, 6], [px, 0.175, pz], STEIN]);
+    t.push(stab([px, 0.35, pz], [px * 0.8, 2.35, pz * 0.8], 0.13, HOLZ, 0, 4));
+  }
+
+  // 2. Diagonale X-Verstrebungen und Zargen
+  const seiten = [
+    [[0.65, 0.65], [-0.65, 0.65]],
+    [[-0.65, 0.65], [-0.65, -0.65]],
+    [[-0.65, -0.65], [0.65, -0.65]],
+    [[0.65, -0.65], [0.65, 0.65]]
+  ];
+  for (let s = 0; s < seiten.length; s++) {
+    const [pA, pB] = seiten[s];
+    if (s !== 2) {
+      t.push(stab([pA[0], 0.55, pA[1]], [pB[0] * 0.8, 2.15, pB[1] * 0.8], 0.065, HOLZ_D));
+      t.push(stab([pB[0], 0.55, pB[1]], [pA[0] * 0.8, 2.15, pA[1] * 0.8], 0.065, HOLZ_D));
+    }
+    t.push(stab([pA[0] * 0.9, 1.35, pA[1] * 0.9], [pB[0] * 0.9, 1.35, pB[1] * 0.9], 0.08, HOLZ));
+  }
+
+  // 3. Leiter an der Rueckseite
+  const lX = 0;
+  const lZ = -0.62;
+  t.push(stab([lX - 0.18, 0.05, lZ], [lX - 0.15, 2.35, lZ * 0.8], 0.05, HOLZ));
+  t.push(stab([lX + 0.18, 0.05, lZ], [lX + 0.15, 2.35, lZ * 0.8], 0.05, HOLZ));
+  for (let r = 1; r <= 6; r++) {
+    const yR = r * 0.35;
+    t.push(['q', [0.36, 0.04, 0.04], [lX, yR, lZ * (1 - yR * 0.08)], HOLZ_D]);
+  }
+
+  // 4. Ausguck-Plattform und Bruestung
+  t.push(
+    ['q', [1.45, 0.12, 1.45], [0, 2.38, 0], '#5c4028', 0.3],
+    ['q', [1.52, 0.06, 1.52], [0, 2.44, 0], '#725234'],
+    ['q', [1.42, 0.48, 0.06], [0, 2.70, 0.68], HOLZ],
+    ['q', [1.42, 0.48, 0.06], [0, 2.70, -0.68], HOLZ],
+    ['q', [0.06, 0.48, 1.42], [0.68, 2.70, 0], HOLZ],
+    ['q', [0.06, 0.48, 1.42], [-0.68, 2.70, 0], HOLZ]
+  );
+
+  // 4 Eckpfosten zum Dach
+  for (const [px, pz] of pfeilerPos) {
+    t.push(stab([px * 0.75, 2.45, pz * 0.75], [px * 0.75, 3.45, pz * 0.75], 0.09, HOLZ));
+  }
+
+  // 5. Walmdach
+  t.push(
+    ['z', [0.08, 1.25, 0.75, 4], [0, 3.82, 0], '#8c3528', 0.6, [0, Math.PI / 4, 0]],
+    ['q', [1.82, 0.06, 1.82], [0, 3.46, 0], HOLZ_D],
+    ['z', [0, 0.08, 0.4, 5], [0, 4.38, 0], EISEN]
+  );
+
+  // 6. Ausruestung: Messing-Fernrohr, Laterne und Wimpel
+  t.push(
+    ['z', [0.03, 0.05, 0.32, 5], [0.15, 2.78, 0.48], HOLZ],
+    ['z', [0.045, 0.075, 0.58, 6], [0.15, 3.02, 0.62], '#d4a236', GLUEHT, [0.35, 0, 0]],
+    ['k', [0.078, 6], [0.15, 2.92, 0.85], '#ffd54f', GLUEHT],
+    stab([0, 3.46, 0.85], [0, 3.25, 0.85], 0.02, EISEN),
+    ['k', [0.11, 6], [0, 3.16, 0.85], '#ffd54f', GLUEHT],
+    ['z', [0.14, 0.05, 0.08, 5], [0, 3.25, 0.85], EISEN],
+    ['q', [0.45, 0.72, 0.03], [0.69, 2.05, 0], '#d8b06a', 0.9]
+  );
+
+  return t;
+}
+
+MODELLE_DEF.rabe = rabeModell();
+MODELLE_DEF.spaehposten = spaehpostenModell();
+
+

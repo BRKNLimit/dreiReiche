@@ -122,7 +122,9 @@ function bild(now) {
     gl.uniformMatrix4fv(gl.getUniformLocation(PROG, 'uVP'), false, vp);
     // Boden-Scheibe als Standflaeche
     instanz('scheibe', 0, 0, 0, 0, m.breite * 1.3, [0.2, 0.25, 0.16], 1, 1, 1);
-    const schritt = Math.sin(now * 0.003);
+    zeichneInstanzen(MODELLE.scheibe);
+    // Nur lebendige Einheiten und Waldgott atmen/bewegen sich; Gebaeude und Karte bleiben starr
+    const schritt = (ansicht === 'waldgott' || ansicht === 'einheiten') ? Math.sin(now * 0.003) : 0;
     instanz(e.key, 0, 0, 0, drehung, 1, e.team, 1, 1, 1, schritt);
     zeichneInstanzen(MODELLE[e.key]);
   });

@@ -157,6 +157,30 @@ geprüft (Tests, Galerie, Spiel).
     - `zeichneGelaende`: Flusskreise werden als nahtloses Gewässer mit Schimmer gezeichnet (ohne schneidende Uferringe). An den Furten liegen seichte Kiesbänke knapp unter der Wasseroberfläche.
 - **Wie geprüft:** `npm test` (132/132 Tests grün, inkl. Flusstal-KI-Partien), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei).
 
+### Runde 11: Auftrag 3, Aufgabe 2 — Draufsicht mit echten Figuren (src/figuren2d.js)
+- **Was war schwach:** In der 2D-Draufsicht wurden Einheiten und Gebäude lediglich als simple abstrakte Dreiecke und Quadrate gezeichnet; Silhouetten, Rüstungen und Spezialmerkmale waren nicht unterscheidbar.
+- **Was wurde geändert:** In `src/figuren2d.js`:
+  - **`zeichneEinheit2d`:** Jede Einheit wird von oben mit ihrer typischen Silhouette, Haltung und Volksfarbe gezeichnet:
+    - `bauer`: Strohhut mit Krempe, Tunika und geschwungene Sense.
+    - `soldat`: Eisenhaube, Rüstungsschultern, Dreiecksschild in Volksfarbe links und Schwertklinge rechts.
+    - `jaeger`: Grüner Jagdrock, Federhut, gespannter Jagdbogen und Rückenköcher.
+    - `soeldner`: Schaller-Helm, Plattenbrust und schwere Hellebarde mit Axtblatt und Stoßdorn.
+    - `katapult`: Fahrbare Balliste mit 4 Rädern, Holzrahmen, Bogenarmen, Sehne und Belagerungsbolzen.
+    - `held`: Offene Königskrone auf Großhelm, roter Wappenmantel, vergoldete Löwenschultern und blau glimmendes Runenschwert.
+    - `dryade`: Rankenkleid, zarte Birkenkrone und Blütenkranz.
+    - `wolf`: Vierbeiner-Silhouette mit muskulösem Rumpf, Pfoten, spitzem Fang, Ohren und Rute.
+    - `waldgeist`: Jahreszeiten-Laubkrone, Schlingbogen und pulsierender Geistkern.
+    - `ent`: Gewaltige bemooste Baumkrone mit dicken Astarmen und leuchtenden Augen.
+    - `wurzelbrecher`: Gepanzerter Rammkopf, Wurzelstelzen und glühendes Erdherz.
+    - `rabe`: Eleganter Vogel im Segelflug mit fächerartigen Schwingen und Stoßfedern.
+    - `waldgott`: Breiter schwarzer Mantel, riesiges Hirschgeweih mit glimmenden Spitzen und goldenes Glutherz.
+    - Bei geringem Zoom (`r < 5.5`) schalten Einheiten automatisch auf klare, performante Basissilhouetten um.
+  - **`zeichneGebaeude2d`:** Alle 20 Gebäude mit individuellem Grundriss (Langhaus mit Schindeln, Wehrturm mit Zinnen, Esse mit Glutofen, Sägewerk mit Stämmen, Kasernengeviert, Weltenbaum mit Wurzeln, Hain mit drei Kronen, Wächterbaum mit Dornen, Quelle mit klarem Wasser, Steinkreis mit Menhiren etc.).
+    - Baustellen (`!e.done`): Werden halbtransparent (`0.55`) mit diagonalem Holzgerüst und Bauplanken gezeichnet.
+    - Gebäude ohne Gegenwart (`e.powered < 1000`): Werden entsprechend dem Versorgungsgrad spürbar abgedunkelt.
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; alle Figuren laufen flüssig im Canvas).
+
+
 
 
 

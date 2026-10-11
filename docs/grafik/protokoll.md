@@ -380,3 +380,16 @@ geprüft (Tests, Galerie, Spiel).
   - `npm test`: Alle 137 Kern-Tests grün.
   - `npm run smoke`: Headless-Tests für 2D, 3D, Galerie und Editor fehlerfrei bestanden.
 
+### Runde 25: Direkte Integration aller 25 neuen 3D-Modelle & 28 Icons in die Galerie (src/modelle3d.js, src/icons.js, src/galerie.js, src/galerie.html)
+- **Was war schwach:** Die 25 neuen 3D-Modelle und 28 Icons waren zwar im Ordner `erweiterungen/` fertig definiert, aber noch nicht in der Live-Galerie (`dist/galerie.html`) interaktiv ansehbar.
+- **Was wurde geändert:**
+  - **`src/modelle3d.js`:** Alle 25 neuen Modelle (7 Einheiten + 10 Gebäude des Todesgottes, 4 menschliche Elite-Einheiten, 4 Waldgott-Elite-Einheiten) wurden vollständig in `MODELLE_DEF` registriert.
+  - **`src/icons.js`:** Sämtliche 28 neuen SVG-Icons wurden in `ICONS` eingetragen.
+  - **`src/galerie.html` & `src/galerie.js`:**
+    - Zwei neue Hauptschaltflächen in der Navigation: „Todesgott (3. Reich)“ und „Elite-Einheiten“.
+    - Vollständige 3D-Präsentation mit drehender Kamera, Fraktionsfarben (Aschgrau/Zyan für Tod, Gold für Menschen, Waldgrün für Gott) und Gehanimation-Unterstützung.
+    - Die Ansicht „Icons“ zeigt nun alle 78 Icons (vorher 50).
+- **Wie geprüft:**
+  - `node erweiterungen/test_erweiterungen.js`: 4/4 Tests grün.
+  - `npm test`: 137/137 Tests grün.
+  - `npm run smoke`: Headless WebGL2, Canvas, Galerie (78 Icons, alle Ansichten) und Editor fehlerfrei bestanden.

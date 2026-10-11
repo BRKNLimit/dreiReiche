@@ -7,7 +7,7 @@
 
 const leinwand = document.getElementById('leinwand');
 const gl = leinwand.getContext('webgl2', { antialias: true, stencil: true });
-const TEAMFARBE = { mensch: HEX('#d8b06a'), gott: HEX('#8fb86a') };
+const TEAMFARBE = { mensch: HEX('#d8b06a'), gott: HEX('#8fb86a'), tod: HEX('#8b9bb4') };
 const WEISS = [1, 1, 1];
 let ansicht = 'waldgott';
 let gehenAktiv = false;
@@ -51,6 +51,41 @@ function eintraege() {
   }
   if (ansicht === 'gebaeude') {
     return Object.keys(BUILDINGS).map((k) => ({ key: k, name: BUILDINGS[k].name, team: TEAMFARBE[BUILDINGS[k].faction] }));
+  }
+  if (ansicht === 'todesgott') {
+    const TOD_LISTE = [
+      { key: 'todesgott', name: 'Todesgott (Kommandant)' },
+      { key: 'totengraeber', name: 'Totengräber (Arbeiter)' },
+      { key: 'skelettkrieger', name: 'Skelettkrieger (Masse)' },
+      { key: 'aasgeier', name: 'Aasgeier (Späher)' },
+      { key: 'klageweib', name: 'Klageweib (Fernkampf)' },
+      { key: 'grabwaechter', name: 'Grabwächter (Schwer)' },
+      { key: 'knochentitan', name: 'Knochentitan (Belagerung)' },
+      { key: 'nekropole', name: 'Nekropole (Hauptgebäude)' },
+      { key: 'grabhuegel', name: 'Grabhügel (Anker)' },
+      { key: 'knochenturm', name: 'Knochenturm (Verteidigung)' },
+      { key: 'seelenbrunnen', name: 'Seelenbrunnen (Gegenwart)' },
+      { key: 'knochenmuehle', name: 'Knochenmühle (Fron)' },
+      { key: 'fleischwurz', name: 'Fleischwurz (Götterblut)' },
+      { key: 'katakombe', name: 'Katakombe (Fabrik)' },
+      { key: 'pestaltar', name: 'Pestaltar (Zorn-Schrein)' },
+      { key: 'ossuarium', name: 'Ossuarium (Wehr-Schrein)' },
+      { key: 'totenarchiv', name: 'Totenarchiv (Forschung)' },
+    ];
+    return TOD_LISTE.filter((e) => MODELLE[e.key]).map((e) => ({ ...e, team: TEAMFARBE.tod }));
+  }
+  if (ansicht === 'elite') {
+    const ELITE_LISTE = [
+      { key: 'paladin', name: 'Paladin (Mensch)', team: TEAMFARBE.mensch },
+      { key: 'wagenburg', name: 'Wagenburg (Mensch)', team: TEAMFARBE.mensch },
+      { key: 'scharfschuetze', name: 'Meisterschütze (Mensch)', team: TEAMFARBE.mensch },
+      { key: 'priester', name: 'Lichtpriester (Mensch)', team: TEAMFARBE.mensch },
+      { key: 'moosbaer', name: 'Moosbär (Gott)', team: TEAMFARBE.gott },
+      { key: 'fluesterer', name: 'Flüsterer (Gott)', team: TEAMFARBE.gott },
+      { key: 'kronenhirsch', name: 'Kronenhirsch (Gott)', team: TEAMFARBE.gott },
+      { key: 'dornenhydra', name: 'Dornenhydra (Gott)', team: TEAMFARBE.gott },
+    ];
+    return ELITE_LISTE.filter((e) => MODELLE[e.key]);
   }
   if (ansicht === 'effekte') {
     const EFFEKTE = [
@@ -369,14 +404,16 @@ function wechsle(neu) {
   leinwand.style.display = htmlModus ? 'none' : 'block';
   document.getElementById('schilder').style.display = htmlModus ? 'none' : 'block';
   const btnGehen = document.getElementById('btn-gehen');
-  if (btnGehen) btnGehen.style.display = (neu === 'waldgott' || neu === 'einheiten') ? 'inline-block' : 'none';
+  if (btnGehen) btnGehen.style.display = (neu === 'waldgott' || neu === 'einheiten' || neu === 'todesgott' || neu === 'elite') ? 'inline-block' : 'none';
 
   document.getElementById('hinweis').textContent =
     neu === 'waldgott' ? 'Welche Variante gefällt dir am besten? Nenne ihren Buchstaben.' :
+    neu === 'todesgott' ? 'Das Totenreich: 7 Einheiten und 10 Gebäude mit spektralem Seelenfeuer.' :
+    neu === 'elite' ? 'Elitäre Einheiten für Menschen (Gold) und den Waldgott (Grün).' :
     karten ? 'Übersicht der beiden Schlachtfelder mit Gelände, Furten und Ressourcen.' :
     neu === 'effekte' ? 'Geschosse, Baugerüst, Trümmer und Geländeeffekte in 3D.' :
     neu === 'icons' ? 'Alle SVG-Icons für Ressourcen, Einheiten, Gebäude und Bedienung.' :
-    'Teamfarbe: Menschen gold, Gott grün.';
+    'Teamfarbe: Menschen gold, Gott grün, Tod aschgrau.';
 
   if (icons) iconsZeigen();
   if (karten) kartenZeigen();
@@ -407,7 +444,7 @@ function start() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   const [anker, ...optionen] = (typeof location !== 'undefined' ? location.hash.slice(1) : '').split(/[&/]/);
   for (const o of optionen) if (o.startsWith('winkel=')) festerWinkel = parseFloat(o.slice(7)) || 0;
-  if (['waldgott', 'einheiten', 'gebaeude', 'karten', 'karte', 'effekte', 'icons'].includes(anker)) wechsle(anker);
+  if (['waldgott', 'einheiten', 'gebaeude', 'todesgott', 'elite', 'karten', 'karte', 'effekte', 'icons'].includes(anker)) wechsle(anker);
   requestAnimationFrame(bild);
 }
 start();

@@ -180,6 +180,16 @@ geprüft (Tests, Galerie, Spiel).
     - Gebäude ohne Gegenwart (`e.powered < 1000`): Werden entsprechend dem Versorgungsgrad spürbar abgedunkelt.
 - **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; alle Figuren laufen flüssig im Canvas).
 
+### Runde 12: Auftrag 3, Aufgabe 3 — Eigene Geschoss-Modelle (bolzen, dorn, lichtpfeil, glutball)
+- **Was war schwach:** Für Schüsse gab es nur den Standard-Pfeil und eine abstrakte Kugel. Katapult, Wächterbaum, Waldgeist und Waldgott teilten sich diese Behelfsmodelle.
+- **Was wurde geändert:** In `src/modelle3d.js` (`MODELLE_DEF`):
+  - `bolzen`: Schwerer Holzschaft (`#5c3a21`) mit massiver vierkantiger Eisenspitze (`#94a3b8`) und zweiflügeligem Leder-/Holzleitwerk (`#d8b06a`). Ausrichtung entlang +z.
+  - `dorn`: Scharf zulaufender organischer Dornenkegel (`#4d7c0f`) mit golden leuchtender Spitze (`#facc15`, `GLUEHT`) und knorrigen Rindenspornen.
+  - `lichtpfeil`: Kristallin leuchtender Lichtschaft (`#ecfccb`, `GLUEHT`) mit diamantförmiger Leuchtspitze (`#ffffff`, `GLUEHT`) und Lichtfiedern (`#a3e635`, `GLUEHT`).
+  - `glutball`: Glühende Magmasphäre (`#ffedd5`, `#ea580c`, `GLUEHT`) mit mehrstufigem, nach hinten verlaufendem Feuerschweif (`#c2410c`, `#9a3412`, `#f97316`).
+- **Wie geprüft:** `npm test` (132/132 Tests grün), `npm run smoke` (2D, 3D, Galerie mit 1000 Frames fehlerfrei; alle Modelle halten ihr Budget ein).
+
+
 
 
 

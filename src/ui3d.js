@@ -52,7 +52,18 @@ let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
 const tastenGehalten = new Set();
 const vorher = new Map(); // id -> [x, y] vor dem letzten Tick, fuer Interpolation
 const blick = new Map(); // id -> Blickrichtung in Bogenmass
-let schuesse = []; // { ax, ay, bx, by, farbe, t }
+const fx = neueEffekte(); // Geschosse, Treffer, Klaenge (src/effekte.js)
+// Was der Spieler sehen darf -- Eigenes immer, sonst was im Nebel sichtbar ist.
+const sichtbarFx = (e) => !nebel.an || e.player === ME || sieht(nebel, e.x, e.y);
+/** Hoerer an der Kamera; je weiter weg die Kamera, desto weiter hoert man. */
+const hoerer3d = () => ({ x: kam.x / DM, y: kam.z / DM, weite: (kam.dist / DM) * 2.2 });
+const imBild3d = (x, y) => {
+  const p = aufSchirm(x * DM, 0, y * DM);
+  return !!p && p[0] >= 0 && p[1] >= 0 && p[0] <= cv3.clientWidth && p[1] <= cv3.clientHeight;
+};
+// Ton geht erst nach einer Eingabe an (Browser-Regel)
+addEventListener('pointerdown', () => tonAn(fx));
+addEventListener('keydown', () => tonAn(fx));
 let staub = []; // { x, y, r, t }
 const ausfall = new Map(); // id -> Zeitpunkt des letzten Schusses (ms), fuer den Ruck nach vorn
 
@@ -69,7 +80,10 @@ function kameraMatrix() {
   const cp = Math.cos(kam.pitch);
   const eye = [kam.x + Math.sin(kam.yaw) * cp * kam.dist, Math.sin(kam.pitch) * kam.dist, kam.z + Math.cos(kam.yaw) * cp * kam.dist];
   const proj = m4persp(0.75, w / h, 2, 6000);
-  const view = m4look(eye, [kam.x, 0, kam.z], [0, 1, 0]);
+  // Beben: Blickpunkt zittert kurz (Pixel grob in Meter am Boden)
+  const [bx, by] = bebenVersatz(fx);
+  const z = kam.dist * 0.0015;
+  const view = m4look(eye, [kam.x + bx * z, by * z, kam.z + by * z], [0, 1, 0]);
   VP = m4mul(proj, view);
   VP_INV = m4inv(VP);
 }
@@ -120,7 +134,7 @@ function neu(f, zuschauen = false) {
   wirkungen = [];
   vorher.clear();
   blick.clear();
-  schuesse = [];
+  effekteLeeren(fx);
   staub = [];
   kam.x = 420;
   kam.z = 420;
@@ -425,6 +439,7 @@ addEventListener('keydown', (e) => {
   const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && bauListe()[i] && erbauer3().length && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
+  if (e.key === 'm') stummSchalten(fx);
   if (e.key === 'Escape') {
     placing = null;
     angriff = false;
@@ -531,19 +546,7 @@ function tick() {
       const a = byId(world, ev.from);
       const b = byId(world, ev.to);
       if (!a || !b) continue;
-      // Fernkaempfer schiessen sichtbar: Jaeger Pfeile, Waldgeist und Waldgott
-      // Lichtkugeln. Sonst ein kurzer Blitz zwischen Angreifer und Ziel.
-      const art =
-        a.type === 'katapult'
-          ? 'stein'
-          : a.type === 'jaeger' || a.type === 'wachturm' || a.type === 'waechterbaum'
-            ? 'pfeil'
-            : a.type === 'waldgeist' || a.type === 'waldgott'
-              ? 'kugel'
-              : 'blitz';
-      const dauer = art === 'blitz' ? 0.22 : art === 'stein' ? 0.9 : 0.4;
-      if (verborgen(a) && verborgen(b)) continue;
-      schuesse.push({ a: ev.from, b: ev.to, ax: a.x, ay: a.y, bx: b.x, by: b.y, farbe: teamFarbe(a.player), t: dauer, dauer, art });
+      // Geschosse und Treffer macht src/effekte.js (siehe unten); hier nur:
       // Schuetzen schauen zum Ziel
       if (a.kind === 'unit') {
         blick.set(a.id, Math.atan2(b.x - a.x, b.y - a.y));
@@ -556,6 +559,7 @@ function tick() {
       wirkungen.push({ ...ev, bis: world.tick + 12 });
     }
   }
+  effekteAusEreignissen(fx, world, ME, sichtbarFx, hoerer3d(), imBild3d);
   sel = sel.filter((id) => byId(world, id));
 }
 
@@ -573,6 +577,7 @@ function frame(now) {
   }
   alphaTick = paused || world.over ? 1 : Math.min(1, acc / TICK_MS);
   kameraTasten(dt);
+  effekteFortschreiben(fx, paused || world.over ? 0 : (dt * speed) / 1000, world, hoerer3d());
   if (!document.hidden) {
     zeichne(now, dt);
     zeichneUeberlagerung(now);
@@ -681,7 +686,7 @@ function zeichne(now, dt) {
     if (e.kind === 'building') {
       const def = BUILDINGS[e.type];
       const r = def.radius * DM * ZEIGE_GEBAEUDE;
-      if (e.done) instanz(e.type, e.x * DM, 0, e.y * DM, (e.id % 4) * (Math.PI / 2) + 0.4, r, team);
+      if (e.done) instanz(e.type, e.x * DM, 0, e.y * DM, (e.id % 4) * (Math.PI / 2) + 0.4, r, team, 1, 1 + blitzVon(fx, e.id));
       else {
         const f = Math.min(1, e.progress / (def.buildTime * 1000));
         instanz(e.type, e.x * DM, 0, e.y * DM, (e.id % 4) * (Math.PI / 2) + 0.4, r, team, 0.15 + 0.85 * f, 0.55);
@@ -722,7 +727,8 @@ function zeichne(now, dt) {
     const seit = now - (ausfall.get(e.id) || -1e9);
     const ruck = seit < 220 ? Math.sin((seit / 220) * Math.PI) * 0.4 * s : 0;
     const w = blick.get(e.id) || 0;
-    instanz(modellVon(e), x * DM + Math.sin(w) * ruck, schwebt * s + huepf, y * DM + Math.cos(w) * ruck, w, s, team, 1, 1, 1, schritt);
+    // Getroffen: kurz hell aufblitzen
+    instanz(modellVon(e), x * DM + Math.sin(w) * ruck, schwebt * s + huepf, y * DM + Math.cos(w) * ruck, w, s, team, 1, 1 + 1.6 * blitzVon(fx, e.id), 1, schritt);
   }
 
   // Platzierungs-Geist
@@ -764,7 +770,7 @@ function zeichne(now, dt) {
   zeichneInstanzen(MODELLE.staubwolke);
   gl.depthMask(true);
 
-  zeichneSchuesse(dt);
+  zeichneSchuesse();
 }
 
 /**
@@ -804,32 +810,23 @@ function zeichneDomaenen() {
   gl.depthMask(true);
 }
 
-function zeichneSchuesse(dt) {
-  schuesse = schuesse.filter((s) => (s.t -= dt / 1000) > 0);
+function zeichneSchuesse() {
+  // Geschosse aus src/effekte.js als Modelle, uebertrieben gross -- sonst
+  // sind sie aus Spielhoehe unsichtbar. Leuchtende im Bogen, Bolzen flach.
   const v = [];
-  for (const s of schuesse) {
-    const a = byId(world, s.a);
-    const b = byId(world, s.b);
-    const [ax, ay] = a ? lage(a) : [s.ax, s.ay];
-    const [bx, by] = b ? lage(b) : [s.bx, s.by];
-    if (s.art !== 'blitz') {
-      // Geschoss im Bogen vom Schuetzen zum Ziel
-      const f = 1 - s.t / s.dauer;
-      const bogen = Math.sin(f * Math.PI) * (s.art === 'pfeil' ? 3 : s.art === 'stein' ? 12 : 1.2);
-      const w = Math.atan2(bx - ax, by - ay);
-      const x = ax + (bx - ax) * f;
-      const y = ay + (by - ay) * f;
-      // Geschosse uebertrieben gross, sonst sind sie aus Spielhoehe unsichtbar
-      instanz(s.art, x * DM, 2 + bogen, y * DM, w, s.art === 'pfeil' ? 2.8 : s.art === 'stein' ? 3.2 : 2.4, s.farbe, 1, s.art === 'kugel' ? 1.4 : 1);
-      continue;
-    }
-    const al = Math.min(1, s.t / 0.22);
-    v.push(ax * DM, 1.4, ay * DM, s.farbe[0], s.farbe[1], s.farbe[2], al);
-    v.push(bx * DM, 1.0, by * DM, 1, 0.95, 0.8, al);
+  const genutzt = new Set();
+  const lageVon = (id) => {
+    const e = byId(world, id);
+    return e ? lage(e) : null;
+  };
+  for (const g of fx.geschosse) {
+    const k = geschossModell(g.art, MODELLE);
+    if (!k) continue;
+    const [x, y, h, w] = geschossLage(g, lageVon);
+    instanz(k, x * DM, h * DM, y * DM, w, g.groesse * 2.6, HEX(g.farbe), 1, g.art === 'licht' || g.art === 'glut' ? 1.6 : 1);
+    genutzt.add(k);
   }
-  zeichneInstanzen(MODELLE.pfeil);
-  zeichneInstanzen(MODELLE.kugel);
-  zeichneInstanzen(MODELLE.stein);
+  for (const k of genutzt) zeichneInstanzen(MODELLE[k]);
   // Baulinien: Erbauer zu ihrer Baustelle
   for (const e of world.entities) {
     if (e.kind !== 'unit' || !e.baut) continue;
@@ -949,6 +946,11 @@ function zeichneUeberlagerung(now) {
   const d = devicePixelRatio || 1;
   octx.setTransform(d, 0, 0, d, 0, 0);
   octx.clearRect(0, 0, ov.width, ov.height);
+  // Hiebe, Funken, Staub, Ringe (src/effekte.js); Pixel je dm aus der Bildmitte
+  const m0 = aufSchirm(kam.x, 0, kam.z);
+  const m1 = aufSchirm(kam.x + 1, 0, kam.z);
+  const pxJeDm = m0 && m1 ? Math.hypot(m1[0] - m0[0], m1[1] - m0[1]) * DM : 0.1;
+  zeichneEffekte(fx, octx, (x, y, h) => aufSchirm(x * DM, h * DM, y * DM), pxJeDm, false, null);
   zeichneWirkungen();
   // Auswahlringe
   octx.lineWidth = 1.5;
@@ -1098,6 +1100,7 @@ function zeichneMini() {
     mctx3.imageSmoothingEnabled = true;
     mctx3.drawImage(bild, 0, 0, W, W);
   }
+  zeichnePings(fx, mctx3, s);
   // Kamera-Ziel
   mctx3.strokeStyle = '#e8dcc0';
   mctx3.lineWidth = 2;

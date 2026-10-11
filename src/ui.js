@@ -27,6 +27,19 @@ const verborgen = (e) => imNebel(nebel, e, ME);
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 let gruppen = {}; // Steuergruppen: Ziffer -> Ids
+const fx = neueEffekte(); // Geschosse, Treffer, Klaenge (src/effekte.js)
+// Was der Spieler sehen darf -- Eigenes immer, sonst was im Nebel sichtbar ist.
+const sichtbarFx = (e) => !nebel.an || e.player === ME || sieht(nebel, e.x, e.y);
+/** Hoerer in der Bildmitte; man hoert etwas weiter, als man sieht. */
+const hoerer2d = () => ({ x: cam.x, y: cam.y, weite: (Math.max(cv.clientWidth, cv.clientHeight) / cam.z) * 0.9 });
+const imBild2d = (x, y) => {
+  const sx = w2sx(x);
+  const sy = w2sy(y);
+  return sx >= 0 && sy >= 0 && sx <= cv.clientWidth && sy <= cv.clientHeight;
+};
+// Ton geht erst nach einer Eingabe an (Browser-Regel)
+addEventListener('pointerdown', () => tonAn(fx));
+addEventListener('keydown', () => tonAn(fx));
 
 const cam = { x: 3000, y: 3000, z: 0.038 };
 let sel = [];
@@ -67,6 +80,7 @@ function neu(f, zuschauen = false) {
   selPlan = null;
   leistenSig = '';
   gruppen = {};
+  effekteLeeren(fx);
   zielen = null;
   wirkungen.length = 0;
   flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
@@ -237,6 +251,7 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
+  if (e.key === 'm') stummSchalten(fx);
   if (e.key === 'k') {
     const k = kommandantVon(world, ME);
     if (k) {
@@ -428,11 +443,13 @@ function frame(now) {
       stepAI(ai, world);
       step(world);
       for (const ev of world.events) if (ev.t === 'faehigkeit') wirkungen.push({ ...ev, bis: world.tick + 12 });
+      effekteAusEreignissen(fx, world, ME, sichtbarFx, hoerer2d(), imBild2d);
       zaehle();
       acc -= TICK_MS;
       sel = sel.filter((id) => byId(world, id));
     }
   }
+  effekteFortschreiben(fx, paused ? 0 : (dt * speed) / 1000, world, hoerer2d());
   draw();
   requestAnimationFrame(frame);
 }
@@ -446,6 +463,10 @@ function draw() {
   nebelAktualisieren(nebel, world);
   nebelFrame++;
 
+  // Beben: die ganze Karte zittert kurz
+  const [bx, by] = bebenVersatz(fx);
+  ctx.save();
+  ctx.translate(bx, by);
   drawGrid(W, H);
   drawCleared();
   drawDomains();
@@ -456,6 +477,7 @@ function draw() {
   drawPlaene();
   drawWirkungen();
   drawNebel();
+  ctx.restore();
   drawSelection();
   if (placing) drawGhost();
   drawHud();
@@ -771,6 +793,16 @@ function drawEntities() {
         ctx.closePath();
       }
       ctx.fill();
+      // Getroffen: kurz weiss aufblitzen
+      const bl = blitzVon(fx, e.id);
+      if (bl) {
+        ctx.globalAlpha = bl * 0.85;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(x, y, r + 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
       if (e.hp < e.maxHp || def.commander) {
         const bw = def.commander ? Math.max(24, r * 3) : r * 2;
         const by = y - r - (def.commander ? 10 : 4);
@@ -782,20 +814,11 @@ function drawEntities() {
     }
   }
 
-  ctx.strokeStyle = '#e8c87a';
-  ctx.globalAlpha = 0.8;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (const ev of world.events) {
-    if (ev.t !== 'shot') continue;
-    const a = byId(world, ev.from);
-    const b = byId(world, ev.to);
-    if (!a || !b || (verborgen(a) && verborgen(b))) continue;
-    ctx.moveTo(w2sx(a.x), w2sy(a.y));
-    ctx.lineTo(w2sx(b.x), w2sy(b.y));
-  }
-  ctx.stroke();
-  ctx.globalAlpha = 1;
+  // Geschosse, Hiebe, Funken, Staub (src/effekte.js); Hoehe hebt auf dem Schirm an
+  zeichneEffekte(fx, ctx, (x, y, h) => [w2sx(x), w2sy(y) - h * cam.z], cam.z, true, (id) => {
+    const e = byId(world, id);
+    return e ? [e.x, e.y] : null;
+  });
 }
 
 function drawSelection() {
@@ -1153,6 +1176,7 @@ function drawMini() {
     }
   }
   nebelMalen(mctx, 0, 0, mini.width);
+  zeichnePings(fx, mctx, mini.width / MAP);
   mctx.strokeStyle = '#4a5442';
   mctx.strokeRect(
     (cam.x - cv.clientWidth / 2 / cam.z) * s,

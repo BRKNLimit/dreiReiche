@@ -17,6 +17,15 @@ import { availableParallelism } from 'node:os';
 // Name -> Aenderungen. g/m: Wachstum Gott/Menschen, rules: RULES, units/buildings: Werte.
 export const CONFIGS = {
   Ausgang: {},
+  // Balance 0.30 (Nebel, Spaeher): Die Menschen liegen hinten -- welche
+  // Stellschraube bringt sie heran? Je eine Aenderung, sonst wie Ausgang.
+  'B30 Ausgang': {},
+  'B30 Gott-Schreine wie Menschen': { buildings: { dornenschrein: { buff: { zorn: 250 } }, steinkreis: { buff: { wehr: 200 } } } },
+  'B30 Menschen-Schreine staerker': { buildings: { banner: { buff: { zorn: 350 } }, kapelle: { buff: { wehr: 250 } } } },
+  'B30 Soldat 240 LP': { units: { soldat: { hp: 240 } } },
+  'B30 Jaeger 15 Schaden': { units: { jaeger: { weapon: { damage: 15 } } } },
+  'B30 Menschen-Unterhalt -25%': { units: { bauer: { unterhalt: 3 }, soldat: { unterhalt: 7 }, jaeger: { unterhalt: 8 }, soeldner: { unterhalt: 18 } } },
+  'B30 Wolf 500 LP': { units: { wolf: { hp: 500 } } },
   'ohne Blutkosten': { units: { soeldner: { cost: { goetterblut: 0 } }, ent: { cost: { goetterblut: 0 } } } },
   // Kommandant: langsamer bzw. weniger zaeh -- macht das den Vorstoss riskanter?
   'Kdt langsam': { units: { held: { speed: 16 }, waldgott: { speed: 15 } } },

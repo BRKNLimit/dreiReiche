@@ -251,6 +251,7 @@
   <dt>Entf</dt><dd>Gebäude abreißen, Bauplan verwerfen</dd>
   <dt>K</dt><dd>Kommandant</dd>
   <dt>.</dt><dd>nächster untätiger Arbeiter</dd>
+  <dt>F2</dt><dd>ganzes Heer wählen</dd>
   <dt>Rechtsklick Minikarte</dt><dd>Auswahl dorthin schicken</dd>
   <dt>T</dt><dd>Skillbaum</dd>
   <dt>Mausrad, mittlere Taste</dt><dd>zoomen, schieben</dd>
@@ -4977,6 +4978,13 @@ function auswahlMitte(world, sel) {
   return n ? { x: x / n, y: y / n } : null;
 }
 
+/** Das ganze eigene Heer: alle Kaempfer ohne Arbeiter, Kommandant und Spaeher (Taste F2). */
+function heerAuswahl(world, ich) {
+  return world.entities
+    .filter((e) => !e.dead && e.kind === 'unit' && e.player === ich && UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander)
+    .map((e) => e.id);
+}
+
 /** Eigene Arbeiter, die nichts tun: kein Auftrag, keine Reihe, angekommen. */
 function untaetigeArbeiter(world, ich) {
   return world.entities.filter(
@@ -6462,6 +6470,11 @@ addEventListener('keydown', (e) => {
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
   if (e.key === 'm') stummSchalten(fx);
   if (e.key === '.') naechsterUntaetiger();
+  if (e.key === 'F2') {
+    e.preventDefault();
+    sel = heerAuswahl(world, ME);
+    selPlan = null;
+  }
   if (e.key === 'k') {
     const k = kommandantVon(world, ME);
     if (k) {

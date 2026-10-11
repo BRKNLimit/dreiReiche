@@ -464,6 +464,11 @@ addEventListener('keydown', (e) => {
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
   if (e.key === 'm') stummSchalten(fx);
   if (e.key === '.') naechsterUntaetiger();
+  if (e.key === 'F2') {
+    e.preventDefault();
+    sel = heerAuswahl(world, ME);
+    selPlan = null;
+  }
   if (e.key === 'Escape') {
     placing = null;
     angriff = false;

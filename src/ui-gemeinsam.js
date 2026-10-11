@@ -217,6 +217,13 @@ export function auswahlMitte(world, sel) {
   return n ? { x: x / n, y: y / n } : null;
 }
 
+/** Das ganze eigene Heer: alle Kaempfer ohne Arbeiter, Kommandant und Spaeher (Taste F2). */
+export function heerAuswahl(world, ich) {
+  return world.entities
+    .filter((e) => !e.dead && e.kind === 'unit' && e.player === ich && UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander)
+    .map((e) => e.id);
+}
+
 /** Eigene Arbeiter, die nichts tun: kein Auftrag, keine Reihe, angekommen. */
 export function untaetigeArbeiter(world, ich) {
   return world.entities.filter(

@@ -272,6 +272,11 @@ addEventListener('keydown', (e) => {
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
   if (e.key === 'm') stummSchalten(fx);
   if (e.key === '.') naechsterUntaetiger();
+  if (e.key === 'F2') {
+    e.preventDefault();
+    sel = heerAuswahl(world, ME);
+    selPlan = null;
+  }
   if (e.key === 'k') {
     const k = kommandantVon(world, ME);
     if (k) {

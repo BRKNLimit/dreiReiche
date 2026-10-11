@@ -383,6 +383,19 @@ export function gruppenHtml(world, auswahl) {
 }
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+/** Pausenmenue (F10, Knopf unten rechts); laufend: Partie kann gespeichert und aufgegeben werden. */
+export function menueHtml(laufend, hatStand) {
+  return `<div class="vorwort"><div class="kapitel">Pause</div><h1>Menü</h1>
+    <div class="go menue">
+      <button id="menueWeiter">Weiter</button>
+      ${laufend ? '<button id="menueSpeichern">Speichern (F5)</button>' : ''}
+      ${hatStand ? '<button id="menueLaden">Letzten Spielstand laden (F9)</button>' : ''}
+      <button id="menueHilfe">Steuerung (H)</button>
+      ${laufend ? '<button id="menueAufgeben">Aufgeben</button>' : ''}
+      <button id="menueHaupt">Hauptmenü</button>
+    </div></div>`;
+}
+
 export function bauleisteHtml(world, player, liste) {
   return liste
     .map((t, i) => {

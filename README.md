@@ -68,6 +68,7 @@ Spiel; als JSON lässt sie sich weitergeben.
 | `S` | Stopp |
 | `F2` | ganzes Heer wählen |
 | `F5`, `F9` | Spielstand speichern, laden (beim Schließen speichert das Spiel von selbst) |
+| `F10` | Menü: speichern, laden, aufgeben, Hauptmenü |
 | `.` | nächster untätiger Arbeiter (Knopf unten rechts zeigt die Anzahl) |
 | Rechtsklick auf die Minikarte | Auswahl dorthin schicken |
 | `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |

@@ -258,6 +258,12 @@ cv.addEventListener(
 
 addEventListener('keydown', (e) => {
   if (!world) return;
+  if (e.key === 'F10' || (e.key === 'Escape' && menueOffen)) {
+    e.preventDefault();
+    menueZeigen();
+    return;
+  }
+  if (menueOffen) return;
   const g = steuergruppe(e, gruppen, sel, world, ME);
   if (g) {
     sel = g.sel;
@@ -1506,6 +1512,54 @@ addEventListener('pagehide', autoSpeichern);
 addEventListener('visibilitychange', () => {
   if (document.hidden) autoSpeichern();
 });
+
+// ------------------------------------------------------------ Pausenmenue (F10)
+let menueOffen = false;
+let pauseVorMenue = false;
+function menueZeigen() {
+  if (menueOffen) return menueSchliessen();
+  const el = document.getElementById('intro');
+  if (el.style.display !== 'none') return; // Start-, End- oder Missionsbildschirm ist offen
+  menueOffen = true;
+  pauseVorMenue = paused;
+  paused = true;
+  const laufend = !world.over && !wiederholung && !missionGewonnen;
+  el.innerHTML = menueHtml(laufend, !!schnellLaden());
+  el.style.display = '';
+  const knopf = (id, f) => {
+    const b = document.getElementById(id);
+    if (b) b.onclick = f;
+  };
+  knopf('menueWeiter', menueSchliessen);
+  knopf('menueSpeichern', () => {
+    menueSchliessen();
+    standSpeichern();
+  });
+  knopf('menueLaden', () => {
+    menueOffen = false;
+    standLaden(schnellLaden());
+  });
+  knopf('menueHilfe', () => {
+    menueSchliessen();
+    document.getElementById('hilfeKnopf').onclick();
+  });
+  knopf('menueAufgeben', () => {
+    menueSchliessen();
+    paused = false;
+    issue(world, { type: 'aufgeben', player: ME });
+  });
+  knopf('menueHaupt', () => {
+    menueOffen = false;
+    autoSpeichern(); // "Fortsetzen" bringt einen zurueck
+    startbildschirm();
+  });
+}
+function menueSchliessen() {
+  menueOffen = false;
+  paused = pauseVorMenue;
+  document.getElementById('intro').style.display = 'none';
+}
+document.getElementById('menueKnopf').onclick = menueZeigen;
 
 /** Startbildschirm zeigen und verdrahten. */
 function startbildschirm() {

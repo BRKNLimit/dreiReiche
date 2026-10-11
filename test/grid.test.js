@@ -2001,3 +2001,13 @@ test('Zufallskarte: eine KI-Partie laeuft und bleibt deterministisch', async () 
   };
   assert.equal(lauf(), lauf());
 });
+
+test('Aufgeben: die Partie endet sofort, der Gegner gewinnt', () => {
+  const world = createWorld({ seed: 3, factions: ['gott', 'mensch'] });
+  step(world);
+  issue(world, { type: 'aufgeben', player: 0 });
+  step(world);
+  assert.equal(world.over, true);
+  assert.equal(world.winner, 1);
+  assert.equal(world.players[0].alive, false);
+});

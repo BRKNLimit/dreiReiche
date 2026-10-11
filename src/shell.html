@@ -102,6 +102,7 @@
   #intro .kampagne b { color: var(--accent); margin-right: 6px; }
   #intro .kampagne button:disabled { opacity: .45; cursor: default; }
   #intro .kampagne + .kampagne { margin-top: 6px; }
+  #intro .go.menue { flex-direction: column; align-items: stretch; max-width: 280px; }
   #intro .fortsetzen { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--dim); }
   #intro .fortsetzen button { font-weight: 600; color: var(--accent); }
   #intro .kampagne.gott b, #intro .vorwort.gott h1 { color: #7fb069; }
@@ -266,6 +267,7 @@
       <button id="untaetig" class="ikon" hidden title="Untätige Arbeiter (.)"></button>
       <button id="tonKnopf" title="Ton an/aus (M)"></button>
       <button id="hilfeKnopf" title="Steuerung (H)">?</button>
+      <button id="menueKnopf" title="Menü (F10)">☰</button>
     </span>
   </div>
   <div id="hilfe" hidden><dl>
@@ -290,6 +292,7 @@
   <dt>I</dt><dd>Auswertung</dd>
   <dt>Leertaste, + −</dt><dd>Pause, Tempo</dd>
   <dt>F5, F9</dt><dd>Spielstand speichern, laden (beim Schließen speichert das Spiel von selbst)</dd>
+  <dt>F10</dt><dd>Menü: speichern, laden, aufgeben, Hauptmenü</dd>
   <dt>M</dt><dd>Ton an/aus</dd>
   <dt>H</dt><dd>diese Hilfe</dd>
 </dl></div>

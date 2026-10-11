@@ -16,6 +16,10 @@ Tabellen in `docs/scope.md`.
   gesicherte (Tests: früh, mitten im Kampf, spät, Flusstal, Zufallskarte,
   offene Befehle). Die Aufnahme läuft mit — eine Wiederholung bleibt
   vollständig.
+- **Pausenmenü** (F10 oder ☰ unten rechts): Weiter, Speichern, letzten
+  Stand laden, Steuerung, Aufgeben, Hauptmenü. Wer ins Hauptmenü geht,
+  kann dort fortsetzen. Aufgeben ist ein Befehl der Simulation
+  (`aufgeben`, zählt wie ein gefallener Kommandant).
 - `npm run serve`: kleiner Server für `dist/` unter
   http://localhost:8765/ (manche Vorschaufenster öffnen große Dateien nicht
   direkt).

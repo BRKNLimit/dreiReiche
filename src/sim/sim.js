@@ -448,6 +448,14 @@ function applyCommand(world, c) {
       if (plan && plan.player === c.player) planEntfernen(world, plan);
     } else if (c.type === 'demolish') {
       demolish(world, c.player, c.id);
+    } else if (c.type === 'aufgeben') {
+      // Aufgeben zaehlt wie ein gefallener Kommandant
+      world.players[c.player].alive = false;
+      const rest = world.players.filter((p) => p.alive);
+      if (rest.length === 1) {
+        world.over = true;
+        world.winner = rest[0].id;
+      }
     } else if (c.type === 'lernen') {
       if (kannLernen(world, c.player, c.skill)) world.players[c.player].gelernt.push(c.skill);
     } else if (c.type === 'faehigkeit') {

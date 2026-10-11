@@ -308,18 +308,38 @@ export const MODELLE_DEF = {
   // ------------------------------------------------------------- Karte und Effekte
   scheibe: [['s', [1, 64], [0, 0, 0], '#ffffff', 1]],
   fronAder: [
-    ['k', [0.45, 5], [0, 0.2, 0], STEIN],
-    ['k', [0.35, 5], [0.55, 0.15, 0.2], '#7a7f76'],
-    ['k', [0.3, 5], [-0.4, 0.12, -0.35], '#9a9f96'],
+    // Ausgrabungs- und Steinbruchsohle
+    ['z', [0.72, 0.92, 0.25, 7], [0, 0.12, 0], '#424540'],
+    ['q', [0.55, 0.42, 0.5], [0.1, 0.26, -0.1], '#6b726f', 0, [0.2, 0.4, 0.1]],
+    ['q', [0.45, 0.36, 0.46], [-0.3, 0.22, 0.2], '#555c59', 0, [-0.1, 0.6, -0.2]],
+    ['z', [0.15, 0.35, 0.42, 5], [0.35, 0.24, 0.25], '#78807d', 0, [0.3, 0.2, 0.4]],
+    // Abstuetzbalken aus Holz
+    ['q', [0.1, 0.52, 0.1], [-0.35, 0.26, -0.25], '#5a3d24', 0, [0.1, 0, 0.15]],
+    ['q', [0.1, 0.52, 0.1], [-0.1, 0.26, -0.38], '#5a3d24', 0, [-0.1, 0, -0.1]],
+    ['q', [0.46, 0.09, 0.09], [-0.22, 0.5, -0.32], '#6b492b', 0, [0, 0.45, 0]],
+    // Schimmernde Eisenerz-Nuggets
+    ['k', [0.14, 5], [0.18, 0.46, -0.05], '#d8dee4', 0],
+    ['k', [0.12, 5], [-0.15, 0.38, 0.25], '#c5cbd2', 0],
   ],
   blutAder: [
-    ['z', [0, 0.22, 1.1, 5], [0, 0.55, 0], BLUT],
-    ['z', [0, 0.18, 0.8, 5], [0.3, 0.4, 0.15], '#c58fd2', 0, [0, 0, -0.35]],
-    ['z', [0, 0.16, 0.7, 5], [-0.3, 0.35, -0.1], '#8a4f9a', 0, [0.3, 0, 0.3]],
+    // Tiefschwarzer Obsidian-Spalt mit glutroten Kristallspitzen
+    ['z', [0.7, 0.9, 0.22, 7], [0, 0.11, 0], '#18141d'],
+    ['q', [0.65, 0.3, 0.55], [0, 0.18, 0], '#241c2c', 0, [0.1, 0.5, 0.1]],
+    ['z', [0.02, 0.18, 0.95, 5], [0, 0.55, 0], '#dc2626', GLUEHT, [0.1, 0.1, -0.05]],
+    ['z', [0.02, 0.14, 0.72, 5], [0.28, 0.42, 0.15], '#ef4444', GLUEHT, [-0.25, 0.5, 0.35]],
+    ['z', [0.02, 0.13, 0.65, 5], [-0.25, 0.38, -0.18], '#b91c1c', GLUEHT, [0.35, -0.4, -0.25]],
+    ['z', [0.02, 0.1, 0.52, 4], [-0.12, 0.3, 0.3], '#f87171', GLUEHT, [-0.4, 0.2, -0.3]],
+    ['z', [0.02, 0.09, 0.48, 4], [0.22, 0.28, -0.25], '#f87171', GLUEHT, [0.2, 0.7, 0.25]],
   ],
   baum: [
-    ['z', [0.12, 0.18, 1.2, 5], [0, 0.6, 0], HOLZ],
-    ['z', [0, 0.7, 1.8, 6], [0, 1.9, 0], '#2f5a2a'],
+    // Knorriger Stamm mit Wurzelansatz
+    ['z', [0.13, 0.22, 1.1, 6], [0, 0.55, 0], '#523821'],
+    ['z', [0.22, 0.36, 0.3, 5], [0, 0.15, 0], '#3a2717'],
+    // Mehrstufige Nadel-/Laubkrone
+    ['z', [0.3, 0.85, 0.88, 7], [0, 1.25, 0], '#1f451b'],
+    ['z', [0.2, 0.68, 0.85, 7], [0, 1.85, 0], '#2d5e26'],
+    ['z', [0.05, 0.5, 0.8, 6], [0, 2.45, 0], '#3c7533'],
+    ['z', [0.04, 0.08, 0.45, 4], [0.35, 1.1, 0.1], '#4d341e', 0, [0, 0, -1.0]],
   ],
   staubwolke: [['k', [1, 6], [0, 0, 0], '#b0a890']],
   pfeil: [
@@ -332,12 +352,20 @@ export const MODELLE_DEF = {
     ['k', [0.16, 5], [0, 0, -0.35], '#bfe8b0', GLUEHT],
   ],
   stein: [['k', [0.45, 6], [0, 0, 0], STEIN]],
-  // Fels: ein grosser und zwei kleinere Brocken, Groesse 1 = Felsradius
+  // Fels: markante kantige Felsformation aus Pfeilern, Kanten und Schichtungen; Radius max. 1.0
   fels: [
-    ['k', [0.85, 6], [0, 0.35, 0], '#5c5e55'],
-    ['k', [0.55, 5], [0.55, 0.3, 0.35], '#6c6e64'],
-    ['k', [0.5, 5], [-0.5, 0.25, -0.4], '#53554c'],
-    ['k', [0.35, 5], [0.2, 0.75, -0.2], '#74766b'],
+    // Hauptpfeiler mit steilen Facetten
+    ['z', [0.35, 0.75, 1.15, 6], [0, 0.58, 0], '#4f5350', 0, [0.08, 0.2, -0.05]],
+    // Aufstrebende Felskante
+    ['z', [0.1, 0.42, 0.88, 5], [0.15, 0.85, -0.1], '#626864', 0, [-0.15, 0.8, 0.2]],
+    // Abgeschraegte Felswand links
+    ['q', [0.82, 0.82, 0.65], [-0.2, 0.41, 0.2], '#3e423f', 0, [0.1, 0.5, 0.15]],
+    // Gesteinsscholle rechts
+    ['q', [0.72, 0.58, 0.75], [0.32, 0.35, -0.15], '#555b57', 0, [-0.2, -0.4, 0.1]],
+    // Verwitterter Sockel mit Moosrand
+    ['z', [0.78, 0.94, 0.32, 7], [0, 0.16, 0], '#333b28', 0],
+    // Vorgezogener Felssporn
+    ['q', [0.52, 0.42, 0.58], [-0.32, 0.25, -0.28], '#464a47', 0, [0.15, 0.7, -0.1]],
   ],
   // Katapult: Holzrahmen auf vier Raedern, Wurfarm mit Schale
   katapult: [
@@ -366,6 +394,408 @@ export const MODELLE_DEF = {
   ],
 };
 
+// ------------------------------------------------------------- Bausteine
+// Kleine Werkzeuge, damit Modelle aus wenigen, gut lesbaren Formen entstehen
+// statt aus Dutzenden handgesetzter Quader.
+
+/** Pseudozufall 0..1 aus Zahl und Salz -- deterministisch, Modelle bleiben stabil. */
+function zufall(i, salz = 0) {
+  const s = Math.sin(i * 12.9898 + salz * 78.233) * 43758.5453;
+  return s - Math.floor(s);
+}
+const vPlus = (p, v, k = 1) => [p[0] + v[0] * k, p[1] + v[1] * k, p[2] + v[2] * k];
+const vEinheit = (v) => {
+  const l = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / l, v[1] / l, v[2] / l];
+};
+
+/**
+ * Teil entlang der Strecke a -> b. seg 0: Quader mit Querschnitt dicke (Zahl
+ * oder [breite, tiefe]); seg >= 3: Kegel mit Radius dicke bei a und
+ * dicke * spitz bei b. Die Drehung folgt aus der Richtung (rx, dann rz).
+ */
+function stab(a, b, dicke, farbe, team = 0, seg = 0, spitz = 1) {
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const l = Math.hypot(d[0], d[1], d[2]) || 1e-6;
+  const rx = Math.asin(Math.max(-1, Math.min(1, d[2] / l)));
+  const rz = Math.atan2(-d[0], d[1]);
+  const mitte = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+  if (seg) return ['z', [dicke * spitz, dicke, l, seg], mitte, farbe, team, [rx, 0, rz]];
+  const [bq, tq] = Array.isArray(dicke) ? dicke : [dicke, dicke];
+  return ['q', [bq, l, tq], mitte, farbe, team, [rx, 0, rz]];
+}
+
+/**
+ * Geweih einer Seite (seite +1 rechts, -1 links): jede Stange teilt sich in
+ * eine steilere Fortsetzung und ein Ende nach aussen. glut: Farbe
+ * gluehender Spitzen oder null; knorrig: Unregelmaessigkeit der Aeste.
+ */
+function geweih(basis, seite, o) {
+  const { laenge = 0.55, dicke = 0.05, stufen = 3, spreiz = 0.55, start = 0.75, farbe = '#2b231c', seg = 3, team = 0, glut = null, knorrig = 0 } = o;
+  const t = [];
+  const ast = (p, w, l, d, s, nr) => {
+    const zitter = knorrig * (zufall(nr, 7) - 0.5);
+    const q = [p[0] + seite * Math.sin(w + zitter) * l, p[1] + Math.cos(w + zitter) * l, p[2] - l * 0.12 + knorrig * 0.2 * l * (zufall(nr, 9) - 0.5)];
+    t.push(stab(p, q, d, farbe, team, seg, 0.6));
+    if (s <= 0) {
+      if (glut) t.push(['k', [d * 1.3, 4], q, glut, GLUEHT]);
+      return;
+    }
+    ast(q, w - spreiz * 0.55, l * 0.8, d * 0.72, s - 1, nr * 2 + 1);
+    ast(q, w + spreiz, l * 0.55, d * 0.6, s - 1, nr * 2 + 2);
+  };
+  ast(basis, start, laenge, dicke, stufen, 1);
+  return t;
+}
+
+/**
+ * Gluehende Klauenhand. w: Handgelenk, f: Fingerrichtung, s: quer ueber die
+ * Hand, b: wohin sich die Spitzen kruemmen. Finger aus zwei Gliedern, die
+ * Spitzen laufen spitz zu.
+ */
+function klauenhand(w, f, s, b, o = {}) {
+  const { laenge = 0.6, finger = 4, dicke = 0.042, krumm = 0.25, farbe = GOLD, spitze = GOLD2, glieder = 2, seg = 3, breite = 0.24 } = o;
+  f = vEinheit(f);
+  s = vEinheit(s);
+  const t = [];
+  const knoechel = vPlus(w, f, 0.2);
+  t.push(stab(w, knoechel, [breite, 0.07], farbe, GLUEHT));
+  for (let i = 0; i < finger; i++) {
+    const q = i - (finger - 1) / 2;
+    const basis = vPlus(knoechel, s, q * (breite / finger));
+    const l = laenge * (1 - Math.abs(q) * 0.12);
+    if (glieder === 1) {
+      t.push(stab(basis, vPlus(vPlus(basis, f, l), s, q * 0.05), dicke, spitze, GLUEHT, seg, 0.1));
+      continue;
+    }
+    const mitte = vPlus(vPlus(basis, f, l * 0.55), s, q * 0.035);
+    const ende = vPlus(vPlus(mitte, f, l * 0.45), b, krumm * l);
+    t.push(stab(basis, mitte, dicke, farbe, GLUEHT, seg, 0.85));
+    t.push(stab(mitte, ende, dicke * 0.85, spitze, GLUEHT, seg, 0.12));
+  }
+  // Daumen: kurz, schraeg zur anderen Seite
+  const daumen = vPlus(vPlus(vPlus(w, f, 0.08), s, -breite * 0.75), f, laenge * 0.35);
+  t.push(stab(vPlus(w, s, -breite * 0.35), daumen, dicke, spitze, GLUEHT, seg, 0.2));
+  return t;
+}
+
+/** Zerfetzter Saum: haengende Stoffstreifen auf einem Kreis um mitte [x, z]. */
+function fetzen(r, y, n, laenge, breite, farben, o = {}) {
+  const { salz = 1, neig = 0.12, mitte = [0, 0], team = 0.05, glut = null } = o;
+  const t = [];
+  for (let i = 0; i < n; i++) {
+    const w = ((i + zufall(i, salz) * 0.6) / n) * Math.PI * 2;
+    const l = laenge * (0.55 + 0.6 * zufall(i, salz + 1));
+    const rr = r + (Math.sin(neig) * l) / 2;
+    const p = [mitte[0] + Math.cos(w) * rr, y - l / 2, mitte[1] + Math.sin(w) * rr];
+    t.push(['q', [breite * (0.7 + 0.5 * zufall(i, salz + 2)), l, 0.04], p, farben[i % farben.length], team, [neig, -w - Math.PI / 2, 0]]);
+    // Glimmende Enden an jedem dritten Streifen
+    if (glut && i % 3 === 0) {
+      const rEnde = r + Math.sin(neig) * l;
+      t.push(['k', [0.05, 4], [mitte[0] + Math.cos(w) * rEnde, y - l, mitte[1] + Math.sin(w) * rEnde], glut, GLUEHT]);
+    }
+  }
+  return t;
+}
+
+/** Senkrechte Falten auf einem Kegelmantel: dreikantige Leisten von unten nach oben. */
+function falten(rU, rO, y0, y1, n, farbe, o = {}) {
+  const { salz = 3, dicke = 0.06, team = 0.05, lassen = -1 } = o;
+  const t = [];
+  for (let i = 0; i < n; i++) {
+    if (i === lassen) continue;
+    const w = ((i + 0.5 + (zufall(i, salz) - 0.5) * 0.5) / n) * Math.PI * 2 + Math.PI / 2;
+    const c = Math.cos(w);
+    const s = Math.sin(w);
+    const oben = y1 - (y1 - y0) * 0.25 * zufall(i, salz + 1);
+    const rOben = rO + ((rU - rO) * (y1 - oben)) / (y1 - y0);
+    t.push(stab([c * rU, y0, s * rU], [c * rOben, oben, s * rOben], dicke, farbe, team, 3, 0.3));
+  }
+  return t;
+}
+
+/** Wurzeln, die aus dem Saum in den Boden greifen: zwei Glieder, nach aussen duenner. */
+function wurzeln(r, y, n, weite, dicke, farbe, salz = 5) {
+  const t = [];
+  for (let i = 0; i < n; i++) {
+    const w = ((i + zufall(i, salz)) / n) * Math.PI * 2;
+    const c = Math.cos(w);
+    const s = Math.sin(w);
+    const a = [c * r, y, s * r];
+    const k = r + weite * (0.45 + 0.2 * zufall(i, salz + 1));
+    const m = [c * k + s * 0.08, y * 0.35, s * k - c * 0.08];
+    const e = [c * (r + weite * (0.9 + 0.3 * zufall(i, salz + 2))), 0.02, s * (r + weite)];
+    t.push(stab(a, m, dicke, farbe, 0.05, 4, 0.7));
+    t.push(stab(m, e, dicke * 0.7, farbe, 0.05, 4, 0.15));
+  }
+  return t;
+}
+
+// ------------------------------------------------------------- Waldgott-Varianten
+// Jede Variante steht fuer eine Richtung des Grafikstils des ganzen Spiels.
+// Gemeinsam (GEMINI.md): fast schwarzer Mantel ohne Fuesse, unten zerfasert,
+// hoher Kragen, haengende Aermel, schwarzer Kopf, gelbe Augen, Geweih,
+// gekreuzte gluehende Klauenhaende.
+
+const AUGE = '#ffd23a';
+const ARM_GLUT = '#c9742c';
+
+/**
+ * Zwei gekreuzte Unterarme mit Klauenhaenden vor dem Mantel. rechts/links:
+ * [Ellbogen, Handgelenk]; die Finger zeigen schraeg nach unten zur anderen
+ * Seite, die Spitzen kruemmen sich zum Betrachter.
+ */
+function gekreuzteHaende(o) {
+  const { rechts, links, laenge = 0.6, hand = {} } = o;
+  const t = [];
+  for (const [ell, wrist, seite] of [[...rechts, 1], [...links, -1]]) {
+    t.push(stab(ell, wrist, 0.075, ARM_GLUT, GLUEHT, 5, 0.85));
+    t.push(...klauenhand(wrist, [-seite * 0.42, -1, 0.12], [1, seite * 0.42, 0], [0, 0, 1], { laenge, ...hand }));
+  }
+  return t;
+}
+
+/** B -- Schattenriese: sehr hoch und schmal, lange Aermel, riesiges Geweih. */
+function waldgottSchattenriese() {
+  const M1 = '#120f0d';
+  const M2 = '#1b1612';
+  return [
+    ['z', [0.36, 0.72, 4.6, 8], [0, 3.1, 0], M1, 0.07],
+    ['z', [0.28, 0.5, 0.32, 8], [0, 5.55, 0], M2, 0.06],
+    ...falten(0.72, 0.36, 0.8, 5.4, 7, M2, { lassen: 0 }),
+    ...fetzen(0.72, 0.85, 16, 0.7, 0.12, [M1, M2], { salz: 4, neig: 0.06 }),
+    // Aermel bis fast zum Boden
+    stab([0.42, 5.5, 0], [0.74, 2.2, 0.08], 0.12, M2, 0.05, 6, 2.2),
+    stab([-0.42, 5.5, 0], [-0.74, 2.2, 0.08], 0.12, M2, 0.05, 6, 2.2),
+    ...fetzen(0.22, 2.25, 6, 0.8, 0.09, [M1, M2], { salz: 8, neig: 0.04, mitte: [0.74, 0.08] }),
+    ...fetzen(0.22, 2.25, 6, 0.8, 0.09, [M1, M2], { salz: 9, neig: 0.04, mitte: [-0.74, 0.08] }),
+    // Kragen: zwei hohe Spitzen
+    ['q', [0.3, 1.5, 0.06], [0.28, 6.05, -0.06], M1, 0.05, [0, 0.4, -0.16]],
+    ['q', [0.3, 1.5, 0.06], [-0.28, 6.05, -0.06], M1, 0.05, [0, -0.4, 0.16]],
+    // Kopf
+    ['k', [0.2, 7], [0, 6.0, 0.03], '#080606'],
+    ['z', [0.14, 0.04, 0.3, 5], [0, 5.78, 0.06], '#080606'],
+    ['k', [0.045, 5], [0.07, 6.03, 0.2], AUGE, GLUEHT],
+    ['k', [0.045, 5], [-0.07, 6.03, 0.2], AUGE, GLUEHT],
+    ...geweih([0.1, 6.15, 0], 1, { laenge: 0.75, dicke: 0.045, start: 0.45, spreiz: 0.5 }),
+    ...geweih([-0.1, 6.15, 0], -1, { laenge: 0.75, dicke: 0.045, start: 0.45, spreiz: 0.5 }),
+    ...gekreuzteHaende({ rechts: [[0.55, 3.75, 0.2], [0.14, 3.35, 0.66]], links: [[-0.55, 3.35, 0.2], [-0.14, 2.95, 0.7]], laenge: 1.0 }),
+  ];
+}
+
+/** C -- Nah an der Vorlage: breite Schultern, gerader Mantel, lange Fetzen. */
+function waldgottVorlage() {
+  const M1 = '#141110';
+  const M2 = '#1e1814';
+  const M3 = '#0b0908';
+  return [
+    ['z', [0.8, 1.0, 2.9, 10], [0, 2.15, 0], M1, 0.07],
+    ['z', [0.58, 0.8, 0.3, 10], [0, 3.75, 0], M2, 0.06],
+    // Schulterkanten, spitz nach aussen wie in der Vorlage
+    ['q', [0.8, 0.2, 0.85], [0.62, 3.62, 0], M2, 0.06, [0, 0, -0.26]],
+    ['q', [0.8, 0.2, 0.85], [-0.62, 3.62, 0], M2, 0.06, [0, 0, 0.26]],
+    stab([0, 0.75, 1.0], [0, 3.55, 0.8], [0.14, 0.05], M3, 0),
+    ...falten(1.0, 0.8, 0.7, 3.6, 10, M2, { lassen: 2 }),
+    ...fetzen(1.0, 0.75, 22, 0.62, 0.17, [M1, M2, M3], { salz: 3, neig: 0.15 }),
+    ...wurzeln(0.9, 0.35, 7, 0.55, 0.05, M3, 11),
+    // Weite Aermel, unten zerfasert
+    stab([0.95, 3.5, 0.05], [1.12, 1.15, 0.12], 0.2, M2, 0.05, 7, 2.1),
+    stab([-0.95, 3.5, 0.05], [-1.12, 1.15, 0.12], 0.2, M2, 0.05, 7, 2.1),
+    ...fetzen(0.38, 1.2, 7, 0.55, 0.12, [M1, M2], { salz: 5, mitte: [1.12, 0.12] }),
+    ...fetzen(0.38, 1.2, 7, 0.55, 0.12, [M1, M2], { salz: 6, mitte: [-1.12, 0.12] }),
+    // Hoher Kragen
+    ['q', [0.42, 1.05, 0.07], [0.36, 4.1, -0.08], M1, 0.05, [-0.1, 0.5, -0.25]],
+    ['q', [0.42, 1.05, 0.07], [-0.36, 4.1, -0.08], M1, 0.05, [-0.1, -0.5, 0.25]],
+    ['q', [0.8, 0.95, 0.07], [0, 4.05, -0.34], M2, 0.05, [-0.15, 0, 0]],
+    // Kopf mit schmalem Kinn
+    ['k', [0.25, 8], [0, 4.15, 0.05], '#080606'],
+    ['z', [0.18, 0.08, 0.28, 6], [0, 3.93, 0.1], '#080606'],
+    ['k', [0.05, 5], [0.09, 4.18, 0.27], AUGE, GLUEHT],
+    ['k', [0.05, 5], [-0.09, 4.18, 0.27], AUGE, GLUEHT],
+    ...geweih([0.14, 4.35, 0], 1, { laenge: 0.58, dicke: 0.05 }),
+    ...geweih([-0.14, 4.35, 0], -1, { laenge: 0.58, dicke: 0.05 }),
+    ...gekreuzteHaende({ rechts: [[0.85, 2.6, 0.4], [0.24, 2.35, 1.04]], links: [[-0.85, 2.2, 0.4], [-0.2, 1.95, 1.06]], laenge: 0.72 }),
+  ];
+}
+
+/** D -- Kantiges Low-Poly: wenige Segmente, grosse Flaechen, Splitter-Haende. */
+function waldgottKantig() {
+  const M1 = '#1a1512';
+  const M2 = '#2a211a';
+  const t = [
+    ['z', [0.5, 1.05, 3.0, 5], [0, 2.0, 0], M1, 0.08, [0, Math.PI / 10, 0]],
+    ['z', [0.0, 0.62, 0.45, 5], [0, 3.7, 0], M2, 0.06, [0, Math.PI / 10, 0]],
+    // Schulterspitzen
+    ['z', [0, 0.32, 0.9, 4], [0.68, 3.65, 0], M2, 0.06, [0, 0, -1.05]],
+    ['z', [0, 0.32, 0.9, 4], [-0.68, 3.65, 0], M2, 0.06, [0, 0, 1.05]],
+    stab([0.75, 3.45, 0], [0.98, 1.35, 0.1], 0.18, M1, 0.06, 4, 2.0),
+    stab([-0.75, 3.45, 0], [-0.98, 1.35, 0.1], 0.18, M1, 0.06, 4, 2.0),
+    // Kragen: zwei dreikantige Platten
+    ['z', [0, 0.36, 1.2, 3], [0.34, 4.05, -0.12], M1, 0.05, [0, 0, -0.2]],
+    ['z', [0, 0.36, 1.2, 3], [-0.34, 4.05, -0.12], M1, 0.05, [0, 0, 0.2]],
+    // Kopf als Oktaeder
+    ['z', [0, 0.26, 0.32, 4], [0, 4.26, 0.05], '#0a0807', 0, [0, Math.PI / 4, 0]],
+    ['z', [0.26, 0, 0.38, 4], [0, 3.91, 0.05], '#0a0807', 0, [0, Math.PI / 4, 0]],
+    // Schraege Augen
+    ['q', [0.1, 0.045, 0.04], [0.085, 4.12, 0.25], AUGE, GLUEHT, [0, 0, 0.35]],
+    ['q', [0.1, 0.045, 0.04], [-0.085, 4.12, 0.25], AUGE, GLUEHT, [0, 0, -0.35]],
+    ...geweih([0.12, 4.38, 0], 1, { laenge: 0.68, dicke: 0.09, stufen: 2, spreiz: 0.75, seg: 3 }),
+    ...geweih([-0.12, 4.38, 0], -1, { laenge: 0.68, dicke: 0.09, stufen: 2, spreiz: 0.75, seg: 3 }),
+    ...gekreuzteHaende({
+      rechts: [[0.8, 2.55, 0.35], [0.22, 2.3, 0.98]],
+      links: [[-0.8, 2.15, 0.35], [-0.2, 1.9, 1.0]],
+      laenge: 0.75,
+      hand: { finger: 3, glieder: 1, dicke: 0.07, seg: 3 },
+    }),
+  ];
+  // Saum: neun grosse dreieckige Zacken bis zum Boden
+  for (let i = 0; i < 9; i++) {
+    const w = (i / 9) * Math.PI * 2;
+    t.push(['z', [0.24, 0, 0.6, 3], [Math.cos(w) * 0.95, 0.3, Math.sin(w) * 0.95], i % 2 ? M1 : M2, 0.06, [0, -w, 0]]);
+  }
+  return t;
+}
+
+/** E -- Rinde und Moos: offener Mantel ueber einem Rindenleib, Wurzeln statt Fuessen. */
+function waldgottRinde() {
+  const M1 = '#15110e';
+  const M2 = '#201913';
+  const RINDE = '#3a2a1c';
+  const RINDE2 = '#24190f';
+  const MOOS = '#33401f';
+  return [
+    ['z', [0.72, 0.98, 2.9, 9], [0, 2.15, 0], M1, 0.07],
+    ['z', [0.52, 0.72, 0.3, 9], [0, 3.75, 0], M2, 0.06],
+    // Rindenleib in der Manteloeffnung, mit Furchen
+    stab([0, 0.75, 0.96], [0, 3.5, 0.72], [0.55, 0.1], RINDE, 0),
+    stab([0.1, 0.8, 1.0], [0.06, 3.3, 0.77], 0.05, RINDE2, 0, 3, 0.4),
+    stab([-0.12, 0.9, 1.0], [-0.05, 3.1, 0.79], 0.05, RINDE2, 0, 3, 0.4),
+    stab([0.02, 1.5, 0.95], [-0.1, 3.4, 0.76], 0.04, RINDE2, 0, 3, 0.3),
+    // Mantelkanten links und rechts der Oeffnung
+    stab([0.33, 0.75, 0.97], [0.3, 3.55, 0.7], [0.12, 0.1], M2, 0.06),
+    stab([-0.33, 0.75, 0.97], [-0.3, 3.55, 0.7], [0.12, 0.1], M2, 0.06),
+    ...falten(0.98, 0.72, 0.7, 3.6, 8, M2, { lassen: 0 }),
+    ...fetzen(0.98, 0.75, 12, 0.45, 0.16, [M1, M2], { salz: 12, neig: 0.18 }),
+    ...wurzeln(0.85, 0.8, 9, 0.75, 0.13, '#2a1d13', 21),
+    // Moos auf den Schultern, haengt in Baerten herab
+    ['z', [0.18, 0.42, 0.2, 7], [0.5, 3.82, 0], MOOS, 0.2],
+    ['z', [0.18, 0.42, 0.2, 7], [-0.5, 3.82, 0], MOOS, 0.2],
+    ['z', [0.1, 0, 0.45, 4], [0.72, 3.5, 0.2], '#2c3a1a', 0.2],
+    ['z', [0.1, 0, 0.4, 4], [-0.7, 3.52, -0.15], '#2c3a1a', 0.2],
+    ['z', [0.08, 0, 0.35, 4], [0.55, 3.55, -0.3], '#2c3a1a', 0.2],
+    // Aermel
+    stab([0.85, 3.6, 0.05], [1.05, 1.5, 0.12], 0.19, M2, 0.05, 7, 1.9),
+    stab([-0.85, 3.6, 0.05], [-1.05, 1.5, 0.12], 0.19, M2, 0.05, 7, 1.9),
+    ...fetzen(0.34, 1.55, 6, 0.45, 0.12, [M1, M2], { salz: 13, mitte: [1.05, 0.12] }),
+    ...fetzen(0.34, 1.55, 6, 0.45, 0.12, [M1, M2], { salz: 14, mitte: [-1.05, 0.12] }),
+    // Kragen aus Rindenspitzen hinter dem Kopf
+    stab([0.2, 3.8, -0.2], [0.55, 4.6, -0.3], 0.1, RINDE2, 0, 4, 0.1),
+    stab([-0.2, 3.8, -0.2], [-0.55, 4.6, -0.3], 0.1, RINDE2, 0, 4, 0.1),
+    stab([0.08, 3.8, -0.28], [0.22, 4.75, -0.42], 0.09, RINDE2, 0, 4, 0.1),
+    stab([-0.08, 3.8, -0.28], [-0.22, 4.75, -0.42], 0.09, RINDE2, 0, 4, 0.1),
+    // Kopf
+    ['k', [0.25, 8], [0, 4.12, 0.05], '#080606'],
+    ['z', [0.17, 0.07, 0.26, 6], [0, 3.92, 0.1], '#080606'],
+    ['k', [0.05, 5], [0.09, 4.15, 0.27], AUGE, GLUEHT],
+    ['k', [0.05, 5], [-0.09, 4.15, 0.27], AUGE, GLUEHT],
+    ...geweih([0.14, 4.32, 0], 1, { laenge: 0.6, dicke: 0.065, farbe: RINDE, knorrig: 0.6 }),
+    ...geweih([-0.14, 4.32, 0], -1, { laenge: 0.6, dicke: 0.065, farbe: RINDE, knorrig: 0.6 }),
+    ['k', [0.09, 5], [0.42, 4.75, -0.05], MOOS, 0.2],
+    ['k', [0.08, 5], [-0.38, 4.7, -0.05], MOOS, 0.2],
+    // Gluehende Pilze an den Wurzeln: warmes Licht am Boden
+    ['z', [0.1, 0.03, 0.07, 6], [1.2, 0.2, 0.5], '#ff9a3a', GLUEHT],
+    ['z', [0.08, 0.03, 0.06, 6], [-0.9, 0.25, 0.9], '#ff9a3a', GLUEHT],
+    ['z', [0.09, 0.03, 0.06, 6], [-0.5, 0.18, -1.2], '#ff9a3a', GLUEHT],
+    ...gekreuzteHaende({ rechts: [[0.8, 2.6, 0.35], [0.24, 2.35, 1.02]], links: [[-0.8, 2.2, 0.35], [-0.2, 1.95, 1.04]], laenge: 0.7 }),
+  ];
+}
+
+/** F -- Verspielt-stilisiert: Glockenmantel, grosser runder Kopf, grosse Augen. */
+function waldgottVerspielt() {
+  const M1 = '#1f1914';
+  const M2 = '#2a221b';
+  const t = [
+    ['z', [0.4, 1.12, 2.3, 12], [0, 1.55, 0], M1, 0.1],
+    ['z', [0.72, 0.42, 0.45, 12], [0, 2.85, 0], M2, 0.08],
+    ['k', [0.55, 10], [0, 3.38, 0], '#0c0a09'],
+    ['k', [0.14, 6], [0.2, 3.42, 0.47], AUGE, GLUEHT],
+    ['k', [0.14, 6], [-0.2, 3.42, 0.47], AUGE, GLUEHT],
+    ...geweih([0.25, 3.8, 0], 1, { laenge: 0.55, dicke: 0.13, stufen: 2, spreiz: 0.75, seg: 6, farbe: '#4a3a2c', start: 0.6 }),
+    ...geweih([-0.25, 3.8, 0], -1, { laenge: 0.55, dicke: 0.13, stufen: 2, spreiz: 0.75, seg: 6, farbe: '#4a3a2c', start: 0.6 }),
+    // Runde Aermel
+    ['z', [0.16, 0.38, 1.4, 8], [0.78, 2.0, 0.1], M2, 0.08, [0, 0, 0.32]],
+    ['z', [0.16, 0.38, 1.4, 8], [-0.78, 2.0, 0.1], M2, 0.08, [0, 0, -0.32]],
+    // Faeustlinge mit drei dicken Krallen
+    ['k', [0.2, 7], [0.22, 1.75, 0.98], GOLD, GLUEHT],
+    ['k', [0.2, 7], [-0.24, 1.45, 1.0], GOLD, GLUEHT],
+  ];
+  for (const [x, y, s] of [[0.22, 1.75, 1], [-0.24, 1.45, -1]]) {
+    for (let i = 0; i < 3; i++) {
+      const a = [x + (i - 1) * 0.11, y - 0.12, 1.05];
+      t.push(stab(a, [a[0] - s * 0.12, a[1] - 0.42, a[2] + 0.12], 0.075, GOLD2, GLUEHT, 5, 0.15));
+    }
+  }
+  // Saum aus runden Wellen
+  for (let i = 0; i < 12; i++) {
+    const w = (i / 12) * Math.PI * 2;
+    t.push(['k', [0.25, 6], [Math.cos(w) * 1.02, 0.3, Math.sin(w) * 1.02], i % 2 ? M1 : M2, 0.1]);
+  }
+  return t;
+}
+
+/**
+ * G -- Glutherz: der Mantel steht vorn offen, darin glimmt ein Kern;
+ * Funken steigen auf, Geweihspitzen und Saum glimmen.
+ */
+function waldgottGlutherz() {
+  const M1 = '#130f0c';
+  const M2 = '#1d1611';
+  const GLUT = '#ff7a1e';
+  const t = [
+    // Gluehender Kern im Innern
+    ['z', [0.32, 0.5, 2.3, 7], [0, 2.1, 0.05], GLUT, GLUEHT],
+    ['k', [0.32, 7], [0, 2.7, 0.15], '#ffb347', GLUEHT],
+  ];
+  // Mantel aus Bahnen, vorn eine Luecke, durch die der Kern scheint
+  const n = 9;
+  const rU = 1.0;
+  const rO = 0.62;
+  const h = 3.0;
+  for (let i = 1; i < n; i++) {
+    const w = Math.PI / 2 + (i / n) * Math.PI * 2;
+    const r = (rU + rO) / 2;
+    const breite = 2 * rU * Math.tan(Math.PI / n) * 1.08;
+    t.push(['q', [breite, h, 0.07], [Math.cos(w) * r, 0.75 + h / 2, Math.sin(w) * r], i % 2 ? M1 : M2, 0.07, [Math.atan((rU - rO) / h), -w - Math.PI / 2, 0]]);
+  }
+  t.push(
+    ['z', [0.5, 0.7, 0.35, 9], [0, 3.85, 0], M2, 0.06],
+    ...fetzen(1.0, 0.8, 18, 0.7, 0.16, [M1, M2], { salz: 31, neig: 0.15, glut: '#ff6a1a' }),
+    // Aermel
+    stab([0.85, 3.7, 0], [1.08, 1.4, 0.12], 0.19, M2, 0.05, 7, 2.0),
+    stab([-0.85, 3.7, 0], [-1.08, 1.4, 0.12], 0.19, M2, 0.05, 7, 2.0),
+    ...fetzen(0.36, 1.45, 6, 0.5, 0.12, [M1, M2], { salz: 32, mitte: [1.08, 0.12], glut: '#ff6a1a' }),
+    ...fetzen(0.36, 1.45, 6, 0.5, 0.12, [M1, M2], { salz: 33, mitte: [-1.08, 0.12], glut: '#ff6a1a' }),
+    // Kragen
+    ['q', [0.4, 1.0, 0.07], [0.35, 4.2, -0.08], M1, 0.05, [-0.1, 0.5, -0.25]],
+    ['q', [0.4, 1.0, 0.07], [-0.35, 4.2, -0.08], M1, 0.05, [-0.1, -0.5, 0.25]],
+    // Kopf
+    ['k', [0.25, 8], [0, 4.25, 0.05], '#080606'],
+    ['z', [0.17, 0.07, 0.26, 6], [0, 4.04, 0.1], '#080606'],
+    ['k', [0.05, 5], [0.09, 4.28, 0.27], AUGE, GLUEHT],
+    ['k', [0.05, 5], [-0.09, 4.28, 0.27], AUGE, GLUEHT],
+    ...geweih([0.14, 4.45, 0], 1, { laenge: 0.58, dicke: 0.05, glut: '#ff9a3a' }),
+    ...geweih([-0.14, 4.45, 0], -1, { laenge: 0.58, dicke: 0.05, glut: '#ff9a3a' }),
+    ...gekreuzteHaende({ rechts: [[0.85, 2.7, 0.4], [0.26, 2.45, 1.02]], links: [[-0.85, 2.3, 0.4], [-0.2, 2.05, 1.04]], laenge: 0.72 })
+  );
+  // Aufsteigende Funken
+  for (let i = 0; i < 9; i++) {
+    const w = zufall(i, 40) * Math.PI * 2;
+    const r = 0.4 + zufall(i, 41) * 0.9;
+    t.push(['q', [0.06, 0.06, 0.06], [Math.cos(w) * r, 1.0 + zufall(i, 42) * 3.6, Math.sin(w) * r + 0.3], i % 2 ? '#ffb347' : '#ff7a1e', GLUEHT, [0.7, w, 0.7]]);
+  }
+  return t;
+}
+
 /**
  * Varianten des Waldgotts fuer die Stil-Auswahl in dist/galerie.html. Der
  * Nutzer sucht die beste aus; sie wird dann MODELLE_DEF.waldgott. Vorlage:
@@ -373,4 +803,10 @@ export const MODELLE_DEF = {
  */
 export const WALDGOTT_VARIANTEN = {
   'A — bisher': MODELLE_DEF.waldgott,
+  'B — Schattenriese': waldgottSchattenriese(),
+  'C — Vorlage, düster-realistisch': waldgottVorlage(),
+  'D — Kantiges Low-Poly': waldgottKantig(),
+  'E — Rinde und Moos': waldgottRinde(),
+  'F — Verspielt, große Formen': waldgottVerspielt(),
+  'G — Glutherz': waldgottGlutherz(),
 };

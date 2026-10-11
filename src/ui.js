@@ -298,9 +298,18 @@ document.getElementById('hilfeKnopf').onclick = () => {
   h.hidden = !h.hidden;
 };
 
-/** Leisten neu zeichnen, sobald sich Auswahl oder Skills aendern. */
+/** Ausgewaehlte eigene Fabriken, die Einheiten ausbilden koennen. */
+function fabriken() {
+  return sel
+    .map((id) => byId(world, id))
+    .filter((e) => e && e.kind === 'building' && e.player === ME && e.done && BUILDINGS[e.type]?.buildList);
+}
+
+/** Leisten neu zeichnen, sobald sich Auswahl, Skills oder Warteschlange aendern. */
 function leisten() {
-  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME);
+  const fabs = fabriken();
+  const qSig = fabs.map((f) => f.queue.join()).join(';');
+  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig;
   if (sig === leistenSig) return;
   leistenSig = sig;
   renderBar();
@@ -358,14 +367,33 @@ function bauListe() {
 
 function renderBar() {
   const bar = document.getElementById('builds');
-  bar.innerHTML = erbauer().length ? bauleisteHtml(world, ME, bauListe()) : '';
+  const fabs = fabriken();
+  if (erbauer().length) {
+    bar.innerHTML = bauleisteHtml(world, ME, bauListe());
+  } else if (fabs.length) {
+    bar.innerHTML = ausbildungsleisteHtml(world, ME, fabs);
+  } else {
+    bar.innerHTML = '';
+  }
   document.getElementById('gruppen').innerHTML = gruppenHtml(world, sel);
-  if (!erbauer().length) karteTyp = placing = null;
+  if (!erbauer().length && !fabs.length) karteTyp = placing = null;
   for (const b of bar.querySelectorAll('[data-b]')) {
     b.onclick = () => {
       if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
     };
     b.onmouseenter = () => (karteTyp = b.dataset.b);
+    b.onmouseleave = () => (karteTyp = null);
+  }
+  for (const b of bar.querySelectorAll('[data-produce]')) {
+    b.onclick = () => {
+      const u = b.dataset.produce;
+      if (!gesperrt(world, ME, u) && fabs.length) {
+        const frei = fabs.filter((f) => f.queue.length < 8);
+        const ziel = frei.reduce((best, f) => (!best || f.queue.length < best.queue.length ? f : best), null);
+        if (ziel) issue(world, { type: 'produce', player: ME, id: ziel.id, unit: u });
+      }
+    };
+    b.onmouseenter = () => (karteTyp = b.dataset.produce);
     b.onmouseleave = () => (karteTyp = null);
   }
 }
@@ -434,10 +462,10 @@ function drawNebel() {
   nebelMalen(ctx, w2sx(0), w2sy(0), MAP * cam.z);
 }
 
-/** Info-Karte: Gebaeude unter der Maus in der Bauleiste, sonst das, was gerade gesetzt wird. */
+/** Info-Karte: Gebaeude oder Einheit unter der Maus in der Leiste, sonst das, was gerade gesetzt wird. */
 function infoKarte() {
   const typ = karteTyp || placing;
-  const html = typ ? gebaeudeKarte(world, ME, typ) : '';
+  const html = typ ? (UNITS[typ] ? einheitKarte(world, ME, typ) : gebaeudeKarte(world, ME, typ)) : '';
   if (html === karteHtml) return;
   karteHtml = html;
   const el = document.getElementById('karte');

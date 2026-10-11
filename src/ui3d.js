@@ -157,11 +157,26 @@ function bauListe() {
     ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium']
     : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
 }
+
+/** Ausgewaehlte eigene Fabriken, die Einheiten ausbilden koennen. */
+function fabriken3() {
+  return sel
+    .map((id) => byId(world, id))
+    .filter((e) => e && e.kind === 'building' && e.player === ME && e.done && BUILDINGS[e.type]?.buildList);
+}
+
 function renderBar() {
   const bar = document.getElementById('builds');
-  bar.innerHTML = erbauer3().length ? bauleisteHtml(world, ME, bauListe()) : '';
+  const fabs = fabriken3();
+  if (erbauer3().length) {
+    bar.innerHTML = bauleisteHtml(world, ME, bauListe());
+  } else if (fabs.length) {
+    bar.innerHTML = ausbildungsleisteHtml(world, ME, fabs);
+  } else {
+    bar.innerHTML = '';
+  }
   document.getElementById('gruppen').innerHTML = gruppenHtml(world, sel);
-  if (!erbauer3().length) karteTyp = placing = null;
+  if (!erbauer3().length && !fabs.length) karteTyp = placing = null;
   for (const b of bar.querySelectorAll('[data-b]')) {
     b.onclick = () => {
       if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
@@ -169,12 +184,25 @@ function renderBar() {
     b.onmouseenter = () => (karteTyp = b.dataset.b);
     b.onmouseleave = () => (karteTyp = null);
   }
+  for (const b of bar.querySelectorAll('[data-produce]')) {
+    b.onclick = () => {
+      const u = b.dataset.produce;
+      if (!gesperrt(world, ME, u) && fabs.length) {
+        // Auf die ausgewaehlte Fabrik mit der kuerzesten Warteschlange verteilen (Supreme Commander-Stil)
+        const frei = fabs.filter((f) => f.queue.length < 8);
+        const ziel = frei.reduce((best, f) => (!best || f.queue.length < best.queue.length ? f : best), null);
+        if (ziel) issue(world, { type: 'produce', player: ME, id: ziel.id, unit: u });
+      }
+    };
+    b.onmouseenter = () => (karteTyp = b.dataset.produce);
+    b.onmouseleave = () => (karteTyp = null);
+  }
 }
 
-/** Info-Karte: Gebaeude unter der Maus in der Bauleiste, sonst das, was gerade gesetzt wird. */
+/** Info-Karte: Gebaeude oder Einheit unter der Maus in der Leiste, sonst das, was gerade gesetzt wird. */
 function infoKarte3() {
   const typ = karteTyp || placing;
-  const html = typ ? gebaeudeKarte(world, ME, typ) : '';
+  const html = typ ? (UNITS[typ] ? einheitKarte(world, ME, typ) : gebaeudeKarte(world, ME, typ)) : '';
   if (html === karteHtml) return;
   karteHtml = html;
   const el = document.getElementById('karte');
@@ -230,9 +258,11 @@ document.getElementById('hilfeKnopf').onclick = () => {
   h.hidden = !h.hidden;
 };
 
-/** Leisten neu zeichnen, sobald sich Auswahl oder Skills aendern. */
+/** Leisten neu zeichnen, sobald sich Auswahl, Skills oder Warteschlange aendern. */
 function leisten3() {
-  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME);
+  const fabs = fabriken3();
+  const qSig = fabs.map((f) => f.queue.join()).join(';');
+  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig;
   if (sig === leistenSig) return;
   leistenSig = sig;
   renderBar();

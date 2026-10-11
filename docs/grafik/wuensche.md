@@ -11,8 +11,7 @@ Format:
 
 ## Offen
 
-- [ ] (→ Auftrag 3, Aufgabe 1) **Zweite Karte „Flusstal“** (`KARTEN.flusstal` in `src/sim/defs.js`, gewählt über `karteWaehlen()` — `KARTE` ist immer die gespielte Karte): Der Fluss sind Wasserkreise mit `fluss: true` — bitte als zusammenhängender Fluss mit Ufer zeichnen, nicht als Seenkette. `KARTE.furten` (flache Übergänge, Kies), `KARTE.wald` und `KARTE.wiesen` (Kreise `{ x, y, r }`, nur Optik: dichter Wald bzw. helle Wiese). `DEKO` (Bäume) und der Marschpfad müssen der gewählten Karte folgen — `DEKO` also als Funktion der Karte, die `ui3d.js` nach `karteWaehlen()` neu aufrufen kann (wie `baueBoden()`, das tut es schon). Skizze des Nutzers: `docs/bilder/Maps/Map1.png`.
-- [ ] (→ Auftrag 3, Aufgabe 3) **Geschoss-Modelle** (optional, sonst nimmt `src/effekte.js` Pfeil/Kugel): `bolzen` (Balliste, schwerer Holzbolzen mit Eisenspitze), `dorn` (Wächterbaum, grüngoldener Dorn), `lichtpfeil` (Waldgeist, leuchtender Pfeil), `glutball` (Waldgott, glühender Ball mit Schweif). Achse wie `pfeil` (Spitze nach +z).
+- [ ] **Icons für die Bedienung einbinden** (`ton`, `stumm`, `hilfe`, `wiederholung`, `sammelpunkt`, `steuergruppe` in `src/icons.js`): Gemini hat die 6 Icons fertiggestellt. Claude kann sie in `src/ui.js`, `src/ui3d.js` bzw. `src/ui-gemeinsam.js` in die Bedienleiste / Steuerleisten einbauen.
 
 
 ## Erledigt

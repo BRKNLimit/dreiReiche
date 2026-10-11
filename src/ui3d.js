@@ -66,6 +66,7 @@ let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
 const tastenGehalten = new Set();
 const vorher = new Map(); // id -> [x, y] vor dem letzten Tick, fuer Interpolation
 const blick = new Map(); // id -> Blickrichtung in Bogenmass
+const musik = neueMusik(); // erzeugte Musik (src/musik.js), Taste N
 const fx = neueEffekte(); // Geschosse, Treffer, Klaenge (src/effekte.js)
 // Was der Spieler sehen darf -- Eigenes immer, sonst was im Nebel sichtbar ist.
 const sichtbarFx = (e) => !nebel.an || e.player === ME || sieht(nebel, e.x, e.y);
@@ -540,6 +541,10 @@ addEventListener('keydown', (e) => {
     if (t) standLaden(t);
     else standHinweis('Kein Spielstand gespeichert (F5 speichert)');
   }
+  if (e.key === 'n') {
+    tonAn(fx);
+    standHinweis(musikSchalten(musik) ? 'Musik an' : 'Musik aus');
+  }
   if (e.key === 'm') {
     stummSchalten(fx);
     tonKnopfZeigen();
@@ -750,6 +755,7 @@ function tick() {
     }
   }
   effekteAusEreignissen(fx, world, ME, sichtbarFx, hoerer3d(), imBild3d);
+  musikEreignisse(musik, world);
   sel = sel.filter((id) => byId(world, id));
 }
 
@@ -771,6 +777,7 @@ function frame(now) {
   alphaTick = paused || world.over ? 1 : Math.min(1, acc / TICK_MS);
   kameraTasten(dt);
   effekteFortschreiben(fx, paused || world.over ? 0 : (dt * speed) / 1000, world, hoerer3d());
+  musikFortschreiben(musik, fx, meFaction, dt / 1000);
   missionFortschritt();
   missionFunk();
   if ((world.over || missionGewonnen) && !endeGezeigt) zeigeEnde();

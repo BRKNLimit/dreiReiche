@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.35
+# Die drei Reiche — Prototyp 0.36
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -78,6 +78,7 @@ Spiel; als JSON lässt sie sich weitergeben.
 | `F2` | ganzes Heer wählen |
 | `F5`, `F9` | Spielstand speichern, laden (beim Schließen speichert das Spiel von selbst) |
 | `F10` | Menü: speichern, laden, aufgeben, Hauptmenü |
+| `N` | Musik an/aus |
 | `.` | nächster untätiger Arbeiter (Knopf unten rechts zeigt die Anzahl) |
 | Rechtsklick auf die Minikarte | Auswahl dorthin schicken |
 | `A`, dann Linksklick | Angriffsbewegung: unterwegs jeden Feind stellen |

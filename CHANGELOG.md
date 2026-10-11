@@ -3,6 +3,16 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.36 — Musik
+
+- **Erzeugte Musik** (`src/musik.js`): keine Dateien, alles WebAudio nach
+  einfachen Regeln — Flächen, Bass und eine Melodie, die als Zufallsweg über
+  die Tonleiter wandert. Die Menschen klingen dorisch mit gezupfter Laute,
+  der Gott pentatonisch mit Flöte und Atem. Wird gekämpft, kommen Trommeln
+  und Rasseln dazu und die Melodie wird dichter; danach klingt es ab.
+- **N** schaltet die Musik an und aus (bleibt gespeichert), **M** weiter
+  den ganzen Ton.
+
 ## 0.35 — Online gegen einen Menschen
 
 - **Online-Mehrspieler** (Startbildschirm, „🌐 Online gegen einen

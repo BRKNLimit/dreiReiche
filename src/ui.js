@@ -41,6 +41,7 @@ let wiederholung = null; // abgespielte Wiederholung, sonst null
 let wdhZeiger = 0;
 let verlauf = neuerVerlauf(); // fuer den Siegbildschirm
 let endeGezeigt = false;
+const musik = neueMusik(); // erzeugte Musik (src/musik.js), Taste N
 const fx = neueEffekte(); // Geschosse, Treffer, Klaenge (src/effekte.js)
 // Was der Spieler sehen darf -- Eigenes immer, sonst was im Nebel sichtbar ist.
 const sichtbarFx = (e) => !nebel.an || e.player === ME || sieht(nebel, e.x, e.y);
@@ -347,6 +348,10 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
+  if (e.key === 'n') {
+    tonAn(fx);
+    standHinweis(musikSchalten(musik) ? 'Musik an' : 'Musik aus');
+  }
   if (e.key === 'm') {
     stummSchalten(fx);
     tonKnopfZeigen();
@@ -629,12 +634,14 @@ function frame(now) {
       if (wiederholung && world.tick >= wiederholung.ende && !world.over) paused = true;
       for (const ev of world.events) if (ev.t === 'faehigkeit') wirkungen.push({ ...ev, bis: world.tick + 12 });
       effekteAusEreignissen(fx, world, ME, sichtbarFx, hoerer2d(), imBild2d);
+      musikEreignisse(musik, world);
       zaehle();
       acc -= TICK_MS;
       sel = sel.filter((id) => byId(world, id));
     }
   }
   effekteFortschreiben(fx, paused ? 0 : (dt * speed) / 1000, world, hoerer2d());
+  musikFortschreiben(musik, fx, meFaction, dt / 1000);
   missionFortschritt();
   missionFunk();
   if ((world.over || missionGewonnen) && !endeGezeigt) zeigeEnde();

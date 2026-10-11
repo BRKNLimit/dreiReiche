@@ -275,7 +275,10 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
-  if (e.key === 'm') stummSchalten(fx);
+  if (e.key === 'm') {
+    stummSchalten(fx);
+    tonKnopfZeigen();
+  }
   if (e.key === '.') naechsterUntaetiger();
   if (e.key === 's' && sel.length) issue(world, { type: 'stopp', player: ME, ids: sel.slice() });
   if (e.key === 'F2') {
@@ -426,6 +429,32 @@ function naechsterUntaetiger() {
 }
 document.getElementById('untaetig').onclick = () => naechsterUntaetiger();
 
+// Ton und Hilfe als Icons; Steuergruppen-Leiste (Klick waehlt die Gruppe)
+function tonKnopfZeigen() {
+  document.getElementById('tonKnopf').innerHTML = ICONS[fx.stumm ? 'stumm' : 'ton'] || (fx.stumm ? '🔇' : '🔊');
+}
+document.getElementById('tonKnopf').onclick = () => {
+  tonAn(fx);
+  stummSchalten(fx);
+  tonKnopfZeigen();
+};
+if (ICONS.hilfe) document.getElementById('hilfeKnopf').innerHTML = ICONS.hilfe;
+tonKnopfZeigen();
+document.getElementById('steuer').onclick = (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-sg]') : null;
+  if (!b || !world) return;
+  sel = (gruppen[b.dataset.sg] || []).filter((id) => byId(world, id));
+  selPlan = null;
+};
+let steuerSig = '';
+function steuerAnzeigen() {
+  const sig = Object.keys(gruppen).map((n) => n + ':' + (gruppen[n] || []).filter((id) => byId(world, id)).length).join(',');
+  if (sig === steuerSig) return;
+  steuerSig = sig;
+  document.getElementById('steuer').innerHTML = steuergruppenHtml(gruppen, world);
+}
+
+
 
 /** Ausgewaehlte eigene Einheiten, die bauen koennen. */
 function erbauer() {
@@ -555,6 +584,7 @@ function draw() {
   skillPanel();
   leisten();
   untaetigAnzeigen();
+  steuerAnzeigen();
   faehPanel();
   infoKarte();
   drawMini();

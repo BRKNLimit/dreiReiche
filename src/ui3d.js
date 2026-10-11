@@ -467,7 +467,10 @@ addEventListener('keydown', (e) => {
   const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && bauListe()[i] && erbauer3().length && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
-  if (e.key === 'm') stummSchalten(fx);
+  if (e.key === 'm') {
+    stummSchalten(fx);
+    tonKnopfZeigen();
+  }
   if (e.key === '.') naechsterUntaetiger();
   if (e.key === 's' && sel.length) issue(world, { type: 'stopp', player: ME, ids: sel.slice() });
   if (e.key === 'F2') {
@@ -567,6 +570,32 @@ function naechsterUntaetiger() {
 }
 document.getElementById('untaetig').onclick = () => naechsterUntaetiger();
 
+// Ton und Hilfe als Icons; Steuergruppen-Leiste (Klick waehlt die Gruppe)
+function tonKnopfZeigen() {
+  document.getElementById('tonKnopf').innerHTML = ICONS[fx.stumm ? 'stumm' : 'ton'] || (fx.stumm ? '🔇' : '🔊');
+}
+document.getElementById('tonKnopf').onclick = () => {
+  tonAn(fx);
+  stummSchalten(fx);
+  tonKnopfZeigen();
+};
+if (ICONS.hilfe) document.getElementById('hilfeKnopf').innerHTML = ICONS.hilfe;
+tonKnopfZeigen();
+document.getElementById('steuer').onclick = (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-sg]') : null;
+  if (!b || !world) return;
+  sel = (gruppen[b.dataset.sg] || []).filter((id) => byId(world, id));
+  selPlan = null;
+};
+let steuerSig = '';
+function steuerAnzeigen() {
+  const sig = Object.keys(gruppen).map((n) => n + ':' + (gruppen[n] || []).filter((id) => byId(world, id)).length).join(',');
+  if (sig === steuerSig) return;
+  steuerSig = sig;
+  document.getElementById('steuer').innerHTML = steuergruppenHtml(gruppen, world);
+}
+
+
 
 function kameraTasten(dt) {
   const v = (kam.dist / 300) * 0.35 * dt;
@@ -660,6 +689,7 @@ function frame(now) {
     skillPanel3();
     leisten3();
     untaetigAnzeigen();
+    steuerAnzeigen();
     faehPanel3();
     infoKarte3();
     zeichneMini();

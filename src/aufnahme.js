@@ -8,6 +8,7 @@
 
 import { foerderungProMin } from './sim/sim.js';
 import { UNITS, FACTIONS, KARTEN } from './sim/defs.js';
+import { ICONS } from './icons.js';
 
 export const STAND = typeof SPIEL_STAND !== 'undefined' ? SPIEL_STAND : 'dev';
 const FORMAT = 'drei-reiche-wiederholung';
@@ -144,7 +145,7 @@ export function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
       ${diagramm('Gebäude', reihe('gebaeude', 0), reihe('gebaeude', 1), f[0].color, f[1].color)}
     </div>
     <div class="go">
-      ${mitAufnahme ? '<button id="endeSpeichern">Wiederholung speichern</button>' : ''}
+      ${mitAufnahme ? `<button id="endeSpeichern" class="mitIcon">${ICONS.wiederholung || ''} Wiederholung speichern</button>` : ''}
       <button id="endeKarte">Karte ansehen</button>
       <button id="endeNochmal">Neue Partie</button>
     </div>`;
@@ -152,5 +153,5 @@ export function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
 
 /** Datei-Auswahl fuer den Startbildschirm. */
 export function wiederholungWahlHtml() {
-  return `<div class="stil">Wiederholung ansehen: <input type="file" id="wiederholungDatei" accept=".json,application/json"> <span id="wiederholungMeldung"></span></div>`;
+  return `<div class="stil mitIcon">${ICONS.wiederholung || ''} Wiederholung ansehen: <input type="file" id="wiederholungDatei" accept=".json,application/json"> <span id="wiederholungMeldung"></span></div>`;
 }

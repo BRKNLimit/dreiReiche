@@ -5345,6 +5345,17 @@ function untaetigHtml(world, ich, n) {
   return `${ICONS[typ] || ''}<span class="zahl">${n}</span>`;
 }
 
+/** Leiste der belegten Steuergruppen: Icon und Ziffer je Gruppe, Klick waehlt sie. */
+function steuergruppenHtml(gruppen, world) {
+  const out = [];
+  for (const n of ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']) {
+    const g = (gruppen[n] || []).filter((id) => byId(world, id));
+    if (!g.length) continue;
+    out.push(`<button class="ikon klein" data-sg="${n}" title="Steuergruppe ${n}: ${g.length} (Taste ${n})">${ICONS.steuergruppe || ''}<kbd>${n}</kbd><span class="zahl">${g.length}</span></button>`);
+  }
+  return out.join('');
+}
+
 /** Gewaehlte eigene Fabriken -- ein Rechtsklick setzt ihren Sammelpunkt. */
 function gewaehlteFabriken(world, sel, ich) {
   return sel.filter((id) => {

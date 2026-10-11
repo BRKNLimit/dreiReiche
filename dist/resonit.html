@@ -139,6 +139,13 @@
   .ikon .zahl { position: absolute; right: 3px; bottom: 1px; font-size: 12px; font-weight: 600; color: #fff; text-shadow: 0 0 3px #000; }
   .ikon .kosten { position: absolute; left: 3px; bottom: 1px; font-size: 9px; color: var(--dim); }
   .ikon kbd { position: absolute; right: 3px; top: 1px; margin: 0; font-size: 9px; }
+  .ikon.klein { width: 34px; height: 34px; padding: 4px; }
+  .ikon.klein svg { width: 20px; height: 20px; }
+  #steuer { display: flex; gap: 3px; align-items: center; }
+  #steuer:empty { display: none; }
+  #steuer:not(:empty) + #gruppen:not(:empty) { border-left: 1px solid var(--line); padding-left: 8px; }
+  .mitIcon svg { width: 16px; height: 16px; vertical-align: -3px; }
+  #hilfeKnopf svg, #tonKnopf svg { width: 18px; height: 18px; display: block; }
   .ikon.zu { opacity: .4; }
   .ikon[hidden] { display: none; }
   .warn { display: flex; align-items: center; gap: 6px; }
@@ -229,6 +236,7 @@
   <div id="karte" hidden></div>
   <div id="faehigkeiten" hidden></div>
   <div id="bar">
+    <span id="steuer"></span>
     <span id="gruppen"></span>
     <span id="builds"></span>
     <span class="rechts">
@@ -237,6 +245,7 @@
       <a class="btn" href="drei-reiche-3d.html" title="Dieselbe Simulation in 3D">3D</a>
       <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
       <button id="untaetig" class="ikon" hidden title="Untätige Arbeiter (.)"></button>
+      <button id="tonKnopf" title="Ton an/aus (M)"></button>
       <button id="hilfeKnopf" title="Steuerung (H)">?</button>
     </span>
   </div>
@@ -5529,6 +5538,17 @@ function untaetigHtml(world, ich, n) {
   return `${ICONS[typ] || ''}<span class="zahl">${n}</span>`;
 }
 
+/** Leiste der belegten Steuergruppen: Icon und Ziffer je Gruppe, Klick waehlt sie. */
+function steuergruppenHtml(gruppen, world) {
+  const out = [];
+  for (const n of ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']) {
+    const g = (gruppen[n] || []).filter((id) => byId(world, id));
+    if (!g.length) continue;
+    out.push(`<button class="ikon klein" data-sg="${n}" title="Steuergruppe ${n}: ${g.length} (Taste ${n})">${ICONS.steuergruppe || ''}<kbd>${n}</kbd><span class="zahl">${g.length}</span></button>`);
+  }
+  return out.join('');
+}
+
 /** Gewaehlte eigene Fabriken -- ein Rechtsklick setzt ihren Sammelpunkt. */
 function gewaehlteFabriken(world, sel, ich) {
   return sel.filter((id) => {
@@ -6499,7 +6519,7 @@ function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
       ${diagramm('Gebäude', reihe('gebaeude', 0), reihe('gebaeude', 1), f[0].color, f[1].color)}
     </div>
     <div class="go">
-      ${mitAufnahme ? '<button id="endeSpeichern">Wiederholung speichern</button>' : ''}
+      ${mitAufnahme ? `<button id="endeSpeichern" class="mitIcon">${ICONS.wiederholung || ''} Wiederholung speichern</button>` : ''}
       <button id="endeKarte">Karte ansehen</button>
       <button id="endeNochmal">Neue Partie</button>
     </div>`;
@@ -6507,7 +6527,7 @@ function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
 
 /** Datei-Auswahl fuer den Startbildschirm. */
 function wiederholungWahlHtml() {
-  return `<div class="stil">Wiederholung ansehen: <input type="file" id="wiederholungDatei" accept=".json,application/json"> <span id="wiederholungMeldung"></span></div>`;
+  return `<div class="stil mitIcon">${ICONS.wiederholung || ''} Wiederholung ansehen: <input type="file" id="wiederholungDatei" accept=".json,application/json"> <span id="wiederholungMeldung"></span></div>`;
 }
 
 
@@ -8115,7 +8135,10 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (e.key === 'i') zeigeAuswertung = !zeigeAuswertung;
-  if (e.key === 'm') stummSchalten(fx);
+  if (e.key === 'm') {
+    stummSchalten(fx);
+    tonKnopfZeigen();
+  }
   if (e.key === '.') naechsterUntaetiger();
   if (e.key === 's' && sel.length) issue(world, { type: 'stopp', player: ME, ids: sel.slice() });
   if (e.key === 'F2') {
@@ -8266,6 +8289,32 @@ function naechsterUntaetiger() {
 }
 document.getElementById('untaetig').onclick = () => naechsterUntaetiger();
 
+// Ton und Hilfe als Icons; Steuergruppen-Leiste (Klick waehlt die Gruppe)
+function tonKnopfZeigen() {
+  document.getElementById('tonKnopf').innerHTML = ICONS[fx.stumm ? 'stumm' : 'ton'] || (fx.stumm ? '🔇' : '🔊');
+}
+document.getElementById('tonKnopf').onclick = () => {
+  tonAn(fx);
+  stummSchalten(fx);
+  tonKnopfZeigen();
+};
+if (ICONS.hilfe) document.getElementById('hilfeKnopf').innerHTML = ICONS.hilfe;
+tonKnopfZeigen();
+document.getElementById('steuer').onclick = (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-sg]') : null;
+  if (!b || !world) return;
+  sel = (gruppen[b.dataset.sg] || []).filter((id) => byId(world, id));
+  selPlan = null;
+};
+let steuerSig = '';
+function steuerAnzeigen() {
+  const sig = Object.keys(gruppen).map((n) => n + ':' + (gruppen[n] || []).filter((id) => byId(world, id)).length).join(',');
+  if (sig === steuerSig) return;
+  steuerSig = sig;
+  document.getElementById('steuer').innerHTML = steuergruppenHtml(gruppen, world);
+}
+
+
 
 /** Ausgewaehlte eigene Einheiten, die bauen koennen. */
 function erbauer() {
@@ -8395,6 +8444,7 @@ function draw() {
   skillPanel();
   leisten();
   untaetigAnzeigen();
+  steuerAnzeigen();
   faehPanel();
   infoKarte();
   drawMini();

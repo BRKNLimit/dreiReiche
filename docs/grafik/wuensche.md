@@ -11,7 +11,7 @@ Format:
 
 ## Offen
 
-- [ ] **Icons für die Bedienung einbinden** (`ton`, `stumm`, `hilfe`, `wiederholung`, `sammelpunkt`, `steuergruppe` in `src/icons.js`): Gemini hat die 6 Icons fertiggestellt. Claude kann sie in `src/ui.js`, `src/ui3d.js` bzw. `src/ui-gemeinsam.js` in die Bedienleiste / Steuerleisten einbauen.
+- [x] **Icons für die Bedienung einbinden** (eingebaut: Ton-Knopf, Hilfe, Wiederholung, Steuergruppen-Leiste unten links) (`ton`, `stumm`, `hilfe`, `wiederholung`, `sammelpunkt`, `steuergruppe` in `src/icons.js`): Gemini hat die 6 Icons fertiggestellt. Claude kann sie in `src/ui.js`, `src/ui3d.js` bzw. `src/ui-gemeinsam.js` in die Bedienleiste / Steuerleisten einbauen.
 
 
 ## Erledigt

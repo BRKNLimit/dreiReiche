@@ -139,6 +139,13 @@
   .ikon .zahl { position: absolute; right: 3px; bottom: 1px; font-size: 12px; font-weight: 600; color: #fff; text-shadow: 0 0 3px #000; }
   .ikon .kosten { position: absolute; left: 3px; bottom: 1px; font-size: 9px; color: var(--dim); }
   .ikon kbd { position: absolute; right: 3px; top: 1px; margin: 0; font-size: 9px; }
+  .ikon.klein { width: 34px; height: 34px; padding: 4px; }
+  .ikon.klein svg { width: 20px; height: 20px; }
+  #steuer { display: flex; gap: 3px; align-items: center; }
+  #steuer:empty { display: none; }
+  #steuer:not(:empty) + #gruppen:not(:empty) { border-left: 1px solid var(--line); padding-left: 8px; }
+  .mitIcon svg { width: 16px; height: 16px; vertical-align: -3px; }
+  #hilfeKnopf svg, #tonKnopf svg { width: 18px; height: 18px; display: block; }
   .ikon.zu { opacity: .4; }
   .ikon[hidden] { display: none; }
   .warn { display: flex; align-items: center; gap: 6px; }
@@ -229,6 +236,7 @@
   <div id="karte" hidden></div>
   <div id="faehigkeiten" hidden></div>
   <div id="bar">
+    <span id="steuer"></span>
     <span id="gruppen"></span>
     <span id="builds"></span>
     <span class="rechts">
@@ -237,6 +245,7 @@
       <a class="btn" href="drei-reiche-3d.html" title="Dieselbe Simulation in 3D">3D</a>
       <button id="zuschauen" title="KI gegen KI, die eigene Seite spielt mit">Zuschauen</button>
       <button id="untaetig" class="ikon" hidden title="Untätige Arbeiter (.)"></button>
+      <button id="tonKnopf" title="Ton an/aus (M)"></button>
       <button id="hilfeKnopf" title="Steuerung (H)">?</button>
     </span>
   </div>

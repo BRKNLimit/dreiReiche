@@ -108,6 +108,11 @@
   #intro .kartenwahl { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
   #intro .kartenwahl .stil { margin-top: 0; }
   #kartenVorschau { width: 132px; height: 132px; border: 1px solid var(--line); border-radius: 4px; flex: none; image-rendering: auto; }
+  body.foto #ressourcen, body.foto #hud, body.foto #mini, body.foto #bar, body.foto #funk, body.foto #zeitleiste,
+  body.foto #skills, body.foto #karte, body.foto #faehigkeiten, body.foto #hilfe { display: none !important; }
+  #fotoHinweis { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 30; padding: 6px 12px; border-radius: 4px; background: rgba(16, 18, 13, .7); color: var(--text); font-size: 12px; pointer-events: none; animation: fotoAus 4s forwards; }
+  #fotoHinweis[hidden] { display: none; }
+  @keyframes fotoAus { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
   #intro .bilanz { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
   #intro .bilanz b { color: var(--accent); margin-right: 4px; }
   #intro .bilanz span { color: var(--dim); font-size: 12px; margin-left: 6px; }
@@ -295,9 +300,11 @@
   <dt>Enter</dt><dd>online: Nachricht an den Mitspieler</dd>
   <dt>F10</dt><dd>Menü: speichern, laden, aufgeben, Hauptmenü</dd>
   <dt>M, N</dt><dd>Ton an/aus, Musik an/aus</dd>
+  <dt>P</dt><dd>Fotomodus: Oberfläche aus, Klick speichert ein Bild</dd>
   <dt>H</dt><dd>diese Hilfe</dd>
 </dl></div>
 <div id="intro"></div>
+<div id="fotoHinweis" hidden>Fotomodus — Klick speichert ein Bild · P oder Esc: zurück · Kamera wie immer</div>
 <div id="skills" hidden></div>
 <div id="karte" hidden></div>
 <div id="faehigkeiten" hidden></div>
@@ -12710,7 +12717,35 @@ function skillPanel3() {
 
 // ------------------------------------------------------------ Eingabe
 cv3.addEventListener('contextmenu', (e) => e.preventDefault());
+// ------------------------------------------------------------ Fotomodus (P)
+let fotoModus = false;
+let fotoSpeichern = false; // im naechsten Bild direkt nach dem Zeichnen sichern
+function fotoUmschalten() {
+  fotoModus = !fotoModus;
+  document.body.classList.toggle('foto', fotoModus);
+  const h = document.getElementById('fotoHinweis');
+  if (h) h.hidden = !fotoModus;
+}
+/** Direkt nach zeichne(): Leinwand als PNG herunterladen (WebGL behaelt das Bild nur bis zum naechsten Bild). */
+function fotoSichern() {
+  if (!fotoSpeichern || !cv3.toBlob) return;
+  fotoSpeichern = false;
+  cv3.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `drei-reiche-${(world.tick / 600).toFixed(1).replace('.', '-')}min.png`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }, 'image/png');
+}
+
 cv3.addEventListener('mousedown', (e) => {
+  if (fotoModus && e.button === 0) {
+    fotoSpeichern = true;
+    return;
+  }
   const mx = e.offsetX;
   const my = e.offsetY;
   const p = aufBoden(mx, my);
@@ -12840,6 +12875,10 @@ addEventListener('keydown', (e) => {
   }
   if (menueOffen) return;
   if (netz && (e.key === ' ' || e.key === '+' || e.key === '-')) return; // online laeuft die Zeit fuer beide gleich
+  if (e.key === 'p' || (e.key === 'Escape' && fotoModus)) {
+    fotoUmschalten();
+    return;
+  }
   if (netz && e.key === 'Enter') {
     e.preventDefault();
     chatFeld.hidden = false;
@@ -13122,7 +13161,9 @@ function frame(now) {
   if ((world.over || missionGewonnen) && !endeGezeigt) zeigeEnde();
   if (!document.hidden) {
     zeichne(now, dt);
-    zeichneUeberlagerung(now);
+    fotoSichern();
+    if (fotoModus) octx.clearRect(0, 0, ov.width, ov.height);
+    else zeichneUeberlagerung(now);
     zeichneHud();
     zeitleisteAktualisieren();
     skillPanel3();

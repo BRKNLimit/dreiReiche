@@ -387,7 +387,35 @@ function skillPanel3() {
 
 // ------------------------------------------------------------ Eingabe
 cv3.addEventListener('contextmenu', (e) => e.preventDefault());
+// ------------------------------------------------------------ Fotomodus (P)
+let fotoModus = false;
+let fotoSpeichern = false; // im naechsten Bild direkt nach dem Zeichnen sichern
+function fotoUmschalten() {
+  fotoModus = !fotoModus;
+  document.body.classList.toggle('foto', fotoModus);
+  const h = document.getElementById('fotoHinweis');
+  if (h) h.hidden = !fotoModus;
+}
+/** Direkt nach zeichne(): Leinwand als PNG herunterladen (WebGL behaelt das Bild nur bis zum naechsten Bild). */
+function fotoSichern() {
+  if (!fotoSpeichern || !cv3.toBlob) return;
+  fotoSpeichern = false;
+  cv3.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `drei-reiche-${(world.tick / 600).toFixed(1).replace('.', '-')}min.png`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }, 'image/png');
+}
+
 cv3.addEventListener('mousedown', (e) => {
+  if (fotoModus && e.button === 0) {
+    fotoSpeichern = true;
+    return;
+  }
   const mx = e.offsetX;
   const my = e.offsetY;
   const p = aufBoden(mx, my);
@@ -517,6 +545,10 @@ addEventListener('keydown', (e) => {
   }
   if (menueOffen) return;
   if (netz && (e.key === ' ' || e.key === '+' || e.key === '-')) return; // online laeuft die Zeit fuer beide gleich
+  if (e.key === 'p' || (e.key === 'Escape' && fotoModus)) {
+    fotoUmschalten();
+    return;
+  }
   if (netz && e.key === 'Enter') {
     e.preventDefault();
     chatFeld.hidden = false;
@@ -799,7 +831,9 @@ function frame(now) {
   if ((world.over || missionGewonnen) && !endeGezeigt) zeigeEnde();
   if (!document.hidden) {
     zeichne(now, dt);
-    zeichneUeberlagerung(now);
+    fotoSichern();
+    if (fotoModus) octx.clearRect(0, 0, ov.width, ov.height);
+    else zeichneUeberlagerung(now);
     zeichneHud();
     zeitleisteAktualisieren();
     skillPanel3();

@@ -108,6 +108,11 @@
   #intro .kartenwahl { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
   #intro .kartenwahl .stil { margin-top: 0; }
   #kartenVorschau { width: 132px; height: 132px; border: 1px solid var(--line); border-radius: 4px; flex: none; image-rendering: auto; }
+  body.foto #ressourcen, body.foto #hud, body.foto #mini, body.foto #bar, body.foto #funk, body.foto #zeitleiste,
+  body.foto #skills, body.foto #karte, body.foto #faehigkeiten, body.foto #hilfe { display: none !important; }
+  #fotoHinweis { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 30; padding: 6px 12px; border-radius: 4px; background: rgba(16, 18, 13, .7); color: var(--text); font-size: 12px; pointer-events: none; animation: fotoAus 4s forwards; }
+  #fotoHinweis[hidden] { display: none; }
+  @keyframes fotoAus { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
   #intro .bilanz { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
   #intro .bilanz b { color: var(--accent); margin-right: 4px; }
   #intro .bilanz span { color: var(--dim); font-size: 12px; margin-left: 6px; }
@@ -295,9 +300,11 @@
   <dt>Enter</dt><dd>online: Nachricht an den Mitspieler</dd>
   <dt>F10</dt><dd>Menü: speichern, laden, aufgeben, Hauptmenü</dd>
   <dt>M, N</dt><dd>Ton an/aus, Musik an/aus</dd>
+  <dt>P</dt><dd>Fotomodus: Oberfläche aus, Klick speichert ein Bild</dd>
   <dt>H</dt><dd>diese Hilfe</dd>
 </dl></div>
 <div id="intro"></div>
+<div id="fotoHinweis" hidden>Fotomodus — Klick speichert ein Bild · P oder Esc: zurück · Kamera wie immer</div>
 <div id="skills" hidden></div>
 <div id="karte" hidden></div>
 <div id="faehigkeiten" hidden></div>

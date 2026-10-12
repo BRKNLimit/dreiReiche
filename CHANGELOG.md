@@ -24,6 +24,8 @@ Tabellen in `docs/scope.md`.
   andere Ansicht öffnen, dort sofort weiter, Kamera an derselben Stelle.
 - **Kartenvorschau** im Startbildschirm: Wald, Wiesen, Wasser, Fels, Furten,
   Adern und beide Basen der gewählten Karte.
+- **Fotomodus in 3D** (P): blendet die ganze Oberfläche aus, die Kamera
+  bleibt frei, ein Klick speichert das Bild als PNG.
 - Endbildschirm: „Zufallskarte“ statt „zufall“.
 - **„✨ Neu in 0.37“** im Startbildschirm — einmal, bis man „Verstanden“
   klickt. Der Startbildschirm schneidet lange Inhalte oben nicht mehr ab.

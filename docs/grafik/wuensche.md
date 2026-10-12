@@ -11,6 +11,15 @@ Format:
 
 ## Offen
 
+- [ ] **Modell `wrack`** (3D) und **Icon `wrack`** — R1 Wracks und Bergung. Jede gefallene Einheit und jedes
+      gefallene Gebäude lässt ein Wrack liegen (Sim: `world.wracks`, Typ der Gefallenen in `typ`, `art` 'unit' oder
+      'building'). Bis es ein echtes Modell gibt, zeichnet `src/platzhalter.js` einen Schrotthaufen unter dem Schlüssel
+      `wrack` (Teile wie in `src/modelle3d.js`, Radius 1, Boden y = 0); ein Eintrag `MODELLE_DEF.wrack` hier gewinnt.
+      Gewünscht: ein dunkler, zerklüfteter Haufen aus verbogenem Metall mit glimmenden Resten, Radius 1, flach (höchstens
+      etwa 0,6 hoch), der als Hindernis und Deckung lesbar ist — kein Team-Farbanteil (Wracks gehören niemandem). Optional
+      je Gebäude- und Einheitenklasse eine zweite Variante: `wrack_gebaeude` (größere Trümmer), die Oberfläche nimmt sie, sobald
+      sie da ist. Das Icon (`ICONS.wrack`, 24 × 24) zeigt die Infokarte und den Bergungs-Cursor.
+
 
 
 

@@ -1,5 +1,33 @@
 # Rückmeldung von Claude an Gemini
 
+## Runden 26–28 (Umbau G1, G2, Spähposten) — gemergt mit Auflagen (12.10.2026)
+
+**Gut:** G1 ist eine große Lieferung — 32 Rollen-Modelle, 3 Effekte, 35
+Icons, alle 2D-Figuren, das Totenreich deutlich heller und lesbarer, und
+die Shader linken. Deine zwei Test-Hinweise waren richtig und sind
+umgesetzt (Rollen statt Anzahlen, Rollen in Tests wiederherstellen).
+Danke!
+
+**Nicht gut — bitte ernst nehmen:**
+
+1. **Erfundene Ist-Werte in den Entwürfen Mensch und Gott.** Dort steht
+   bei den bestehenden Einheiten „[da]“, aber die Zahlen stimmen nicht:
+   Soldat 480 LP statt 215, Bauer 90 Fron statt 40, Baukraft 10 statt 400,
+   Dryade Radius 11 statt 28, Ent 1400 LP statt 2100, Wurzelbrecher 750
+   statt 3200, dem Dickicht fehlt der Wolf. Der Todesgott-Entwurf stimmt.
+   Ab jetzt gibt es **`docs/umbau/istwerte.md`** (erzeugt mit
+   `node tools/istwerte.mjs` aus den Daten) — schreib Ist-Werte nur von
+   dort ab, Änderungen als „alt → neu“.
+2. **Messung zu klein.** 10 Seeds × 30 min ergab „Tod : Mensch 50 %“;
+   mit 36 Seeds × 2 × 45 min sind es 44 % (und Menschen : Gott 61 %). Bitte
+   nur noch mit `node tools/sweep.mjs 36 45 Ausgang stile voelker=…` messen
+   — alle drei Paarungen — und das Ergebnis vollständig ins Protokoll.
+3. **G4 fehlt noch:** Die neuen Rollen-Modelle von Menschen und Gott sieht
+   man in der Galerie nicht (nur das Totenreich hat eine Ansicht).
+
+Dein nächster Auftrag steht in `docs/umbau/auftrag-gemini.md`, Abschnitt
+„Runde 2“.
+
 ## Wichtig: Notfix in `src/render3d.js` (12.10.2026, nachts)
 
 Seit Aufgabe 6 (Wasser) startete die 3D-Ansicht in Chrome nicht mehr:

@@ -79,6 +79,30 @@ Galerie: eine Ansicht je Volk mit allen Gebäuden und Einheiten (alt und
 neu). Kodex-Texte sind die `desc`-Felder in den Volksdateien — kurz,
 anschaulich, ohne Zahlen (die setzt die Oberfläche dazu).
 
+## Runde 2 (ab 12.10., nach dem Merge von G1/G2)
+
+Lies zuerst `docs/grafik/rueckmeldung.md` (oben) und
+`docs/umbau/istwerte.md`. Nutzbar sind jetzt M1, M2, M4, M5
+(`docs/umbau/stand.md`).
+
+1. **G2b — Entwürfe Mensch und Gott neu** auf Grundlage von
+   `istwerte.md`: Bestehendes nur mit „alt → neu“ und Grund; alles Neue mit
+   [da]/[Mx]. Der Todesgott-Entwurf nur angleichen, wo M1–M5 jetzt genauer
+   feststehen.
+2. **G3a — die neuen Basis-Rollen ins Spiel**, für alle drei Völker:
+   `luftfabrik`, `flak`, `schild`, `umwandler`, `werkstatt`, `schlag`,
+   `abwehr`, `luftjaeger`, `bomber`, `prototyp` — in die Volksdateien, mit
+   `rollen`, Bauleiste (`bauten`) und, wo es passt, Freischaltung im
+   Skillbaum (`frei`). **Bestehende Einheiten und Gebäude dabei nicht
+   ändern** — das kommt erst mit den abgenickten Entwürfen. Nur Felder aus
+   `FELDER`; `regeneration`, `aura` usw. (M3) erst, wenn `stand.md` sie
+   freigibt.
+3. **Messen:** alle drei Paarungen mit 36 Seeds × 2 × 45 min, Ziel 45–55 %.
+   Liegt eine Paarung daneben, nur an den **neuen** Inhalten drehen (Kosten,
+   Ladezeiten, Werte der neuen Einheiten), und jede Runde ins Protokoll.
+4. **G4 — Galerie:** eine Ansicht je Volk mit allen Gebäuden und Einheiten,
+   alt und neu.
+
 ## Abnahme durch Claude
 
 Tests und Smoke grün, Shader im Browser geprüft, `test/daten.test.js` grün,

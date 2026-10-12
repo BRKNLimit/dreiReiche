@@ -137,6 +137,8 @@ export function spawnBuilding(world, player, type, x, y, finished = false) {
     sammelX: -1, // Sammelpunkt fuer neue Einheiten; -1: keiner
     sammelY: -1,
     seelen: 0, // Gefallene im Umkreis (nur Anker mit growth.perTod)
+    schildPunkte: 0, // Schild (def.schild): faengt Schaden ab; fertig gebaut startet er leer
+    schildRest: 0, // Rest des Ladens in Tausendsteln, damit gedrosseltes Laden nicht verloren geht
     cooldown: 0,
     dead: false,
   };
@@ -1012,6 +1014,7 @@ export function step(world) {
       e.hilfe = 0;
     }
     if (def.forschung) pl.forschung += ((def.forschung * e.powered) / 1000) | 0;
+    if (def.schild) schildLaden(e, def.schild);
     if (def.fronOut || def.blutOut) {
       const mehr = 1000 + bonus(world, e.player, 'foerderung');
       if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
@@ -1090,6 +1093,45 @@ export function step(world) {
 
   world.tick++;
   return world;
+}
+
+/**
+ * Schild laden: `laden` Punkte pro Tick bei voller Versorgung, anteilig zu
+ * powered. Ohne Gegenwart (powered 0) lädt nichts; der Rest unter einem Punkt
+ * bleibt in schildRest stehen, sonst lüde ein Schild mit laden 1 gedrosselt nie.
+ * Was schon im Schild ist, bleibt auch ohne Gegenwart erhalten.
+ */
+function schildLaden(e, s) {
+  if (e.schildPunkte >= s.kapazitaet) {
+    e.schildRest = 0;
+    return;
+  }
+  const t = e.schildRest + s.laden * e.powered;
+  const plus = (t / 1000) | 0;
+  e.schildRest = t - plus * 1000;
+  e.schildPunkte = Math.min(s.kapazitaet, e.schildPunkte + plus);
+}
+
+/**
+ * Schild fängt Schaden ab: das erste fertige, eigene Schildgebäude mit Punkten,
+ * in dessen Umkreis das Ziel steht (die Liste ist nach Id geordnet, also gilt
+ * bei Überlappung die kleinste Id). Er nimmt min(Schaden, Punkte), der Rest
+ * geht weiter auf die LP. Das Schildgebäude steht in der Mitte seiner Kuppel
+ * und schützt sich damit selbst; Flieger zählen wie alles andere nach ihrer Lage.
+ * Gibt den Schaden zurück, der durchkommt.
+ */
+function schildFaengt(world, schilde, ziel, dmg) {
+  for (let i = 0; i < schilde.length; i++) {
+    const s = schilde[i];
+    if (s.schildPunkte <= 0 || s.player !== ziel.player) continue;
+    const r = BUILDINGS[s.type].schild.radius;
+    if (dist2(ziel.x, ziel.y, s.x, s.y) > r * r) continue;
+    const ab = Math.min(dmg, s.schildPunkte);
+    s.schildPunkte -= ab;
+    world.events.push({ t: 'schild', id: ziel.id, von: s.id, x: ziel.x, y: ziel.y, wert: ab });
+    return dmg - ab;
+  }
+  return dmg;
 }
 
 /**
@@ -1549,6 +1591,10 @@ function combat(world) {
     world.events.push({ t: 'shot', from: e.id, to: target.id });
   }
 
+  // Schilde (M2): einmal eingesammelt, die Punkte werden Schuss fuer Schuss
+  // verbraucht -- in Reihenfolge der Schuetzen, wie auch der Rest hier.
+  const schilde = shots.length ? world.entities.filter((e) => !e.dead && e.kind === 'building' && e.done && BUILDINGS[e.type].schild) : [];
+
   // Wehr: ein versorgter Schrein im Netz, in dem das Ziel steht.
   for (let i = 0; i < shots.length; i += 2) {
     const t = shots[i];
@@ -1564,6 +1610,8 @@ function combat(world) {
       if (sch) dmg = ((dmg * (1000 - sch)) / 1000) | 0;
       if (t.wehrBis > world.tick) dmg = ((dmg * (1000 - t.wehrWert)) / 1000) | 0; // Schildwall
     }
+    // Zuletzt der Schild: er faengt ab, was nach allen Abzuegen noch ankommt.
+    if (dmg > 0 && schilde.length) dmg = schildFaengt(world, schilde, t, dmg);
     t.hp -= dmg;
   }
   for (let i = 0; i < shots.length; i += 2) {
@@ -1789,6 +1837,11 @@ export function hash(world) {
       mix(e.queue.length);
       mix(e.powered);
       mix(e.seelen || 0);
+      // Nur Schildgebaeude: Partien ohne Schild behalten ihre Pruefsumme.
+      if (BUILDINGS[e.type].schild) {
+        mix(e.schildPunkte);
+        mix(e.schildRest);
+      }
     }
   }
   for (let p = 0; p < world.players.length; p++) {

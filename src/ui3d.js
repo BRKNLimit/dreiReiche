@@ -1222,6 +1222,19 @@ function zeichneWirkungen() {
     bodenKreis(e.x, e.y, BUILDINGS[e.type].buff.radius);
   }
   octx.setLineDash([]);
+  // Schildkuppeln als Ring auf dem Boden (ein Modell "schildkuppel" gibt es noch
+  // nicht): eigene immer, fremde nur gewaehlt; Deckkraft nach Ladung.
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'building' || !e.done || verborgen(e)) continue;
+    const s = BUILDINGS[e.type].schild;
+    if (!s) continue;
+    const gewaehlt = sel.includes(e.id);
+    if (e.player !== ME && !gewaehlt) continue;
+    octx.strokeStyle = '#7ab8ff';
+    octx.lineWidth = gewaehlt ? 3 : 1.5;
+    octx.globalAlpha = 0.12 + 0.6 * Math.min(1, e.schildPunkte / s.kapazitaet);
+    bodenKreis(e.x, e.y, s.radius);
+  }
   wirkungen = wirkungen.filter((w) => w.bis >= world.tick);
   octx.lineWidth = 2.5;
   for (const w of wirkungen) {

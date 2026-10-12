@@ -27,6 +27,7 @@ let meFaction = 'mensch';
 let world, ai, aiMe;
 let gegnerStil = 'standard';
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
+let gegnerVolk = 'auto'; // Volk des Gegners, im Startbildschirm waehlbar (auto: das andere)
 let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 let paused = true;
 let speed = 1;
@@ -178,7 +179,13 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   }
   meFaction = f;
   if (online) meFaction = online.config.factions[online.ich]; // als Gast das zweite Volk
-  const gegner = f === 'mensch' ? 'gott' : 'mensch';
+  const gegner = online
+    ? online.config.factions[1]
+    : wdh
+      ? wdh.factions[1]
+      : geladen
+        ? geladen.world.players[1].faction
+        : gegnerVolkFuer(f, m ? 'auto' : gegnerVolk);
   const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : tagesAktiv ? tagesAktiv.seed : (Date.now() / 1000) | 0;
   const karte = online
     ? { schluessel: online.config.karte, daten: online.config.karteDaten || KARTEN[online.config.karte] }
@@ -267,9 +274,7 @@ function befehl3(x, y, anhaengen = false) {
 }
 
 function bauListe() {
-  return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium', 'spaehposten']
-    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
+  return FACTIONS[meFaction].bauten;
 }
 
 /** Ausgewaehlte eigene Fabriken, die Einheiten ausbilden koennen. */
@@ -1442,11 +1447,13 @@ function introHtml3() {
         .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
         .join('')}
     </div>
+    ${gegnerVolkHtml(gegnerVolk)}
     ${kartenWahlHtml(karteSchluessel)}
 ${wiederholungWahlHtml()}
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
       <button id="introGott">Als Gott spielen</button>
+      <button id="introTod">Als Todesgott spielen</button>
       <button id="introSchau">Zuschauen</button>
     </div>`;
 }
@@ -1460,6 +1467,8 @@ function starte3(f, zuschauen) {
   if (gewaehlt) gegnerStil = gewaehlt.value;
   const stufe = document.querySelector?.('#intro input[name="stufe"]:checked');
   if (stufe) gegnerStufe = stufe.value;
+  const volk = document.querySelector?.('#intro input[name="gegnerVolk"]:checked');
+  if (volk) gegnerVolk = volk.value;
   const karte = document.querySelector?.('#intro input[name="karte"]:checked');
   if (karte) karteSchluessel = karte.value;
   document.getElementById('intro').style.display = 'none';
@@ -1647,7 +1656,7 @@ function zeitleisteZeigen() {
     el.innerHTML = '';
     return;
   }
-  const name = (p) => (world.players[p].faction === 'mensch' ? 'Menschen' : 'Gott');
+  const name = (p) => volkName(world.players[p].faction);
   const knopf = (wert, text, an) => `<button data-${wert}${an ? ' class="an"' : ''}>${text}</button>`;
   el.innerHTML = `<button id="wdhSpiel" title="Abspielen / Anhalten (Leertaste)">⏯</button>
     <button data-sprung="-300" title="30 s zurück">−30 s</button><button data-sprung="300" title="30 s vor">+30 s</button>
@@ -1857,6 +1866,7 @@ function startbildschirm() {
   el.style.display = '';
   document.getElementById('introMensch').onclick = () => starte3('mensch', false);
   document.getElementById('introGott').onclick = () => starte3('gott', false);
+  document.getElementById('introTod').onclick = () => starte3('tod', false);
   document.getElementById('introSchau').onclick = () => starte3('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
   kartenVorschauVerdrahten(el);

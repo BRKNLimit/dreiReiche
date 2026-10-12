@@ -453,6 +453,20 @@ export function gruppenHtml(world, auswahl) {
 }
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+// ------------------------------------------------------------ Voelker
+/** Kurzname eines Volks: Menschen, Gott, Todesgott. */
+export const volkName = (f) => (FACTIONS[f] ? FACTIONS[f].kurz : f);
+/** Gegner-Volk: gewaehlt, sonst (auto) Menschen gegen Gott und alle anderen gegen die Menschen. */
+export function gegnerVolkFuer(f, wahl = 'auto') {
+  if (wahl && wahl !== 'auto' && FACTIONS[wahl]) return wahl;
+  return f === 'mensch' ? 'gott' : 'mensch';
+}
+/** Auswahl des Gegner-Volks fuer den Startbildschirm. */
+export function gegnerVolkHtml(gewaehlt) {
+  const knopf = (v, name) => `<label><input type="radio" name="gegnerVolk" value="${v}"${v === gewaehlt ? ' checked' : ''}> ${name}</label>`;
+  return `<div class="stil">Gegner-Volk: ${knopf('auto', 'das andere')}${Object.keys(FACTIONS).map((f) => knopf(f, FACTIONS[f].kurz)).join('')}</div>`;
+}
+
 // ------------------------------------------------------------ Beobachter (Zuschauen, Wiederholung)
 /** Beide Seiten auf einen Blick: Vorrat, Foerderung, Heer, Einheiten, Gebaeude, Skills. */
 export function beobachterHtml(world) {
@@ -471,7 +485,7 @@ export function beobachterHtml(world) {
       }
     }
     return {
-      name: pl.faction === 'mensch' ? 'Menschen' : 'Gott',
+      name: volkName(pl.faction),
       farbe: FACTIONS[pl.faction].color,
       fron: pl.fron | 0,
       foerderung: Math.round(foerderungProMin(world, p)),
@@ -493,15 +507,16 @@ export function beobachterHtml(world) {
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
 export const NEUHEITEN = {
-  version: '0.37',
+  version: '0.38',
   punkte: [
+    '<b>Neu: der Todesgott</b> als drittes Volk — seine Grabhügel wachsen mit den Toten. „Als Todesgott spielen“, und das Gegner-Volk ist jetzt wählbar',
     '<b>Zwei Kampagnen</b> mit Geschichte, Zielen und Funksprüchen — „Die Rodung“ (Menschen) und „Der Zorn des Waldes“ (Gott)',
     '<b>Online gegen einen Menschen</b> — ohne Server: zwei Codes per Chat austauschen, im Spiel Enter für Nachrichten',
     '<b>Spielstände</b>: F5 speichert, F9 lädt, beim Schließen automatisch — oben „Fortsetzen“',
     '<b>Pausenmenü</b> (F10 oder ☰) mit Aufgeben und Hauptmenü',
     '<b>Musik</b>, die das Spiel selbst erzeugt, mit Trommeln im Kampf (N schaltet)',
     '<b>Wiederholungen</b> mit Zeitleiste: springen, bis ×16, durch die Augen eines Spielers',
-    '<b>Tagesherausforderung</b>, <b>12 Erfolge</b> und <b>Überleben</b> gegen endlose Wellen (Rekord je Volk)',
+    '<b>Tagesherausforderung</b>, <b>13 Erfolge</b> und <b>Überleben</b> gegen endlose Wellen (Rekord je Volk)',
     '<b>Zufallskarten</b> und der <b>Karteneditor</b>; Geminis High-Res-Modelle und Wasser',
     '<b>2D ⇄ 3D</b> mitten in der Partie wechseln, <b>Fotomodus</b> in 3D (P), Kartenvorschau, Beobachter-Tafel beim Zuschauen',
     '<b>📖 Kodex</b> aller Einheiten und Gebäude, <b>Einstellungen</b> (Lautstärke, Wackeln), Doppelklick wählt alle eines Typs, Shift+Klick bildet fünf aus',
@@ -529,15 +544,15 @@ export function neuheitenGesehen() {
 }
 
 // ------------------------------------------------------------ Kodex (Startbildschirm)
-let kodexWelt = null; // leere Partie, nur damit die Karten Sperren nennen koennen
+const kodexWelten = {}; // je Volk eine leere Partie, nur damit die Karten Sperren nennen koennen
 
 export function kodexKnopfHtml() {
   return '<div class="stil"><button id="kodexOeffnen">📖 Kodex — alle Einheiten und Gebäude</button></div>';
 }
 
 function kodexHtml(volk, typ) {
-  if (!kodexWelt) kodexWelt = createWorld({ factions: ['mensch', 'gott'] });
-  const p = volk === 'mensch' ? 0 : 1;
+  const kodexWelt = (kodexWelten[volk] ??= createWorld({ factions: [volk, gegnerVolkFuer(volk)] }));
+  const p = 0;
   const einheiten = Object.keys(UNITS).filter((k) => UNITS[k].faction === volk);
   const bauten = Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].faction === volk);
   const knopf = (k, name) => `<button class="ikon${k === typ ? ' an' : ''}" data-kodex="${k}" title="${name}">${ICONS[k] || ''}<span>${name}</span></button>`;
@@ -548,7 +563,7 @@ function kodexHtml(volk, typ) {
       : gebaeudeKarte(kodexWelt, p, typ);
   const volkKnopf = (v, name) => `<button data-volk="${v}"${v === volk ? ' class="an"' : ''}>${name}</button>`;
   return `<div class="vorwort kodex"><div class="kapitel">Kodex</div><h1 style="color:${FACTIONS[volk].color}">${FACTIONS[volk].name}</h1>
-    <div class="go">${volkKnopf('mensch', 'Menschen')}${volkKnopf('gott', 'Wald- und Wiesengott')}</div>
+    <div class="go">${Object.keys(FACTIONS).map((f) => volkKnopf(f, FACTIONS[f].name)).join('')}</div>
     <h2>Einheiten</h2><div class="kodexgitter">${einheiten.map((k) => knopf(k, UNITS[k].name)).join('')}</div>
     <h2>Gebäude</h2><div class="kodexgitter">${bauten.map((k) => knopf(k, BUILDINGS[k].name)).join('')}</div>
     <div class="kodexkarte">${karteHtml}</div>

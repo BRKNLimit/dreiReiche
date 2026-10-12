@@ -6,6 +6,7 @@
 //   node tools/sweep.mjs 6 45 malus         nur Einstellungen mit "malus" im Namen
 //   node tools/sweep.mjs 32 45 Ausgang stile karte=flusstal   auf einer anderen Karte
 //   node tools/sweep.mjs 32 45 Ausgang stile karte=zufall     jede Partie eine Zufallskarte
+//   node tools/sweep.mjs 32 45 Ausgang stile voelker=tod-mensch  andere Volks-Paarung (Standard mensch-gott)
 //   node tools/sweep.mjs 40 45 "" stile     jede Partie mit einer der neun
 //                                           Stil-Paarungen (sturm/standard/burg)
 //
@@ -55,6 +56,9 @@ export const CONFIGS = {
   'malus 800': { rules: { fremdMalus: 800 } },
   'malus 650': { rules: { fremdMalus: 650 } },
   // Karte (0.22): ohne Grat vor den Basen, ganz ohne Hindernisse
+  'Tod perTod 120': { t: { perTod: 120 } },
+  'Tod perTod 260': { t: { perTod: 260 } },
+  'Tod start 2000': { t: { start: 2000 } },
   'Karte ohne Grat': { karte: 'ohneGrat' },
   'Karte ohne Hindernisse': { karte: 'leer' },
   'Karte leer, Adern wie 0.21': { karte: 'alt' },
@@ -123,6 +127,7 @@ if (isMainThread) {
   const stile = process.argv[5] === 'stile';
   const stufen = process.argv[5] === 'stufen';
   const karte = (process.argv.find((a) => a.startsWith('karte=')) || 'karte=klassisch').slice(6);
+  const voelker = (process.argv.find((a) => a.startsWith('voelker=')) || 'voelker=mensch-gott').slice(8).split('-');
   const names = Object.keys(CONFIGS).filter((n) => n.includes(filter));
   const seeds = SEEDS.slice(0, nSeeds);
   const limit = Math.max(1, availableParallelism() - 1);
@@ -143,7 +148,7 @@ if (isMainThread) {
       const step = () => {
         if (next >= jobs.length) return resolve();
         const job = jobs[next++];
-        const w = new Worker(new URL(import.meta.url), { workerData: { ...job, maxMin, stile, stufen, karte } });
+        const w = new Worker(new URL(import.meta.url), { workerData: { ...job, maxMin, stile, stufen, karte, voelker } });
         (teile[job.name] = teile[job.name] || []).push({ ab: job.ab, r: null });
         const platz = teile[job.name][teile[job.name].length - 1];
         w.on('message', (r) => (platz.r = r));
@@ -163,7 +168,7 @@ if (isMainThread) {
       results[name] = fehler;
       continue;
     }
-    const r = { m: 0, g: 0, seat0: 0, n: 0, sum: 0, games: [], blut: { mensch: [], gott: [] }, paar: {} };
+    const r = { m: 0, g: 0, seat0: 0, n: 0, sum: 0, games: [], blut: { a: [], b: [] }, paar: {} };
     for (const t of liste) {
       r.m += t.m;
       r.g += t.g;
@@ -171,8 +176,8 @@ if (isMainThread) {
       r.n += t.n;
       r.sum += t.sum;
       r.games.push(...t.games);
-      r.blut.mensch.push(...t.blut.mensch);
-      r.blut.gott.push(...t.blut.gott);
+      r.blut.a.push(...t.blut.a);
+      r.blut.b.push(...t.blut.b);
       for (const [k, z] of Object.entries(t.paar)) {
         r.paar[k] = r.paar[k] || { m: 0, n: 0 };
         r.paar[k].m += z.m;
@@ -181,11 +186,11 @@ if (isMainThread) {
     }
     const median = (a) => (a.length ? a.sort((x, y) => x - y)[a.length >> 1].toFixed(1) : '—');
     r.avg = r.n ? (r.sum / r.n).toFixed(1) : '—';
-    r.blutInfo = `Blut: M ${r.blut.mensch.length}× ab ${median(r.blut.mensch)}, G ${r.blut.gott.length}× ab ${median(r.blut.gott)} min`;
+    r.blutInfo = `Blut: ${voelker[0]} ${r.blut.a.length}× ab ${median(r.blut.a)}, ${voelker[1]} ${r.blut.b.length}× ab ${median(r.blut.b)} min`;
     results[name] = r;
   }
 
-  console.log(`${seeds.length} Seeds × 2 Sitzplätze, Abbruch nach ${maxMin} min${stile ? ', Stil-Paarungen reihum' : ''}, Karte ${karte}\n`);
+  console.log(`${seeds.length} Seeds × 2 Sitzplätze, Abbruch nach ${maxMin} min${stile ? ', Stil-Paarungen reihum' : ''}, Karte ${karte}, ${voelker[0]} (M) gegen ${voelker[1]} (G)\n`);
   for (const name of names) {
     const r = results[name];
     if (r.error) {
@@ -220,7 +225,8 @@ if (isMainThread) {
     }
   }
 } else {
-  const { name, seeds, ab, maxMin, stile, stufen, karte } = workerData;
+  const { name, seeds, ab, maxMin, stile, stufen, karte, voelker } = workerData;
+  const [A, B] = voelker; // in der Ausgabe "M" und "G"
   const { createWorld, step } = await import('../src/sim/sim.js');
   const { zufallsKarte } = await import('../src/sim/kartenbau.js');
   const { createAI, stepAI, STILE } = await import('../src/sim/ai.js');
@@ -230,6 +236,7 @@ if (isMainThread) {
   const c = CONFIGS[name];
   Object.assign(FACTIONS.gott.growth, c.g || {});
   Object.assign(FACTIONS.mensch.growth, c.m || {});
+  Object.assign(FACTIONS.tod.growth, c.t || {});
   Object.assign(RULES, c.rules || {});
   // units/buildings: { typ: { feld: wert } } -- Objekte werden zusammengefuehrt, Zahlen ersetzt
   const mische = (ziel, aenderung) => {
@@ -258,7 +265,7 @@ if (isMainThread) {
   let n = 0;
   let sum = 0;
   // Erste Minute mit Goetterblut je Fraktion, nur Partien, in denen es dazu kam.
-  const blut = { mensch: [], gott: [] };
+  const blut = { a: [], b: [] };
   // Siege der Menschen je Paarung "menschStil/gottStil"
   const paar = {};
   for (let k = 0; k < seeds.length; k++) {
@@ -266,17 +273,17 @@ if (isMainThread) {
     // Mit "stile": Paarung reihum; der Stil gehoert zur Fraktion, nicht zum
     // Sitzplatz, beide Sitzplaetze spielen dieselbe Paarung.
     const i = ab + k;
-    const st = stile ? { mensch: stilNamen[i % 3], gott: stilNamen[((i / 3) | 0) % 3] } : { mensch: 'standard', gott: 'standard' };
+    const st = stile ? { [A]: stilNamen[i % 3], [B]: stilNamen[((i / 3) | 0) % 3] } : { [A]: 'standard', [B]: 'standard' };
     for (const f of [
-      ['mensch', 'gott'],
-      ['gott', 'mensch'],
+      [A, B],
+      [B, A],
     ]) {
       // karte=zufall: jede Partie auf einer eigenen Zufallskarte (zur Seed-Zahl)
       const w = karte === 'zufall' ? createWorld({ factions: f, seed, karte, karteDaten: zufallsKarte(seed) }) : createWorld({ factions: f, seed, karte });
       // Mit "stufen": je Seed eine Paarung -- schwer gegen mittel, mittel gegen leicht --,
       // die staerkere Stufe wechselt die Fraktion mit dem Sitzplatz.
       const paarung = [['schwer', 'mittel'], ['mittel', 'leicht']][(ab + k) % 2];
-      const sf = f[0] === 'mensch' ? 0 : 1; // Sitz der Menschen
+      const sf = f[0] === A ? 0 : 1; // Sitz von Volk A
       const stufeVon = (p) => (!stufen ? 'mittel' : (p === sf) === ((ab + k) % 4 < 2) ? paarung[0] : paarung[1]);
       const ais = [createAI(0, seed, st[f[0]], stufeVon(0)), createAI(1, seed + 1, st[f[1]], stufeVon(1))];
       const erst = [-1, -1];
@@ -286,20 +293,20 @@ if (isMainThread) {
         step(w);
         for (let p = 0; p < 2; p++) if (erst[p] < 0 && w.players[p].goetterblut > 0) erst[p] = w.tick;
       }
-      for (let p = 0; p < 2; p++) if (erst[p] >= 0) blut[f[p]].push(erst[p] / 600);
+      for (let p = 0; p < 2; p++) if (erst[p] >= 0) blut[p === sf ? 'a' : 'b'].push(erst[p] / 600);
       const min = Math.round(w.tick / 600);
       if (!w.over) {
         games.push('—' + min);
         continue;
       }
-      const fac = w.players[w.winner].faction;
+      const gewinnerA = w.winner === sf; // auch bei gleichem Volk auf beiden Seiten eindeutig
       // Bei "stufen": paar zaehlt Siege der staerkeren Stufe je Paarung (Feld m).
-      const pk = stufen ? paarung.join(' > ') : st.mensch + '/' + st.gott;
+      const pk = stufen ? paarung.join(' > ') : st[A] + '/' + st[B];
       paar[pk] = paar[pk] || { m: 0, n: 0 };
       paar[pk].n++;
-      if (stufen ? stufeVon(w.winner) === paarung[0] : fac === 'mensch') paar[pk].m++;
-      games.push((fac === 'mensch' ? 'M' : 'G') + min);
-      if (fac === 'mensch') m++;
+      if (stufen ? stufeVon(w.winner) === paarung[0] : gewinnerA) paar[pk].m++;
+      games.push((gewinnerA ? 'M' : 'G') + min);
+      if (gewinnerA) m++;
       else g++;
       if (w.winner === 0) seat0++;
       n++;

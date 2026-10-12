@@ -28,6 +28,16 @@ const WAFFEN = {
   ent: { hieb: 'wucht', treffer: 'wucht', beben: 5, auf: 'krach', schwer: true },
   wurzelbrecher: { hieb: 'wucht', treffer: 'wucht', beben: 6, auf: 'krach', schwer: true },
 };
+// Totenreich: kaltes Seelenlicht, Knochenspeere
+Object.assign(WAFFEN, {
+  todesgott: { geschoss: 'glut', tempo: 850, bogen: 0.14, farbe: '#7fe8ff', groesse: 2, treffer: 'magie', beben: 3, ab: 'glanz', auf: 'glutschlag' },
+  klageweib: { geschoss: 'licht', tempo: 1200, bogen: 0.04, farbe: '#bfe9ff', groesse: 1, treffer: 'magie', ab: 'zisch', auf: 'glanz' },
+  knochenturm: { geschoss: 'dorn', tempo: 1250, bogen: 0.1, farbe: '#e2e8f0', groesse: 1.4, treffer: 'splitter', ab: 'zisch', auf: 'pfeil' },
+  skelettkrieger: { hieb: 'klinge', treffer: 'funken', auf: 'klinge' },
+  grabwaechter: { hieb: 'klinge', treffer: 'funken', beben: 1, auf: 'klinge', farbe: '#9fe8ff', schwer: true },
+  totengraeber: { hieb: 'stumpf', treffer: 'staub', auf: 'stumpf' },
+  knochentitan: { hieb: 'wucht', treffer: 'wucht', beben: 6, auf: 'krach', schwer: true },
+});
 const DEFAULT = { hieb: 'stumpf', treffer: 'staub', auf: 'stumpf' };
 
 // Partikel je Treffer-Art: Anzahl, Farben, Tempo (dm/s), Steigen, Lebensdauer (s), Groesse (dm)

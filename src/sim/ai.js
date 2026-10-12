@@ -22,6 +22,11 @@ const PLAN = {
     zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche',
     bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe',
   },
+  tod: {
+    anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe',
+    zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv',
+    bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier',
+  },
 };
 
 // Reihenfolge im Skillbaum: erst die Fernkaempfer, dann Zorn und Schaden,
@@ -35,6 +40,10 @@ const LERNEN = {
   gott: [
     'waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss',
     'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf',
+  ],
+  tod: [
+    'klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte',
+    'beinhaus', 'titanenform', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'ewigerDienst', 'seelenrausch', 'knochensturm',
   ],
 };
 

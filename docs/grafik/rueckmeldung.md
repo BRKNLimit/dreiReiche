@@ -19,6 +19,30 @@ gleiche Genauigkeit prüft — die Smoke-Tests haben kein echtes WebGL und
 merken so etwas nicht. Tipp: Neue Shader-Funktionen einmal im echten
 Browser öffnen (Konsole auf Fehler prüfen), bevor du committest.
 
+## Totenreich — jetzt doch im Spiel (12.10.2026, vormittags)
+
+Der Nutzer hat entschieden: Der Todesgott kommt als drittes Volk ins Spiel,
+dein Entwurf ist gemergt (beide Commits) und umgesetzt — Werte in
+`src/sim/defs.js`, deine Modelle und Icons wie geliefert, deine 2D-Figuren
+aus `erweiterungen/figuren2d.js` (gekapselt gebündelt). Überall heißt es
+jetzt **„Das Totenreich“**. Die Elite-Einheiten bleiben draußen (sie brauchen
+Regeln, die es nicht gibt). Danke — die Gebäuderollen und Werte waren sauber
+an die beiden Völker angelehnt, das hat die Umsetzung leicht gemacht.
+
+Wünsche für die nächste Runde (Grafik, nicht Design):
+
+1. **Modelle des Totenreichs auf G.2-Niveau** wie die übrigen Einheiten:
+   Sie sind deutlich gröber (Knochentitan, Grabwächter und die Gebäude sind
+   fast nur Quader) und **dunkel auf dunklem Grund** — aus Spielhöhe schlecht
+   lesbar. Hellere Knochentöne, mehr Silhouette, die Volksfarbe `#a9c4e0`
+   (im Spiel geändert, deine `#8b9bb4` war zu grau) sichtbar.
+2. **2D-Figuren** bitte nach `src/figuren2d.js` übernehmen (dann kann die
+   Kapselung im Bundle weg) und an die Qualität der anderen Figuren angleichen.
+3. **Icons** `grabesklaelte`/`seelenernte` heißen im Spiel `grabeskaelte`/
+   `seelenrausch` (Platzhalter verweist auf deine) — gern umbenennen.
+4. Shader im echten Browser prüfen: Dein Branch hatte noch den
+   `uLicht`-Fehler, die Galerie blieb dort schwarz. Bitte `main` mergen.
+
 ## Commit 9aaf6e7 „Erweiterungen“ — nicht gemergt (12.10.2026, 01:40)
 
 Danke für die Mühe, aber das gehört nicht in deinen Auftrag, und darum

@@ -52,7 +52,8 @@ export function anchorRadius(world, e) {
   const g = FACTIONS[world.players[e.player].faction].growth;
   const age = world.tick - e.doneAt;
   // anchorMin: Hauptgebaeude tragen mindestens die eigene Startbasis.
-  return Math.max(def.anchorMin || 0, Math.min(g.max, g.start + age * g.perTick));
+  // perTod (Totenreich): jede im Umkreis gefallene Einheit dehnt den Anker aus, siehe seelenZaehlen()
+  return Math.max(def.anchorMin || 0, Math.min(g.max, g.start + age * g.perTick + (e.seelen || 0) * (g.perTod || 0)));
 }
 
 const PER_MIN = 600 * 1000;
@@ -100,7 +101,7 @@ function setupMap(world) {
 
   for (let p = 0; p < 2; p++) {
     const f = world.players[p].faction;
-    const home = f === 'mensch' ? 'halle' : 'herzbaum';
+    const home = FACTIONS[f].haupt;
     spawnBuilding(world, p, home, p === 0 ? lo : hi, p === 0 ? lo : hi, true);
   }
   if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
@@ -135,6 +136,7 @@ export function spawnBuilding(world, player, type, x, y, finished = false) {
     queueProgress: 0,
     sammelX: -1, // Sammelpunkt fuer neue Einheiten; -1: keiner
     sammelY: -1,
+    seelen: 0, // Gefallene im Umkreis (nur Anker mit growth.perTod)
     cooldown: 0,
     dead: false,
   };
@@ -1602,6 +1604,7 @@ function cleanup(world) {
     const e = world.entities[i];
     if (e.dead || !e.vergehtBei || world.tick < e.vergehtBei) continue;
     e.dead = true;
+    e.vergangen = true; // vergangen, nicht gefallen -- zaehlt nicht als Seele
     world.events.push({ t: 'died', id: e.id, kind: e.kind, type: e.type, player: e.player, x: e.x, y: e.y });
   }
   let any = false;
@@ -1613,6 +1616,7 @@ function cleanup(world) {
   }
   if (!any) return;
 
+  seelenZaehlen(world);
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (!e.dead) continue;
@@ -1629,6 +1633,27 @@ function cleanup(world) {
   if (alive.length === 1) {
     world.over = true;
     world.winner = alive[0].id;
+  }
+}
+
+/**
+ * Totenreich: Jede Einheit, die in diesem Tick gefallen ist, zaehlt als Seele
+ * fuer jeden fertigen Anker mit growth.perTod, in dessen Umkreis sie lag --
+ * gleich welchen Spielers. Herbeigerufene, die nur vergehen, zaehlen nicht.
+ * Reihenfolge nach Array-Index, deterministisch.
+ */
+function seelenZaehlen(world) {
+  const anker = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const b = world.entities[i];
+    if (b.dead || b.kind !== 'building' || !b.done || !BUILDINGS[b.type].anchor) continue;
+    if (FACTIONS[world.players[b.player].faction].growth.perTod) anker.push([b, anchorRadius(world, b)]);
+  }
+  if (!anker.length) return;
+  for (let i = 0; i < world.entities.length; i++) {
+    const u = world.entities[i];
+    if (!u.dead || u.kind !== 'unit' || u.vergangen) continue;
+    for (const [b, r] of anker) if (dist2(u.x, u.y, b.x, b.y) <= r * r) b.seelen++;
   }
 }
 
@@ -1722,6 +1747,7 @@ export function hash(world) {
       mix(e.sammelY);
       mix(e.queue.length);
       mix(e.powered);
+      mix(e.seelen || 0);
     }
   }
   for (let p = 0; p < world.players.length; p++) {

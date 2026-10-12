@@ -69,7 +69,7 @@
   <button data-ansicht="waldgott" class="an">Waldgott-Varianten</button>
   <button data-ansicht="einheiten">Einheiten</button>
   <button data-ansicht="gebaeude">Gebäude</button>
-  <button data-ansicht="todesgott">Todesgott (3. Reich)</button>
+  <button data-ansicht="todesgott">Totenreich (Todesgott)</button>
   <button data-ansicht="elite">Elite-Einheiten</button>
   <button data-ansicht="karten">Karten</button>
   <button data-ansicht="effekte">Effekte</button>
@@ -155,6 +155,9 @@ const FACTIONS = {
     // Radius steht bei Bauende fest. Planbar, sofort, ueberall gleich.
     growth: { start: 2600, max: 2600, perTick: 0 },
     kommandant: 'held',
+    haupt: 'halle',
+    kurz: 'Menschen',
+    bauten: ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium', 'spaehposten'], // Bauleiste, Tasten 1-0
     faehigkeiten: ['schlachtruf', 'schildwall', 'ansturm'], // Reihenfolge = Tasten Q, W, E
   },
   gott: {
@@ -165,7 +168,24 @@ const FACTIONS = {
     // start 950 statt 900: bei 160 KI-Partien ausgeglichen (docs/scope.md).
     growth: { start: 950, max: 5200, perTick: 1 },
     kommandant: 'waldgott',
+    haupt: 'herzbaum',
+    kurz: 'Gott',
+    bauten: ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'],
     faehigkeiten: ['wurzelgriff', 'lebenssaft', 'rudelruf'],
+  },
+  // Das Totenreich (Entwurf: Gemini, erweiterungen/). Die Domaene waechst
+  // nicht mit der Zeit, sondern mit den Toten: Jede Einheit, die im Umkreis
+  // eines Ankers faellt -- Freund oder Feind --, dehnt ihn um perTod aus.
+  // Designzahlen, gemessen in docs/scope.md (Abschnitt 24).
+  tod: {
+    name: 'Todesgott',
+    color: '#a9c4e0',
+    growth: { start: 1400, max: 5000, perTick: 0, perTod: 180 },
+    kommandant: 'todesgott',
+    haupt: 'nekropole',
+    kurz: 'Todesgott',
+    bauten: ['seelenbrunnen', 'knochenmuehle', 'grabhuegel', 'katakombe', 'fleischwurz', 'pestaltar', 'ossuarium', 'knochenturm', 'totenarchiv'],
+    faehigkeiten: ['grabeskaelte', 'seelenrausch', 'knochensturm'],
   },
 };
 
@@ -473,6 +493,141 @@ const BUILDINGS = {
     buildTime: 230,
     forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
   },
+  // ---------------------------------------------------------- Totenreich
+  nekropole: {
+    name: 'Nekropole',
+    sicht: 1300,
+    desc: 'Hauptgebäude des Todesgottes. Fällt sie, ist die Partie verloren. Trägt die Startbasis und weckt Totengräber, Skelettkrieger und Aasgeier.',
+    anchorMin: 4000,
+    short: 'NEK',
+    faction: 'tod',
+    hp: 5000,
+    radius: 90,
+    anchor: true,
+    gegenwartOut: 24,
+    cost: { fron: 0 },
+    buildTime: 0,
+    buildList: ['totengraeber', 'skelettkrieger', 'aasgeier'],
+    vital: true,
+  },
+  grabhuegel: {
+    name: 'Grabhügel',
+    sicht: 900,
+    desc: 'Anker: klein am Anfang. Jede Einheit, die in seinem Umkreis fällt — Freund oder Feind —, dehnt ihn aus.',
+    short: 'GRB',
+    faction: 'tod',
+    hp: 650,
+    radius: 48,
+    anchor: true,
+    cost: { fron: 115 },
+    buildTime: 160,
+  },
+  knochenturm: {
+    name: 'Knochenturm',
+    sicht: 1200,
+    desc: 'Verteidigung: schleudert Knochenspeere auf Feinde in Reichweite. Braucht Gegenwart — ohne schläft er.',
+    short: 'KNT',
+    faction: 'tod',
+    hp: 3000,
+    radius: 40,
+    gegenwartIn: 10,
+    prio: PRIO.zorn,
+    cost: { fron: 300 },
+    buildTime: 250,
+    kampf: 'fern',
+    weapon: { range: 900, damage: 60, cooldown: 4 },
+  },
+  seelenbrunnen: {
+    name: 'Seelenbrunnen',
+    desc: 'Liefert Gegenwart in sein Domänennetz — Kraft für Fabriken, Förderung und Altäre.',
+    short: 'SBN',
+    faction: 'tod',
+    hp: 800,
+    radius: 60,
+    gegenwartOut: 40,
+    cost: { fron: 280 },
+    buildTime: 230,
+  },
+  knochenmuehle: {
+    name: 'Knochenmühle',
+    desc: 'Fördert Fron auf einem Steinvorkommen.',
+    short: 'KNM',
+    faction: 'tod',
+    hp: 700,
+    radius: 55,
+    gegenwartIn: 14,
+    prio: PRIO.segen,
+    fronOut: 360,
+    cost: { fron: 150 },
+    buildTime: 170,
+    needs: 'fron',
+  },
+  fleischwurz: {
+    name: 'Fleischwurz',
+    desc: 'Fördert Götterblut aus einer Ader.',
+    short: 'FLW',
+    faction: 'tod',
+    hp: 900,
+    radius: 60,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    blutOut: 40,
+    cost: { fron: 250 },
+    buildTime: 210,
+    needs: 'goetterblut',
+  },
+  katakombe: {
+    name: 'Katakombe',
+    desc: 'Fabrik: weckt die Heere der Ruhelosen. Braucht viel Gegenwart.',
+    short: 'KAT',
+    faction: 'tod',
+    hp: 1500,
+    radius: 80,
+    gegenwartIn: 55,
+    prio: PRIO.werk,
+    cost: { fron: 400 },
+    buildTime: 340,
+    buildList: ['skelettkrieger', 'klageweib', 'grabwaechter', 'knochentitan'],
+  },
+  pestaltar: {
+    name: 'Pestaltar',
+    desc: 'Schrein des Zorns: Wer in seiner Nähe kämpft, schlägt härter zu.',
+    short: 'PAL',
+    faction: 'tod',
+    hp: 600,
+    radius: 40,
+    gegenwartIn: 15,
+    prio: PRIO.zorn,
+    cost: { fron: 160 },
+    buildTime: 170,
+    buff: { zorn: 300, radius: 3000 },
+  },
+  ossuarium: {
+    name: 'Ossuarium',
+    desc: 'Schrein der Wehr: Knochenwände dämpfen den Schaden, den die eigenen Krieger nehmen.',
+    short: 'OSS',
+    faction: 'tod',
+    hp: 700,
+    radius: 50,
+    gegenwartIn: 15,
+    prio: PRIO.wehr,
+    cost: { fron: 160 },
+    buildTime: 170,
+    buff: { wehr: 250, radius: 3000 },
+  },
+  totenarchiv: {
+    name: 'Totenarchiv',
+    desc: 'Forschung: Das Wissen der Toten bringt schneller Skillpunkte.',
+    short: 'TAR',
+    faction: 'tod',
+    hp: 900,
+    radius: 55,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    cost: { fron: 250 },
+    buildTime: 230,
+    forschung: 500, // wie Skriptorium und Raunende Eiche
+  },
 };
 
 // unterhalt: laufende Kosten in Fron pro Minute. Grosse Heere fressen die
@@ -685,6 +840,103 @@ const UNITS = {
     kampf: 'nah',
     weapon: { range: 30, damage: 12, cooldown: 10, gebaeude: 240, vorrang: 'gebaeude' },
   },
+  // ---------------------------------------------------------- Totenreich
+  todesgott: {
+    name: 'Todesgott',
+    sicht: 1000,
+    desc: 'Kommandant: Fürst des Übergangs mit der Seelensense. Baut mit voller Kraft und wirft Seelenlanzen. Fällt er, ist die Partie verloren.',
+    faction: 'tod',
+    hp: 6000,
+    radius: 40,
+    speed: 22,
+    cost: { fron: 0 },
+    buildTime: 0,
+    kampf: 'fern',
+    weapon: { range: 360, damage: 44, cooldown: 6 },
+    commander: true,
+    build: { power: 1000 },
+  },
+  totengraeber: {
+    name: 'Totengräber',
+    desc: 'Arbeiter: baut Gebäude, auch außerhalb der Domäne. Kämpft nur zur Not.',
+    faction: 'tod',
+    hp: 200,
+    radius: 24,
+    speed: 28,
+    cost: { fron: 50 },
+    unterhalt: 5,
+    buildTime: 90,
+    worker: true,
+    build: { power: 500 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 6, cooldown: 7 },
+  },
+  skelettkrieger: {
+    name: 'Skelettkrieger',
+    desc: 'Günstiger, unermüdlicher Nahkämpfer — stark in der Masse.',
+    faction: 'tod',
+    hp: 180,
+    radius: 25,
+    speed: 31,
+    cost: { fron: 45 }, // Designzahl: Geminis 40 Fron / 5 Unterhalt gewannen 48 : 22 gegen die Menschen
+    unterhalt: 7,
+    buildTime: 70,
+    kampf: 'nah',
+    weapon: { range: 20, damage: 9, cooldown: 6 },
+  },
+  aasgeier: {
+    name: 'Aasgeier',
+    sicht: 1000,
+    desc: 'Späher: fliegt schnell über Fels, Wasser und Mauern. Ein Schuss holt ihn herunter. Kämpft nicht.',
+    faction: 'tod',
+    hp: 8,
+    radius: 12,
+    speed: 50,
+    cost: { fron: 35 },
+    unterhalt: 2,
+    buildTime: 60,
+    fliegt: true,
+  },
+  klageweib: {
+    name: 'Klageweib',
+    desc: 'Fernkämpferin: Ihre Schreie treffen aus der Ferne.',
+    faction: 'tod',
+    hp: 220,
+    radius: 26,
+    speed: 27,
+    cost: { fron: 70 },
+    unterhalt: 10,
+    buildTime: 120,
+    kampf: 'fern',
+    weapon: { range: 460, damage: 15, cooldown: 7 },
+  },
+  grabwaechter: {
+    name: 'Grabwächter',
+    desc: 'Schwer gerüstet aus Obsidian und Götterblut — kaum zu brechen.',
+    faction: 'tod',
+    hp: 850,
+    radius: 34,
+    speed: 22,
+    cost: { fron: 160, goetterblut: 12 },
+    unterhalt: 22,
+    buildTime: 230,
+    kampf: 'nah',
+    weapon: { range: 28, damage: 32, cooldown: 8 },
+  },
+  knochentitan: {
+    name: 'Knochentitan',
+    sicht: 700,
+    desc: 'Belagerung: ein Koloss aus Gebeinen. Zerschmettert Gebäude, gegen Krieger kaum zu gebrauchen.',
+    faction: 'tod',
+    hp: 1800,
+    radius: 52,
+    speed: 14,
+    cost: { fron: 270 },
+    unterhalt: 30,
+    buildTime: 310,
+    kampf: 'nah',
+    weapon: { range: 32, damage: 14, cooldown: 10, gebaeude: 250, vorrang: 'gebaeude' },
+  },
 };
 
 // ------------------------------------------------------------- Skillbaum
@@ -819,6 +1071,63 @@ const SKILLS = {
     faction: 'gott', ast: 'kommandant', name: 'Rudelruf', kosten: 2, braucht: ['wurzelgriff'], faehigkeit: 'rudelruf',
     desc: 'Ein Heulen, und das Rudel kommt.',
   },
+  // ---------------------------------------------------------- Totenreich (wie der Baum des Gottes)
+  klageweiber: {
+    faction: 'tod', ast: 'einheiten', name: 'Klageweiber wecken', kosten: 1, frei: ['klageweib'],
+    desc: 'Die Katakomben rufen Klageweiber — ihre Schreie treffen aus der Ferne.',
+  },
+  grabwaechterweihe: {
+    faction: 'tod', ast: 'einheiten', name: 'Grabwächter weihen', kosten: 2, braucht: ['klageweiber'], frei: ['grabwaechter'],
+    desc: 'Die Katakomben erwecken Grabwächter aus Obsidian und Götterblut.',
+  },
+  titanenform: {
+    faction: 'tod', ast: 'einheiten', name: 'Knochentitan formen', kosten: 2, braucht: ['klageweiber'], frei: ['knochentitan'],
+    desc: 'Ein Koloss aus Gebeinen bricht Mauern und Festungen.',
+  },
+  pestweihe: {
+    faction: 'tod', ast: 'gebaeude', name: 'Pestaltar', kosten: 1, frei: ['pestaltar'],
+    desc: 'Schrein des Zorns: kalter Hauch schärft die Hiebe.',
+  },
+  beinhaus: {
+    faction: 'tod', ast: 'gebaeude', name: 'Ossuarium', kosten: 1, frei: ['ossuarium'],
+    desc: 'Schrein der Wehr: Knochenwände dämpfen Schaden.',
+  },
+  pestodem: {
+    faction: 'tod', ast: 'verbesserung', name: 'Pestodem', kosten: 1, wirkung: { schaden: 100 },
+    desc: 'Giftige Hiebe für alle.',
+  },
+  knochenhaertung: {
+    faction: 'tod', ast: 'verbesserung', name: 'Knochenhärtung', kosten: 1, braucht: ['pestodem'], wirkung: { schutz: 100 },
+    desc: 'Versteinerte Gebeine für alle.',
+  },
+  seelenernte: {
+    faction: 'tod', ast: 'verbesserung', name: 'Seelenernte', kosten: 1, wirkung: { foerderung: 200 },
+    desc: 'Knochenmühle und Fleischwurz arbeiten ergiebiger.',
+  },
+  grabeskuehle: {
+    faction: 'tod', ast: 'verbesserung', name: 'Grabeskühle', kosten: 1, braucht: ['seelenernte'], wirkung: { ausbildung: 250 },
+    desc: 'Die Toten erwachen rascher aus ihren Grüften.',
+  },
+  ewigerDienst: {
+    faction: 'tod', ast: 'verbesserung', name: 'Ewiger Dienst', kosten: 2, braucht: ['grabeskuehle'], wirkung: { unterhalt: 250 },
+    desc: 'Tote fordern wenig — der Unterhalt sinkt.',
+  },
+  nekromantie: {
+    faction: 'tod', ast: 'kommandant', name: 'Nekromantische Aura', kosten: 1, wirkung: { kdtSchutz: 200 },
+    desc: 'Der Todesgott hält mehr aus.',
+  },
+  grabeskaelte: {
+    faction: 'tod', ast: 'kommandant', name: 'Grabeskälte', kosten: 2, braucht: ['nekromantie'], faehigkeit: 'grabeskaelte',
+    desc: 'Der Boden gefriert und hält Feinde fest.',
+  },
+  seelenrausch: {
+    faction: 'tod', ast: 'kommandant', name: 'Seelenrausch', kosten: 2, braucht: ['nekromantie'], faehigkeit: 'seelenrausch',
+    desc: 'Die Wut der Ruhelosen: mehr Schaden für die Krieger in der Nähe.',
+  },
+  knochensturm: {
+    faction: 'tod', ast: 'kommandant', name: 'Knochensturm', kosten: 2, braucht: ['grabeskaelte'], faehigkeit: 'knochensturm',
+    desc: 'Skelettkrieger brechen aus der Erde und kämpfen eine Weile mit.',
+  },
 };
 
 // Aktive Faehigkeiten der Kommandanten, je drei, freigeschaltet im
@@ -841,6 +1150,9 @@ const FAEHIGKEITEN = {
   wurzelgriff: { name: 'Wurzelgriff', art: 'griff', reichweite: 1600, radius: 600, dauer: 80, abklingen: 700 },
   lebenssaft: { name: 'Lebenssaft', art: 'heilung', radius: 900, wert: 300, abklingen: 900 },
   rudelruf: { name: 'Rudelruf', art: 'rufen', einheit: 'wolf', anzahl: 3, dauer: 400, abklingen: 1200 },
+  grabeskaelte: { name: 'Grabeskälte', art: 'griff', reichweite: 1600, radius: 700, dauer: 90, abklingen: 750 },
+  seelenrausch: { name: 'Seelenrausch', art: 'ruf', radius: 900, dauer: 140, wert: 350, abklingen: 900 },
+  knochensturm: { name: 'Knochensturm', art: 'rufen', einheit: 'skelettkrieger', anzahl: 4, dauer: 300, abklingen: 1100 },
 };
 const START_FRON = 1100;
 
@@ -5581,7 +5893,7 @@ MODELLE_DEF.schilf = schilfModell();
 MODELLE_DEF.wasser = wasserModell();
 
 // =============================================================================
-// ERWEITERUNGEN: TODESGOTT (3. REICH) & ELITE-EINHEITEN
+// ERWEITERUNGEN: TODESGOTT (TOTENREICH) & ELITE-EINHEITEN
 // =============================================================================
 
 const EXP_KNOCHEN = '#e2e8f0';
@@ -6184,6 +6496,10 @@ MODELLE_DEF.dornenhydra = dornenhydraModell();
 // Schluessel -> SVG mit viewBox="0 0 24 24"
 const PLATZHALTER_ICONS = {};
 for (const [k, v] of Object.entries(PLATZHALTER_ICONS)) ICONS[k] ??= v;
+
+// Andere Schluessel im Spiel als in Geminis Entwurf (Totenreich): Faehigkeit -> Icon
+const ICON_NAMEN = { grabeskaelte: 'grabesklaelte', seelenrausch: 'seelenernte' };
+for (const [k, v] of Object.entries(ICON_NAMEN)) ICONS[k] ??= ICONS[v];
 
 // Schluessel -> Teile wie in src/modelle3d.js
 const PLATZHALTER_MODELLE = {};

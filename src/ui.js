@@ -15,6 +15,7 @@ let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
 let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
+let gegnerVolk = 'auto'; // Volk des Gegners, im Startbildschirm waehlbar (auto: das andere)
 let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 let ME = 0; // eigener Sitzplatz -- online als Gast 1
 let skillsOffen = false; // T: Skillbaum
@@ -125,7 +126,13 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   }
   meFaction = f;
   if (online) meFaction = online.config.factions[online.ich]; // als Gast das zweite Volk
-  const gegner = f === 'mensch' ? 'gott' : 'mensch';
+  const gegner = online
+    ? online.config.factions[1]
+    : wdh
+      ? wdh.factions[1]
+      : geladen
+        ? geladen.world.players[1].faction
+        : gegnerVolkFuer(f, m ? 'auto' : gegnerVolk);
   const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : tagesAktiv ? tagesAktiv.seed : (Date.now() / 1000) | 0;
   const karte = online
     ? { schluessel: online.config.karte, daten: online.config.karteDaten || KARTEN[online.config.karte] }
@@ -598,9 +605,7 @@ function befehl(x, y, anhaengen = false) {
 }
 
 function bauListe() {
-  return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium', 'spaehposten']
-    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
+  return FACTIONS[meFaction].bauten;
 }
 
 function renderBar() {
@@ -957,7 +962,9 @@ function drawEntities() {
       const def = BUILDINGS[e.type];
       const r = Math.max(4, def.radius * cam.z);
       // Figur aus src/figuren2d.js (Gemini), sonst ein Quadrat
-      if (!zeichneGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
+      // Totenreich: Geminis Figuren aus erweiterungen/figuren2d.js (src/figuren2d.js malt sonst seine Ersatzform)
+      const figurTod = def.faction === 'tod' && zeichneErweiterungGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now());
+      if (!figurTod && !zeichneGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
         ctx.fillStyle = e.done ? '#1d2118' : '#171a13';
         ctx.strokeStyle = col;
         ctx.lineWidth = def.vital ? 2.5 : 1.5;
@@ -1021,7 +1028,8 @@ function drawEntities() {
         }
       }
       // Figur aus src/figuren2d.js (Gemini), sonst die einfache Form
-      if (!zeichneEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
+      const figurTod = def.faction === 'tod' && zeichneErweiterungEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now());
+      if (!figurTod && !zeichneEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
         ctx.fillStyle = col;
         ctx.beginPath();
         if (def.commander) ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -1501,11 +1509,13 @@ function introHtml() {
         .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
         .join('')}
     </div>
+    ${gegnerVolkHtml(gegnerVolk)}
     ${kartenWahlHtml(karteSchluessel)}
 ${wiederholungWahlHtml()}
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
       <button id="introGott">Als Gott spielen</button>
+      <button id="introTod">Als Todesgott spielen</button>
       <button id="introSchau">Zuschauen</button>
     </div>`;
 }
@@ -1520,6 +1530,8 @@ function starte(f, zuschauen) {
   if (gewaehlt) gegnerStil = gewaehlt.value;
   const stufe = document.querySelector?.('#intro input[name="stufe"]:checked');
   if (stufe) gegnerStufe = stufe.value;
+  const volk = document.querySelector?.('#intro input[name="gegnerVolk"]:checked');
+  if (volk) gegnerVolk = volk.value;
   const karte = document.querySelector?.('#intro input[name="karte"]:checked');
   if (karte) karteSchluessel = karte.value;
   document.getElementById('intro').style.display = 'none';
@@ -1704,7 +1716,7 @@ function zeitleisteZeigen() {
     el.innerHTML = '';
     return;
   }
-  const name = (p) => (world.players[p].faction === 'mensch' ? 'Menschen' : 'Gott');
+  const name = (p) => volkName(world.players[p].faction);
   const knopf = (wert, text, an) => `<button data-${wert}${an ? ' class="an"' : ''}>${text}</button>`;
   el.innerHTML = `<button id="wdhSpiel" title="Abspielen / Anhalten (Leertaste)">⏯</button>
     <button data-sprung="-300" title="30 s zurück">−30 s</button><button data-sprung="300" title="30 s vor">+30 s</button>
@@ -1914,6 +1926,7 @@ function startbildschirm() {
   el.style.display = '';
   document.getElementById('introMensch').onclick = () => starte('mensch', false);
   document.getElementById('introGott').onclick = () => starte('gott', false);
+  document.getElementById('introTod').onclick = () => starte('tod', false);
   document.getElementById('introSchau').onclick = () => starte('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
   kartenVorschauVerdrahten(el);

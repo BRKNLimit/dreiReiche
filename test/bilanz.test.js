@@ -42,7 +42,7 @@ test('Bilanz: Siege zaehlen, Erfolge kommen genau einmal', () => {
     assert.deepEqual(b.partien.gott, [1, 1]);
     assert.equal(b.tage[20261012], 12);
     assert.equal(Object.keys(b.erfolge).length, 8);
-    assert.equal(ERFOLGE.length, 12);
+    assert.equal(ERFOLGE.length, 13);
   });
 });
 

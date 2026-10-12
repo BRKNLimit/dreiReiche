@@ -16,12 +16,13 @@ flicken.
 ## Die Domänen-Regel
 
 Die Asymmetrie der Domäne steckt in `anchorRadius()` in `src/sim/sim.js`
-und den drei Zahlen in `FACTIONS[...].growth`:
+und den Zahlen in `FACTIONS[...].growth` (start, max, perTick, perTod):
 
 | Fraktion | start | max | perTick | Wirkung |
 | --- | --- | --- | --- | --- |
 | Menschen | 2600 | 2600 | 0 | Fest ab Bauende, planbar |
 | Gott | 950 | 5200 | 1 | Früh winzig, nach gut 7 min am Maximum |
+| Todesgott | 1400 | 5000 | 0 | `perTod: 180` — wächst nur mit den Toten in seinem Umkreis |
 
 Eine dritte Fraktion ist eine dritte Zeile, kein drittes Regelwerk. Wenn eine
 Fraktionsidee ein eigenes System braucht, ist die Idee falsch, nicht das
@@ -78,8 +79,8 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 
 ## Bewusst weggelassen (v1)
 
-Höhen im Gelände, Todesgott, Bergung der Gefallenen, Netzwerk. Siehe
-`docs/scope.md`.
+Höhen im Gelände, Bergung der Gefallenen. Siehe `docs/scope.md`.
+(Der Todesgott ist seit 0.38 als drittes Volk dabei, Netzwerk seit 0.35.)
 
 ## Nebel des Krieges
 
@@ -97,7 +98,7 @@ Ort.
 Gemini arbeitet parallel auf dem Branch `gemini/grafik` an der Grafik — Regeln
 und Auftrag in `GEMINI.md` und `docs/grafik/`. **Diese Dateien gehören Gemini
 und werden hier nicht geändert:** `src/modelle3d.js`, `src/render3d.js`,
-`src/gelaende3d.js`, `src/gelaende2d.js`, `src/icons.js`, `src/figuren2d.js`, `src/galerie.js`,
+`src/gelaende3d.js`, `src/gelaende2d.js`, `src/icons.js`, `src/figuren2d.js`, `erweiterungen/`, `src/galerie.js`,
 `src/galerie.html`. Ihre Schnittstellen stehen in `GEMINI.md`; Wünsche von
 Gemini an diese Seite stehen in `docs/grafik/wuensche.md`. Den Branch nach
 Prüfung (Tests, Smoke, Diff lesen) nach `main` mergen.

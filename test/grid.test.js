@@ -2011,3 +2011,67 @@ test('Aufgeben: die Partie endet sofort, der Gegner gewinnt', () => {
   assert.equal(world.winner, 1);
   assert.equal(world.players[0].alive, false);
 });
+
+// ------------------------------------------------------------ Totenreich: der Anker waechst mit den Toten
+test('Totenreich: ein Grabhuegel ohne Tote bleibt klein, auch nach langer Zeit', () => {
+  const w = bare('tod', 'mensch');
+  const g = spawnBuilding(w, 0, 'grabhuegel', 6000, 6000, true);
+  for (let t = 0; t < 3000; t++) step(w);
+  assert.equal(anchorRadius(w, g), FACTIONS.tod.growth.start);
+});
+
+test('Totenreich: jede im Umkreis gefallene Einheit dehnt den Anker aus -- Freund oder Feind', () => {
+  const w = bare('tod', 'mensch');
+  const g = spawnBuilding(w, 0, 'grabhuegel', 6000, 6000, true);
+  const r0 = anchorRadius(w, g);
+  const feind = spawnUnit(w, 1, 'soldat', 6300, 6000);
+  const eigen = spawnUnit(w, 0, 'skelettkrieger', 6000, 6400);
+  const fern = spawnUnit(w, 1, 'soldat', 6000 + r0 + 500, 6000); // ausserhalb
+  for (const u of [feind, eigen, fern]) u.dead = true;
+  step(w);
+  assert.equal(g.seelen, 2);
+  assert.equal(anchorRadius(w, g), r0 + 2 * FACTIONS.tod.growth.perTod);
+});
+
+test('Totenreich: Herbeigerufene, die nur vergehen, zaehlen nicht; der Radius hat eine Obergrenze', () => {
+  const w = bare('tod', 'mensch');
+  const g = spawnBuilding(w, 0, 'grabhuegel', 6000, 6000, true);
+  const u = spawnUnit(w, 0, 'skelettkrieger', 6100, 6000);
+  u.vergehtBei = w.tick + 1;
+  step(w);
+  step(w);
+  assert.ok(!w.entities.includes(u));
+  assert.equal(g.seelen, 0);
+  g.seelen = 1000;
+  assert.equal(anchorRadius(w, g), FACTIONS.tod.growth.max);
+});
+
+test('Totenreich: Menschen- und Gott-Anker zaehlen keine Seelen', () => {
+  const w = bare('mensch', 'gott');
+  const s = spawnBuilding(w, 0, 'grenzstein', 6000, 6000, true);
+  const h = spawnBuilding(w, 1, 'hain', 8000, 8000, true);
+  const r = [anchorRadius(w, s), anchorRadius(w, h)];
+  spawnUnit(w, 1, 'wolf', 6100, 6000).dead = true;
+  spawnUnit(w, 0, 'soldat', 8100, 8000).dead = true;
+  step(w);
+  assert.equal(anchorRadius(w, s), r[0]);
+  assert.equal(anchorRadius(w, h), r[1] + FACTIONS.gott.growth.perTick);
+});
+
+test('Totenreich: KI-Partien mit dem Todesgott laufen deterministisch, in jeder Paarung', () => {
+  for (const f of [['tod', 'mensch'], ['gott', 'tod']]) {
+    const lauf = () => {
+      const w = createWorld({ seed: 17, factions: f });
+      const ais = [createAI(0, 17), createAI(1, 18)];
+      for (let t = 0; t < 3000; t++) {
+        stepAI(ais[0], w);
+        stepAI(ais[1], w);
+        step(w);
+      }
+      assert.ok(w.entities.some((e) => e.type === 'nekropole'));
+      assert.ok(w.entities.filter((e) => e.player === f.indexOf('tod') && e.kind === 'unit').length > 3, 'der Todesgott baut ein Heer');
+      return hash(w);
+    };
+    assert.equal(lauf(), lauf());
+  }
+});

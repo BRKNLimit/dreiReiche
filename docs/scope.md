@@ -706,6 +706,23 @@ Jede Partie auf einer anderen Zufallskarte (`karte=zufall`, 36 Seeds ×
 Adern aus der Welt und braucht keine Karte zu kennen. Partien dauern etwas
 länger als auf den festen Karten, Flüsse und Grate verlängern die Wege.
 
+### 24. Das Totenreich (Stand 0.38)
+
+Drittes Volk nach Geminis Entwurf. Gleiche Gebäuderollen, die Anker wachsen
+mit den Toten (`growth.perTod`). KI gegen KI, 36 Seeds × 2 Sitzplätze,
+Stil-Paarungen, klassische Karte:
+
+| Paarung | Geminis Werte | Skelettkrieger 45 Fron / 7 Unterhalt |
+| --- | --- | --- |
+| Todesgott : Menschen | 48 : 22 | **37 : 34** |
+| Todesgott : Gott | 44 : 16 | **29 : 26** |
+
+Stellschrauben (24 Seeds gegen die Menschen, Geminis Werte): `perTod` 120
+oder 260 statt 180 → 39 : 7 bzw. 39 : 8, also kaum Wirkung; Unterhalt aller
+Einheiten wie bei den Menschen → 32 : 16; dazu Klageweib 75 Fron / 12
+Unterhalt → 31 : 39 (kippt). Die Stärke lag im billigen Massenheer, nicht
+in der Domäne.
+
 ## Verlauf (vor der Fairness-Korrektur gemessen)
 
 **0.2 → 0.3: Die alten Befunde waren ein Fehler.** „Der Gott gewinnt immer“,

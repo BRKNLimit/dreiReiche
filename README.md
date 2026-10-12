@@ -1,4 +1,4 @@
-# Die drei Reiche — Prototyp 0.37
+# Die drei Reiche — Prototyp 0.38
 
 1v1-RTS-Prototyp. Mittelalter, Elder Gods. **Menschen gegen Wald- und
 Wiesengott.** Ressourcen fördern, aufbauen, ausbreiten — und Hauptgebäude
@@ -51,6 +51,17 @@ den Code per Chat, der andere klickt **Beitreten**, fügt ihn ein und
 schickt die Antwort zurück. Dann geht es los — ohne Server, Browser zu
 Browser. Beide brauchen denselben Stand des Spiels. Hinter manchen
 Firmen- oder Mobilfunk-Routern kommt keine direkte Verbindung zustande.
+
+## Völker
+
+Drei Völker, jede Paarung spielbar (Startbildschirm: eigenes Volk über die
+Knöpfe, Gegner-Volk darüber). Der Unterschied steckt in einer Regel — wie
+die Domäne eines Ankers wächst:
+
+- **Menschen:** sofort voll und fest. Viele günstige Einheiten.
+- **Wald- und Wiesengott:** klein am Anfang, wächst mit der Zeit. Wenige starke Einheiten.
+- **Todesgott:** klein am Anfang, wächst mit jedem, der in ihrem Umkreis fällt.
+  Massen von Skeletten — seine Grabhügel werden dort groß, wo gekämpft wird.
 
 ## Karten
 

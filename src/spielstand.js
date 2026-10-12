@@ -8,7 +8,7 @@
 // Ein geladener Stand laeuft bitgenau so weiter wie der gesicherte -- das
 // prueft test/spielstand.test.js.
 
-import { KARTEN } from './sim/defs.js';
+import { KARTEN, FACTIONS } from './sim/defs.js';
 import { wegGitter } from './sim/weg.js';
 
 const STAND_FORMAT = 'drei-reiche-spielstand';
@@ -106,7 +106,7 @@ export function schnellInfo() {
   const w = r.s.zustand.world;
   const wann = new Date(r.s.zeit);
   const uhr = `${wann.getDate()}.${wann.getMonth() + 1}. ${wann.getHours()}:${String(wann.getMinutes()).padStart(2, '0')}`;
-  const volk = w.players[0].faction === 'mensch' ? 'Menschen' : 'Gott';
+  const volk = FACTIONS[w.players[0].faction].kurz;
   const mission = r.s.extra && r.s.extra.missionTitel ? ` · ${r.s.extra.missionTitel}` : '';
   return `${volk}${mission}, ${(w.tick / 600).toFixed(1).replace('.', ',')} min — gespeichert ${uhr}`;
 }

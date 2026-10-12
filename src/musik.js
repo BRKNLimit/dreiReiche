@@ -22,6 +22,12 @@ const MUSIK_STIMMUNG = {
     akkorde: [[0, 7, 14], [5, 12, 19], [-3, 4, 12], [2, 9, 14]],
     instrument: 'floete',
   },
+  tod: {
+    grund: 47, // H
+    leiter: [0, 1, 3, 5, 7, 8, 10], // phrygisch
+    akkorde: [[0, 7, 15], [1, 8, 13], [-2, 5, 13], [-4, 3, 12]],
+    instrument: 'glocke',
+  },
 };
 const musikHz = (midi) => 440 * 2 ** ((midi - 69) / 12);
 
@@ -115,10 +121,11 @@ function musikAchtel(mu, ton, t, dauer) {
     if (i % 8 === 0) midi = s.grund + 12 + akkord[(Math.random() * akkord.length) | 0];
     const laenge = dauer * (Math.random() < 0.3 ? 3 : 1.6);
     if (s.instrument === 'laute') musikLaute(ton, mu.trocken, musikHz(midi), t, laenge, 0.13);
+    else if (s.instrument === 'glocke') musikGlocke(ton, mu.trocken, musikHz(midi), t, laenge * 2.5, 0.08);
     else musikFloete(ton, mu.trocken, musikHz(midi), t, laenge * 1.4, 0.09);
   }
   // Trommeln, wenn gekaempft wird
-  if (k > 0.2 && i % 4 === 0) musikTrommel(ton, mu.trocken, t, mu.volk === 'gott' ? 55 : 75, 0.35 * k);
+  if (k > 0.2 && i % 4 === 0) musikTrommel(ton, mu.trocken, t, { gott: 55, tod: 45 }[mu.volk] || 75, 0.35 * k);
   if (k > 0.45 && i % 4 === 2) musikRassel(ton, mu.trocken, t, 0.08 * k, mu.volk === 'gott' ? 5000 : 2200);
   if (k > 0.7 && i % 2 === 1) musikRassel(ton, mu.trocken, t, 0.05 * k, 6500);
 }
@@ -197,6 +204,20 @@ function musikFloete(ton, ziel, f, t, dauer, laut) {
   o.stop(t + dauer * 1.2 + 0.2);
   vib.stop(t + dauer * 1.2 + 0.2);
   musikRassel(ton, ziel, t, laut * 0.25, 3000, 0.12); // Atem
+}
+
+/** Angeschlagen: Grundton und ein unharmonischer Teilton, langes Ausklingen. */
+function musikGlocke(ton, ziel, f, t, dauer, laut) {
+  for (const [faktor, anteil] of [[1, 1], [2.76, 0.35], [5.4, 0.12]]) {
+    const o = ton.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = f * faktor;
+    const g = huelle(ton, t, 0.004, 0.01, dauer, laut * anteil);
+    o.connect(g);
+    g.connect(ziel);
+    o.start(t);
+    o.stop(t + dauer + 0.1);
+  }
 }
 
 function musikTrommel(ton, ziel, t, f, laut) {

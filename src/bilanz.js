@@ -1,6 +1,8 @@
 // Bilanz: Siege und Niederlagen, die Tagesherausforderung und Erfolge --
 // alles im Browser gespeichert, nur Oberflaeche.
 
+import { FACTIONS } from './sim/defs.js';
+
 const BILANZ_SPEICHER = 'dreiReiche.bilanz';
 
 export function bilanzLesen() {
@@ -10,7 +12,7 @@ export function bilanzLesen() {
   } catch {
     /* kaputt oder gesperrt: neu anfangen */
   }
-  return { partien: { mensch: [0, 0], gott: [0, 0] }, erfolge: {}, tage: {}, gewonnenMit: {} };
+  return { partien: { mensch: [0, 0], gott: [0, 0], tod: [0, 0] }, erfolge: {}, tage: {}, gewonnenMit: {} };
 }
 function bilanzSchreiben(b) {
   try {
@@ -33,7 +35,7 @@ export function tagesHerausforderung(datum = new Date()) {
     h = (h * 1103515245 + 12345) & 0x7fffffff;
     return h % n;
   };
-  const volk = wuerfel(2) ? 'gott' : 'mensch';
+  const volk = ['mensch', 'gott', 'tod'][wuerfel(3)];
   const stil = ['sturm', 'standard', 'burg'][wuerfel(3)];
   const stufe = wuerfel(3) === 0 ? 'schwer' : 'mittel';
   return { tag, seed: tag, volk, stil, stufe, karte: 'zufall', datum: `${datum.getDate()}.${datum.getMonth() + 1}.` };
@@ -50,6 +52,7 @@ function zeitText(min) {
 export const ERFOLGE = [
   { id: 'erster-sieg', name: 'Erster Sieg', text: 'Gewinne eine Partie.', pruef: (i) => i.gewonnen },
   { id: 'zwei-seelen', name: 'Zwei Seelen', text: 'Gewinne mit beiden Völkern.', pruef: (i, b) => b.gewonnenMit.mensch && b.gewonnenMit.gott },
+  { id: 'totenwacht', name: 'Totenwacht', text: 'Gewinne mit dem Todesgott.', pruef: (i) => i.gewonnen && i.volk === 'tod' },
   { id: 'haerteprobe', name: 'Härteprobe', text: 'Gewinne gegen die KI auf „schwer“.', pruef: (i) => i.gewonnen && !i.online && !i.mission && i.stufe === 'schwer' },
   { id: 'sturmlauf', name: 'Sturmlauf', text: 'Gewinne in weniger als 15 Minuten.', pruef: (i) => i.gewonnen && !i.mission && i.minuten < 15 },
   { id: 'eiserne-linie', name: 'Eiserne Linie', text: 'Gewinne mit weniger als 10 Verlusten.', pruef: (i) => i.gewonnen && !i.mission && i.verluste < 10 },
@@ -91,15 +94,16 @@ export function bilanzHtml() {
   const b = bilanzLesen();
   const h = tagesHerausforderung();
   const best = b.tage[h.tag];
-  const volk = h.volk === 'mensch' ? 'Menschen' : 'Gott';
+  const volk = FACTIONS[h.volk].kurz;
   const zahl = Object.keys(b.erfolge).length;
-  const [ms, mn] = b.partien.mensch || [0, 0];
-  const [gs, gn] = b.partien.gott || [0, 0];
+  const bilanz = Object.keys(FACTIONS)
+    .map((f) => `${FACTIONS[f].kurz} ${(b.partien[f] || [0, 0]).join(':')}`)
+    .join(' · ');
   return `<div class="bilanz">
     <div><b>📅 Tagesherausforderung ${h.datum}</b> ${volk} gegen ${STILNAME[h.stil]} (${STUFENNAME[h.stufe]}) auf einer Karte, die es nur heute gibt
       <button id="tagesStart">Annehmen</button>${best ? ` <span class="ok">Bestzeit heute ${zeitText(best)}</span>` : ''}</div>
     <div><b>🏆 Erfolge ${zahl}/${ERFOLGE.length}</b> <button id="erfolgeZeigen">ansehen</button>
-      <span>Bilanz: Menschen ${ms}:${mn} · Gott ${gs}:${gn}</span></div>
+      <span>Bilanz: ${bilanz}</span></div>
   </div>`;
 }
 

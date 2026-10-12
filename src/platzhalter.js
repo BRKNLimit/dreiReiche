@@ -12,6 +12,10 @@ import { MODELLE_DEF } from './modelle3d.js';
 const PLATZHALTER_ICONS = {};
 for (const [k, v] of Object.entries(PLATZHALTER_ICONS)) ICONS[k] ??= v;
 
+// Andere Schluessel im Spiel als in Geminis Entwurf (Totenreich): Faehigkeit -> Icon
+const ICON_NAMEN = { grabeskaelte: 'grabesklaelte', seelenrausch: 'seelenernte' };
+for (const [k, v] of Object.entries(ICON_NAMEN)) ICONS[k] ??= ICONS[v];
+
 // Schluessel -> Teile wie in src/modelle3d.js
 const PLATZHALTER_MODELLE = {};
 if (typeof MODELLE_DEF !== 'undefined') {

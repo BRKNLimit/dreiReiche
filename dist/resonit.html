@@ -357,7 +357,7 @@
 </dl></div>
 </div>
 <script>
-const SPIEL_STAND = 'e3c47f3ac8';
+const SPIEL_STAND = 'addd754457';
 
 /* ---------------------------------- */
 
@@ -433,6 +433,9 @@ const FACTIONS = {
     // Radius steht bei Bauende fest. Planbar, sofort, ueberall gleich.
     growth: { start: 2600, max: 2600, perTick: 0 },
     kommandant: 'held',
+    haupt: 'halle',
+    kurz: 'Menschen',
+    bauten: ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium', 'spaehposten'], // Bauleiste, Tasten 1-0
     faehigkeiten: ['schlachtruf', 'schildwall', 'ansturm'], // Reihenfolge = Tasten Q, W, E
   },
   gott: {
@@ -443,7 +446,24 @@ const FACTIONS = {
     // start 950 statt 900: bei 160 KI-Partien ausgeglichen (docs/scope.md).
     growth: { start: 950, max: 5200, perTick: 1 },
     kommandant: 'waldgott',
+    haupt: 'herzbaum',
+    kurz: 'Gott',
+    bauten: ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'],
     faehigkeiten: ['wurzelgriff', 'lebenssaft', 'rudelruf'],
+  },
+  // Das Totenreich (Entwurf: Gemini, erweiterungen/). Die Domaene waechst
+  // nicht mit der Zeit, sondern mit den Toten: Jede Einheit, die im Umkreis
+  // eines Ankers faellt -- Freund oder Feind --, dehnt ihn um perTod aus.
+  // Designzahlen, gemessen in docs/scope.md (Abschnitt 24).
+  tod: {
+    name: 'Todesgott',
+    color: '#a9c4e0',
+    growth: { start: 1400, max: 5000, perTick: 0, perTod: 180 },
+    kommandant: 'todesgott',
+    haupt: 'nekropole',
+    kurz: 'Todesgott',
+    bauten: ['seelenbrunnen', 'knochenmuehle', 'grabhuegel', 'katakombe', 'fleischwurz', 'pestaltar', 'ossuarium', 'knochenturm', 'totenarchiv'],
+    faehigkeiten: ['grabeskaelte', 'seelenrausch', 'knochensturm'],
   },
 };
 
@@ -751,6 +771,141 @@ const BUILDINGS = {
     buildTime: 230,
     forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
   },
+  // ---------------------------------------------------------- Totenreich
+  nekropole: {
+    name: 'Nekropole',
+    sicht: 1300,
+    desc: 'Hauptgebäude des Todesgottes. Fällt sie, ist die Partie verloren. Trägt die Startbasis und weckt Totengräber, Skelettkrieger und Aasgeier.',
+    anchorMin: 4000,
+    short: 'NEK',
+    faction: 'tod',
+    hp: 5000,
+    radius: 90,
+    anchor: true,
+    gegenwartOut: 24,
+    cost: { fron: 0 },
+    buildTime: 0,
+    buildList: ['totengraeber', 'skelettkrieger', 'aasgeier'],
+    vital: true,
+  },
+  grabhuegel: {
+    name: 'Grabhügel',
+    sicht: 900,
+    desc: 'Anker: klein am Anfang. Jede Einheit, die in seinem Umkreis fällt — Freund oder Feind —, dehnt ihn aus.',
+    short: 'GRB',
+    faction: 'tod',
+    hp: 650,
+    radius: 48,
+    anchor: true,
+    cost: { fron: 115 },
+    buildTime: 160,
+  },
+  knochenturm: {
+    name: 'Knochenturm',
+    sicht: 1200,
+    desc: 'Verteidigung: schleudert Knochenspeere auf Feinde in Reichweite. Braucht Gegenwart — ohne schläft er.',
+    short: 'KNT',
+    faction: 'tod',
+    hp: 3000,
+    radius: 40,
+    gegenwartIn: 10,
+    prio: PRIO.zorn,
+    cost: { fron: 300 },
+    buildTime: 250,
+    kampf: 'fern',
+    weapon: { range: 900, damage: 60, cooldown: 4 },
+  },
+  seelenbrunnen: {
+    name: 'Seelenbrunnen',
+    desc: 'Liefert Gegenwart in sein Domänennetz — Kraft für Fabriken, Förderung und Altäre.',
+    short: 'SBN',
+    faction: 'tod',
+    hp: 800,
+    radius: 60,
+    gegenwartOut: 40,
+    cost: { fron: 280 },
+    buildTime: 230,
+  },
+  knochenmuehle: {
+    name: 'Knochenmühle',
+    desc: 'Fördert Fron auf einem Steinvorkommen.',
+    short: 'KNM',
+    faction: 'tod',
+    hp: 700,
+    radius: 55,
+    gegenwartIn: 14,
+    prio: PRIO.segen,
+    fronOut: 360,
+    cost: { fron: 150 },
+    buildTime: 170,
+    needs: 'fron',
+  },
+  fleischwurz: {
+    name: 'Fleischwurz',
+    desc: 'Fördert Götterblut aus einer Ader.',
+    short: 'FLW',
+    faction: 'tod',
+    hp: 900,
+    radius: 60,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    blutOut: 40,
+    cost: { fron: 250 },
+    buildTime: 210,
+    needs: 'goetterblut',
+  },
+  katakombe: {
+    name: 'Katakombe',
+    desc: 'Fabrik: weckt die Heere der Ruhelosen. Braucht viel Gegenwart.',
+    short: 'KAT',
+    faction: 'tod',
+    hp: 1500,
+    radius: 80,
+    gegenwartIn: 55,
+    prio: PRIO.werk,
+    cost: { fron: 400 },
+    buildTime: 340,
+    buildList: ['skelettkrieger', 'klageweib', 'grabwaechter', 'knochentitan'],
+  },
+  pestaltar: {
+    name: 'Pestaltar',
+    desc: 'Schrein des Zorns: Wer in seiner Nähe kämpft, schlägt härter zu.',
+    short: 'PAL',
+    faction: 'tod',
+    hp: 600,
+    radius: 40,
+    gegenwartIn: 15,
+    prio: PRIO.zorn,
+    cost: { fron: 160 },
+    buildTime: 170,
+    buff: { zorn: 300, radius: 3000 },
+  },
+  ossuarium: {
+    name: 'Ossuarium',
+    desc: 'Schrein der Wehr: Knochenwände dämpfen den Schaden, den die eigenen Krieger nehmen.',
+    short: 'OSS',
+    faction: 'tod',
+    hp: 700,
+    radius: 50,
+    gegenwartIn: 15,
+    prio: PRIO.wehr,
+    cost: { fron: 160 },
+    buildTime: 170,
+    buff: { wehr: 250, radius: 3000 },
+  },
+  totenarchiv: {
+    name: 'Totenarchiv',
+    desc: 'Forschung: Das Wissen der Toten bringt schneller Skillpunkte.',
+    short: 'TAR',
+    faction: 'tod',
+    hp: 900,
+    radius: 55,
+    gegenwartIn: 20,
+    prio: PRIO.segen,
+    cost: { fron: 250 },
+    buildTime: 230,
+    forschung: 500, // wie Skriptorium und Raunende Eiche
+  },
 };
 
 // unterhalt: laufende Kosten in Fron pro Minute. Grosse Heere fressen die
@@ -963,6 +1118,103 @@ const UNITS = {
     kampf: 'nah',
     weapon: { range: 30, damage: 12, cooldown: 10, gebaeude: 240, vorrang: 'gebaeude' },
   },
+  // ---------------------------------------------------------- Totenreich
+  todesgott: {
+    name: 'Todesgott',
+    sicht: 1000,
+    desc: 'Kommandant: Fürst des Übergangs mit der Seelensense. Baut mit voller Kraft und wirft Seelenlanzen. Fällt er, ist die Partie verloren.',
+    faction: 'tod',
+    hp: 6000,
+    radius: 40,
+    speed: 22,
+    cost: { fron: 0 },
+    buildTime: 0,
+    kampf: 'fern',
+    weapon: { range: 360, damage: 44, cooldown: 6 },
+    commander: true,
+    build: { power: 1000 },
+  },
+  totengraeber: {
+    name: 'Totengräber',
+    desc: 'Arbeiter: baut Gebäude, auch außerhalb der Domäne. Kämpft nur zur Not.',
+    faction: 'tod',
+    hp: 200,
+    radius: 24,
+    speed: 28,
+    cost: { fron: 50 },
+    unterhalt: 5,
+    buildTime: 90,
+    worker: true,
+    build: { power: 500 },
+    kampf: 'nah',
+    weapon: { range: 20, damage: 6, cooldown: 7 },
+  },
+  skelettkrieger: {
+    name: 'Skelettkrieger',
+    desc: 'Günstiger, unermüdlicher Nahkämpfer — stark in der Masse.',
+    faction: 'tod',
+    hp: 180,
+    radius: 25,
+    speed: 31,
+    cost: { fron: 45 }, // Designzahl: Geminis 40 Fron / 5 Unterhalt gewannen 48 : 22 gegen die Menschen
+    unterhalt: 7,
+    buildTime: 70,
+    kampf: 'nah',
+    weapon: { range: 20, damage: 9, cooldown: 6 },
+  },
+  aasgeier: {
+    name: 'Aasgeier',
+    sicht: 1000,
+    desc: 'Späher: fliegt schnell über Fels, Wasser und Mauern. Ein Schuss holt ihn herunter. Kämpft nicht.',
+    faction: 'tod',
+    hp: 8,
+    radius: 12,
+    speed: 50,
+    cost: { fron: 35 },
+    unterhalt: 2,
+    buildTime: 60,
+    fliegt: true,
+  },
+  klageweib: {
+    name: 'Klageweib',
+    desc: 'Fernkämpferin: Ihre Schreie treffen aus der Ferne.',
+    faction: 'tod',
+    hp: 220,
+    radius: 26,
+    speed: 27,
+    cost: { fron: 70 },
+    unterhalt: 10,
+    buildTime: 120,
+    kampf: 'fern',
+    weapon: { range: 460, damage: 15, cooldown: 7 },
+  },
+  grabwaechter: {
+    name: 'Grabwächter',
+    desc: 'Schwer gerüstet aus Obsidian und Götterblut — kaum zu brechen.',
+    faction: 'tod',
+    hp: 850,
+    radius: 34,
+    speed: 22,
+    cost: { fron: 160, goetterblut: 12 },
+    unterhalt: 22,
+    buildTime: 230,
+    kampf: 'nah',
+    weapon: { range: 28, damage: 32, cooldown: 8 },
+  },
+  knochentitan: {
+    name: 'Knochentitan',
+    sicht: 700,
+    desc: 'Belagerung: ein Koloss aus Gebeinen. Zerschmettert Gebäude, gegen Krieger kaum zu gebrauchen.',
+    faction: 'tod',
+    hp: 1800,
+    radius: 52,
+    speed: 14,
+    cost: { fron: 270 },
+    unterhalt: 30,
+    buildTime: 310,
+    kampf: 'nah',
+    weapon: { range: 32, damage: 14, cooldown: 10, gebaeude: 250, vorrang: 'gebaeude' },
+  },
 };
 
 // ------------------------------------------------------------- Skillbaum
@@ -1097,6 +1349,63 @@ const SKILLS = {
     faction: 'gott', ast: 'kommandant', name: 'Rudelruf', kosten: 2, braucht: ['wurzelgriff'], faehigkeit: 'rudelruf',
     desc: 'Ein Heulen, und das Rudel kommt.',
   },
+  // ---------------------------------------------------------- Totenreich (wie der Baum des Gottes)
+  klageweiber: {
+    faction: 'tod', ast: 'einheiten', name: 'Klageweiber wecken', kosten: 1, frei: ['klageweib'],
+    desc: 'Die Katakomben rufen Klageweiber — ihre Schreie treffen aus der Ferne.',
+  },
+  grabwaechterweihe: {
+    faction: 'tod', ast: 'einheiten', name: 'Grabwächter weihen', kosten: 2, braucht: ['klageweiber'], frei: ['grabwaechter'],
+    desc: 'Die Katakomben erwecken Grabwächter aus Obsidian und Götterblut.',
+  },
+  titanenform: {
+    faction: 'tod', ast: 'einheiten', name: 'Knochentitan formen', kosten: 2, braucht: ['klageweiber'], frei: ['knochentitan'],
+    desc: 'Ein Koloss aus Gebeinen bricht Mauern und Festungen.',
+  },
+  pestweihe: {
+    faction: 'tod', ast: 'gebaeude', name: 'Pestaltar', kosten: 1, frei: ['pestaltar'],
+    desc: 'Schrein des Zorns: kalter Hauch schärft die Hiebe.',
+  },
+  beinhaus: {
+    faction: 'tod', ast: 'gebaeude', name: 'Ossuarium', kosten: 1, frei: ['ossuarium'],
+    desc: 'Schrein der Wehr: Knochenwände dämpfen Schaden.',
+  },
+  pestodem: {
+    faction: 'tod', ast: 'verbesserung', name: 'Pestodem', kosten: 1, wirkung: { schaden: 100 },
+    desc: 'Giftige Hiebe für alle.',
+  },
+  knochenhaertung: {
+    faction: 'tod', ast: 'verbesserung', name: 'Knochenhärtung', kosten: 1, braucht: ['pestodem'], wirkung: { schutz: 100 },
+    desc: 'Versteinerte Gebeine für alle.',
+  },
+  seelenernte: {
+    faction: 'tod', ast: 'verbesserung', name: 'Seelenernte', kosten: 1, wirkung: { foerderung: 200 },
+    desc: 'Knochenmühle und Fleischwurz arbeiten ergiebiger.',
+  },
+  grabeskuehle: {
+    faction: 'tod', ast: 'verbesserung', name: 'Grabeskühle', kosten: 1, braucht: ['seelenernte'], wirkung: { ausbildung: 250 },
+    desc: 'Die Toten erwachen rascher aus ihren Grüften.',
+  },
+  ewigerDienst: {
+    faction: 'tod', ast: 'verbesserung', name: 'Ewiger Dienst', kosten: 2, braucht: ['grabeskuehle'], wirkung: { unterhalt: 250 },
+    desc: 'Tote fordern wenig — der Unterhalt sinkt.',
+  },
+  nekromantie: {
+    faction: 'tod', ast: 'kommandant', name: 'Nekromantische Aura', kosten: 1, wirkung: { kdtSchutz: 200 },
+    desc: 'Der Todesgott hält mehr aus.',
+  },
+  grabeskaelte: {
+    faction: 'tod', ast: 'kommandant', name: 'Grabeskälte', kosten: 2, braucht: ['nekromantie'], faehigkeit: 'grabeskaelte',
+    desc: 'Der Boden gefriert und hält Feinde fest.',
+  },
+  seelenrausch: {
+    faction: 'tod', ast: 'kommandant', name: 'Seelenrausch', kosten: 2, braucht: ['nekromantie'], faehigkeit: 'seelenrausch',
+    desc: 'Die Wut der Ruhelosen: mehr Schaden für die Krieger in der Nähe.',
+  },
+  knochensturm: {
+    faction: 'tod', ast: 'kommandant', name: 'Knochensturm', kosten: 2, braucht: ['grabeskaelte'], faehigkeit: 'knochensturm',
+    desc: 'Skelettkrieger brechen aus der Erde und kämpfen eine Weile mit.',
+  },
 };
 
 // Aktive Faehigkeiten der Kommandanten, je drei, freigeschaltet im
@@ -1119,6 +1428,9 @@ const FAEHIGKEITEN = {
   wurzelgriff: { name: 'Wurzelgriff', art: 'griff', reichweite: 1600, radius: 600, dauer: 80, abklingen: 700 },
   lebenssaft: { name: 'Lebenssaft', art: 'heilung', radius: 900, wert: 300, abklingen: 900 },
   rudelruf: { name: 'Rudelruf', art: 'rufen', einheit: 'wolf', anzahl: 3, dauer: 400, abklingen: 1200 },
+  grabeskaelte: { name: 'Grabeskälte', art: 'griff', reichweite: 1600, radius: 700, dauer: 90, abklingen: 750 },
+  seelenrausch: { name: 'Seelenrausch', art: 'ruf', radius: 900, dauer: 140, wert: 350, abklingen: 900 },
+  knochensturm: { name: 'Knochensturm', art: 'rufen', einheit: 'skelettkrieger', anzahl: 4, dauer: 300, abklingen: 1100 },
 };
 const START_FRON = 1100;
 
@@ -1581,7 +1893,8 @@ function anchorRadius(world, e) {
   const g = FACTIONS[world.players[e.player].faction].growth;
   const age = world.tick - e.doneAt;
   // anchorMin: Hauptgebaeude tragen mindestens die eigene Startbasis.
-  return Math.max(def.anchorMin || 0, Math.min(g.max, g.start + age * g.perTick));
+  // perTod (Totenreich): jede im Umkreis gefallene Einheit dehnt den Anker aus, siehe seelenZaehlen()
+  return Math.max(def.anchorMin || 0, Math.min(g.max, g.start + age * g.perTick + (e.seelen || 0) * (g.perTod || 0)));
 }
 
 const PER_MIN = 600 * 1000;
@@ -1628,7 +1941,7 @@ function setupMap(world) {
 
   for (let p = 0; p < 2; p++) {
     const f = world.players[p].faction;
-    const home = f === 'mensch' ? 'halle' : 'herzbaum';
+    const home = FACTIONS[f].haupt;
     spawnBuilding(world, p, home, p === 0 ? lo : hi, p === 0 ? lo : hi, true);
   }
   if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
@@ -1662,6 +1975,7 @@ function spawnBuilding(world, player, type, x, y, finished = false) {
     queueProgress: 0,
     sammelX: -1, // Sammelpunkt fuer neue Einheiten; -1: keiner
     sammelY: -1,
+    seelen: 0, // Gefallene im Umkreis (nur Anker mit growth.perTod)
     cooldown: 0,
     dead: false,
   };
@@ -3122,6 +3436,7 @@ function cleanup(world) {
     const e = world.entities[i];
     if (e.dead || !e.vergehtBei || world.tick < e.vergehtBei) continue;
     e.dead = true;
+    e.vergangen = true; // vergangen, nicht gefallen -- zaehlt nicht als Seele
     world.events.push({ t: 'died', id: e.id, kind: e.kind, type: e.type, player: e.player, x: e.x, y: e.y });
   }
   let any = false;
@@ -3133,6 +3448,7 @@ function cleanup(world) {
   }
   if (!any) return;
 
+  seelenZaehlen(world);
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (!e.dead) continue;
@@ -3149,6 +3465,27 @@ function cleanup(world) {
   if (alive.length === 1) {
     world.over = true;
     world.winner = alive[0].id;
+  }
+}
+
+/**
+ * Totenreich: Jede Einheit, die in diesem Tick gefallen ist, zaehlt als Seele
+ * fuer jeden fertigen Anker mit growth.perTod, in dessen Umkreis sie lag --
+ * gleich welchen Spielers. Herbeigerufene, die nur vergehen, zaehlen nicht.
+ * Reihenfolge nach Array-Index, deterministisch.
+ */
+function seelenZaehlen(world) {
+  const anker = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const b = world.entities[i];
+    if (b.dead || b.kind !== 'building' || !b.done || !BUILDINGS[b.type].anchor) continue;
+    if (FACTIONS[world.players[b.player].faction].growth.perTod) anker.push([b, anchorRadius(world, b)]);
+  }
+  if (!anker.length) return;
+  for (let i = 0; i < world.entities.length; i++) {
+    const u = world.entities[i];
+    if (!u.dead || u.kind !== 'unit' || u.vergangen) continue;
+    for (const [b, r] of anker) if (dist2(u.x, u.y, b.x, b.y) <= r * r) b.seelen++;
   }
 }
 
@@ -3240,6 +3577,7 @@ function hash(world) {
       mix(e.sammelY);
       mix(e.queue.length);
       mix(e.powered);
+      mix(e.seelen || 0);
     }
   }
   for (let p = 0; p < world.players.length; p++) {
@@ -3682,6 +4020,11 @@ const PLAN = {
     zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche',
     bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe',
   },
+  tod: {
+    anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe',
+    zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv',
+    bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier',
+  },
 };
 
 // Reihenfolge im Skillbaum: erst die Fernkaempfer, dann Zorn und Schaden,
@@ -3695,6 +4038,10 @@ const LERNEN = {
   gott: [
     'waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss',
     'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf',
+  ],
+  tod: [
+    'klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte',
+    'beinhaus', 'titanenform', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'ewigerDienst', 'seelenrausch', 'knochensturm',
   ],
 };
 
@@ -5337,6 +5684,10 @@ const ICONS = {
 const PLATZHALTER_ICONS = {};
 for (const [k, v] of Object.entries(PLATZHALTER_ICONS)) ICONS[k] ??= v;
 
+// Andere Schluessel im Spiel als in Geminis Entwurf (Totenreich): Faehigkeit -> Icon
+const ICON_NAMEN = { grabeskaelte: 'grabesklaelte', seelenrausch: 'seelenernte' };
+for (const [k, v] of Object.entries(ICON_NAMEN)) ICONS[k] ??= ICONS[v];
+
 // Schluessel -> Teile wie in src/modelle3d.js
 const PLATZHALTER_MODELLE = {};
 if (typeof MODELLE_DEF !== 'undefined') {
@@ -5795,6 +6146,20 @@ function gruppenHtml(world, auswahl) {
 }
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+// ------------------------------------------------------------ Voelker
+/** Kurzname eines Volks: Menschen, Gott, Todesgott. */
+const volkName = (f) => (FACTIONS[f] ? FACTIONS[f].kurz : f);
+/** Gegner-Volk: gewaehlt, sonst (auto) Menschen gegen Gott und alle anderen gegen die Menschen. */
+function gegnerVolkFuer(f, wahl = 'auto') {
+  if (wahl && wahl !== 'auto' && FACTIONS[wahl]) return wahl;
+  return f === 'mensch' ? 'gott' : 'mensch';
+}
+/** Auswahl des Gegner-Volks fuer den Startbildschirm. */
+function gegnerVolkHtml(gewaehlt) {
+  const knopf = (v, name) => `<label><input type="radio" name="gegnerVolk" value="${v}"${v === gewaehlt ? ' checked' : ''}> ${name}</label>`;
+  return `<div class="stil">Gegner-Volk: ${knopf('auto', 'das andere')}${Object.keys(FACTIONS).map((f) => knopf(f, FACTIONS[f].kurz)).join('')}</div>`;
+}
+
 // ------------------------------------------------------------ Beobachter (Zuschauen, Wiederholung)
 /** Beide Seiten auf einen Blick: Vorrat, Foerderung, Heer, Einheiten, Gebaeude, Skills. */
 function beobachterHtml(world) {
@@ -5813,7 +6178,7 @@ function beobachterHtml(world) {
       }
     }
     return {
-      name: pl.faction === 'mensch' ? 'Menschen' : 'Gott',
+      name: volkName(pl.faction),
       farbe: FACTIONS[pl.faction].color,
       fron: pl.fron | 0,
       foerderung: Math.round(foerderungProMin(world, p)),
@@ -5835,15 +6200,16 @@ function beobachterHtml(world) {
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
 const NEUHEITEN = {
-  version: '0.37',
+  version: '0.38',
   punkte: [
+    '<b>Neu: der Todesgott</b> als drittes Volk — seine Grabhügel wachsen mit den Toten. „Als Todesgott spielen“, und das Gegner-Volk ist jetzt wählbar',
     '<b>Zwei Kampagnen</b> mit Geschichte, Zielen und Funksprüchen — „Die Rodung“ (Menschen) und „Der Zorn des Waldes“ (Gott)',
     '<b>Online gegen einen Menschen</b> — ohne Server: zwei Codes per Chat austauschen, im Spiel Enter für Nachrichten',
     '<b>Spielstände</b>: F5 speichert, F9 lädt, beim Schließen automatisch — oben „Fortsetzen“',
     '<b>Pausenmenü</b> (F10 oder ☰) mit Aufgeben und Hauptmenü',
     '<b>Musik</b>, die das Spiel selbst erzeugt, mit Trommeln im Kampf (N schaltet)',
     '<b>Wiederholungen</b> mit Zeitleiste: springen, bis ×16, durch die Augen eines Spielers',
-    '<b>Tagesherausforderung</b>, <b>12 Erfolge</b> und <b>Überleben</b> gegen endlose Wellen (Rekord je Volk)',
+    '<b>Tagesherausforderung</b>, <b>13 Erfolge</b> und <b>Überleben</b> gegen endlose Wellen (Rekord je Volk)',
     '<b>Zufallskarten</b> und der <b>Karteneditor</b>; Geminis High-Res-Modelle und Wasser',
     '<b>2D ⇄ 3D</b> mitten in der Partie wechseln, <b>Fotomodus</b> in 3D (P), Kartenvorschau, Beobachter-Tafel beim Zuschauen',
     '<b>📖 Kodex</b> aller Einheiten und Gebäude, <b>Einstellungen</b> (Lautstärke, Wackeln), Doppelklick wählt alle eines Typs, Shift+Klick bildet fünf aus',
@@ -5871,14 +6237,14 @@ function neuheitenGesehen() {
 }
 
 // ------------------------------------------------------------ Kodex (Startbildschirm)
-let kodexWelt = null; // leere Partie, nur damit die Karten Sperren nennen koennen
+const kodexWelten = {}; // je Volk eine leere Partie, nur damit die Karten Sperren nennen koennen
 function kodexKnopfHtml() {
   return '<div class="stil"><button id="kodexOeffnen">📖 Kodex — alle Einheiten und Gebäude</button></div>';
 }
 
 function kodexHtml(volk, typ) {
-  if (!kodexWelt) kodexWelt = createWorld({ factions: ['mensch', 'gott'] });
-  const p = volk === 'mensch' ? 0 : 1;
+  const kodexWelt = (kodexWelten[volk] ??= createWorld({ factions: [volk, gegnerVolkFuer(volk)] }));
+  const p = 0;
   const einheiten = Object.keys(UNITS).filter((k) => UNITS[k].faction === volk);
   const bauten = Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].faction === volk);
   const knopf = (k, name) => `<button class="ikon${k === typ ? ' an' : ''}" data-kodex="${k}" title="${name}">${ICONS[k] || ''}<span>${name}</span></button>`;
@@ -5889,7 +6255,7 @@ function kodexHtml(volk, typ) {
       : gebaeudeKarte(kodexWelt, p, typ);
   const volkKnopf = (v, name) => `<button data-volk="${v}"${v === volk ? ' class="an"' : ''}>${name}</button>`;
   return `<div class="vorwort kodex"><div class="kapitel">Kodex</div><h1 style="color:${FACTIONS[volk].color}">${FACTIONS[volk].name}</h1>
-    <div class="go">${volkKnopf('mensch', 'Menschen')}${volkKnopf('gott', 'Wald- und Wiesengott')}</div>
+    <div class="go">${Object.keys(FACTIONS).map((f) => volkKnopf(f, FACTIONS[f].name)).join('')}</div>
     <h2>Einheiten</h2><div class="kodexgitter">${einheiten.map((k) => knopf(k, UNITS[k].name)).join('')}</div>
     <h2>Gebäude</h2><div class="kodexgitter">${bauten.map((k) => knopf(k, BUILDINGS[k].name)).join('')}</div>
     <div class="kodexkarte">${karteHtml}</div>
@@ -6316,6 +6682,16 @@ const WAFFEN = {
   ent: { hieb: 'wucht', treffer: 'wucht', beben: 5, auf: 'krach', schwer: true },
   wurzelbrecher: { hieb: 'wucht', treffer: 'wucht', beben: 6, auf: 'krach', schwer: true },
 };
+// Totenreich: kaltes Seelenlicht, Knochenspeere
+Object.assign(WAFFEN, {
+  todesgott: { geschoss: 'glut', tempo: 850, bogen: 0.14, farbe: '#7fe8ff', groesse: 2, treffer: 'magie', beben: 3, ab: 'glanz', auf: 'glutschlag' },
+  klageweib: { geschoss: 'licht', tempo: 1200, bogen: 0.04, farbe: '#bfe9ff', groesse: 1, treffer: 'magie', ab: 'zisch', auf: 'glanz' },
+  knochenturm: { geschoss: 'dorn', tempo: 1250, bogen: 0.1, farbe: '#e2e8f0', groesse: 1.4, treffer: 'splitter', ab: 'zisch', auf: 'pfeil' },
+  skelettkrieger: { hieb: 'klinge', treffer: 'funken', auf: 'klinge' },
+  grabwaechter: { hieb: 'klinge', treffer: 'funken', beben: 1, auf: 'klinge', farbe: '#9fe8ff', schwer: true },
+  totengraeber: { hieb: 'stumpf', treffer: 'staub', auf: 'stumpf' },
+  knochentitan: { hieb: 'wucht', treffer: 'wucht', beben: 6, auf: 'krach', schwer: true },
+});
 const DEFAULT = { hieb: 'stumpf', treffer: 'staub', auf: 'stumpf' };
 
 // Partikel je Treffer-Art: Anzahl, Farben, Tempo (dm/s), Steigen, Lebensdauer (s), Groesse (dm)
@@ -6821,6 +7197,12 @@ const MUSIK_STIMMUNG = {
     akkorde: [[0, 7, 14], [5, 12, 19], [-3, 4, 12], [2, 9, 14]],
     instrument: 'floete',
   },
+  tod: {
+    grund: 47, // H
+    leiter: [0, 1, 3, 5, 7, 8, 10], // phrygisch
+    akkorde: [[0, 7, 15], [1, 8, 13], [-2, 5, 13], [-4, 3, 12]],
+    instrument: 'glocke',
+  },
 };
 const musikHz = (midi) => 440 * 2 ** ((midi - 69) / 12);
 function neueMusik() {
@@ -6913,10 +7295,11 @@ function musikAchtel(mu, ton, t, dauer) {
     if (i % 8 === 0) midi = s.grund + 12 + akkord[(Math.random() * akkord.length) | 0];
     const laenge = dauer * (Math.random() < 0.3 ? 3 : 1.6);
     if (s.instrument === 'laute') musikLaute(ton, mu.trocken, musikHz(midi), t, laenge, 0.13);
+    else if (s.instrument === 'glocke') musikGlocke(ton, mu.trocken, musikHz(midi), t, laenge * 2.5, 0.08);
     else musikFloete(ton, mu.trocken, musikHz(midi), t, laenge * 1.4, 0.09);
   }
   // Trommeln, wenn gekaempft wird
-  if (k > 0.2 && i % 4 === 0) musikTrommel(ton, mu.trocken, t, mu.volk === 'gott' ? 55 : 75, 0.35 * k);
+  if (k > 0.2 && i % 4 === 0) musikTrommel(ton, mu.trocken, t, { gott: 55, tod: 45 }[mu.volk] || 75, 0.35 * k);
   if (k > 0.45 && i % 4 === 2) musikRassel(ton, mu.trocken, t, 0.08 * k, mu.volk === 'gott' ? 5000 : 2200);
   if (k > 0.7 && i % 2 === 1) musikRassel(ton, mu.trocken, t, 0.05 * k, 6500);
 }
@@ -6995,6 +7378,20 @@ function musikFloete(ton, ziel, f, t, dauer, laut) {
   o.stop(t + dauer * 1.2 + 0.2);
   vib.stop(t + dauer * 1.2 + 0.2);
   musikRassel(ton, ziel, t, laut * 0.25, 3000, 0.12); // Atem
+}
+
+/** Angeschlagen: Grundton und ein unharmonischer Teilton, langes Ausklingen. */
+function musikGlocke(ton, ziel, f, t, dauer, laut) {
+  for (const [faktor, anteil] of [[1, 1], [2.76, 0.35], [5.4, 0.12]]) {
+    const o = ton.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = f * faktor;
+    const g = huelle(ton, t, 0.004, 0.01, dauer, laut * anteil);
+    o.connect(g);
+    g.connect(ziel);
+    o.start(t);
+    o.stop(t + dauer + 0.1);
+  }
 }
 
 function musikTrommel(ton, ziel, t, f, laut) {
@@ -7849,7 +8246,7 @@ function schnellInfo() {
   const w = r.s.zustand.world;
   const wann = new Date(r.s.zeit);
   const uhr = `${wann.getDate()}.${wann.getMonth() + 1}. ${wann.getHours()}:${String(wann.getMinutes()).padStart(2, '0')}`;
-  const volk = w.players[0].faction === 'mensch' ? 'Menschen' : 'Gott';
+  const volk = FACTIONS[w.players[0].faction].kurz;
   const mission = r.s.extra && r.s.extra.missionTitel ? ` · ${r.s.extra.missionTitel}` : '';
   return `${volk}${mission}, ${(w.tick / 600).toFixed(1).replace('.', ',')} min — gespeichert ${uhr}`;
 }
@@ -8044,7 +8441,11 @@ function onlineHtml() {
 function gastgeberHtml(karteName) {
   return `<div class="vorwort online-dialog"><div class="kapitel">Online · Gastgeber</div><h1>Spiel eröffnen</h1>
     <p>Du spielst <label><input type="radio" name="onlineVolk" value="mensch" checked> Menschen</label>
-    <label><input type="radio" name="onlineVolk" value="gott"> Gott</label> auf der Karte <b>${karteName}</b>.</p>
+    <label><input type="radio" name="onlineVolk" value="gott"> Gott</label>
+    <label><input type="radio" name="onlineVolk" value="tod"> Todesgott</label> auf der Karte <b>${karteName}</b>.</p>
+    <p>Dein Mitspieler spielt <label><input type="radio" name="onlineGast" value="mensch"> Menschen</label>
+    <label><input type="radio" name="onlineGast" value="gott" checked> Gott</label>
+    <label><input type="radio" name="onlineGast" value="tod"> Todesgott</label>.</p>
     <p>1. Schicke diesen Code deinem Mitspieler (Chat, Mail …):</p>
     <textarea id="onlineCode" readonly rows="3">Code wird erzeugt …</textarea>
     <div class="go"><button id="onlineKopieren" disabled>Kopieren</button></div>
@@ -8097,11 +8498,12 @@ async function onlineEroeffnen(el, k) {
     offen: (kanal) => {
       const volk = document.querySelector('input[name="onlineVolk"]:checked');
       const f = volk ? volk.value : 'mensch';
+      const gast = document.querySelector('input[name="onlineGast"]:checked');
       const config = {
         t: 'start',
         stand: typeof SPIEL_STAND !== 'undefined' ? SPIEL_STAND : 'dev',
         seed: (Date.now() / 1000) | 0,
-        factions: [f, f === 'mensch' ? 'gott' : 'mensch'],
+        factions: [f, gast ? gast.value : 'gott'],
         karte: karte.schluessel,
         karteDaten: karte.daten,
       };
@@ -8180,7 +8582,7 @@ function bilanzLesen() {
   } catch {
     /* kaputt oder gesperrt: neu anfangen */
   }
-  return { partien: { mensch: [0, 0], gott: [0, 0] }, erfolge: {}, tage: {}, gewonnenMit: {} };
+  return { partien: { mensch: [0, 0], gott: [0, 0], tod: [0, 0] }, erfolge: {}, tage: {}, gewonnenMit: {} };
 }
 function bilanzSchreiben(b) {
   try {
@@ -8203,7 +8605,7 @@ function tagesHerausforderung(datum = new Date()) {
     h = (h * 1103515245 + 12345) & 0x7fffffff;
     return h % n;
   };
-  const volk = wuerfel(2) ? 'gott' : 'mensch';
+  const volk = ['mensch', 'gott', 'tod'][wuerfel(3)];
   const stil = ['sturm', 'standard', 'burg'][wuerfel(3)];
   const stufe = wuerfel(3) === 0 ? 'schwer' : 'mittel';
   return { tag, seed: tag, volk, stil, stufe, karte: 'zufall', datum: `${datum.getDate()}.${datum.getMonth() + 1}.` };
@@ -8220,6 +8622,7 @@ function zeitText(min) {
 const ERFOLGE = [
   { id: 'erster-sieg', name: 'Erster Sieg', text: 'Gewinne eine Partie.', pruef: (i) => i.gewonnen },
   { id: 'zwei-seelen', name: 'Zwei Seelen', text: 'Gewinne mit beiden Völkern.', pruef: (i, b) => b.gewonnenMit.mensch && b.gewonnenMit.gott },
+  { id: 'totenwacht', name: 'Totenwacht', text: 'Gewinne mit dem Todesgott.', pruef: (i) => i.gewonnen && i.volk === 'tod' },
   { id: 'haerteprobe', name: 'Härteprobe', text: 'Gewinne gegen die KI auf „schwer“.', pruef: (i) => i.gewonnen && !i.online && !i.mission && i.stufe === 'schwer' },
   { id: 'sturmlauf', name: 'Sturmlauf', text: 'Gewinne in weniger als 15 Minuten.', pruef: (i) => i.gewonnen && !i.mission && i.minuten < 15 },
   { id: 'eiserne-linie', name: 'Eiserne Linie', text: 'Gewinne mit weniger als 10 Verlusten.', pruef: (i) => i.gewonnen && !i.mission && i.verluste < 10 },
@@ -8261,15 +8664,16 @@ function bilanzHtml() {
   const b = bilanzLesen();
   const h = tagesHerausforderung();
   const best = b.tage[h.tag];
-  const volk = h.volk === 'mensch' ? 'Menschen' : 'Gott';
+  const volk = FACTIONS[h.volk].kurz;
   const zahl = Object.keys(b.erfolge).length;
-  const [ms, mn] = b.partien.mensch || [0, 0];
-  const [gs, gn] = b.partien.gott || [0, 0];
+  const bilanz = Object.keys(FACTIONS)
+    .map((f) => `${FACTIONS[f].kurz} ${(b.partien[f] || [0, 0]).join(':')}`)
+    .join(' · ');
   return `<div class="bilanz">
     <div><b>📅 Tagesherausforderung ${h.datum}</b> ${volk} gegen ${STILNAME[h.stil]} (${STUFENNAME[h.stufe]}) auf einer Karte, die es nur heute gibt
       <button id="tagesStart">Annehmen</button>${best ? ` <span class="ok">Bestzeit heute ${zeitText(best)}</span>` : ''}</div>
     <div><b>🏆 Erfolge ${zahl}/${ERFOLGE.length}</b> <button id="erfolgeZeigen">ansehen</button>
-      <span>Bilanz: Menschen ${ms}:${mn} · Gott ${gs}:${gn}</span></div>
+      <span>Bilanz: ${bilanz}</span></div>
   </div>`;
 }
 function erfolgeHtml() {
@@ -9613,6 +10017,622 @@ function zeichneGebaeude2d(ctx, e, def, x, y, r, farbe, zoom, zeit) {
 
 /* ---------------------------------- */
 
+const { zeichneErweiterungEinheit2d, zeichneErweiterungGebaeude2d } = (() => {
+// Figuren der 2D-Draufsicht fuer die Erweiterungen: Todesgott & Elite-Einheiten.
+// Gehoert zur Grafik (siehe GEMINI.md).
+//
+// Rendert Einheiten und Gebaeude praezise auf dem 2D-Canvas.
+//   ctx    CanvasRenderingContext2D (Pixel)
+//   e      Entity: e.type, e.player, e.hp, e.maxHp, e.done, e.progress, e.powered
+//   def    Definition aus sim_defs.js
+//   x, y   Mitte auf dem Schirm; r Radius in Pixeln
+//   farbe  Volksfarbe (#8b9bb4 fuer Tod, #d8b06a fuer Menschen, #8fb86a fuer Gott)
+//   zoom   Pixel je Dezimeter
+//   zeit   performance.now() in ms
+
+const blick2d = new Map();
+const posVorher2d = new Map();
+
+function einheitWinkel(e) {
+  const v = posVorher2d.get(e.id);
+  if (v && (Math.abs(e.x - v[0]) + Math.abs(e.y - v[1]) > 4)) {
+    const w = Math.atan2(e.y - v[1], e.x - v[0]);
+    blick2d.set(e.id, w);
+    posVorher2d.set(e.id, [e.x, e.y]);
+    return w;
+  }
+  if (!v) posVorher2d.set(e.id, [e.x, e.y]);
+  if (blick2d.has(e.id)) return blick2d.get(e.id);
+  const w = e.player === 0 ? Math.PI / 4 : -3 * Math.PI / 4;
+  blick2d.set(e.id, w);
+  return w;
+}
+
+/** Zeichnet eine Erweiterungs-Einheit in der 2D-Draufsicht. */
+function zeichneErweiterungEinheit2d(ctx, e, def, x, y, r, farbe, zoom, zeit) {
+  if (r < 2) return false;
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  if (r < 5.5) {
+    ctx.fillStyle = farbe;
+    ctx.beginPath();
+    if (def.commander) {
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    } else if (def.fliegt) {
+      ctx.moveTo(r, 0);
+      ctx.lineTo(-r, -r * 0.7);
+      ctx.lineTo(-r * 0.5, 0);
+      ctx.lineTo(-r, r * 0.7);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return true;
+  }
+
+  const winkel = def.fliegt ? (zeit * 0.002) : einheitWinkel(e);
+  ctx.rotate(winkel);
+
+  const t = zeit * 0.001;
+
+  switch (e.type) {
+    // ----------------------------------------------------------- Todesgott
+    case 'todesgott': {
+      // Schwarze zerschlissene Schattencape
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.15, 0, r * 0.8, r * 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Aschgraue Kapuze
+      ctx.fillStyle = '#334155';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.55, r * 0.65, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Dunkles Antlitz & Glühende Zyan-Augen
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.ellipse(r * 0.15, 0, r * 0.3, r * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(r * 0.22, -r * 0.18, r * 0.12, r * 0.12);
+      ctx.fillRect(r * 0.22, r * 0.06, r * 0.12, r * 0.12);
+      // Seelensense an der Seite
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = Math.max(1.2, r * 0.18);
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.6, r * 0.75);
+      ctx.lineTo(r * 1.1, r * 0.75);
+      ctx.stroke();
+      // Klinge mit Zyan-Glut
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = Math.max(1.5, r * 0.25);
+      ctx.beginPath();
+      ctx.arc(r * 1.0, r * 0.3, r * 0.45, 0, Math.PI * 0.7);
+      ctx.stroke();
+      break;
+    }
+
+    case 'totengraeber': {
+      // Robe & Schaufel
+      ctx.fillStyle = '#334155';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.6, r * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#64748b';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      // Schaufel
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = Math.max(1, r * 0.16);
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.7, -r * 0.6);
+      ctx.lineTo(r * 0.9, -r * 0.6);
+      ctx.stroke();
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(r * 0.7, -r * 0.8, r * 0.35, r * 0.4);
+      break;
+    }
+
+    case 'skelettkrieger': {
+      // Bleiche Knochenbrust & Helm
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.1, 0, r * 0.5, r * 0.75, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Dunkle Rippen
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.3, -r * 0.4); ctx.lineTo(r * 0.1, -r * 0.4);
+      ctx.moveTo(-r * 0.3, 0); ctx.lineTo(r * 0.1, 0);
+      ctx.moveTo(-r * 0.3, r * 0.4); ctx.lineTo(r * 0.1, r * 0.4);
+      ctx.stroke();
+      // Schädel
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(r * 0.2, 0, r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      // Knochenschwert & Schild
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = Math.max(1, r * 0.18);
+      ctx.beginPath();
+      ctx.moveTo(r * 0.1, r * 0.6);
+      ctx.lineTo(r * 1.25, r * 0.6);
+      ctx.stroke();
+      // Knochenschild
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(-r * 0.2, -r * 0.8, r * 0.4, r * 0.25);
+      break;
+    }
+
+    case 'aasgeier': {
+      // Ausgebreitete Schwingen
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.moveTo(r * 0.9, 0);
+      ctx.lineTo(-r * 0.7, -r * 1.2);
+      ctx.lineTo(-r * 0.2, 0);
+      ctx.lineTo(-r * 0.7, r * 1.2);
+      ctx.closePath();
+      ctx.fill();
+      // Weißer Schädel
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.arc(r * 0.5, 0, r * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'klageweib': {
+      // Spektraler Schemen mit Schwingen aus Nebel
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#bae6fd';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.1, 0, r * 0.5, r * 0.65, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Geisterkopf
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(r * 0.2, 0, r * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(r * 0.25, 0, r * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'grabwaechter': {
+      // Gewaltige Obsidianpanzerung
+      ctx.fillStyle = '#090d16';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.75, r * 0.95, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ef4444'; // Blutader-Insignie
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      // Schwere Breitaxt
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = Math.max(1.5, r * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.3, r * 0.75);
+      ctx.lineTo(r * 1.3, r * 0.75);
+      ctx.stroke();
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(r * 0.9, r * 0.5, r * 0.4, r * 0.5);
+      break;
+    }
+
+    case 'knochentitan': {
+      // Gewaltiger Schädelkoloss
+      ctx.fillStyle = '#475569';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.1, 0, r * 0.85, r * 0.95, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#cbd5e1';
+      ctx.beginPath();
+      ctx.arc(r * 0.2, 0, r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      // Rammhörner vorn
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.moveTo(r * 0.5, -r * 0.7);
+      ctx.lineTo(r * 1.3, -r * 0.85);
+      ctx.lineTo(r * 0.7, -r * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(r * 0.5, r * 0.7);
+      ctx.lineTo(r * 1.3, r * 0.85);
+      ctx.lineTo(r * 0.7, r * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+
+    // ----------------------------------------------------------- Elite: Menschen
+    case 'paladin': {
+      // Glänzender Plattenpanzer mit Goldwappen
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.7, r * 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Ordenswappen & Kreuz
+      ctx.fillStyle = '#d8b06a';
+      ctx.fillRect(-r * 0.35, -r * 0.15, r * 0.7, r * 0.3);
+      ctx.fillRect(-r * 0.15, -r * 0.35, r * 0.3, r * 0.7);
+      // Prachthelm mit Goldfeder
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      // Zweihandschwert
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = Math.max(1.5, r * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.2, r * 0.75);
+      ctx.lineTo(r * 1.45, r * 0.75);
+      ctx.stroke();
+      break;
+    }
+
+    case 'wagenburg': {
+      // Rechteckiger Holzkasten mit Eisenverstrebung
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(-r * 0.9, -r * 0.7, r * 1.8, r * 1.4);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = Math.max(1.5, r * 0.18);
+      ctx.strokeRect(-r * 0.9, -r * 0.7, r * 1.8, r * 1.4);
+      // Schießscharten
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(r * 0.7, -r * 0.4, r * 0.25, r * 0.25);
+      ctx.fillRect(r * 0.7, r * 0.15, r * 0.25, r * 0.25);
+      // Goldene Fahne
+      ctx.fillStyle = '#d8b06a';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.4, 0);
+      ctx.lineTo(r * 0.2, -r * 0.3);
+      ctx.lineTo(r * 0.2, r * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+
+    case 'scharfschuetze': {
+      // Tarnumhang
+      ctx.fillStyle = '#3f6212';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.15, 0, r * 0.6, r * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Übergroße Armbrust
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = Math.max(1.5, r * 0.24);
+      ctx.beginPath();
+      ctx.moveTo(r * 0.1, 0);
+      ctx.lineTo(r * 1.4, 0);
+      ctx.stroke();
+      ctx.strokeStyle = '#d8b06a';
+      ctx.lineWidth = Math.max(1.2, r * 0.16);
+      ctx.beginPath();
+      ctx.arc(r * 1.1, 0, r * 0.6, -Math.PI * 0.4, Math.PI * 0.4);
+      ctx.stroke();
+      break;
+    }
+
+    case 'priester': {
+      // Weiße und goldene Festrobe
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.65, r * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Goldene Stola
+      ctx.fillStyle = '#d8b06a';
+      ctx.fillRect(-r * 0.2, -r * 0.6, r * 0.4, r * 1.2);
+      // Weihrauch-Aura (pulsierend)
+      ctx.strokeStyle = 'rgba(216, 176, 106, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.95 + Math.sin(t * 3) * 1.5, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+
+    // ----------------------------------------------------------- Elite: Waldgott
+    case 'moosbaer': {
+      // Breiter, massiger Moospelz
+      ctx.fillStyle = '#15803d';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.1, 0, r * 0.8, r * 0.95, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Wuchtiger Kopf mit Pranken
+      ctx.fillStyle = '#3f2e1a';
+      ctx.beginPath();
+      ctx.arc(r * 0.45, 0, r * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      // Mooskragen
+      ctx.strokeStyle = '#86efac';
+      ctx.lineWidth = Math.max(1.2, r * 0.16);
+      ctx.stroke();
+      break;
+    }
+
+    case 'fluesterer': {
+      // Robe aus Flechten und Ranken
+      ctx.fillStyle = '#166534';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.6, r * 0.75, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Hölzerner Runenstab
+      ctx.strokeStyle = '#854d0e';
+      ctx.lineWidth = Math.max(1.2, r * 0.18);
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.4, r * 0.65);
+      ctx.lineTo(r * 1.2, r * 0.65);
+      ctx.stroke();
+      ctx.fillStyle = '#86efac';
+      ctx.beginPath();
+      ctx.arc(r * 1.1, r * 0.65, r * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'kronenhirsch': {
+      // Schlanker athletischer Körper
+      ctx.fillStyle = '#78350f';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.2, 0, r * 0.5, r * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Hirschkopf
+      ctx.fillStyle = '#92400e';
+      ctx.beginPath();
+      ctx.ellipse(r * 0.35, 0, r * 0.3, r * 0.22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Gewaltiges golden-grünes Geweih
+      ctx.strokeStyle = '#8fb86a';
+      ctx.lineWidth = Math.max(1.2, r * 0.16);
+      ctx.beginPath();
+      ctx.moveTo(r * 0.35, -r * 0.2);
+      ctx.lineTo(r * 0.75, -r * 0.8);
+      ctx.lineTo(r * 1.1, -r * 0.95);
+      ctx.moveTo(r * 0.35, r * 0.2);
+      ctx.lineTo(r * 0.75, r * 0.8);
+      ctx.lineTo(r * 1.1, r * 0.95);
+      ctx.stroke();
+      break;
+    }
+
+    case 'dornenhydra': {
+      // Zentraler Dornenstrunk
+      ctx.fillStyle = '#14532d';
+      ctx.beginPath();
+      ctx.arc(-r * 0.2, 0, r * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      // Drei Schlangenköpfe fächerförmig nach vorn
+      ctx.strokeStyle = '#15803d';
+      ctx.lineWidth = Math.max(1.5, r * 0.2);
+      for (const w of [-0.4, 0, 0.4]) {
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.2, 0);
+        ctx.lineTo(Math.cos(w) * r * 1.25, Math.sin(w) * r * 1.25);
+        ctx.stroke();
+        ctx.fillStyle = '#8fb86a';
+        ctx.beginPath();
+        ctx.arc(Math.cos(w) * r * 1.25, Math.sin(w) * r * 1.25, r * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+
+    default:
+      ctx.restore();
+      return false;
+  }
+
+  ctx.restore();
+  return true;
+}
+
+/** Zeichnet ein Erweiterungs-Gebäude in der 2D-Draufsicht. */
+function zeichneErweiterungGebaeude2d(ctx, e, def, x, y, r, farbe, zoom, zeit) {
+  if (r < 2) return false;
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  if (!e.done) {
+    ctx.globalAlpha = 0.55;
+  }
+
+  switch (e.type) {
+    case 'nekropole': {
+      // Rechteckiger Basiskomplex mit Innenhof
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-r * 0.9, -r * 0.9, r * 1.8, r * 1.8);
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = Math.max(1.5, r * 0.1);
+      ctx.strokeRect(-r * 0.9, -r * 0.9, r * 1.8, r * 1.8);
+      // Giebel & Knochenpfeiler
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      // Seelenfeuer im Zentrum
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'grabhuegel': {
+      // Runder Erdhügel mit Monolith
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2);
+      ctx.fill();
+      // Knochenkranz
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = Math.max(1.2, r * 0.12);
+      ctx.stroke();
+      // Monolith im Zentrum
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(-r * 0.25, -r * 0.35, r * 0.5, r * 0.7);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(-r * 0.08, -r * 0.2, r * 0.16, r * 0.4);
+      break;
+    }
+
+    case 'knochenturm': {
+      // Achteckige Basis
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = Math.max(1.2, r * 0.15);
+      ctx.stroke();
+      // Kristallspitze
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'seelenbrunnen': {
+      // Brunnenring
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+      // Wirbelndes Zyan-Wasser
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#bae6fd';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'knochenmuehle': {
+      // Mahlwerk mit 4 Knochenspeichen
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = Math.max(1.5, r * 0.15);
+      const rot = (zeit || 0) * 0.0015;
+      for (let i = 0; i < 4; i++) {
+        const a = rot + (i * Math.PI) / 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(a) * r * 0.75, Math.sin(a) * r * 0.75);
+        ctx.stroke();
+      }
+      break;
+    }
+
+    case 'fleischwurz': {
+      // Fleischiger Kern
+      ctx.fillStyle = '#450a0a';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2);
+      ctx.fill();
+      // Blutranken
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = Math.max(1.5, r * 0.18);
+      for (let i = 0; i < 5; i++) {
+        const a = (i * Math.PI * 2) / 5;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(a) * r * 0.95, Math.sin(a) * r * 0.95);
+        ctx.stroke();
+      }
+      break;
+    }
+
+    case 'katakombe': {
+      // Grufteingang
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(-r * 0.8, -r * 0.8, r * 1.6, r * 1.6);
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = Math.max(1.2, r * 0.12);
+      ctx.strokeRect(-r * 0.8, -r * 0.8, r * 1.6, r * 1.6);
+      // Abstiegstreppe
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(-r * 0.45, -r * 0.45, r * 0.9, r * 0.9);
+      break;
+    }
+
+    case 'pestaltar': {
+      // Altarplatte
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(-r * 0.75, -r * 0.5, r * 1.5, r * 1.0);
+      // Grünes Giftlicht
+      ctx.fillStyle = '#10b981';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'ossuarium': {
+      // Knochenschrein
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(-r * 0.85, -r * 0.85, r * 1.7, r * 1.7);
+      ctx.fillStyle = '#e2e8f0';
+      for (let dx = -0.5; dx <= 0.5; dx += 0.5) {
+        for (let dy = -0.5; dy <= 0.5; dy += 0.5) {
+          ctx.beginPath();
+          ctx.arc(dx * r, dy * r, r * 0.16, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      break;
+    }
+
+    case 'totenarchiv': {
+      // Krypta mit Folianten
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(-r * 0.4, -r * 0.25, r * 0.8, r * 0.5);
+      break;
+    }
+
+    default:
+      ctx.restore();
+      return false;
+  }
+
+  ctx.restore();
+  return true;
+}
+
+return { zeichneErweiterungEinheit2d, zeichneErweiterungGebaeude2d };
+})();
+
+/* ---------------------------------- */
+
 // Darstellung und Eingabe. Gelaende-Zeichnung liegt in src/gelaende2d.js
 // (siehe GEMINI.md). Aendert den Simulationszustand nie direkt,
 // sondern nur ueber issue(). Wird von tools/bundle.mjs mit der Sim
@@ -9630,6 +10650,7 @@ let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
 let gegnerStil = 'standard'; // Stil der Gegner-KI, im Startbildschirm waehlbar
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
+let gegnerVolk = 'auto'; // Volk des Gegners, im Startbildschirm waehlbar (auto: das andere)
 let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 let ME = 0; // eigener Sitzplatz -- online als Gast 1
 let skillsOffen = false; // T: Skillbaum
@@ -9740,7 +10761,13 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   }
   meFaction = f;
   if (online) meFaction = online.config.factions[online.ich]; // als Gast das zweite Volk
-  const gegner = f === 'mensch' ? 'gott' : 'mensch';
+  const gegner = online
+    ? online.config.factions[1]
+    : wdh
+      ? wdh.factions[1]
+      : geladen
+        ? geladen.world.players[1].faction
+        : gegnerVolkFuer(f, m ? 'auto' : gegnerVolk);
   const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : tagesAktiv ? tagesAktiv.seed : (Date.now() / 1000) | 0;
   const karte = online
     ? { schluessel: online.config.karte, daten: online.config.karteDaten || KARTEN[online.config.karte] }
@@ -10213,9 +11240,7 @@ function befehl(x, y, anhaengen = false) {
 }
 
 function bauListe() {
-  return meFaction === 'mensch'
-    ? ['schmiede', 'saege', 'grenzstein', 'kaserne', 'schacht', 'banner', 'kapelle', 'wachturm', 'skriptorium', 'spaehposten']
-    : ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'];
+  return FACTIONS[meFaction].bauten;
 }
 
 function renderBar() {
@@ -10572,7 +11597,9 @@ function drawEntities() {
       const def = BUILDINGS[e.type];
       const r = Math.max(4, def.radius * cam.z);
       // Figur aus src/figuren2d.js (Gemini), sonst ein Quadrat
-      if (!zeichneGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
+      // Totenreich: Geminis Figuren aus erweiterungen/figuren2d.js (src/figuren2d.js malt sonst seine Ersatzform)
+      const figurTod = def.faction === 'tod' && zeichneErweiterungGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now());
+      if (!figurTod && !zeichneGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
         ctx.fillStyle = e.done ? '#1d2118' : '#171a13';
         ctx.strokeStyle = col;
         ctx.lineWidth = def.vital ? 2.5 : 1.5;
@@ -10636,7 +11663,8 @@ function drawEntities() {
         }
       }
       // Figur aus src/figuren2d.js (Gemini), sonst die einfache Form
-      if (!zeichneEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
+      const figurTod = def.faction === 'tod' && zeichneErweiterungEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now());
+      if (!figurTod && !zeichneEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
         ctx.fillStyle = col;
         ctx.beginPath();
         if (def.commander) ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -11116,11 +12144,13 @@ function introHtml() {
         .map((s) => `<label><input type="radio" name="stufe" value="${s}"${s === gegnerStufe ? ' checked' : ''}> ${STUFEN_NAMEN[s]}</label>`)
         .join('')}
     </div>
+    ${gegnerVolkHtml(gegnerVolk)}
     ${kartenWahlHtml(karteSchluessel)}
 ${wiederholungWahlHtml()}
     <div class="go">
       <button id="introMensch">Als Menschen spielen</button>
       <button id="introGott">Als Gott spielen</button>
+      <button id="introTod">Als Todesgott spielen</button>
       <button id="introSchau">Zuschauen</button>
     </div>`;
 }
@@ -11135,6 +12165,8 @@ function starte(f, zuschauen) {
   if (gewaehlt) gegnerStil = gewaehlt.value;
   const stufe = document.querySelector?.('#intro input[name="stufe"]:checked');
   if (stufe) gegnerStufe = stufe.value;
+  const volk = document.querySelector?.('#intro input[name="gegnerVolk"]:checked');
+  if (volk) gegnerVolk = volk.value;
   const karte = document.querySelector?.('#intro input[name="karte"]:checked');
   if (karte) karteSchluessel = karte.value;
   document.getElementById('intro').style.display = 'none';
@@ -11319,7 +12351,7 @@ function zeitleisteZeigen() {
     el.innerHTML = '';
     return;
   }
-  const name = (p) => (world.players[p].faction === 'mensch' ? 'Menschen' : 'Gott');
+  const name = (p) => volkName(world.players[p].faction);
   const knopf = (wert, text, an) => `<button data-${wert}${an ? ' class="an"' : ''}>${text}</button>`;
   el.innerHTML = `<button id="wdhSpiel" title="Abspielen / Anhalten (Leertaste)">⏯</button>
     <button data-sprung="-300" title="30 s zurück">−30 s</button><button data-sprung="300" title="30 s vor">+30 s</button>
@@ -11529,6 +12561,7 @@ function startbildschirm() {
   el.style.display = '';
   document.getElementById('introMensch').onclick = () => starte('mensch', false);
   document.getElementById('introGott').onclick = () => starte('gott', false);
+  document.getElementById('introTod').onclick = () => starte('tod', false);
   document.getElementById('introSchau').onclick = () => starte('mensch', true);
   kampagneVerdrahten(el, missionWaehlen);
   kartenVorschauVerdrahten(el);

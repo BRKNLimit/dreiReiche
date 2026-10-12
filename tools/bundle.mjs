@@ -16,6 +16,14 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+// Dateien mit eigenen Hilfsnamen, die sich mit anderen beissen wuerden: in eine
+// Funktion gekapselt, nur ihre Exporte werden sichtbar.
+const GEKAPSELT = ['erweiterungen/figuren2d.js'];
+function kapseln(src) {
+  const namen = [...src.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|class)\s+(\w+)/gm)].map((m) => m[1]);
+  return `const { ${namen.join(', ')} } = (() => {\n${strip(src)}\nreturn { ${namen.join(', ')} };\n})();`;
+}
+
 /** Entfernt Modul-Syntax, damit alles in einem Skript-Gueltigkeitsbereich lebt. */
 function strip(src) {
   return src
@@ -26,7 +34,7 @@ function strip(src) {
 
 const SIM = ['src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/kunde.js', 'src/sim/kartenbau.js', 'src/sim/ai.js'];
 const SEITEN = [
-  ['src/shell.html', [...SIM, 'src/icons.js', 'src/platzhalter.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/musik.js', 'src/aufnahme.js', 'src/kampagne.js', 'src/spielstand.js', 'src/netz.js', 'src/bilanz.js', 'src/gelaende2d.js', 'src/figuren2d.js', 'src/ui.js'], 'dist/resonit.html'],
+  ['src/shell.html', [...SIM, 'src/icons.js', 'src/platzhalter.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/musik.js', 'src/aufnahme.js', 'src/kampagne.js', 'src/spielstand.js', 'src/netz.js', 'src/bilanz.js', 'src/gelaende2d.js', 'src/figuren2d.js', 'erweiterungen/figuren2d.js', 'src/ui.js'], 'dist/resonit.html'],
   [
     'src/shell3d.html',
     [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/musik.js', 'src/aufnahme.js', 'src/kampagne.js', 'src/spielstand.js', 'src/netz.js', 'src/bilanz.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/gelaende3d.js', 'src/ui3d.js'],
@@ -46,7 +54,10 @@ for (const [shellPfad, dateien, ziel] of SEITEN) {
   const shell = await readFile(join(root, shellPfad), 'utf8');
   const teile = [];
   if (dateien.includes('src/sim/sim.js')) teile.push(STAND_ZEILE);
-  for (const f of dateien) teile.push(strip(await readFile(join(root, f), 'utf8')));
+  for (const f of dateien) {
+    const src = await readFile(join(root, f), 'utf8');
+    teile.push(GEKAPSELT.includes(f) ? kapseln(src) : strip(src));
+  }
   const out = shell.replace('/*__SIM__*/', teile.join('\n\n/* ---------------------------------- */\n\n'));
   await writeFile(join(root, ziel), out);
   console.log(ziel + ' geschrieben (' + (out.length / 1024).toFixed(0) + ' KB)');

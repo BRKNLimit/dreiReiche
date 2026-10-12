@@ -190,7 +190,11 @@ export function onlineHtml() {
 function gastgeberHtml(karteName) {
   return `<div class="vorwort online-dialog"><div class="kapitel">Online · Gastgeber</div><h1>Spiel eröffnen</h1>
     <p>Du spielst <label><input type="radio" name="onlineVolk" value="mensch" checked> Menschen</label>
-    <label><input type="radio" name="onlineVolk" value="gott"> Gott</label> auf der Karte <b>${karteName}</b>.</p>
+    <label><input type="radio" name="onlineVolk" value="gott"> Gott</label>
+    <label><input type="radio" name="onlineVolk" value="tod"> Todesgott</label> auf der Karte <b>${karteName}</b>.</p>
+    <p>Dein Mitspieler spielt <label><input type="radio" name="onlineGast" value="mensch"> Menschen</label>
+    <label><input type="radio" name="onlineGast" value="gott" checked> Gott</label>
+    <label><input type="radio" name="onlineGast" value="tod"> Todesgott</label>.</p>
     <p>1. Schicke diesen Code deinem Mitspieler (Chat, Mail …):</p>
     <textarea id="onlineCode" readonly rows="3">Code wird erzeugt …</textarea>
     <div class="go"><button id="onlineKopieren" disabled>Kopieren</button></div>
@@ -243,11 +247,12 @@ export async function onlineEroeffnen(el, k) {
     offen: (kanal) => {
       const volk = document.querySelector('input[name="onlineVolk"]:checked');
       const f = volk ? volk.value : 'mensch';
+      const gast = document.querySelector('input[name="onlineGast"]:checked');
       const config = {
         t: 'start',
         stand: typeof SPIEL_STAND !== 'undefined' ? SPIEL_STAND : 'dev',
         seed: (Date.now() / 1000) | 0,
-        factions: [f, f === 'mensch' ? 'gott' : 'mensch'],
+        factions: [f, gast ? gast.value : 'gott'],
         karte: karte.schluessel,
         karteDaten: karte.daten,
       };

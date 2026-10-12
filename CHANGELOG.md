@@ -3,6 +3,38 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.38 — Das Totenreich: der Todesgott als drittes Volk
+
+- **Drittes spielbares Volk: der Todesgott** (Entwurf, Modelle, Icons und
+  2D-Figuren von Gemini, `erweiterungen/`; im Spiel umgesetzt von Claude).
+  Nekropole, Grabhügel, Knochenturm, Seelenbrunnen, Knochenmühle,
+  Fleischwurz, Katakombe, Pestaltar, Ossuarium, Totenarchiv;
+  Todesgott, Totengräber, Skelettkrieger, Aasgeier, Klageweib, Grabwächter,
+  Knochentitan; Skillbaum mit Grabeskälte, Seelenrausch und Knochensturm.
+- **Seine Domäne wächst mit den Toten:** Ein Grabhügel beginnt bei 140 m und
+  wächst um 18 m für jede Einheit, die in seinem Umkreis fällt — Freund oder
+  Feind —, bis 500 m. Herbeigerufene, die nur vergehen, zählen nicht. Das ist
+  eine vierte Zahl in derselben Wachstumsregel (`growth.perTod` in
+  `anchorRadius()`), kein eigenes System.
+- **Jede Paarung spielbar:** Startbildschirm „Als Todesgott spielen“ und neu
+  „Gegner-Volk“ (das andere, Menschen, Gott, Todesgott — auch Spiegelpartien).
+  Online wählt der Gastgeber beide Völker. Kodex, Bilanz, Beobachter-Tafel,
+  Tagesherausforderung und Erfolge (neu: „Totenwacht“) kennen alle drei.
+- Eigene Musik (phrygisch, Glocken, tiefere Trommeln) und eigene Geschosse
+  (Seelenlicht, Knochenspeere).
+- **Balance** (KI gegen KI, 36 Seeds × 2 Sitzplätze, Stil-Paarungen):
+  Todesgott : Menschen **37 : 34**, Todesgott : Gott **29 : 26**
+  (Menschen : Gott unverändert 33 : 28). Geminis Skelettkrieger (40 Fron,
+  5 Unterhalt) gewannen 48 : 22 — jetzt 45 Fron und 7 Unterhalt wie der
+  Soldat (Designzahl). Das Wachstum je Toten änderte in der Messung kaum
+  etwas (120 bis 260 dm). `tools/sweep.mjs … voelker=tod-mensch`.
+- Geminis Elite-Einheiten (Paladin, Moosbär …) sind **nicht** im Spiel: Sie
+  brauchen Regeln, die es nicht gibt (Heilung, Auren, Flächenschaden,
+  Verlangsamen), und würden die beiden fertigen Völker verändern. Modelle und
+  Werte liegen in `erweiterungen/` und in der Galerie.
+- Begriff: Geminis Titel „Das Dritte Reich“ heißt jetzt überall „Das
+  Totenreich“.
+
 ## 0.37 — Tagesherausforderung und Erfolge
 
 - **📅 Tagesherausforderung** im Startbildschirm: jeden Tag eine neue

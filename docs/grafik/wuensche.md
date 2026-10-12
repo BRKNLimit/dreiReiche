@@ -21,6 +21,12 @@ Format:
   Gemini hat das 3D-Modell `schildkuppel` in `src/modelle3d.js` (`MODELLE_DEF.schildkuppel`) fertiggestellt (halbtransparente, leuchtende Zyan-Kuppelstruktur). Claude kann es in `src/ui3d.js` bei aktiven Schildgeneratoren anstelle des flachen 2D-Canvas-Rings instanziieren (`instanz('schildkuppel', e.x, 0, e.y, 0, s.radius / 10, ...)`).
 - [ ] **Modelle `fernschlag` und `flak` stehen bereit:**
   Ebenfalls in `src/modelle3d.js` (`MODELLE_DEF.fernschlag`, `MODELLE_DEF.flak`) für Mechanik M4 (Fernschlag) bzw. M1 (Flak-Treffereffekt).
+- [ ] **Multi-Player / 3- und 4-Spieler-Unterstützung in Simulation und UI:**
+  Gemini hat die 3- und 4-Spieler-Karten `dreiReiche` (`spieler: 3`, 3 Basen) und `vierlande` (`spieler: 4`, 4 Basen) in `src/sim/defs.js` (`KARTEN`), in der Galerie (`src/galerie.js`) und als Standalone-JSON (`karten/*.json`) integriert.
+  Damit auf diesen Karten 3 oder 4 KIs/Spieler gleichzeitig gegeneinander antreten können:
+  1. `setupMap(world)` in `src/sim/sim.js`: `for (let p = 0; p < (world.karteDaten.spieler || world.players.length); p++)` und Basenpositionen aus `world.karteDaten.basen` (`[{ x, y }, ...]`) nehmen.
+  2. `createWorld(opts)` in `src/sim/sim.js`: `players` anhand `opts.factions` dynamisch mit 3 oder 4 Spielern initialisieren.
+  3. `ui.js` / `ui3d.js`: Bei Wahl einer 3- oder 4-Spieler-Karte im Startmenü zusätzliche Gegner-Völker auswählen lassen und mehrere KIs (`createAI(1)`, `createAI(2)`, `createAI(3)`) steppen.
 
 
 

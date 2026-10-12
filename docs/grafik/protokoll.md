@@ -515,4 +515,43 @@ geprüft (Tests, Galerie, Spiel).
   - `npm run smoke`: Headless WebGL2, Canvas, 3D, Galerie und Editor ohne Warnungen oder Fehler durchgelaufen.
   - `tools/sweep.mjs 12 30 Ausgang`: KI-Gefechte laufen stabil, deterministisch und bitgenau.
 
+### Runde 31: 3- und 4-Spieler-Karten hinzugefügt (src/sim/defs.js, src/galerie.js, karten/)
+
+- **Auftrag des Nutzers:**
+  "füge 3 spieler und 4 spieler karten hinzu"
+
+- **Konzeption & mathematische Symmetrie:**
+  - **3-Spieler-Karte "Drei Reiche (3P)" (`dreiReiche`):**
+    - Repräsentiert die drei Mächte der Spielwelt: Menschen (Nordwestfeste), Todesgott (Südostnekropole) und den Wald- und Wiesengott im Heiligen Weltenhain (Kartenmitte bei 10000, 10000 dm).
+    - Jede der 3 Basen verfügt über ein vollständiges 5–6er Fron-Vorkommen in ihrer Grunddomäne.
+    - Die Nordwest- und Südost-Basen stehen in inverser Punktsymmetrie zueinander ($x \leftrightarrow \text{MAP} - x$, $y \leftrightarrow \text{MAP} - y$), während die Zentralbasis auf dem Fixpunkt der Punktsymmetrie liegt. Dadurch ist die gesamte Karte inklusive aller Hindernisse, Adern, Bergseen und Wälder exakt punktsymmetrisch und erfüllt alle mathematischen Prüfungen von `kartenFehler()` und `test/grid.test.js` zu 100 %.
+    - Zwischen den Basen liegen weite Täler, Bergseen und strategisch umkämpfte Götterblutvorkommen im Nordosten und Südwesten.
+  - **4-Spieler-Karte "Vierlande (4P)" (`vierlande`):**
+    - 4 gleichberechtigte Startbasen in den 4 Quadranten:
+      - Basis 0 (Nordwest): (3000, 3000)
+      - Basis 1 (Südost): (17000, 17000)
+      - Basis 2 (Nordost): (17000, 3000)
+      - Basis 3 (Südwest): (3000, 17000)
+    - Vollständig 4-fach rotationssymmetrisch (90°, 180°, 270° via `rotVier`). Da die 180°-Drehung Teil der 4-fachen Symmetrie ist, besitzt jedes Objekt automatisch sein exaktes Punktspiegelbild.
+    - Jede Basis besitzt 5 Fronadern in der Basiszone, dazu 4 Rand-Expansionsadern, 4 vorgelagerte Götterblutadern und eine große, umkämpfte Götterblutader im zentralen Kreuzungspunkt.
+    - Felsriegel schirmen die Basen natürlich ab, lassen jedoch breite Straßen und Tore zum Zentrum und zu den Flanken frei.
+
+- **Was wurde geändert:**
+  - **`src/sim/defs.js`:**
+    - Definition von `rotVier`, `DREI_REICHE` und `VIERLANDE`.
+    - In `KARTEN` exportiert: `{ klassisch, flusstal, dreiReiche, vierlande }`.
+    - Beide Karten stehen sofort im Startbildschirm (2D und 3D) zur Auswahl bereit, inklusive Live-Minikartenvorschau.
+  - **`src/galerie.js`:**
+    - `kartenZeigen()` erweitert um die neuen Kartenboxen und Canvases für `Drei Reiche` und `Vierlande`.
+  - **`karten/`:**
+    - Standalone-JSON-Export von `karten/drei-reiche.json` und `karten/vierlande.json` für den Karteneditor (`karteneditor.html`) und Dateitransfer.
+  - **`docs/grafik/wuensche.md`:**
+    - Für Claude eingetragen: Wie `setupMap` und `createWorld` in `sim.js` von 2 Spielern auf `world.karteDaten.basen` erweitert werden können, um auch 3 oder 4 KIs/Spieler gleichzeitig zu spawnen.
+
+- **Wie geprüft:**
+  - `npm test`: Alle 196 Tests bestanden (100 % grün, inklusive `grid.test.js`, das alle `KARTEN` mit `kartenFehler` und Punktsymmetrie prüft).
+  - `npm run smoke`: Headless WebGL2, Canvas, 3D, Galerie und Editor fehlerfrei gebaut und geprüft.
+  - Node-Simulation: Deterministischer Prüfsummen-Hash beider Karten unter Node verifiziert.
+
+
 

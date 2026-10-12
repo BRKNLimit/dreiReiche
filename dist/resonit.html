@@ -358,7 +358,7 @@
 </dl></div>
 </div>
 <script>
-const SPIEL_STAND = '5c1f762480';
+const SPIEL_STAND = '7e208f7d1b';
 
 /* ---------------------------------- */
 
@@ -748,12 +748,12 @@ const VOLK_GOTT = {
     kommandant: 'waldgott',
     haupt: 'herzbaum',
     kurz: 'Gott',
-    bauten: ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'],
+    bauten: ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche', 'wipfelausguck'],
     faehigkeiten: ['wurzelgriff', 'lebenssaft', 'rudelruf'],
   },
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
-  rollen: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
+  rollen: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', posten: 'wipfelausguck', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
   // Reihenfolge, in der die KI den Skillbaum lernt
   lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf'],
   gebaeude: {
@@ -894,6 +894,17 @@ const VOLK_GOTT = {
       cost: { fron: 250 },
       buildTime: 230,
       forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
+    },
+    wipfelausguck: {
+      name: 'Wipfelausguck',
+      sicht: 2100,
+      desc: 'Spähposten: Weitsicht ins Umland von den Kronen uralter Bäume.',
+      short: 'WAU',
+      faction: 'gott',
+      hp: 400,
+      radius: 26,
+      cost: { fron: 70 },
+      buildTime: 90,
     },
   },
   einheiten: {
@@ -1086,12 +1097,12 @@ const VOLK_TOD = {
     kommandant: 'todesgott',
     haupt: 'nekropole',
     kurz: 'Todesgott',
-    bauten: ['seelenbrunnen', 'knochenmuehle', 'grabhuegel', 'katakombe', 'fleischwurz', 'pestaltar', 'ossuarium', 'knochenturm', 'totenarchiv'],
+    bauten: ['seelenbrunnen', 'knochenmuehle', 'grabhuegel', 'katakombe', 'fleischwurz', 'pestaltar', 'ossuarium', 'knochenturm', 'totenarchiv', 'geisterturm'],
     faehigkeiten: ['grabeskaelte', 'seelenrausch', 'knochensturm'],
   },
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
-  rollen: { anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe', zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv', bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier' },
+  rollen: { anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe', zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv', posten: 'geisterturm', bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier' },
   // Reihenfolge, in der die KI den Skillbaum lernt
   lernen: ['klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte', 'beinhaus', 'titanenform', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'ewigerDienst', 'seelenrausch', 'knochensturm'],
   gebaeude: {
@@ -1228,6 +1239,17 @@ const VOLK_TOD = {
       cost: { fron: 250 },
       buildTime: 230,
       forschung: 500, // wie Skriptorium und Raunende Eiche
+    },
+    geisterturm: {
+      name: 'Geisterturm',
+      sicht: 2100,
+      desc: 'Spähposten: Magisches Geisterlicht späht weit durch den Nebel.',
+      short: 'GTT',
+      faction: 'tod',
+      hp: 380,
+      radius: 26,
+      cost: { fron: 70 },
+      buildTime: 90,
     },
   },
   einheiten: {

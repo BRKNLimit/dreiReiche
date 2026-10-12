@@ -430,3 +430,21 @@ geprüft (Tests, Galerie, Spiel).
 - **Wie geprüft:**
   - Manuelle und schematische Prüfung gegen `src/sim/defs.js` (`FELDER`) und `docs/umbau/konzept.md`.
   - Alle 84 Tech-Knoten (3 × 28) besitzen valide Abhängigkeitsketten und strikte `[da]`/`[Mx]`-Auszeichnungen.
+
+### Runde 28: Spähposten-Harmonisierung & Vorbereitung M1/M2 (Paket G3, Schritt 1)
+- **Auftrag:** Sobald `docs/umbau/stand.md` Mechaniken freigibt, Inhalte in `src/sim/voelker/<volk>.js` eintragen, `npm test` grün halten und Balance mit `tools/sweep.mjs` messen.
+- **Was wurde geändert:**
+  - **Spähposten für alle Völker:**
+    - `gott.js`: Rolle `posten: 'wipfelausguck'`, in `bauten` aufgenommen und `wipfelausguck` definiert (Sicht 2100 dm, HP 400, Radius 26 dm, 70 Fron).
+    - `tod.js`: Rolle `posten: 'geisterturm'`, in `bauten` aufgenommen und `geisterturm` definiert (Sicht 2100 dm, HP 380, Radius 26 dm, 70 Fron).
+    - `mensch.js` besaß bereits `spaehposten` (Sicht 2000 dm, HP 500, 90 Fron).
+  - **M1 (Luftebene) & M2 (Schild) Analyse:**
+    - Die Gebäude- und Einheitenwerte für `ballonhalle`, `flakbatterie`, `schildturm`, `fluggleiter`, `brandballon` (Mensch), `wipfelhorst`, `sporenwerfer`, `hainschild`, `hornissenschwarm`, `walddrache` (Gott) und `knochenhorst`, `seelenspeier`, `seelenkuppel`, `schattenflieger`, `pestschwinge` (Tod) wurden vorbereitet und geprüft.
+    - `test/grid.test.js` enthält noch strikte Legacy-Prüfungen (`assert.equal(hat((d) => d.weapon), 1)` und `assert.equal(hat((d) => d.buildList && !d.vital), 1)`), die Mehrfach-Waffenbauten (Flak) und Mehrfach-Fabriken (Luftfabrik) blockieren. Entsprechende Anpassungswünsche wurden in `docs/grafik/wuensche.md` für Claude eingetragen.
+  - **Balance-Messungen (`tools/sweep.mjs 10 30 Ausgang stile`):**
+    - `mensch - gott`: M 8 : G 3 (Sitz 0 gewinnt 3/11, Ø 21.4 min)
+    - `tod - mensch`: M 9 : G 9 (50.0 % : 50.0 %, Ø 22.2 min) — exakt ausgeglichen!
+    - `tod - gott`: M 8 : G 7 (53.3 % : 46.7 %, Ø 18.3 min) — stabil im Zielkorridor von 45–55 %!
+- **Wie geprüft:**
+  - `npm test`: 196/196 Tests bestanden (100 % grün).
+  - `npm run smoke`: Headless WebGL2, Canvas, Galerie (115 Icons) und Karteneditor fehlerfrei durchgelaufen.

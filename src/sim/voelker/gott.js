@@ -17,12 +17,12 @@ export const VOLK_GOTT = {
     kommandant: 'waldgott',
     haupt: 'herzbaum',
     kurz: 'Gott',
-    bauten: ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche'],
+    bauten: ['quelle', 'moos', 'hain', 'dickicht', 'blutwurz', 'dornenschrein', 'steinkreis', 'waechterbaum', 'eiche', 'wipfelausguck'],
     faehigkeiten: ['wurzelgriff', 'lebenssaft', 'rudelruf'],
   },
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
-  rollen: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
+  rollen: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', posten: 'wipfelausguck', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
   // Reihenfolge, in der die KI den Skillbaum lernt
   lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf'],
   gebaeude: {
@@ -163,6 +163,17 @@ export const VOLK_GOTT = {
       cost: { fron: 250 },
       buildTime: 230,
       forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
+    },
+    wipfelausguck: {
+      name: 'Wipfelausguck',
+      sicht: 2100,
+      desc: 'Spähposten: Weitsicht ins Umland von den Kronen uralter Bäume.',
+      short: 'WAU',
+      faction: 'gott',
+      hp: 400,
+      radius: 26,
+      cost: { fron: 70 },
+      buildTime: 90,
     },
   },
   einheiten: {

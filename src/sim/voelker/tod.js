@@ -18,12 +18,12 @@ export const VOLK_TOD = {
     kommandant: 'todesgott',
     haupt: 'nekropole',
     kurz: 'Todesgott',
-    bauten: ['seelenbrunnen', 'knochenmuehle', 'grabhuegel', 'katakombe', 'fleischwurz', 'pestaltar', 'ossuarium', 'knochenturm', 'totenarchiv'],
+    bauten: ['seelenbrunnen', 'knochenmuehle', 'grabhuegel', 'katakombe', 'fleischwurz', 'pestaltar', 'ossuarium', 'knochenturm', 'totenarchiv', 'geisterturm'],
     faehigkeiten: ['grabeskaelte', 'seelenrausch', 'knochensturm'],
   },
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
-  rollen: { anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe', zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv', bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier' },
+  rollen: { anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe', zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv', posten: 'geisterturm', bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier' },
   // Reihenfolge, in der die KI den Skillbaum lernt
   lernen: ['klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte', 'beinhaus', 'titanenform', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'ewigerDienst', 'seelenrausch', 'knochensturm'],
   gebaeude: {
@@ -160,6 +160,17 @@ export const VOLK_TOD = {
       cost: { fron: 250 },
       buildTime: 230,
       forschung: 500, // wie Skriptorium und Raunende Eiche
+    },
+    geisterturm: {
+      name: 'Geisterturm',
+      sicht: 2100,
+      desc: 'Spähposten: Magisches Geisterlicht späht weit durch den Nebel.',
+      short: 'GTT',
+      faction: 'tod',
+      hp: 380,
+      radius: 26,
+      cost: { fron: 70 },
+      buildTime: 90,
     },
   },
   einheiten: {

@@ -48,6 +48,13 @@ let nebelTex = null;
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 let gruppen = {}; // Steuergruppen: Ziffer -> Ids
+let letzterKlick = { id: 0, zeit: 0 }; // fuer den Doppelklick
+/** Eigene Einheiten desselben Typs, die gerade auf dem Schirm sind. */
+function gleicherTypImBild(id) {
+  const e0 = byId(world, id);
+  if (!e0) return [id];
+  return world.entities.filter((e) => !e.dead && e.player === ME && e.type === e0.type && imBild3d(e.x, e.y)).map((e) => e.id);
+}
 let mission = null; // laufende Mission der Kampagne (src/kampagne.js), sonst null
 let missionStand = []; // erledigte Ziele der Mission
 let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
@@ -292,15 +299,7 @@ function renderBar() {
     b.onmouseleave = () => (karteTyp = null);
   }
   for (const b of bar.querySelectorAll('[data-produce]')) {
-    b.onclick = () => {
-      const u = b.dataset.produce;
-      if (!gesperrt(world, ME, u) && fabs.length) {
-        // Auf die ausgewaehlte Fabrik mit der kuerzesten Warteschlange verteilen (Supreme Commander-Stil)
-        const frei = fabs.filter((f) => f.queue.length < 8);
-        const ziel = frei.reduce((best, f) => (!best || f.queue.length < best.queue.length ? f : best), null);
-        if (ziel) issue(world, { type: 'produce', player: ME, id: ziel.id, unit: u });
-      }
-    };
+    b.onclick = (ev) => ausbildenVerteilt(world, ME, fabs, b.dataset.produce, ev && ev.shiftKey ? 5 : 1); // Shift: fuenf
     b.onmouseenter = () => (karteTyp = b.dataset.produce);
     b.onmouseleave = () => (karteTyp = null);
   }
@@ -524,6 +523,13 @@ addEventListener('mouseup', () => {
           return;
         }
       }
+    }
+    // Doppelklick auf eine Einheit: alle eigenen dieses Typs, die gerade im Bild sind
+    if (!box && picked.length === 1) {
+      const jetzt = performance.now();
+      const doppelt = letzterKlick.id === picked[0] && jetzt - letzterKlick.zeit < 350;
+      letzterKlick = { id: picked[0], zeit: jetzt };
+      if (doppelt) picked.splice(0, 1, ...gleicherTypImBild(picked[0]));
     }
     sel = drag.add ? [...new Set([...sel, ...picked])] : picked;
   }

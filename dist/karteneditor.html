@@ -5417,6 +5417,23 @@ function steuergruppenHtml(gruppen, world) {
   return out.join('');
 }
 
+/**
+ * Ausbilden auf die gewaehlten Fabriken verteilen, je auf die kuerzeste
+ * Warteschlange (Supreme-Commander-Stil); anzahl > 1 (Shift) zaehlt mit, was
+ * schon in diesem Klick bestellt wurde -- die Befehle wirken erst im naechsten Tick.
+ */
+function ausbildenVerteilt(world, ich, fabs, einheit, anzahl) {
+  if (gesperrt(world, ich, einheit) || !fabs.length) return;
+  const laenge = fabs.map((f) => f.queue.length);
+  for (let n = 0; n < anzahl; n++) {
+    let beste = -1;
+    for (let i = 0; i < fabs.length; i++) if (laenge[i] < 8 && (beste < 0 || laenge[i] < laenge[beste])) beste = i;
+    if (beste < 0) return;
+    issue(world, { type: 'produce', player: ich, id: fabs[beste].id, unit: einheit });
+    laenge[beste]++;
+  }
+}
+
 /** Gewaehlte eigene Fabriken -- ein Rechtsklick setzt ihren Sammelpunkt. */
 function gewaehlteFabriken(world, sel, ich) {
   return sel.filter((id) => {

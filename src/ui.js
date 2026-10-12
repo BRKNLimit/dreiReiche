@@ -28,6 +28,13 @@ const verborgen = (e) => imNebel(nebel, e, ME);
 let karteHtml = ''; // zuletzt gezeigte Info-Karte
 let selPlan = null; // gewaehlter eigener Bauplan (kein Gebaeude, daher nicht in sel)
 let gruppen = {}; // Steuergruppen: Ziffer -> Ids
+let letzterKlick = { id: 0, zeit: 0 }; // fuer den Doppelklick
+/** Eigene Einheiten desselben Typs, die gerade auf dem Schirm sind. */
+function gleicherTypImBild(id) {
+  const e0 = byId(world, id);
+  if (!e0) return [id];
+  return world.entities.filter((e) => !e.dead && e.player === ME && e.type === e0.type && imBild2d(e.x, e.y)).map((e) => e.id);
+}
 let mission = null; // laufende Mission der Kampagne (src/kampagne.js), sonst null
 let missionStand = []; // erledigte Ziele der Mission
 let missionGewonnen = false; // Ziele erfuellt -- die Partie haelt an
@@ -247,14 +254,20 @@ addEventListener('mouseup', () => {
     const y2 = Math.max(drag.sy, drag.y);
     const box = x2 - x1 > 4 || y2 - y1 > 4;
     const picked = [];
+    let naechste = 0; // Klick: nur die naechste Einheit (Doppelklick waehlt alle ihres Typs)
+    let bestD = 16;
     for (const e of world.entities) {
       if (e.player !== ME || e.kind !== 'unit') continue;
       const sx = w2sx(e.x);
       const sy = w2sy(e.y);
       if (box) {
         if (sx >= x1 && sx <= x2 && sy >= y1 && sy <= y2) picked.push(e.id);
-      } else if (Math.hypot(sx - x1, sy - y1) < 16) picked.push(e.id);
+      } else if (Math.hypot(sx - x1, sy - y1) < bestD) {
+        bestD = Math.hypot(sx - x1, sy - y1);
+        naechste = e.id;
+      }
     }
+    if (naechste) picked.push(naechste);
     selPlan = null;
     if (!box && picked.length === 0) {
       for (const e of world.entities) {
@@ -274,6 +287,13 @@ addEventListener('mouseup', () => {
           return;
         }
       }
+    }
+    // Doppelklick auf eine Einheit: alle eigenen dieses Typs, die gerade im Bild sind
+    if (!box && picked.length === 1) {
+      const jetzt = performance.now();
+      const doppelt = letzterKlick.id === picked[0] && jetzt - letzterKlick.zeit < 350;
+      letzterKlick = { id: picked[0], zeit: jetzt };
+      if (doppelt) picked.splice(0, 1, ...gleicherTypImBild(picked[0]));
     }
     sel = drag.add ? [...new Set([...sel, ...picked])] : picked;
   }
@@ -603,14 +623,7 @@ function renderBar() {
     b.onmouseleave = () => (karteTyp = null);
   }
   for (const b of bar.querySelectorAll('[data-produce]')) {
-    b.onclick = () => {
-      const u = b.dataset.produce;
-      if (!gesperrt(world, ME, u) && fabs.length) {
-        const frei = fabs.filter((f) => f.queue.length < 8);
-        const ziel = frei.reduce((best, f) => (!best || f.queue.length < best.queue.length ? f : best), null);
-        if (ziel) issue(world, { type: 'produce', player: ME, id: ziel.id, unit: u });
-      }
-    };
+    b.onclick = (ev) => ausbildenVerteilt(world, ME, fabs, b.dataset.produce, ev && ev.shiftKey ? 5 : 1); // Shift: fuenf
     b.onmouseenter = () => (karteTyp = b.dataset.produce);
     b.onmouseleave = () => (karteTyp = null);
   }

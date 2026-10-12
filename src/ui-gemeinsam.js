@@ -4,7 +4,7 @@
 import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PRIO_NAMES } from './sim/defs.js';
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
-  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford,
+  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
@@ -410,6 +410,23 @@ export function steuergruppenHtml(gruppen, world) {
     out.push(`<button class="ikon klein" data-sg="${n}" title="Steuergruppe ${n}: ${g.length} (Taste ${n})">${ICONS.steuergruppe || ''}<kbd>${n}</kbd><span class="zahl">${g.length}</span></button>`);
   }
   return out.join('');
+}
+
+/**
+ * Ausbilden auf die gewaehlten Fabriken verteilen, je auf die kuerzeste
+ * Warteschlange (Supreme-Commander-Stil); anzahl > 1 (Shift) zaehlt mit, was
+ * schon in diesem Klick bestellt wurde -- die Befehle wirken erst im naechsten Tick.
+ */
+export function ausbildenVerteilt(world, ich, fabs, einheit, anzahl) {
+  if (gesperrt(world, ich, einheit) || !fabs.length) return;
+  const laenge = fabs.map((f) => f.queue.length);
+  for (let n = 0; n < anzahl; n++) {
+    let beste = -1;
+    for (let i = 0; i < fabs.length; i++) if (laenge[i] < 8 && (beste < 0 || laenge[i] < laenge[beste])) beste = i;
+    if (beste < 0) return;
+    issue(world, { type: 'produce', player: ich, id: fabs[beste].id, unit: einheit });
+    laenge[beste]++;
+  }
 }
 
 /** Gewaehlte eigene Fabriken -- ein Rechtsklick setzt ihren Sammelpunkt. */

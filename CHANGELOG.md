@@ -28,6 +28,10 @@ Tabellen in `docs/scope.md`.
   bleibt frei, ein Klick speichert das Bild als PNG.
 - **Einstellungen** im Menü (F10): Lautstärke von Effekten und Musik
   getrennt, Bildschirmwackeln an/aus — gespeichert.
+- **Doppelklick** auf eine Einheit wählt alle dieses Typs im Bild; ein
+  einfacher Klick in 2D wählt jetzt nur die nächste Einheit (wie in 3D),
+  nicht den ganzen Haufen. **Shift+Klick** auf ein Ausbildungs-Icon bestellt
+  fünf, verteilt auf die gewählten Fabriken.
 - Endbildschirm: „Zufallskarte“ statt „zufall“.
 - **„✨ Neu in 0.37“** im Startbildschirm — einmal, bis man „Verstanden“
   klickt. Der Startbildschirm schneidet lange Inhalte oben nicht mehr ab.

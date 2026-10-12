@@ -34,6 +34,9 @@ export function neueKunde(player) {
     gebaeude: [],
     // Zuletzt gesehene gegnerische Einheiten: { id, type, player, x, y, tick }
     gesehen: [],
+    // Zuletzt gesehene Wracks (R1): { id, typ, art, x, y, radius, masse, voll, tick }; tick ist der
+    // Tick der letzten Sicht (gleich k.tick: gerade sichtbar). Wracks gehoeren niemandem.
+    wracks: [],
     // Je Ader (Index in world.deposits) der Tick, an dem man sie zuletzt gesehen hat; -1 nie
     adern: [],
   };
@@ -104,6 +107,29 @@ export function aufklaeren(k, world) {
     if (k.adern.length <= i) k.adern.push(-1);
     if (inSicht(q, world.deposits[i].x, world.deposits[i].y)) k.adern[i] = world.tick;
   }
+  // Wracks: gesehene merken (mit der Masse, die man zuletzt sah); verschwindet eins, wo man hinsieht, ist es weg.
+  const wracks = [];
+  const bekannt = k.wracks || [];
+  const imBild = new Map(world.wracks.map((w) => [w.id, w]));
+  for (let i = 0; i < bekannt.length; i++) {
+    const m = bekannt[i];
+    if (!inSicht(q, m.x, m.y, m.radius)) {
+      wracks.push(m); // nicht in Sicht: so in Erinnerung behalten
+      continue;
+    }
+    const w = imBild.get(m.id);
+    if (!w) continue; // dort in Sicht und nicht mehr da
+    m.masse = w.masse;
+    m.tick = world.tick;
+    wracks.push(m);
+    imBild.delete(m.id);
+  }
+  for (let i = 0; i < world.wracks.length; i++) {
+    const w = world.wracks[i];
+    if (!imBild.has(w.id) || !inSicht(q, w.x, w.y, w.radius)) continue;
+    wracks.push({ id: w.id, typ: w.typ, art: w.art, x: w.x, y: w.y, radius: w.radius, masse: w.masse, voll: w.voll, tick: world.tick });
+  }
+  k.wracks = wracks;
   k.gesehen = k.gesehen.filter((u) => jetzt.has(u.id) || (world.tick - u.tick <= VERGESSEN && !inSicht(q, u.x, u.y)));
   return k;
 }

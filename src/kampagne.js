@@ -313,9 +313,107 @@ const ZORN = [
   },
 ];
 
+// ------------------------------------------------------------ Herausforderungen: Ueberleben
+// Endlose Wellen, jede groesser: herbeigerufen (kein Unterhalt), sie ziehen
+// auf das eigene Hauptgebaeude. Die KI des Gegners schlaeft; wer sein
+// Hauptgebaeude faellt, gewinnt trotzdem. Designzahlen.
+const UEBERLEBEN = { ersteWelle: 900, takt: 750, rekord: 'dreiReiche.ueberleben' };
+
+/** Hauptgebaeude eines Spielers (oder null). */
+const kmHaupt = (w, p) => w.entities.find((e) => !e.dead && e.player === p && e.kind === 'building' && BUILDINGS[e.type].vital) || null;
+
+function ueberlebenWelle(world, ich) {
+  const t = world.tick - UEBERLEBEN.ersteWelle;
+  if (t < 0 || t % UEBERLEBEN.takt !== 0) return;
+  const n = t / UEBERLEBEN.takt + 1;
+  const feind = 1 - ich;
+  const von = kmHaupt(world, feind);
+  const ziel = kmHaupt(world, ich);
+  if (!von || !ziel) return;
+  const liste =
+    world.players[feind].faction === 'gott'
+      ? [['wolf', n], ['dryade', n - 1], ['waldgeist', n - 4], ['ent', (n / 6) | 0], ['wurzelbrecher', (n / 8) | 0]]
+      : [['soldat', 3 + n], ['jaeger', n], ['soeldner', n - 2], ['katapult', (n / 4) | 0]];
+  // Sammelplatz vor dem gegnerischen Hauptgebaeude, Richtung Kartenmitte
+  const sx = von.x + (von.x < ziel.x ? 1100 : -1100);
+  const sy = von.y + (von.y < ziel.y ? 1100 : -1100);
+  const ids = [];
+  for (const [typ, zahl] of liste) {
+    for (let i = 0; i < zahl; i++) {
+      const k = ids.length;
+      const u = spawnUnit(world, feind, typ, sx + (k % 7) * 110 - 330, sy + ((k / 7) | 0) * 110 - 220);
+      u.beschworen = true;
+      ids.push(u.id);
+    }
+  }
+  issue(world, { type: 'attack', player: feind, ids, x: ziel.x, y: ziel.y });
+}
+function ueberlebenHinweis(world) {
+  const seit = world.tick - UEBERLEBEN.ersteWelle;
+  const n = seit < 0 ? 0 : ((seit / UEBERLEBEN.takt) | 0) + 1;
+  if (n && seit - (n - 1) * UEBERLEBEN.takt < 150) return `Welle ${n} greift an!`;
+  return `Welle ${n + 1} in ${uhr(UEBERLEBEN.ersteWelle + n * UEBERLEBEN.takt - world.tick)}`;
+}
+
+/** Bester Stand (Ticks) im Ueberleben je Volk. */
+export function ueberlebenRekord(volk) {
+  try {
+    return (JSON.parse(localStorage.getItem(UEBERLEBEN.rekord) || '{}')[volk]) || 0;
+  } catch {
+    return 0;
+  }
+}
+/** Ergebnis eintragen; liefert true bei neuem Rekord. */
+export function ueberlebenEintragen(volk, ticks) {
+  if (ticks <= ueberlebenRekord(volk)) return false;
+  try {
+    const r = JSON.parse(localStorage.getItem(UEBERLEBEN.rekord) || '{}');
+    r[volk] = ticks;
+    localStorage.setItem(UEBERLEBEN.rekord, JSON.stringify(r));
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+const HERAUSFORDERUNGEN = ['mensch', 'gott'].map((volk) => ({
+  id: 'ueberleben-' + volk,
+  titel: volk === 'mensch' ? 'Überleben als Menschen' : 'Überleben als Gott',
+  volk,
+  karte: 'klassisch',
+  stil: 'standard',
+  stufe: 'mittel',
+  ki: false, // der Gegner baut nicht, er schickt nur Wellen
+  ueberleben: true,
+  vorwort:
+    volk === 'mensch'
+      ? `Der Wald hat aufgehört zu verhandeln. Alle <b>75 Sekunden</b> kommt eine neue Welle, jede größer als die letzte: Wölfe,
+        Dryaden, Waldgeister, Ents. <b>Wie lange hältst du?</b> Wer den Herzbaum fällt,
+        gewinnt.`
+      : `Die Menschen haben ein Heerlager aufgeschlagen und schicken alle <b>75 Sekunden</b>
+        eine neue Welle, jede größer als die letzte: Soldaten, Jäger, Söldner, Ballisten.
+        <b>Wie lange hält dein Wald?</b> Wer die Thingstätte fällt, gewinnt.`,
+  nachwort: 'Gewonnen! Das Hauptgebäude des Gegners ist gefallen — die Wellen hören auf.',
+  aufbau(world) {
+    world.players[0].fron += 300;
+  },
+  takt(world) {
+    ueberlebenWelle(world, 0);
+  },
+  hinweis: ueberlebenHinweis,
+  ziele: [{ text: 'Überlebe so lange du kannst — oder fälle das Hauptgebäude des Gegners', erfuellt: (w, ich) => w.over && w.winner === ich }],
+  sieg: 'standard',
+  meldungen: [
+    { wer: volk === 'mensch' ? GEROLD : EICHE, text: volk === 'mensch' ? 'Da kommt die erste Welle. Das ist erst der Anfang — baut aus, solange ihr könnt!' : 'Sie kommen. Die ersten sind wenige — die nächsten werden mehr sein.', wann: (w) => w.tick >= UEBERLEBEN.ersteWelle },
+    { wer: volk === 'mensch' ? HEDWIG : KRA, text: volk === 'mensch' ? 'Welle fünf! Die Ents kommen jetzt mit — wir brauchen Ballisten.' : 'Kra! Welle fünf! Sie haben Ballisten dabei, Kra!', wann: (w) => w.tick >= UEBERLEBEN.ersteWelle + 4 * UEBERLEBEN.takt },
+    { wer: volk === 'mensch' ? GEROLD : EICHE, text: volk === 'mensch' ? 'Zehn Wellen. Wer das hier überlebt, erzählt es seinen Enkeln.' : 'Zehn Wellen, und du stehst noch. Der Wald ist älter als ihre Geduld.', wann: (w) => w.tick >= UEBERLEBEN.ersteWelle + 9 * UEBERLEBEN.takt },
+  ],
+}));
+
 export const KAMPAGNEN = [
   { id: 'rodung', titel: 'Die Rodung', volk: 'mensch', missionen: RODUNG, speicher: 'dreiReiche.kampagne', niederlage: 'Der Held ist gefallen — oder die Thingstätte.' },
   { id: 'zorn', titel: 'Der Zorn des Waldes', volk: 'gott', missionen: ZORN, speicher: 'dreiReiche.kampagne.zorn', niederlage: 'Der Waldgott ist gefallen — oder der Herzbaum.' },
+  { id: 'herausforderungen', titel: 'Herausforderungen', volk: 'beide', missionen: HERAUSFORDERUNGEN, speicher: 'dreiReiche.kampagne.herausforderungen', frei: true, niederlage: '' },
 ];
 for (const k of KAMPAGNEN) for (const m of k.missionen) m.kampagne = k;
 export const MISSIONEN = KAMPAGNEN.flatMap((k) => k.missionen);
@@ -375,6 +473,12 @@ export function funkHtml(mld) {
 export function kampagneHtml() {
   return KAMPAGNEN.map((k) => {
     const fertig = kampagneStand(k);
+    if (k.frei) {
+      // Herausforderungen: alle offen, mit Rekord
+      return `<div class="kampagne ${k.volk}"><b>⏳ ${k.titel}</b>
+    ${k.missionen.map((m) => `<button data-mission="${m.id}">▶ ${m.titel}${ueberlebenRekord(m.volk) ? ` · Rekord ${uhr(ueberlebenRekord(m.volk))}` : ''}</button>`).join('')}
+  </div>`;
+    }
     return `<div class="kampagne ${k.volk}"><b>${k.volk === 'gott' ? '🌳' : '⚔'} ${k.titel}</b>
     ${k.missionen.map((m, i) => `<button data-mission="${m.id}"${i > fertig ? ' disabled' : ''}>${i < fertig ? '✔' : i === fertig ? '▶' : '🔒'} ${i + 1}. ${m.titel}</button>`).join('')}
   </div>`;
@@ -382,7 +486,8 @@ export function kampagneHtml() {
 }
 
 export function vorwortHtml(m) {
-  return `<div class="vorwort ${m.volk}"><div class="kapitel">Kampagne „${m.kampagne.titel}“ · Mission ${nummer(m) + 1} von ${m.kampagne.missionen.length}</div>
+  const kopf = m.kampagne.frei ? m.kampagne.titel + (ueberlebenRekord(m.volk) ? ` · Rekord ${uhr(ueberlebenRekord(m.volk))}` : '') : `Kampagne „${m.kampagne.titel}“ · Mission ${nummer(m) + 1} von ${m.kampagne.missionen.length}`;
+  return `<div class="vorwort ${m.volk}"><div class="kapitel">${kopf}</div>
     <h1>${m.titel}</h1>
     <p>${m.vorwort}</p>
     <div class="go"><button id="missionLos">Los</button><button id="missionZurueck">Zurück</button></div></div>`;
@@ -400,7 +505,15 @@ export function zieleHtml(m, stand, world) {
     .join('')}${m.hinweis && m.hinweis(world) ? `<div class="hinweis">${m.hinweis(world)}</div>` : ''}</div>`;
 }
 
-export function missionEndeHtml(m, gewonnen) {
+export function missionEndeHtml(m, gewonnen, welt = null) {
+  if (m.ueberleben) {
+    const zeit = welt ? uhr(welt.tick) : '';
+    const rekord = welt && ueberlebenEintragen(m.volk, welt.tick);
+    return `<div class="vorwort ${m.volk}"><div class="kapitel">${m.kampagne.titel}</div><h1>${gewonnen ? 'Gewonnen nach ' + zeit : 'Überlebt: ' + zeit}</h1>
+      <p>${gewonnen ? m.nachwort : `Bis Welle ${Math.max(0, Math.floor((welt ? welt.tick : 0) - UEBERLEBEN.ersteWelle) / UEBERLEBEN.takt + 1) | 0} hast du gehalten.`}
+      ${rekord ? ' <b>Neuer Rekord!</b>' : ` Rekord: ${uhr(ueberlebenRekord(m.volk))}.`}</p>
+      <div class="go"><button id="missionNochmal">Nochmal</button><button id="endeKarte">Karte ansehen</button><button id="endeNochmal">Hauptmenü</button></div></div>`;
+  }
   const i = nummer(m);
   const naechste = naechsteVon(m);
   return gewonnen
@@ -436,7 +549,7 @@ export function vorwortZeigen(el, m, los, zurueck) {
 /** Ende einer Mission: Nachwort oder Niederlage; k.waehle(m) zeigt ein Vorwort, k.menue den Startbildschirm. */
 export function missionEndeZeigen(el, m, gewonnen, k) {
   if (gewonnen) missionGeschafft(m);
-  el.innerHTML = missionEndeHtml(m, gewonnen);
+  el.innerHTML = missionEndeHtml(m, gewonnen, k.welt);
   el.style.display = '';
   knopfAn('missionWeiter', () => k.waehle(naechsteVon(m)));
   knopfAn('missionNochmal', () => k.waehle(m));

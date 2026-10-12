@@ -1477,7 +1477,7 @@ function zeigeEnde() {
   if (mission && !wiederholung) {
     const gewonnen = missionGewonnen || world.winner === ME;
     const neue = ergebnisErfassen(gewonnen);
-    missionEndeZeigen(el, mission, gewonnen, { waehle: missionWaehlen, menue: startbildschirm });
+    missionEndeZeigen(el, mission, gewonnen, { waehle: missionWaehlen, menue: startbildschirm, welt: world });
     el.insertAdjacentHTML('beforeend', neueErfolgeHtml(neue));
     return;
   }

@@ -35,6 +35,12 @@ Tabellen in `docs/scope.md`.
 - **📖 Kodex** im Startbildschirm: alle Einheiten und Gebäude beider Völker
   mit Icon und Karte (Kosten, Werte, was sie freischaltet) — aus den Daten,
   also immer aktuell.
+- **⏳ Herausforderungen: Überleben** als Menschen oder als Gott — alle
+  75 s eine Welle, jede größer als die letzte (herbeigerufen, kein
+  Unterhalt); wer das gegnerische Hauptgebäude fällt, gewinnt trotzdem.
+  Rekord je Volk. Abgestimmt mit der KI auf Spielerseite (6 Seeds,
+  Designzahlen): passiv rund 6½ min, die KI hält als Menschen 10–13, als
+  Gott 12–14 min.
 - Endbildschirm: „Zufallskarte“ statt „zufall“.
 - **„✨ Neu in 0.37“** im Startbildschirm — einmal, bis man „Verstanden“
   klickt. Der Startbildschirm schneidet lange Inhalte oben nicht mehr ab.

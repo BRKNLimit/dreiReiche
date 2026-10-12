@@ -7,7 +7,7 @@
 // fliegt vom Schuetzen zum Ziel und schlaegt dort ein -- erst dann Funken,
 // Aufblitzen, Klang.
 
-import { UNITS, BUILDINGS } from './sim/defs.js';
+import { UNITS, BUILDINGS, rumpfVon } from './sim/defs.js';
 
 // Je Schuetze: Geschoss (Art, Tempo in dm/s, Bogenhoehe je dm Flugweite,
 // Farbe, Groesse), oder Hieb am Ziel; dazu Treffer-Art, Beben, Klaenge.
@@ -136,7 +136,7 @@ export function effekteAusEreignissen(fx, world, ich, sichtbar, hoerer, imBild) 
         klang(fx, 'warnung', 0.7, 0);
       }
       if (!sichtbar(a) && !sichtbar(b)) continue;
-      const w = WAFFEN[a.type] || DEFAULT;
+      const w = WAFFEN[a.type] || WAFFEN[rumpfVon(a.type)] || DEFAULT;
       const d = Math.hypot(b.x - a.x, b.y - a.y);
       // Flak-Waffe (ziele 'luft'): am getroffenen Flieger platzt zusaetzlich eine Splitterwolke
       const flak = flakWaffe(a.type) && b.kind === 'unit';

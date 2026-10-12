@@ -71,6 +71,11 @@ function makeEl(id) {
         el.missionKnoepfe = [...String(el.innerHTML).matchAll(/data-mission="([^"]+)"/g)].map((m) => ({ dataset: { mission: m[1] }, onclick: null }));
         return el.missionKnoepfe;
       }
+      if (wahl.includes('data-umr')) {
+        // gemerkt, damit der Test die Knoepfe der Umruestleiste druecken kann (onclick setzt die Seite)
+        el.umrKnoepfe = [...String(el.innerHTML).matchAll(/data-umr="([^"]+)"/g)].map((m) => ({ dataset: { umr: m[1] }, onclick: null }));
+        return el.umrKnoepfe;
+      }
       if (wahl.includes('data-reiter')) {
         return [...String(el.innerHTML).matchAll(/data-reiter="([^"]+)"/g)].map((m) => ({ dataset: { reiter: m[1] }, onclick: null }));
       }
@@ -140,7 +145,7 @@ try {
   // Zugriff auf Innenleben der Seite fuer die Bauleisten-Pruefung unten: eine Zeile hinten an das Skript
   new Function(
     code +
-      `\n;globalThis.__t = { BUILDINGS, UNITS, spawnUnit, issue,
+      `\n;globalThis.__t = { BUILDINGS, UNITS, MODULE, huelleAnlegen, bestueckungTyp, spawnBuilding, spawnUnit, issue,
         get world() { return world; }, get ME() { return ME; },
         get sel() { return sel; }, set sel(v) { sel = v; }, get placing() { return placing; }, set placing(v) { placing = v; },
         get gruppe() { return bauGruppeSchl; },
@@ -356,12 +361,76 @@ function missionSpielen() {
   }
 }
 
+// Ruempfe und Module (R3): ein Rumpf mit Varianten wird gezeichnet, die Umruestleiste erscheint, ein Klick ruestet um,
+// ein Spielstand mitten im Umruesten laedt weiter
+{
+  const T = globalThis.__t;
+  const pruefe = (bedingung, text) => {
+    if (!bedingung) errors.push(new Error('Smoke: ' + text));
+  };
+  const weiter = (n, dt = 100) => {
+    for (let i = 0; i < n && frameFn; i++) {
+      const f = frameFn;
+      frameFn = null;
+      clock += dt;
+      try {
+        f(clock);
+      } catch (e) {
+        errors.push(e);
+        break;
+      }
+    }
+  };
+  try {
+    T.UNITS.srrumpf = { name: 'Testrumpf', desc: '', faction: 'mensch', hp: 400, radius: 30, speed: 24, cost: { masse: 100 }, buildTime: 100, slots: ['gross', 'klein'], bestueckung: ['srkanone', 'srgatling'] };
+    T.MODULE.srkanone = { name: 'Kanone', groesse: 'gross', cost: { masse: 80 }, buildTime: 60, kampf: 'fern', weapon: { range: 600, damage: 30, cooldown: 12 }, hp: 100, faction: 'mensch' };
+    T.MODULE.srhaubitze = { name: 'Haubitze', groesse: 'gross', cost: { masse: 120 }, buildTime: 120, kampf: 'fern', weapon: { range: 900, damage: 45, cooldown: 20 }, faction: 'mensch' };
+    T.MODULE.srgatling = { name: 'Gatling', groesse: 'klein', cost: { masse: 40 }, buildTime: 20, kampf: 'fern', weapon: { range: 300, damage: 5, cooldown: 3 }, faction: 'mensch' };
+    T.MODULE.srradar = { name: 'Radar', groesse: 'klein', cost: { masse: 50 }, buildTime: 30, sicht: 2200, faction: 'mensch' };
+    T.BUILDINGS.srwerk = { ...T.BUILDINGS.schmiede, name: 'Testwerkstatt', umruesten: true, radius: 60 };
+    pruefe(T.huelleAnlegen('srrumpf'), 'Testrumpf wurde nicht angelegt');
+    nodes.intro.style.display = 'none';
+    T.neuSpiel('mensch', false, 'klassisch', ['auto', 'auto']);
+    weiter(3);
+    const w = T.world;
+    w.players[T.ME].masse = 3000;
+    const halle = w.entities.find((e) => e.kind === 'building' && e.player === T.ME && T.BUILDINGS[e.type].vital);
+    const werk = T.spawnBuilding(w, T.ME, 'srwerk', halle.x + 700, halle.y, true);
+    const u = T.spawnUnit(w, T.ME, 'srrumpf', werk.x - 400, werk.y);
+    const v = T.spawnUnit(w, T.ME, T.bestueckungTyp('srrumpf', ['srhaubitze', 'srradar']), werk.x - 400, werk.y + 200);
+    pruefe(v.type === 'srrumpf|srhaubitze|srradar', `Variante hat den Typ ${v.type}`);
+    T.sel = [u.id];
+    weiter(5);
+    pruefe(nodes.builds.innerHTML.includes('data-umr="1:srradar"') && nodes.builds.innerHTML.includes('data-umr="0:srhaubitze"'), 'Umruestleiste fehlt oder ohne Module');
+    pruefe(!nodes.builds.innerHTML.includes('braucht eine Werkstatt'), 'Werkstatt steht, Leiste sagt das Gegenteil');
+    const knopf = (nodes.builds.umrKnoepfe || []).find((b) => b.dataset.umr === '1:srradar');
+    pruefe(knopf && knopf.onclick, 'Knopf der Umruestleiste ohne Klick-Behandlung');
+    if (knopf && knopf.onclick) knopf.onclick();
+    weiter(5);
+    pruefe((u.umruest && u.umruest.modul === 'srradar') || u.type.includes('srradar'), 'Der Klick hat nicht umgeruestet');
+    // Spielstand mitten im Umruesten: F5 sichern, F9 laden, weiterlaufen lassen
+    delete speicher['dreiReiche.spielstand'];
+    fire('keydown', { ...base, key: 'F5' });
+    pruefe(!!speicher['dreiReiche.spielstand'], 'Rumpf: F5 hat nichts gespeichert');
+    fire('keydown', { ...base, key: 'F9' });
+    weiter(80);
+    const u2 = T.world.entities.find((e) => e.id === u.id);
+    pruefe(u2 && u2.type === 'srrumpf|srkanone|srradar', `Nach dem Laden ist die Einheit ${u2 && u2.type}`);
+    // Beide Varianten werden gezeichnet (Figur des Rumpfs) und stehen in der Gruppenleiste
+    T.sel = [u2.id, T.world.entities.find((e) => e.id === v.id).id];
+    weiter(5);
+    pruefe(nodes.hud.innerHTML.length > 0, 'Rumpf: kein HUD');
+  } catch (e) {
+    errors.push(e);
+  }
+}
+
 if (errors.length) {
   console.log('FEHLER:');
   for (const e of errors.slice(0, 5)) console.log(' ', e.message, '\n   ', (e.stack || '').split('\n')[1]);
   process.exit(1);
 }
 vollstaendig = true;
-console.log('Smoke-Test ok — 1000 Frames, Eingaben, Spielstand, Online-Dialog, Mission mit Welle, 3 und 4 Spieler — keine Ausnahmen.');
+console.log('Smoke-Test ok — 1000 Frames, Eingaben, Spielstand, Online-Dialog, Mission mit Welle, 3 und 4 Spieler, Ruempfe mit Umruesten — keine Ausnahmen.');
 console.log('Canvas-Aufrufe:', [...calls].sort().join(', '));
 console.log('HUD-Ausgabe vorhanden:', nodes.hud.innerHTML.length > 0);

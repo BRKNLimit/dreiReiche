@@ -38,7 +38,7 @@ const VOELKER = (await readdir(join(root, 'src/sim/voelker')))
   .sort()
   .map((f) => 'src/sim/voelker/' + f)
   .concat('src/sim/voelker/index.js');
-const SIM = ['src/sim/grund.js', ...VOELKER, 'src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/kunde.js', 'src/sim/kartenbau.js', 'src/sim/ai.js'];
+const SIM = ['src/sim/grund.js', ...VOELKER, 'src/sim/ruempfe.js', 'src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/kunde.js', 'src/sim/kartenbau.js', 'src/sim/ai.js'];
 const SEITEN = [
   ['src/shell.html', [...SIM, 'src/icons.js', 'src/platzhalter.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/musik.js', 'src/aufnahme.js', 'src/kampagne.js', 'src/spielstand.js', 'src/netz.js', 'src/bilanz.js', 'src/gelaende2d.js', 'src/figuren2d.js', 'src/ui.js'], 'dist/resonit.html'],
   [
@@ -46,7 +46,7 @@ const SEITEN = [
     [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/musik.js', 'src/aufnahme.js', 'src/kampagne.js', 'src/spielstand.js', 'src/netz.js', 'src/bilanz.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/gelaende3d.js', 'src/ui3d.js'],
     'dist/drei-reiche-3d.html',
   ],
-  ['src/galerie.html', ['src/sim/grund.js', ...VOELKER, 'src/sim/defs.js', 'src/icons.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/galerie.js'], 'dist/galerie.html'],
+  ['src/galerie.html', ['src/sim/grund.js', ...VOELKER, 'src/sim/ruempfe.js', 'src/sim/defs.js', 'src/icons.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/galerie.js'], 'dist/galerie.html'],
   ['src/editorshell.html', [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/gelaende2d.js', 'src/editor.js'], 'dist/karteneditor.html'],
 ];
 

@@ -3,6 +3,36 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## Unveröffentlicht — R3 Chassis und Module (Sonnet)
+
+- **Daten:** Ein **Rumpf** ist eine Einheit mit `slots` (`['gross', 'klein', …]`) und
+  `bestueckung` (Standard, je Steckplatz ein Modul-Id oder `''`). **Module** stehen je Volk unter
+  `module: { id: { name, groesse, cost, buildTime, weapon, kampf, sicht, bergung, build, regeneration,
+  aura, hp, speed, nur … } }` (`FELDER.modul`). Gebäude mit `umruesten: true` sind Werkstätten.
+  Keiner der drei heutigen Völker hat Module — ihre Partien sind bitgleich zu vorher.
+- **Variante = abgeleiteter Typ:** Aus Rumpf und Modulen entsteht ein eigener Eintrag in `UNITS`
+  (`src/sim/ruempfe.js`, reine Funktion des Schlüssels): `cost` und `buildTime` Summe, `hp` Summe,
+  `sicht` Maximum, `speed` des Rumpfs mal Modul-Promille, die **eine** Waffe die des ersten
+  Waffenmoduls, `bergung`/`build`/`worker`/`aura` vom ersten Modul, das sie hat. Schlüssel: die
+  Standardbestückung heißt wie der Rumpf (`palisade`), jede andere `palisade|haubitze|gatling` (`-` =
+  leer). Die Simulation liest weiter nur `UNITS[e.type]`.
+- **Fabrik:** `buildList` nennt Rümpfe; `produce` darf `bestueckung: [...]` mitgeben (geprüft gegen
+  Steckplätze, Größe, Volk, `nur`). `hoechstens` zählt alle Varianten eines Rumpfs, Skills mit `nur`
+  gelten für Varianten ihres Rumpfs.
+- **Werkstatt:** Befehl `umruesten { id, slot, modul }`. Die Einheit geht zur nächsten eigenen
+  fertigen Werkstatt, bezahlt dort das volle neue Modul (das alte ist verloren: `RULES.umruestErstattung`
+  0, Designzahl, ungemessen), steht `buildTime` des Moduls still und kämpft nicht (näher als 15 m
+  zur Werkstatt: `RULES.umruestReichweite`, Designzahl, ungemessen), LP behalten ihr Verhältnis.
+  Neue Befehle während des Umrüstens werden ignoriert; auf dem Weg dorthin brechen sie ihn ohne Kosten ab.
+- **Spielstand, Hash, Netz:** Der Typ-Schlüssel reicht, um eine Variante neu zu bauen
+  (`variantenAusText` beim Laden). Der Hash mischt Varianten-Schlüssel und das laufende Umrüsten ein,
+  nur wo es sie gibt.
+- **Oberfläche:** Karte und Auswahlkopf nennen Rumpf, Steckplätze und Module („rüstet um …“); bei
+  gewählten Einheiten mit Steckplätzen erscheint die Leiste „Umrüsten“ (Slot, Modul, Kosten, Zeit; gesperrt
+  ohne Werkstatt); der Kodex führt Module. 3D, 2D-Figur, Icon und Waffeneffekt kommen vom Rumpf.
+- **Tests:** `test/chassis.test.js` (Testvolk zur Laufzeit), Datenprüfung in `test/daten.test.js`,
+  Smoke mit Rumpf, Umrüsten und Spielstand mitten im Umrüsten.
+
 ## 0.44 — Feuerleitnetz (R2, Sonnet)
 
 - **Regel:** Eine Waffe zielt nur auf das, was ihr Spieler gerade sieht — mit

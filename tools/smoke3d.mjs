@@ -74,7 +74,9 @@ function makeEl(id) {
     querySelectorAll: (sel) => {
       const name = /\[data-([\w-]+)\]/.exec(sel || '')?.[1] || 'b';
       const schluessel = name.replace(/-(\w)/g, (_, c) => c.toUpperCase());
-      return [...String(el.innerHTML).matchAll(new RegExp(`data-${name}="([^"]+)"`, 'g'))].map((m) => ({ dataset: { [schluessel]: m[1] }, onclick: null }));
+      const knoepfe = [...String(el.innerHTML).matchAll(new RegExp(`data-${name}="([^"]+)"`, 'g'))].map((m) => ({ dataset: { [schluessel]: m[1] }, onclick: null }));
+      if (name === 'umr') el.umrKnoepfe = knoepfe; // gemerkt, damit der Test die Knoepfe der Umruestleiste druecken kann
+      return knoepfe;
     },
   };
   return el;
@@ -130,7 +132,7 @@ try {
   // Zugriff auf Innenleben der Seite fuer die Pruefungen unten: eine Zeile hinten an das Skript
   new Function(
     code +
-      `\n;globalThis.__t = { MODELLE, BUILDINGS, UNITS, spawnBuilding, spawnUnit, issue, fx,
+      `\n;globalThis.__t = { MODELLE, BUILDINGS, UNITS, MODULE, huelleAnlegen, bestueckungTyp, spawnBuilding, spawnUnit, issue, fx,
         get world() { return world; }, get ME() { return ME; },
         get sel() { return sel; }, set sel(v) { sel = v; }, get placing() { return placing; }, set placing(v) { placing = v; },
         get gruppe() { return bauGruppeSchl; },
@@ -307,11 +309,53 @@ if (!hauptgebaeude || !bauer) {
   }
 }
 
+// ---- Ruempfe und Module (R3): Varianten werden mit dem Modell ihres Rumpfs gezeichnet (ohne Modell: ohne Ausnahme),
+// die Umruestleiste erscheint, ein Klick ruestet um, ein Spielstand mitten im Umruesten laedt weiter
+{
+  try {
+    T.UNITS.srrumpf = { name: 'Testrumpf', desc: '', faction: 'mensch', hp: 400, radius: 30, speed: 24, cost: { masse: 100 }, buildTime: 100, slots: ['gross', 'klein'], bestueckung: ['srkanone', 'srgatling'] };
+    T.MODULE.srkanone = { name: 'Kanone', groesse: 'gross', cost: { masse: 80 }, buildTime: 60, kampf: 'fern', weapon: { range: 600, damage: 30, cooldown: 12 }, hp: 100, faction: 'mensch' };
+    T.MODULE.srhaubitze = { name: 'Haubitze', groesse: 'gross', cost: { masse: 120 }, buildTime: 120, kampf: 'fern', weapon: { range: 900, damage: 45, cooldown: 20 }, faction: 'mensch' };
+    T.MODULE.srgatling = { name: 'Gatling', groesse: 'klein', cost: { masse: 40 }, buildTime: 20, kampf: 'fern', weapon: { range: 300, damage: 5, cooldown: 3 }, faction: 'mensch' };
+    T.MODULE.srradar = { name: 'Radar', groesse: 'klein', cost: { masse: 50 }, buildTime: 30, sicht: 2200, faction: 'mensch' };
+    T.BUILDINGS.srwerk = { ...T.BUILDINGS.schmiede, name: 'Testwerkstatt', umruesten: true, radius: 60 };
+    pruefe(T.huelleAnlegen('srrumpf'), 'Testrumpf wurde nicht angelegt');
+    nodes.intro.style.display = 'none';
+    T.neuSpiel('mensch', false, 'klassisch', ['auto', 'auto']);
+    laufe(3);
+    const w = T.world;
+    w.players[T.ME].masse = 3000;
+    const halle = w.entities.find((e) => e.kind === 'building' && e.player === T.ME && T.BUILDINGS[e.type].vital);
+    const werk = T.spawnBuilding(w, T.ME, 'srwerk', halle.x + 700, halle.y, true);
+    const u = T.spawnUnit(w, T.ME, 'srrumpf', werk.x - 400, werk.y);
+    const v = T.spawnUnit(w, T.ME, T.bestueckungTyp('srrumpf', ['srhaubitze', 'srradar']), werk.x - 400, werk.y + 200);
+    T.sel = [u.id];
+    laufe(5);
+    pruefe(nodes.builds.innerHTML.includes('data-umr="1:srradar"') && nodes.builds.innerHTML.includes('data-umr="0:srhaubitze"'), 'Umruestleiste fehlt oder ohne Module');
+    const knopf = (nodes.builds.umrKnoepfe || []).find((b) => b.dataset.umr === '1:srradar');
+    pruefe(knopf && knopf.onclick, 'Knopf der Umruestleiste ohne Klick-Behandlung');
+    if (knopf && knopf.onclick) knopf.onclick();
+    laufe(5);
+    pruefe((u.umruest && u.umruest.modul === 'srradar') || u.type.includes('srradar'), 'Der Klick hat nicht umgeruestet');
+    delete speicher['dreiReiche.spielstand'];
+    feuer('keydown', { ...basis, key: 'F5' });
+    pruefe(!!speicher['dreiReiche.spielstand'], 'Rumpf: F5 hat nichts gespeichert');
+    feuer('keydown', { ...basis, key: 'F9' });
+    laufe(300);
+    const u2 = T.world.entities.find((e) => e.id === u.id);
+    pruefe(u2 && u2.type === 'srrumpf|srkanone|srradar', `Nach dem Laden ist die Einheit ${u2 && u2.type}`);
+    T.sel = [u2.id, v.id];
+    laufe(5);
+  } catch (e) {
+    fehler.push(e);
+  }
+}
+
 if (fehler.length) {
   console.log('FEHLER:');
   for (const e of fehler.slice(0, 5)) console.log(' ', e.message, '\n   ', (e.stack || '').split('\n')[1]);
   process.exit(1);
 }
 vollstaendig = true;
-console.log('3D-Smoke-Test ok — 1000 Frames, Eingaben verarbeitet, 3 und 4 Spieler, keine Ausnahmen.');
+console.log('3D-Smoke-Test ok — 1000 Frames, Eingaben verarbeitet, 3 und 4 Spieler, Ruempfe mit Umruesten, keine Ausnahmen.');
 console.log('HUD-Ausgabe vorhanden:', nodes.hud.innerHTML.length > 0);

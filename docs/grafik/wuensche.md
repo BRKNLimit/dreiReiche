@@ -20,6 +20,15 @@ Format:
       je Gebäude- und Einheitenklasse eine zweite Variante: `wrack_gebaeude` (größere Trümmer), die Oberfläche nimmt sie, sobald
       sie da ist. Das Icon (`ICONS.wrack`, 24 × 24) zeigt die Infokarte und den Bergungs-Cursor.
 
+- [ ] **Anbauteile für Module** (3D) — R3 Chassis und Module. Eine Einheit mit Modulen hat den Typ `rumpf|modul|modul`
+      (Standardbestückung: nur `rumpf`). Die Oberfläche zeichnet jede Variante mit dem **Modell und Icon ihres Rumpfs**
+      (`rumpfVon(typ)` in `src/sim/defs.js`, `modellVon` in `src/ui3d.js`, `symbol` in `src/ui-gemeinsam.js`); die Module
+      selbst sieht man noch nicht. Gewünscht, wenn es so weit ist: Rumpfmodelle mit sichtbaren Steckplätzen (`slots`, in
+      Reihenfolge) und je Modul-Id ein kleines Anbauteil (`MODELLE_DEF['modul_<id>']`) für 'klein' und 'gross', das die
+      Oberfläche pro Steckplatz auf den Rumpf setzt. Die Anbauteile werden nach `bestueckung` der Einheit gewählt (`''` = leer).
+      Den Waffenlook (Geschoss, Mündung) bestimmt weiter der Rumpf (`WAFFEN` in `src/effekte.js`); ein Wunsch für Waffenlook
+      je Waffenmodul kann folgen.
+
 
 
 

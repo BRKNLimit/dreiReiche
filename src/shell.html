@@ -306,6 +306,14 @@
   #skills kbd { font: 10px ui-monospace, monospace; color: var(--accent); }
   .hell { color: var(--accent); }
   #builds button.zu { opacity: .45; }
+  /* Umruesten (R3): je Steckplatz eine Reihe mit den passenden Modulen */
+  #builds .umruest { display: flex; flex-direction: column; gap: 3px; font-size: 11px; }
+  #builds .umruest > b { font-size: 11px; color: var(--accent); }
+  #builds .umruest-reihe { display: flex; gap: 4px; align-items: center; }
+  #builds .umruest-reihe > span { color: var(--dim); min-width: 52px; }
+  #builds .modul { padding: 3px 8px; font-size: 11px; }
+  #builds .modul small { color: var(--dim); font-size: 10px; margin-left: 5px; }
+  #builds .modul.an { border-color: var(--accent); color: var(--accent); }
   /* Reiter der Bau-Gruppen: sitzen wie Karteireiter auf der Oberkante der Leiste */
   #builds { position: relative; }
   #builds .reiter { position: absolute; z-index: 16; left: 0; bottom: calc(100% + 9px); display: flex; gap: 2px; }

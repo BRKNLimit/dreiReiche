@@ -5,7 +5,8 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { VOELKER, FACTIONS, BUILDINGS, UNITS, SKILLS, FAEHIGKEITEN, FELDER, ROLLEN, AESTE } from '../src/sim/defs.js';
+import { VOELKER, FACTIONS, BUILDINGS, UNITS, SKILLS, FAEHIGKEITEN, FELDER, ROLLEN, AESTE, MODULE } from '../src/sim/defs.js';
+import { ruempfeFehler, ruempfeStandard } from '../src/sim/ruempfe.js';
 
 /** Felder eines Objekts gegen eine Liste pruefen. */
 function nurBekannte(wo, obj, erlaubt) {
@@ -160,4 +161,48 @@ test('Daten: alle Verweise zeigen auf Eigenes, das es gibt', () => {
     for (const k of Object.keys(v.einheiten)) assert.ok(entsteht.has(k), `${f}: ${k} entsteht nirgends`);
   }
   assert.deepEqual(Object.keys(FACTIONS), VOELKER.map((v) => v.schluessel));
+});
+
+test('Daten: Ruempfe und Module (R3) — Steckplaetze, Standardbestueckung und jedes Modul passen zu den Regeln', () => {
+  for (const v of VOELKER) {
+    const w = (x) => `${v.schluessel}: ${x}`;
+    for (const [id, m] of Object.entries(v.module || {})) {
+      nurBekannte(w(`Modul ${id}`), m, FELDER.modul);
+      for (const f of ['weapon', 'cost', 'bergung', 'build']) if (m[f]) nurBekannte(w(`Modul ${id}.${f}`), m[f], FELDER[f]);
+      assert.ok(FELDER.groesse.includes(m.groesse), w(`Modul ${id}.groesse: „${m.groesse}“ ist keins von ${FELDER.groesse}`));
+      assert.ok(m.name && m.cost && typeof m.cost.masse === 'number', w(`Modul ${id}: name und cost (mit masse) fehlen`));
+      assert.ok(m.buildTime >= 0, w(`Modul ${id}.buildTime: fehlt (Ticks, die das Umruesten dauert)`));
+      if (m.weapon) {
+        assert.ok(m.kampf === 'nah' || m.kampf === 'fern', w(`Modul ${id}.kampf: ein Waffenmodul braucht 'nah' oder 'fern'`));
+        if (m.weapon.ziele) assert.ok(FELDER.weaponZiele.includes(m.weapon.ziele), w(`Modul ${id}.weapon.ziele`));
+      }
+      if (m.nur !== undefined) {
+        assert.ok(Array.isArray(m.nur) && m.nur.length, w(`Modul ${id}.nur: muss eine nichtleere Liste von Rumpf-Schluesseln sein`));
+        for (const k of m.nur) assert.ok(v.einheiten[k]?.slots, w(`Modul ${id}.nur: „${k}“ ist kein eigener Rumpf`));
+      }
+      if (m.bergung) assert.ok(m.bergung.kraft > 0, w(`Modul ${id}.bergung.kraft: muss eine positive Zahl sein`));
+      volksMechaniken(w, `Modul ${id}`, m);
+      ganzzahlig(w(`Modul ${id}`), m);
+      assert.ok(!UNITS[id] && !BUILDINGS[id], w(`Modul ${id}: heisst auch Einheit oder Gebaeude`));
+      assert.equal(MODULE[id]?.faction, v.schluessel, w(`Modul ${id}: faction`));
+    }
+    for (const [k, u] of Object.entries(v.einheiten)) {
+      if (!u.slots) {
+        assert.equal(u.bestueckung, undefined, w(`${k}.bestueckung: ohne slots sinnlos`));
+        continue;
+      }
+      assert.ok(Array.isArray(u.slots) && u.slots.every((g) => FELDER.groesse.includes(g)), w(`${k}.slots: Liste aus ${FELDER.groesse}`));
+      const fehler = ruempfeFehler(k, u, ruempfeStandard(u), MODULE);
+      assert.equal(fehler, '', w(`${k}: Standardbestueckung passt nicht: ${fehler}`));
+      assert.equal(UNITS[k].rumpf, k, w(`${k}: wurde nicht zum Rumpf`));
+    }
+  }
+  // Modul-Ids ueber alle Voelker eindeutig
+  const gesehen = new Map();
+  for (const v of VOELKER) {
+    for (const id of Object.keys(v.module || {})) {
+      assert.ok(!gesehen.has(id), `Modul „${id}“ gibt es bei ${gesehen.get(id)} und ${v.schluessel}`);
+      gesehen.set(id, v.schluessel);
+    }
+  }
 });

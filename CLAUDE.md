@@ -89,6 +89,16 @@ da: Wracks in `world.wracks`, Befehl `bergen`, Regeln `wrackAnteil`,
 `wrackAnteilGebaeude`, `bergungProBaukraft`; die Kunde merkt gesehene Wracks.)
 (Der Todesgott ist seit 0.38 als drittes Volk dabei, Netzwerk seit 0.35.)
 
+## Rümpfe und Module (R3)
+
+Kein Tech-Baum, sondern **Rumpf + Module**: Ein Rumpf ist eine Einheit mit `slots`, Module stehen
+je Volk unter `module` (Regeln der Ableitung bei `FELDER.modul` in `src/sim/defs.js`, Code in
+`src/sim/ruempfe.js`). Eine Einheit mit Modulen ist ein abgeleiteter Eintrag in `UNITS` mit dem
+Schlüssel `rumpf|modul|modul` (Standardbestückung: nur `rumpf`); der Rest der Simulation liest
+unverändert `UNITS[e.type]`. Umrüsten (`umruesten`-Befehl) kostet das neue Modul und seine Bauzeit
+in einer Werkstatt (Gebäude mit `umruesten: true`). Modelle, Icons und 2D-Figuren kommen vom Rumpf
+(`rumpfVon`).
+
 ## Nebel des Krieges
 
 Die Simulation selbst sieht alles — bis auf die **Zielwahl** der Waffen: Seit

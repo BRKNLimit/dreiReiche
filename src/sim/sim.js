@@ -1,7 +1,7 @@
 // Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
 
-import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_MASSE, RULES, RESOURCES, SKILLS, FAEHIGKEITEN, KARTEN } from './defs.js';
+import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_MASSE, RULES, RESOURCES, SKILLS, FAEHIGKEITEN, KARTEN, MODULE, bestueckungTyp } from './defs.js';
 import { wegGitter, wegpunkt, ZELLE } from './weg.js';
 
 // ---------------------------------------------------------------- Mathematik
@@ -253,7 +253,7 @@ export function spawnKommandant(world, player) {
 function beauftrage(world, player, ids, site, anhaengen = false) {
   for (let k = 0; k < ids.length; k++) {
     const e = byId(world, ids[k]);
-    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !UNITS[e.type].build) continue;
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !UNITS[e.type].build || !befehlFrei(e)) continue;
     // Shift: hinten anhaengen, wenn der Erbauer schon etwas zu tun hat.
     if (anhaengen && e.auftrag) {
       if (e.auftrag !== site.id && !e.reihe.includes(site.id)) e.reihe.push(site.id);
@@ -280,7 +280,7 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
 function bergeAuftrag(world, player, ids, wrack, anhaengen = false) {
   for (let k = 0; k < ids.length; k++) {
     const e = byId(world, ids[k]);
-    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !bergKraft(UNITS[e.type])) continue;
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !bergKraft(UNITS[e.type]) || !befehlFrei(e)) continue;
     if (anhaengen && e.auftrag) {
       if (e.auftrag !== wrack.id && !e.reihe.includes(wrack.id)) e.reihe.push(wrack.id);
       continue;
@@ -481,7 +481,7 @@ function applyCommand(world, c) {
     if (c.type === 'move' || c.type === 'attack') {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
-        if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
+        if (e && e.kind === 'unit' && e.player === c.player && !e.dead && befehlFrei(e)) {
           // Shift: hinten anhaengen, solange die Einheit unterwegs ist oder noch baut --
           // die Wegpunkte kommen nach den Bauauftraegen dran
           if (c.anhaengen && (e.auftrag || !e.arrived || e.wege.length)) {
@@ -505,7 +505,7 @@ function applyCommand(world, c) {
       if (t && !t.dead && t.player !== c.player) {
         for (let k = 0; k < c.ids.length; k++) {
           const e = byId(world, c.ids[k]);
-          if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || !UNITS[e.type].weapon || !erreicht(e, t)) continue;
+          if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || !UNITS[e.type].weapon || !erreicht(e, t) || !befehlFrei(e)) continue;
           e.ziel = t.id;
           e.tx = e.befX = t.x;
           e.ty = e.befY = t.y;
@@ -519,7 +519,7 @@ function applyCommand(world, c) {
       // Stehen bleiben: kein Ziel, kein Auftrag, keine Wege.
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
-        if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player) continue;
+        if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || !befehlFrei(e)) continue;
         e.tx = e.befX = e.x;
         e.ty = e.befY = e.y;
         e.arrived = true;
@@ -570,16 +570,22 @@ function applyCommand(world, c) {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
         const def = BUILDINGS[e.type];
-        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit) && !vollBesetzt(world, c.player, c.unit)) {
+        // R3: mit `bestueckung` (je Steckplatz ein Modul oder '') wird die Variante des Rumpfs ausgebildet,
+        // sonst die Standardbestueckung; typ ist der Schluessel der Einheit, die in die Schlange kommt
+        let typ = c.unit;
+        if (c.bestueckung !== undefined && def.buildList && def.buildList.includes(c.unit)) typ = bestueckungTyp(c.unit, c.bestueckung);
+        if (typ && def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit) && !vollBesetzt(world, c.player, typ)) {
           const p = world.players[c.player];
-          if (canAfford(p, UNITS[c.unit].cost)) {
-            pay(p, UNITS[c.unit].cost, 1000);
-            e.queue.push(c.unit);
+          if (canAfford(p, UNITS[typ].cost)) {
+            pay(p, UNITS[typ].cost, 1000);
+            e.queue.push(typ);
           }
         }
       }
     } else if (c.type === 'schlag') {
       schlagAbfeuern(world, c.player, c.id, c.x | 0, c.y | 0);
+    } else if (c.type === 'umruesten') {
+      umruestBefehl(world, c);
     }
   }
 }
@@ -591,13 +597,14 @@ function applyCommand(world, c) {
  */
 export function anzahlVon(world, player, typ) {
   let n = 0;
+  const rumpf = UNITS[typ].rumpf || typ; // R3: Varianten eines Rumpfs zaehlen zusammen
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.player !== player) continue;
     if (e.kind === 'unit') {
-      if (e.type === typ) n++;
+      if (e.type === typ || UNITS[e.type].rumpf === rumpf) n++;
     } else if (e.kind === 'building') {
-      for (let k = 0; k < e.queue.length; k++) if (e.queue[k] === typ) n++;
+      for (let k = 0; k < e.queue.length; k++) if (e.queue[k] === typ || UNITS[e.queue[k]].rumpf === rumpf) n++;
     }
   }
   return n;
@@ -879,10 +886,16 @@ export function bonus(world, player, art, typ, typ2) {
     const sk = SKILLS[g[i]];
     const w = sk.wirkung;
     if (!w || !w[art]) continue;
-    if (sk.nur && !(sk.nur.includes(typ) || (typ2 !== undefined && sk.nur.includes(typ2)))) continue;
+    if (sk.nur && !(sk.nur.includes(typ) || (typ2 !== undefined && sk.nur.includes(typ2)) || nurRumpf(sk.nur, typ) || (typ2 !== undefined && nurRumpf(sk.nur, typ2)))) continue;
     s += w[art];
   }
   return s;
+}
+
+/** R3: Gilt eine nur-Liste fuer den Rumpf dieser Einheitenart (eine Variante zaehlt als ihr Rumpf)? */
+function nurRumpf(nur, typ) {
+  const u = typ !== undefined && UNITS[typ];
+  return !!u && !!u.rumpf && u.rumpf !== typ && nur.includes(u.rumpf);
 }
 
 /** Reichweite der Waffe von e (dm, Rand zu Rand): die der Definition plus die Wirkung 'reichweite' aus dem Skillbaum. */
@@ -1141,6 +1154,7 @@ export function step(world) {
   distributeEnergie(world);
   erschaffen(world);
   bergen(world);
+  umruestenTick(world);
 
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
@@ -1582,6 +1596,125 @@ function erschaffen(world) {
   }
 }
 
+// ------------------------------------------------------------ Umruesten (R3)
+
+/**
+ * Darf die Einheit einen neuen Befehl annehmen? Mitten im Umruesten nicht: sie
+ * steht in der Werkstatt, bis sie fertig ist. Auf dem Weg dorthin (noch nichts
+ * bezahlt) gibt ein neuer Befehl den Umbau auf.
+ */
+function befehlFrei(e) {
+  if (!e.umruest) return true;
+  if (e.umruest.bis) return false;
+  delete e.umruest;
+  return true;
+}
+
+/** Die naechste eigene fertige Werkstatt (umruesten: true) zur Einheit; wunsch ist eine bevorzugte Id. Gleichstand: kleinste Id. */
+export function werkstattFuer(world, e, wunsch) {
+  let best = null;
+  let bestD = Infinity;
+  for (let i = 0; i < world.entities.length; i++) {
+    const b = world.entities[i];
+    if (b.dead || b.kind !== 'building' || !b.done || b.player !== e.player || !BUILDINGS[b.type].umruesten) continue;
+    if (wunsch !== undefined && b.id === wunsch) return b;
+    const d = dist2(e.x, e.y, b.x, b.y);
+    if (d < bestD) {
+      bestD = d;
+      best = b;
+    }
+  }
+  return best;
+}
+
+/** Wie nah die Einheit an der Werkstatt stehen muss (Mitte zu Mitte): beide Raender plus RULES.umruestReichweite. */
+function umruestNah(e, werk) {
+  return BUILDINGS[werk.type].radius + UNITS[e.type].radius + RULES.umruestReichweite;
+}
+
+/**
+ * Befehl 'umruesten' { id, slot, modul, werkstatt? }: Die Einheit bekommt in diesen
+ * Steckplatz das Modul. Sie geht zur Werkstatt (der naechsten, oder der genannten)
+ * und steht dort die buildTime des Moduls; bezahlt wird, wenn die Arbeit beginnt.
+ * Abgelehnt wird alles, was nicht passt: fremde oder tote Einheit, Einheit ohne
+ * Steckplaetze, falscher Steckplatz, unbekanntes Modul oder falsche Groesse, schon
+ * dasselbe Modul, nicht bezahlbar, keine Werkstatt, schon mitten im Umruesten.
+ */
+function umruestBefehl(world, c) {
+  const e = byId(world, c.id);
+  if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || (e.umruest && e.umruest.bis)) return;
+  const def = UNITS[e.type];
+  if (!def.rumpf) return;
+  if (!Number.isInteger(c.slot) || c.slot < 0 || c.slot >= def.slots.length) return;
+  if (typeof c.modul !== 'string' || !Object.prototype.hasOwnProperty.call(MODULE, c.modul) || def.bestueckung[c.slot] === c.modul) return;
+  const liste = def.bestueckung.slice();
+  liste[c.slot] = c.modul;
+  const nach = bestueckungTyp(def.rumpf, liste);
+  if (!nach || !canAfford(world.players[e.player], MODULE[c.modul].cost)) return;
+  const werk = werkstattFuer(world, e, Number.isInteger(c.werkstatt) ? c.werkstatt : undefined);
+  if (!werk) return;
+  auftraegeAufgeben(world, e);
+  e.umruest = { slot: c.slot, modul: c.modul, werk: werk.id, bis: 0, nach }; // bis 0: noch unterwegs
+  e.wege = [];
+  e.ziel = 0;
+  e.aggro = false;
+  e.tx = e.befX = werk.x;
+  e.ty = e.befY = werk.y;
+  e.arrived = false;
+}
+
+/**
+ * Umruesten, einmal je Tick: Wer bei seiner Werkstatt angekommen ist, bezahlt das
+ * neue Modul (abzueglich RULES.umruestErstattung vom alten) und steht von da an
+ * buildTime Ticks (mindestens einen) still und kaempft nicht. Danach ist die
+ * Einheit die Variante mit dem neuen Modul; ihre LP behalten ihr Verhaeltnis.
+ * Fehlt unterwegs die Werkstatt oder das Geld, endet der Auftrag ohne Kosten. Eine
+ * begonnene Arbeit laeuft auch weiter, wenn die Werkstatt inzwischen faellt.
+ */
+function umruestenTick(world) {
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'unit' || !e.umruest) continue;
+    const u = e.umruest;
+    if (!u.bis) {
+      const werk = byId(world, u.werk);
+      if (!werk || werk.dead || !werk.done) {
+        delete e.umruest;
+        world.events.push({ t: 'umruestAbbruch', id: e.id, player: e.player, grund: 'werkstatt' });
+        continue;
+      }
+      const nah = umruestNah(e, werk);
+      if (dist2(e.x, e.y, werk.x, werk.y) > nah * nah) continue;
+      const p = world.players[e.player];
+      const m = MODULE[u.modul];
+      if (!canAfford(p, m.cost)) {
+        delete e.umruest;
+        world.events.push({ t: 'umruestAbbruch', id: e.id, player: e.player, grund: 'masse' });
+        continue;
+      }
+      pay(p, m.cost, 1000);
+      const alt = UNITS[e.type].bestueckung[u.slot];
+      if (alt && RULES.umruestErstattung) pay(p, MODULE[alt].cost, -RULES.umruestErstattung);
+      u.bis = world.tick + Math.max(1, m.buildTime);
+      e.tx = e.befX = e.x;
+      e.ty = e.befY = e.y;
+      e.arrived = true;
+      e.aggro = false;
+      e.ziel = 0;
+      world.events.push({ t: 'umruestStart', id: e.id, player: e.player, x: e.x, y: e.y, bis: u.bis });
+      continue;
+    }
+    if (world.tick < u.bis) continue;
+    const neu = UNITS[u.nach];
+    e.hp = e.hp >= e.maxHp ? neu.hp : Math.max(1, Math.floor((e.hp * neu.hp) / e.maxHp));
+    e.maxHp = neu.hp;
+    e.type = u.nach;
+    e.cooldown = 0;
+    delete e.umruest;
+    world.events.push({ t: 'umgeruestet', id: e.id, player: e.player, x: e.x, y: e.y, typ: e.type });
+  }
+}
+
 // ------------------------------------------------------------ Wracks und Bergung (R1)
 
 /** Das Wrack mit dieser id, sonst null. */
@@ -1850,6 +1983,7 @@ function moveUnits(world, auren, sicht) {
   for (let i = 0; i < us.length; i++) {
     const e = us[i];
     if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
+    if (e.umruest && e.umruest.bis) continue; // steht in der Werkstatt und wird umgeruestet
     let speed = UNITS[e.type].speed;
     // Tempo in Promille ueber/unter dem Grundtempo: Skillbaum (Wirkung 'tempo'),
     // Ansturm und Tempo-Aura (die staerkste) schneller, ein Treffer mit
@@ -2039,6 +2173,7 @@ function combat(world, auren, sicht) {
     const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
     if (!def.weapon) continue;
     if (e.kind === 'building' && !e.done) continue;
+    if (e.umruest && e.umruest.bis) continue; // Umruesten: die Einheit kaempft nicht
     if (e.cooldown > 0) {
       e.cooldown--;
       continue;
@@ -2403,6 +2538,16 @@ export function gridReport(world, player) {
 const SKILL_NR = {};
 Object.keys(SKILLS).forEach((id, i) => (SKILL_NR[id] = i + 1));
 
+/** Zahl aus einem Text (FNV-1a), fuer Schluessel von Varianten im Hash. */
+function textHash(t) {
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) {
+    h ^= t.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h | 0;
+}
+
 export function hash(world) {
   let h = 2166136261;
   const mix = (v) => {
@@ -2443,6 +2588,14 @@ export function hash(world) {
         mix(e.langsamWert);
       }
       if (e.regRest) mix(e.regRest);
+      // R3: Varianten (Schluessel mit '|') und ein laufendes Umruesten
+      if (e.type.indexOf('|') >= 0) mix(textHash(e.type));
+      if (e.umruest) {
+        mix(e.umruest.slot);
+        mix(e.umruest.werk);
+        mix(e.umruest.bis);
+        mix(textHash(e.umruest.nach));
+      }
     } else {
       mix(e.doneAt);
       mix(e.progress);
@@ -2451,6 +2604,7 @@ export function hash(world) {
       mix(e.sammelX);
       mix(e.sammelY);
       mix(e.queue.length);
+      for (let k = 0; k < e.queue.length; k++) if (e.queue[k].indexOf('|') >= 0) mix(textHash(e.queue[k]));
       mix(e.powered);
       mix(e.seelen || 0);
       // Nur Schildgebaeude: Partien ohne Schild behalten ihre Pruefsumme.

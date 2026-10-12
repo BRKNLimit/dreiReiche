@@ -1,17 +1,19 @@
 // Gemeinsame Texte fuer beide Oberflaechen (2D und 3D). Liest den Zustand,
 // aendert ihn nie. tools/bundle.mjs fuegt diese Datei vor ui.js bzw. ui3d.js ein.
 
-import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PRIO_NAMES } from './sim/defs.js';
+import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PRIO_NAMES, MODULE, rumpfVon } from './sim/defs.js';
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
   gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon, zieleVon,
-  schlagBereit, anzahlVon, auraAn, bonus, maxSpieler, startplatz, wrackVon, bergKraft,
+  schlagBereit, anzahlVon, auraAn, bonus, maxSpieler, startplatz, wrackVon, bergKraft, werkstattFuer,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { createAI } from './sim/ai.js';
 import { ICONS } from './icons.js';
 import { zufallsKarte, kartenFehler, alteNamen } from './sim/kartenbau.js';
 
+/** Icon eines Typs; eine Variante (R3) zeigt das Icon ihres Rumpfs. */
+const symbol = (typ) => ICONS[typ] || ICONS[rumpfVon(typ)] || '';
 const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
@@ -483,7 +485,7 @@ export function gruppenHtml(world, auswahl) {
   }
   return Object.keys(UNITS)
     .filter((t) => zahl[t])
-    .map((t) => `<button class="ikon" data-gruppe="${t}" title="${UNITS[t].name} — nur diese auswählen">${ICONS[t] || ''}<span class="zahl">${zahl[t]}</span></button>`)
+    .map((t) => `<button class="ikon" data-gruppe="${t}" title="${UNITS[t].name} — nur diese auswählen">${symbol(t)}<span class="zahl">${zahl[t]}</span></button>`)
     .join('');
 }
 
@@ -849,18 +851,22 @@ export function kodexKnopfHtml() {
 function kodexHtml(volk, typ) {
   const kodexWelt = (kodexWelten[volk] ??= createWorld({ factions: [volk, gegnerVolkFuer(volk)] }));
   const p = 0;
-  const einheiten = Object.keys(UNITS).filter((k) => UNITS[k].faction === volk);
+  const einheiten = Object.keys(UNITS).filter((k) => UNITS[k].faction === volk && k.indexOf('|') < 0);
+  const module = Object.keys(MODULE).filter((k) => MODULE[k].faction === volk);
   const bauten = Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].faction === volk);
   const knopf = (k, name) => `<button class="ikon${k === typ ? ' an' : ''}" data-kodex="${k}" title="${name}">${ICONS[k] || ''}<span>${name}</span></button>`;
   const karteHtml = !typ
     ? '<p class="leise">Ein Icon wählen — Werte, Kosten und was es freischaltet.</p>'
     : UNITS[typ]
       ? einheitKarte(kodexWelt, p, typ)
-      : gebaeudeKarte(kodexWelt, p, typ);
+      : MODULE[typ]
+        ? modulKarte(typ)
+        : gebaeudeKarte(kodexWelt, p, typ);
   const volkKnopf = (v, name) => `<button data-volk="${v}"${v === volk ? ' class="an"' : ''}>${name}</button>`;
   return `<div class="vorwort kodex"><div class="kapitel">Kodex</div><h1 style="color:${FACTIONS[volk].color}">${FACTIONS[volk].name}</h1>
     <div class="go">${Object.keys(FACTIONS).map((f) => volkKnopf(f, FACTIONS[f].name)).join('')}</div>
     <h2>Einheiten</h2><div class="kodexgitter">${einheiten.map((k) => knopf(k, UNITS[k].name)).join('')}</div>
+    ${module.length ? `<h2>Module</h2><div class="kodexgitter">${module.map((k) => knopf(k, MODULE[k].name)).join('')}</div>` : ''}
     <h2>Gebäude</h2><div class="kodexgitter">${bauten.map((k) => knopf(k, BUILDINGS[k].name)).join('')}</div>
     <div class="kodexkarte">${karteHtml}</div>
     <div class="go"><button id="kodexZurueck">Zurück</button></div></div>`;
@@ -1024,7 +1030,7 @@ export function ausbildungsleisteHtml(world, player, fabriken) {
       const zu = gesperrtSkill || voll;
       const zahlHtml = grenze ? `<span class="zahl">${da}/${grenze}</span>` : inQueue ? `<span class="zahl">${inQueue}</span>` : '';
       const grund = gesperrtSkill ? ' — gesperrt, Skillbaum (T)' : voll ? ` — schon ${da}/${grenze}, höchstens ${grenze} gleichzeitig` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u] || ''}<span class="kosten">${d.cost.masse}</span>${zahlHtml}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${symbol(u)}<span class="kosten">${d.cost.masse}</span>${zahlHtml}</button>`;
     })
     .join('');
 }
@@ -1037,6 +1043,77 @@ export function ausbildungsleisteHtml(world, player, fabriken) {
 export function grenzenSignatur(world, player, fabriken) {
   const liste = fabriken.length ? BUILDINGS[fabriken[0].type].buildList || [] : [];
   return liste.filter((u) => UNITS[u].hoechstens).map((u) => anzahlVon(world, player, u)).join();
+}
+
+// ------------------------------------------------------------ Umruesten (R3)
+
+/** Die gewaehlten eigenen Einheiten mit Steckplaetzen, die so sind wie die erste davon (gleiche Variante). */
+export function umruestEinheiten(world, player, sel) {
+  const out = [];
+  for (const id of sel) {
+    const e = byId(world, id);
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !UNITS[e.type].rumpf) continue;
+    if (!out.length || out[0].type === e.type) out.push(e);
+  }
+  return out;
+}
+
+/** Module, die in diesen Steckplatz der Einheit passen: dasselbe Volk, gleiche Groesse, nur-Liste. */
+export function umruestModule(def, slot) {
+  return Object.keys(MODULE).filter((id) => {
+    const m = MODULE[id];
+    return m.faction === def.faction && m.groesse === def.slots[slot] && (!m.nur || m.nur.includes(def.rumpf));
+  });
+}
+
+/**
+ * Leiste "Umruesten" fuer die gewaehlten Einheiten mit Steckplaetzen: je Steckplatz
+ * eine Reihe mit dem eingebauten Modul und Knoepfen fuer die anderen (Kosten und Zeit
+ * im Titel). Gesperrt ohne Werkstatt oder ohne Geld. Leer, wenn nichts davon gewaehlt ist.
+ */
+export function umruestLeisteHtml(world, player, sel) {
+  const ks = umruestEinheiten(world, player, sel);
+  if (!ks.length) return '';
+  const def = UNITS[ks[0].type];
+  const p = world.players[player];
+  const werk = werkstattFuer(world, ks[0]);
+  const reihen = def.slots.map((gr, i) => {
+    const jetzt = def.bestueckung[i];
+    const knoepfe = umruestModule(def, i)
+      .map((id) => {
+        const m = MODULE[id];
+        const hier = id === jetzt;
+        const zu = hier || !werk || !canAfford(p, m.cost);
+        const titel = `${m.name} — ${kostenText(m.cost)}, ${sekunden(m.buildTime)}${hier ? ' (eingebaut)' : !werk ? ' — braucht eine Werkstatt' : ''}`;
+        return `<button class="modul${hier ? ' an' : ''}${zu ? ' zu' : ''}" data-umr="${i}:${id}" title="${titel}">${m.name}<small>${m.cost.masse}</small></button>`;
+      })
+      .join('');
+    return `<div class="umruest-reihe"><span>${GROESSEN[gr] || gr} ${i + 1}</span>${knoepfe}</div>`;
+  });
+  const kopf = `Umrüsten · ${def.name}${ks.length > 1 ? ` ×${ks.length}` : ''}${werk ? '' : ' — braucht eine Werkstatt'}`;
+  return `<div class="umruest"><b>${kopf}</b>${reihen.join('')}</div>`;
+}
+
+/** Aendert sich, wenn die Leiste neu gezeichnet werden muss: Auswahl, Typ der Einheiten, ob eine Werkstatt da ist. */
+export function umruestSignatur(world, player, sel) {
+  const ks = umruestEinheiten(world, player, sel);
+  return ks.length ? ks[0].type + ':' + ks.length + ':' + (werkstattFuer(world, ks[0]) ? 1 : 0) : '';
+}
+
+/** Ein Klick auf ein Modul: alle gewaehlten passenden Einheiten ruesten um (so viele, wie das Geld reicht). */
+export function umruestenVerteilt(world, player, sel, slot, modul) {
+  const ks = umruestEinheiten(world, player, sel);
+  if (!ks.length || !MODULE[modul] || !UNITS[ks[0].type].bestueckung || UNITS[ks[0].type].bestueckung[slot] === modul) return;
+  const p = world.players[player];
+  const kosten = MODULE[modul].cost;
+  let masse = p.masse;
+  let resonit = p.resonit;
+  for (const e of ks) {
+    if ((kosten.masse || 0) > masse || (kosten.resonit || 0) > resonit) break;
+    masse -= kosten.masse || 0;
+    resonit -= kosten.resonit || 0;
+    issue(world, { type: 'umruesten', player, id: e.id, slot, modul });
+  }
 }
 
 /** Statt einer Liste aller Netze: nur Warnungen, wo Energie fehlt. */
@@ -1231,6 +1308,35 @@ export function gebaeudeKarte(world, player, typ) {
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
+const GROESSEN = { klein: 'klein', gross: 'groß' };
+
+/** Rumpf und Module einer Einheit als Karten-Zeilen: je Steckplatz Groesse und Modul. */
+function bestueckungZeilen(d) {
+  const z = [['Rumpf', UNITS[d.rumpf].name]];
+  d.slots.forEach((gr, i) => {
+    const id = d.bestueckung && d.bestueckung[i];
+    z.push([`Steckplatz ${i + 1} (${GROESSEN[gr] || gr})`, id && MODULE[id] ? MODULE[id].name : 'leer']);
+  });
+  z.push(['Umrüsten', 'in einer Werkstatt: kostet das neue Modul und dessen Bauzeit']);
+  return z;
+}
+
+/** Karte eines Moduls: Groesse, Kosten, Zeit zum Umruesten und was es der Einheit gibt. */
+export function modulKarte(id) {
+  const m = MODULE[id];
+  const z = [['Steckplatz', GROESSEN[m.groesse] || m.groesse], ['Kosten', kostenText(m.cost || { masse: 0 })], ['Einbau', sekunden(m.buildTime || 0)]];
+  if (m.nur) z.push(['Nur für', m.nur.map((k) => (UNITS[k] ? UNITS[k].name : k)).join(', ')]);
+  if (m.hp) z.push(['Leben', (m.hp > 0 ? '+' : '') + m.hp + ' LP']);
+  if (m.speed) z.push(['Tempo', (m.speed > 0 ? '+' : '') + prozent(m.speed)]);
+  if (m.weapon) z.push(...waffeZeilen(m, 900));
+  if (m.sicht) z.push(['Sicht', meterText(m.sicht)]);
+  z.push(...volkZeilen(m, false));
+  if (m.bergung) z.push(['Bergung', m.bergung.kraft + ' Masse/min']);
+  if (m.build) z.push(['Baut', m.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(m.build.power)} Kraft`]);
+  if (m.unterhalt) z.push(['Unterhalt', m.unterhalt + ' Masse/min']);
+  return karte(m.name, m.desc, z, '');
+}
+
 /** Alles, was man vor der Ausbildung einer Einheit wissen muss. */
 export function einheitKarte(world, player, typ) {
   const d = UNITS[typ];
@@ -1238,6 +1344,7 @@ export function einheitKarte(world, player, typ) {
   if (!d.commander) z.push(['Kosten', kostenText(d.cost)], ['Ausbildung', sekunden(d.buildTime)]);
   if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Masse/min']);
   z.push(['Leben', d.hp + ' LP']);
+  if (d.slots) z.push(...bestueckungZeilen(d));
   if (d.hoechstens) z.push(['Begrenzt', `höchstens ${d.hoechstens} gleichzeitig (lebend und in Ausbildung)`]);
   if (d.weapon) z.push(...waffeZeilen(d, 900));
   z.push(...volkZeilen(d, false));
@@ -1322,6 +1429,10 @@ export function auswahlKopf(world, e) {
   if (e.kind === 'unit' && e.rufBis > world.tick) teile.push('Schlachtruf');
   if (e.kind === 'unit' && e.wehrBis > world.tick) teile.push('Schildwall');
   if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');
+  if (e.kind === 'unit' && e.umruest) {
+    const m = MODULE[e.umruest.modul];
+    teile.push(e.umruest.bis ? `rüstet um: ${m.name}, noch ${sekunden(e.umruest.bis - world.tick)}` : `unterwegs zur Werkstatt: ${m.name}`);
+  }
   if (e.kind === 'unit' && e.beschworen) teile.push(`vergeht in ${sekunden(e.vergehtBei - world.tick)}`);
   if (e.kind === 'unit' && e.gebundenBis > world.tick) teile.push('festgehalten');
   if (e.kind === 'unit' && e.auftrag && wrackVon(world, e.auftrag)) teile.push(e.birgt === e.auftrag ? 'birgt ein Wrack' : 'unterwegs zu einem Wrack');

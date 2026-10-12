@@ -355,22 +355,41 @@ geprüft (Tests, Galerie, Spiel).
     - Jede Karte — ob 'klassisch', 'flusstal', 'zufall' oder 'eigene' — erhält damit nahtlos und automatisch ihre korrekten Bodenfarben, Moosböden, sonnigen Wiesen und Furtübergänge.
 - **Wie geprüft:** `npm test` (137/137 Tests grün), `npm run smoke` (2D, 3D, Galerie und Editor fehlerfrei; 60 FPS stabil).
 
+### Runde 24: Das Totenreich (Der Todesgott) & Elite-Einheiten im Ordner erweiterungen/
+- **Was war die Aufgabe:** Eigenständiges Entwerfen neuer Inhalte für das Spiel: Eine dritte vollwertige Fraktion, elitäre Einheiten für die bestehenden Reiche (Menschen & Waldgott) sowie Bereitstellung aller Konzepte, Simulationsdefinitionen, 3D-Modelle, SVG-Icons und 2D-Zeichenroutinen in einem separaten Erweiterungsordner (`erweiterungen/`).
+- **Was wurde geschaffen:**
+  - **Konzepte & Lore (`erweiterungen/README.md`, `KONZEPT_TOTENREICH.md`, `EINHEITEN_UND_GEBAEUDE.md`):**
+    - **Der Todesgott (Das Totenreich / Die Knochenwacht):** Konsequente Fortführung der Spielphilosophie von *Die drei Reiche* (identische 3 Ressourcen, identische 10 Gebäuderollen, Drosselleiter). Das Alleinstellungsmerkmal liegt in der Anker-Wachstumsregel: Der Anker (`grabhuegel`) startet kompakt (140 m) und wächst ausschließlich durch Gefallene im Einflussbereich (+18 m Radius je Opfer).
+    - Ausführliches Balancing, Drosselkaskade (Pestaltar als Zorn-Waffe fällt zuletzt, Katakombe als Werk fällt zuerst), Skillbaum mit 4 Ästen und Kommandantenfähigkeiten (`grabesklaelte`, `seelenernte`, `knochensturm`).
+    - **Elite-Einheiten:**
+      - Menschen: `paladin` (geheiligter Ritter), `wagenburg` (mobile Festung), `scharfschuetze` (Meisterschütze mit Windenarmbrust), `priester` (Feldkaplan mit Weihrauchaura).
+      - Waldgott: `moosbaer` (Urvieh des Tiefwalds), `fluesterer` (Sporenschamane), `kronenhirsch` (Wächter des Gleichgewichts mit Tempoaura), `dornenhydra` (dreiköpfiges Wurzelmonstrum mit Flächenhieben).
+  - **Simulations-Definitionen (`erweiterungen/sim_defs.js`):**
+    - 1:1 kompatibel zu `src/sim/defs.js`: `TOD_FACTION`, `TOD_BUILDINGS` (10 Gebäude), `TOD_UNITS` (7 Einheiten), `ELITE_UNITS_MENSCH` (4 Einheiten), `ELITE_UNITS_GOTT` (4 Einheiten), `TOD_SKILLS` (14 Skills), `TOD_FAEHIGKEITEN` (3 Fähigkeiten).
+  - **3D-Modelle (`erweiterungen/modelle.js`):**
+    - 25 hochauflösende 3D-Modelle im Format von `src/modelle3d.js` (`['q', ...]`, `['z', ...]`), die den Standard von Waldgott G.2 Glutherz und den Runden 20–23 erfüllen.
+    - Spektrales Seelenfeuer (`#38bdf8`), glühende Augen und Klingen (`GLUEHT`), Obsidianpanzerungen, Skelettrippen und Totenschädel.
+  - **SVG-Icons (`erweiterungen/icons.js`):**
+    - 28 handgefertigte Vektor-Icons (`viewBox="0 0 24 24"`, ohne feste Größenangaben am `<svg>`, ab 20 px lesbar, sichere SVGs).
+  - **2D-Top-Down-Figuren (`erweiterungen/figuren2d.js`):**
+    - `zeichneErweiterungEinheit2d` und `zeichneErweiterungGebaeude2d` zur präzisen und lebendigen Darstellung auf dem 2D-Spielfeld.
+  - **Automatische Verifikation (`erweiterungen/test_erweiterungen.js`):**
+    - Eigene Testsuite prüft alle Geometrien, Eckenbudgets ($\le 6000$ Einheiten, $\le 9000$ Gebäude), SVG-Vorschriften und 2D-Zeichenaufrufe.
+- **Wie geprüft:**
+  - `node erweiterungen/test_erweiterungen.js`: Alle 4 Test-Suites grün (0 Fehler).
+  - `npm test`: Alle 137 Kern-Tests grün.
+  - `npm run smoke`: Headless-Tests für 2D, 3D, Galerie und Editor fehlerfrei bestanden.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+### Runde 25: Direkte Integration aller 25 neuen 3D-Modelle & 28 Icons in die Galerie (src/modelle3d.js, src/icons.js, src/galerie.js, src/galerie.html)
+- **Was war schwach:** Die 25 neuen 3D-Modelle und 28 Icons waren zwar im Ordner `erweiterungen/` fertig definiert, aber noch nicht in der Live-Galerie (`dist/galerie.html`) interaktiv ansehbar.
+- **Was wurde geändert:**
+  - **`src/modelle3d.js`:** Alle 25 neuen Modelle (7 Einheiten + 10 Gebäude des Todesgottes, 4 menschliche Elite-Einheiten, 4 Waldgott-Elite-Einheiten) wurden vollständig in `MODELLE_DEF` registriert.
+  - **`src/icons.js`:** Sämtliche 28 neuen SVG-Icons wurden in `ICONS` eingetragen.
+  - **`src/galerie.html` & `src/galerie.js`:**
+    - Zwei neue Hauptschaltflächen in der Navigation: „Totenreich (Todesgott)“ und „Elite-Einheiten“.
+    - Vollständige 3D-Präsentation mit drehender Kamera, Fraktionsfarben (Aschgrau/Zyan für Tod, Gold für Menschen, Waldgrün für Gott) und Gehanimation-Unterstützung.
+    - Die Ansicht „Icons“ zeigt nun alle 78 Icons (vorher 50).
+- **Wie geprüft:**
+  - `node erweiterungen/test_erweiterungen.js`: 4/4 Tests grün.
+  - `npm test`: 137/137 Tests grün.
+  - `npm run smoke`: Headless WebGL2, Canvas, Galerie (78 Icons, alle Ansichten) und Editor fehlerfrei bestanden.

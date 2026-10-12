@@ -1255,8 +1255,10 @@ export function step(world) {
   // Heilen, Bewegung und Kampf dieselben Quellen sehen -- und ohne Aura nichts kosten.
   const auren = aurenSammeln(world);
   regenerieren(world, auren);
-  // Feuerleitnetz (R2): eine Sicht je Tick, aus den Lagen vom Tickbeginn, fuer
-  // Verfolgen und Kampf gleichermassen (Auren und Sicht kosten ohne Gefecht nichts).
+  // Feuerleitnetz (R2): eine Sicht je Tick und Spieler fuer Verfolgen und Kampf.
+  // Sie entsteht bei der ersten Zielpruefung dieses Spielers (in moveUnits vor
+  // den Bewegungen, sonst erst im Kampf danach) -- in jedem Lauf gleich, also
+  // deterministisch; ohne Gefecht kostet sie nichts.
   const sicht = neueZielsicht(world);
   moveUnits(world, auren, sicht);
   combat(world, auren, sicht);

@@ -3,7 +3,7 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
-## Unveröffentlicht — R2 Feuerleitnetz (Sonnet)
+## 0.44 — Feuerleitnetz (R2, Sonnet)
 
 - **Regel:** Eine Waffe zielt nur auf das, was ihr Spieler gerade sieht — mit
   irgendeiner eigenen Einheit oder einem eigenen Gebäude. Gilt für die

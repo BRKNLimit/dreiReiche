@@ -1354,6 +1354,15 @@ const RULES = {
   // ungemessen: ein Bauer (Baukraft 400) birgt 200 Masse je Minute, ein
   // Extraktor der Menschen foerdert 360.
   bergungProBaukraft: 500,
+
+  // Feuerleitnetz (R2): Eine Waffe zielt nur auf das, was ihr Spieler gerade
+  // sieht (mit irgendeiner eigenen Einheit oder einem eigenen Gebaeude, Gitter
+  // der Wegfindung: die Zelle des Ziels, bei Gebaeuden auch ihr Rand). Gilt
+  // fuer Zielwahl, gezielten Angriff und Verfolgen; ein Flaechentreffer trifft
+  // am Einschlagort alles, und der Fernschlag zielt auf einen Punkt. Reicht
+  // eine Waffe weiter als die Sicht, braucht sie einen Spaeher. false = wie
+  // vor R2 (bitgleich).
+  feuerleitnetz: true,
 };
 const FACTIONS = {};
 

@@ -19,6 +19,7 @@ nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Feld
 | M7 KI | — | in Arbeit (Sonnet) |
 | R0 Rollen optional | Pflicht nur `anker`, `kraft`, `masse`, `resonit`, `fabrik`, `bauer`, `leicht`; alles andere frei (auch `turm`, `zorn`, `wehr`, `forschung`, `fern`, `schwer`, `belagerung`, `umwandler`). `rollen`, `lernen`, `skills`, `faehigkeiten` dürfen fehlen bzw. leer sein — die KI mischt ihr Heer dann aus dem, was die Fabriken ausbilden; ohne Skills keine Glühbirne und kein T | **nutzbar** (seit 12.10.) |
 | R1 Wracks und Bergung | `RULES.wrackAnteil` (700), `wrackAnteilGebaeude` (500), `bergungProBaukraft` (500); Einheitenfeld `bergung: { kraft }` (Masse/min) für eigene Bergungsfahrzeuge, sonst bergen Erbauer mit ihrer Baukraft; Befehl `bergen`; Modell/Icon `wrack` noch Platzhalter (Wunsch an Gemini) | **nutzbar** (seit 12.10.) |
+| R2 Feuerleitnetz | `RULES.feuerleitnetz` (an): Zielwahl, gezielter Angriff und Verfolgen nur auf Gesehenes (Sichtgitter des Spielers, 20 m je Zelle); Flächenschaden und Fernschlag brauchen keine Sicht. Infokarte „braucht Aufklärung“, wenn `weapon.range` > `sicht` | **nutzbar** (seit 12.10.) |
 | M9 Mehrspieler | Karten mit `spieler` und `basen: [{x, y}]` fassen 3–4 Spieler (`maxSpieler`, `startplatz`), Ausscheiden und Verfall, Kunde mit `gegnerPlaetze` | **nutzbar** (seit 12.10.) |
 | M8 Oberfläche | Bauleiste in Gruppen aus den Rollen (Wirtschaft, Militär, Besonderes; Tab wechselt), Reihenfolge wie `bauten`, volkseigene Gebäude ohne Rolle unter „Besonderes“; Modelle `schildkuppel`, `fernschlag`, `flak` eingebunden | **nutzbar** (seit 12.10.) |
 
@@ -30,5 +31,6 @@ nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Feld
 | + Spähposten für Gott und Tod (Gemini, Runde 28) | 38 : 24 | 32 : 40 | 33 : 29 |
 | + Skillbäume 22 je Volk (Gemini, Runde 30) | 44 : 26 | 30 : 42 | 36 : 34 |
 | + Wracks und Bergung (R1, 0.43) | 34 : 36 | — | — |
+| + Feuerleitnetz (R2, 0.44) | 37 : 33 | — | — |
 
 KI gegen KI, 36 Seeds × 2 Sitzplätze, 45 min, Stil-Paarungen (`tools/sweep.mjs 36 45 Ausgang stile voelker=…`). Nach den Skillbäumen gewinnt Tod gegen Gott auffällig oft schon in Minute 4 (Seeds paarweise „M4 M4“) — vermutlich fällt der Kommandant früh; mit dem Wechsel zu Resonit nicht weiter verfolgt. Messungen mit weniger Partien (Gemini: 10 Seeds × 30 min) streuen zu stark für Aussagen — bitte immer diese Einstellung.

@@ -327,7 +327,7 @@ Gefecht wird zum zweiten Kampf um das Trümmerfeld.
    endet, zwei Berger teilen sich ein Wrack deterministisch, Spielstand
    mitten in der Bergung bitgenau, Kunde sieht ungesehene Wracks nicht.
 
-## R2 Feuerleitnetz (Resonit, Kompendium „Das Feuerleitnetz & Aufklärung“)
+## R2 Feuerleitnetz — abgenommen und gemergt (12.10.)
 
 Heute sieht die Simulation alles: Ein Turm oder eine Einheit trifft jeden
 Feind in Reichweite, auch im Nebel. In Resonit gilt: **Eine Waffe zielt nur

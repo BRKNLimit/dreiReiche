@@ -11,41 +11,6 @@ import {
 import { neueKunde, aufklaeren, vermutetesHaupt, bekanntBei } from './kunde.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
 
-const PLAN = {
-  mensch: {
-    anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne',
-    zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten',
-    bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult',
-  },
-  gott: {
-    anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht',
-    zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche',
-    bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe',
-  },
-  tod: {
-    anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe',
-    zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv',
-    bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier',
-  },
-};
-
-// Reihenfolge im Skillbaum: erst die Fernkaempfer, dann Zorn und Schaden,
-// der Kommandant mit seiner Faehigkeit, Wirtschaft, Wehr, die schweren
-// Einheiten, der Rest. Fraktionsgleich.
-const LERNEN = {
-  mensch: [
-    'bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte',
-    'kapellenbau', 'belagerungsbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'ansturm',
-  ],
-  gott: [
-    'waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss',
-    'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf',
-  ],
-  tod: [
-    'klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte',
-    'beinhaus', 'titanenform', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'ewigerDienst', 'seelenrausch', 'knochensturm',
-  ],
-};
 
 // Reihenfolge der Ausbildung; "schwer" nur mit Goetterblut.
 const MISCHUNG = ['leicht', 'fern', 'leicht', 'fern', 'schwer'];
@@ -123,7 +88,7 @@ export function stepAI(ai, world) {
   ai.next = world.tick + ai.stufe.takt;
 
   const p = world.players[ai.player];
-  const plan = PLAN[p.faction];
+  const plan = FACTIONS[p.faction].rollen; // Bau-Rollen (src/sim/voelker/)
   const mine = world.entities.filter((e) => e.player === ai.player && !e.dead);
   const haupt = mine.find((e) => e.kind === 'building' && BUILDINGS[e.type].vital);
   if (!haupt) return;
@@ -187,7 +152,7 @@ export function stepAI(ai, world) {
 
   // 0. Skillbaum: der naechste Skill der festen Reihenfolge, sobald die
   //    Punkte reichen -- wird gespart, nicht uebersprungen.
-  const naechsterSkill = LERNEN[p.faction].find((id) => !p.gelernt.includes(id));
+  const naechsterSkill = FACTIONS[p.faction].lernen.find((id) => !p.gelernt.includes(id));
   if (naechsterSkill && kannLernen(world, ai.player, naechsterSkill)) {
     issue(world, { type: 'lernen', player: ai.player, skill: naechsterSkill });
   }

@@ -3,7 +3,7 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
-## Unveröffentlicht — R1 Wracks und Bergung (Sonnet)
+## 0.43 — Wracks und Bergung (R1, Sonnet)
 
 - **Wracks:** Eine gefallene Einheit lässt `RULES.wrackAnteil` (700 Promille),
   ein gefallenes fertiges Gebäude `RULES.wrackAnteilGebaeude` (500) ihrer

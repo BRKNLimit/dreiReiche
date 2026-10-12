@@ -797,8 +797,10 @@ export function beobachterHtml(world) {
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
 export const NEUHEITEN = {
-  version: '0.41',
+  version: '0.43',
   punkte: [
+    '<b>Das Spiel wird Resonit</b> — Energie, Masse und Resonit statt Gegenwart, Fron und Götterblut; die Sci-Fi-Völker Vanguard und Kranor folgen',
+    '<b>Wracks:</b> Gefallenes lässt Schrott mit einem Teil seiner Masse liegen — Erbauer bergen ihn per Rechtsklick (Shift reiht auf)',
     '<b>Neu: bis zu vier Spieler</b> — jeder gegen jeden auf den Karten „Drei Reiche (3P)“ und „Vierlande (4P)“, Gegner 2 und 3 im Startmenü wählbar; wer Hauptgebäude und Kommandant verliert, scheidet aus und sieht zu',
     '<b>Bauleiste mit Reitern</b> (Wirtschaft, Militär, Besonderes) — <kbd>Tab</kbd> wechselt; größerer <b>Skillbaum</b> mit Stufen und Linien (T)',
     '<b>Neu in 3D:</b> Schildkuppeln, Fernschlag-Raketen und Flak',

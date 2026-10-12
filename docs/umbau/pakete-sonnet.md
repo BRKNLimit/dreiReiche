@@ -263,7 +263,7 @@ und bis zu drei KIs, in 2D und 3D. Online und Kampagne bleiben bei zwei.
    Ausscheiden, Sieg des Letzten, Kunde ohne Blick auf fremde Entities,
    KI-gegen-KI-Partie mit 4 Spielern endet ohne Hänger.
 
-## R0 Rollen optional, KI robust (Resonit, `docs/resonit/plan.md`)
+## R0 Rollen optional, KI robust — abgenommen und gemergt (12.10.)
 
 Resonit kennt „Keine Pendants“: Nicht jedes Volk hat jede Rolle (der Kranor
 hat z. B. keine Jäger und Bomber, kein Volk hat Schreine oder einen
@@ -291,7 +291,7 @@ davon als gegeben (`plan.turm`, `plan.zorn`, `plan.forschung`,
    baut ein Heer und greift an; Oberflächen-Helfer ohne Fehler.
    `node tools/referenz.mjs` bitgleich.
 
-## R1 Wracks und Bergung (Resonit, Kompendium „Masse und Wracks“)
+## R1 Wracks und Bergung — abgenommen und gemergt (12.10.)
 
 Masse ist lagerbar, aber der Witz ist die Rückgewinnung: Jedes große
 Gefecht wird zum zweiten Kampf um das Trümmerfeld.

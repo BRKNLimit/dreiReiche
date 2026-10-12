@@ -103,7 +103,7 @@
   </div>
 </div>
 <script>
-const SPIEL_STAND = 'a650ed6fce';
+const SPIEL_STAND = '521d3cf67b';
 
 /* ---------------------------------- */
 
@@ -1365,6 +1365,19 @@ const RULES = {
   skills: true,
   skillStart: 1,
   skillTakt: 1200,
+
+  // Wracks und Bergung (R1): Was eine gefallene Einheit oder ein gefallenes
+  // fertiges Gebaeude liegen laesst, in Promille seiner Masse-Kosten.
+  // Vergangene (Beschworene, Verfall Ausgeschiedener) und abgerissene
+  // hinterlassen nichts. 0 = keine Wracks; die Partie ist dann bitgleich zu
+  // der ohne Wrack-Regel. Designzahlen, ungemessen.
+  wrackAnteil: 700,
+  wrackAnteilGebaeude: 500,
+  // Bergekraft eines Erbauers (UNITS[...].build), der kein eigenes bergung-
+  // Feld hat: Masse pro Minute je 1000 Promille Baukraft. Designzahl,
+  // ungemessen: ein Bauer (Baukraft 400) birgt 200 Masse je Minute, ein
+  // Extraktor der Menschen foerdert 360.
+  bergungProBaukraft: 500,
 };
 const FACTIONS = {};
 
@@ -1463,7 +1476,11 @@ const FELDER = {
   // regeneration (M3): LP pro Minute, die die Einheit bzw. das Gebaeude von
   // selbst zurueckbekommt (Gebaeude nur versorgt, anteilig zu powered).
   // aura (M3): wirkt auf eigene Einheiten im Umkreis, siehe FELDER.aura.
-  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura'],
+  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura', 'bergung'],
+  // bergung (R1): die Einheit birgt Wracks (Befehl 'bergen'); kraft ist die
+  // Masse pro Minute. Erbauer (build) bergen auch ohne dieses Feld, mit ihrer
+  // Baukraft umgerechnet (RULES.bergungProBaukraft). Geborgen wird nur auf Befehl.
+  bergung: ['kraft'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
   // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
   // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,
@@ -2175,6 +2192,7 @@ function createWorld(opts = {}) {
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
     schlaege: [], // Fernschlaege im Flug (M4): { von, player, x, y, landet, radius, schaden }
+    wracks: [], // Wracks (R1): { id, kind: 'wrack', typ, art, x, y, radius, masse, fein, voll } -- gehoeren niemandem
     baubeginnRunde: 0, // Vorrang beim gleichzeitigen Baubeginn, siehe erschaffen()
     hindernisse: opts.empty ? [] : daten.hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -2340,6 +2358,32 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
 }
 
 /**
+ * Bergeauftrag (R1): Jede genannte eigene Einheit, die bergen kann (bergKraft),
+ * geht zum Wrack und birgt es -- wie beauftrage() mit dem Wrack als Ziel.
+ * Der Auftrag steht im selben Feld wie ein Bauauftrag (auftrag, reihe): eine
+ * Einheit tut eines nach dem anderen, Shift haengt an.
+ */
+function bergeAuftrag(world, player, ids, wrack, anhaengen = false) {
+  for (let k = 0; k < ids.length; k++) {
+    const e = byId(world, ids[k]);
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !bergKraft(UNITS[e.type])) continue;
+    if (anhaengen && e.auftrag) {
+      if (e.auftrag !== wrack.id && !e.reihe.includes(wrack.id)) e.reihe.push(wrack.id);
+      continue;
+    }
+    auftraegeAufgeben(world, e, wrack.id);
+    e.auftrag = wrack.id;
+    e.reihe = [];
+    e.wege = [];
+    e.ziel = 0;
+    e.tx = wrack.x;
+    e.ty = wrack.y;
+    e.arrived = false;
+    e.aggro = false;
+  }
+}
+
+/**
  * Neuer Befehl ohne Shift: Der Erbauer laesst Auftrag und Baureihe fallen.
  * Plaene, die danach niemand mehr bauen soll, verschwinden -- wie ein
  * abgebrochener Bauauftrag. Begonnene Baustellen bleiben stehen.
@@ -2445,7 +2489,7 @@ function naechsterAuftrag(world, u) {
   u.auftrag = 0;
   while (u.reihe.length) {
     const id = u.reihe.shift();
-    const z = byId(world, id) || planVon(world, id);
+    const z = byId(world, id) || planVon(world, id) || wrackVon(world, id);
     if (!z || z.dead || (z.kind === 'building' && z.done && z.hp >= z.maxHp)) continue;
     u.auftrag = id;
     u.tx = z.x;
@@ -2581,6 +2625,10 @@ function applyCommand(world, c) {
         ? plan.player === c.player
         : b && b.kind === 'building' && b.player === c.player && !b.dead && (!b.done || b.hp < b.maxHp);
       if (geht) beauftrage(world, c.player, c.ids, b, !!c.anhaengen);
+    } else if (c.type === 'bergen') {
+      // Ein Wrack bergen -- nur auf Befehl, nie von selbst.
+      const w = wrackVon(world, c.id);
+      if (w) bergeAuftrag(world, c.player, c.ids, w, !!c.anhaengen);
     } else if (c.type === 'planWeg') {
       const plan = planVon(world, c.id);
       if (plan && plan.player === c.player) planEntfernen(world, plan);
@@ -2746,6 +2794,7 @@ function demolish(world, player, id) {
   pay(p, def.cost, e.done ? -500 : -750);
   for (let i = 0; i < e.queue.length; i++) pay(p, UNITS[e.queue[i]].cost, -1000);
   e.dead = true;
+  e.abgerissen = true; // abgerissen, nicht gefallen: kein Wrack
   world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, masse: p.masse - vorher });
   return true;
 }
@@ -3128,6 +3177,7 @@ function step(world) {
   computeRegions(world);
   distributeEnergie(world);
   erschaffen(world);
+  bergen(world);
 
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
@@ -3547,6 +3597,7 @@ function erschaffen(world) {
     if (u.dead || u.kind !== 'unit' || !u.auftrag) continue;
     const b = UNITS[u.type].build;
     u.baut = 0;
+    if (wrackVon(world, u.auftrag)) continue; // Bergeauftrag, siehe bergen()
     if (b && planVon(world, u.auftrag)) continue; // unterwegs zum Plan oder wartet auf Fron
     const site = byId(world, u.auftrag);
     // Fertig gebaut und heil: Auftrag erledigt, weiter mit dem naechsten. Beschaedigt: reparieren.
@@ -3561,6 +3612,99 @@ function erschaffen(world) {
     site.hilfe += mehr ? b.power + (((b.power * mehr) / 1000) | 0) : b.power;
     u.baut = site.id;
   }
+}
+
+// ------------------------------------------------------------ Wracks und Bergung (R1)
+
+/** Das Wrack mit dieser id, sonst null. */
+function wrackVon(world, id) {
+  const w = world.wracks;
+  for (let i = 0; i < w.length; i++) if (w[i].id === id) return w[i];
+  return null;
+}
+
+/**
+ * Bergekraft einer Einheitenart in Masse pro Minute; 0 = kann nicht bergen.
+ * Ein eigenes bergung-Feld gilt, sonst birgt ein Erbauer mit seiner Baukraft
+ * (RULES.bergungProBaukraft).
+ */
+function bergKraft(def) {
+  if (def.bergung) return def.bergung.kraft;
+  return def.build ? ((def.build.power * RULES.bergungProBaukraft) / 1000) | 0 : 0;
+}
+
+/** Feinmass je Masse: Bergekraft (Masse pro Minute) ist genau die Feinmasse je Tick (600 Ticks je Minute). */
+const WRACK_FEIN = 600;
+
+/**
+ * Hinterlaesst ein gefallenes Ding ein Wrack? Einheiten und fertige Gebaeude,
+ * die gefallen sind -- nicht vergangen, beschworen oder abgerissen --, mit
+ * einem Anteil ihrer Masse-Kosten. Ein Flieger ueber Fels oder Wasser laesst
+ * nichts liegen, was keiner erreichen koennte.
+ */
+function wrackHinterlassen(world, e) {
+  if (e.vergangen || e.beschworen || e.abgerissen) return;
+  const einheit = e.kind === 'unit';
+  if (!einheit && !e.done) return;
+  const def = einheit ? UNITS[e.type] : BUILDINGS[e.type];
+  const anteil = einheit ? RULES.wrackAnteil : RULES.wrackAnteilGebaeude;
+  const masse = (((def.cost.masse || 0) * anteil) / 1000) | 0;
+  if (masse <= 0) return;
+  if (einheit && def.fliegt && aufHindernis(world, e.x, e.y, 0)) return;
+  world.wracks.push({ id: world.nextId++, kind: 'wrack', typ: e.type, art: e.kind, x: e.x, y: e.y, radius: def.radius, masse, fein: masse * WRACK_FEIN, voll: masse });
+}
+
+/**
+ * Bergen: Jede Einheit mit einem Bergeauftrag, die nah genug am Wrack steht,
+ * nimmt ihm Masse ab und schreibt sie dem Spieler gut (ueber masseAcc, wie die
+ * Foerderung). Lagen vom Tickbeginn: Berger desselben Wracks teilen sich, was
+ * da ist -- reicht es in diesem Tick nicht fuer alle, anteilig nach Kraft, der
+ * Rest geht an den ersten in der Entity-Reihenfolge. Leere Wracks verschwinden.
+ */
+function bergen(world) {
+  if (!world.wracks.length) return;
+  const lauf = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const u = world.entities[i];
+    if (u.dead || u.kind !== 'unit' || !u.auftrag) continue;
+    const w = wrackVon(world, u.auftrag);
+    if (!w) continue;
+    const kraft = bergKraft(UNITS[u.type]);
+    const nah = w.radius + UNITS[u.type].radius + BAU_NAH;
+    if (!kraft || dist2(u.x, u.y, w.x, w.y) > nah * nah) continue;
+    u.birgt = w.id;
+    lauf.push([u, w, kraft]);
+  }
+  if (!lauf.length) return;
+  let leer = false;
+  for (let j = 0; j < world.wracks.length; j++) {
+    const w = world.wracks[j];
+    const grp = lauf.filter((l) => l[1] === w);
+    if (!grp.length) continue;
+    let summe = 0;
+    for (const l of grp) summe += l[2];
+    const nimmt = Math.min(summe, w.fein);
+    let verteilt = 0;
+    for (let k = 0; k < grp.length; k++) {
+      const anteil = nimmt === summe ? grp[k][2] : ((grp[k][2] * nimmt) / summe) | 0;
+      verteilt += anteil;
+      const pl = world.players[grp[k][0].player];
+      // Feinmass x 1000 = masseAcc (Masse pro Minute x Promille, siehe step)
+      pl.masseAcc = (pl.masseAcc || 0) + anteil * 1000;
+    }
+    // Rest der Teilung an den ersten Berger
+    if (verteilt < nimmt) {
+      const pl = world.players[grp[0][0].player];
+      pl.masseAcc = (pl.masseAcc || 0) + (nimmt - verteilt) * 1000;
+    }
+    w.fein -= nimmt;
+    w.masse = ((w.fein + WRACK_FEIN - 1) / WRACK_FEIN) | 0; // aufgerundet, nur ganze Zahlen
+    if (w.fein <= 0) {
+      leer = true;
+      world.events.push({ t: 'geborgen', id: w.id, x: w.x, y: w.y });
+    }
+  }
+  if (leer) world.wracks = world.wracks.filter((w) => w.fein > 0);
 }
 
 /** Leben einer Baustelle beim Fortschritt progress: ein Zehntel bis voll. */
@@ -4117,6 +4261,7 @@ function cleanup(world) {
     for (let d = 0; d < world.deposits.length; d++) {
       if (world.deposits[d].takenBy === e.id) world.deposits[d].takenBy = 0;
     }
+    wrackHinterlassen(world, e);
     // Hauptgebaeude und Kommandant sind vital: Faellt einer, ist die Partie verloren.
     const vital = e.kind === 'building' ? BUILDINGS[e.type].vital : UNITS[e.type].commander;
     if (vital) ausscheiden(world, e.player);
@@ -4370,6 +4515,13 @@ function hash(world) {
     mix(s.radius);
     mix(s.schaden);
   }
+  // Wracks: nur, wenn welche liegen -- Partien ohne behalten ihre Pruefsumme.
+  for (const w of world.wracks) {
+    mix(w.id);
+    mix(w.x);
+    mix(w.y);
+    mix(w.fein);
+  }
   mix(world.baubeginnRunde);
   mix(world.cleared.length);
   mix(world.befehlsRunde);
@@ -4413,6 +4565,9 @@ function neueKunde(player) {
     gebaeude: [],
     // Zuletzt gesehene gegnerische Einheiten: { id, type, player, x, y, tick }
     gesehen: [],
+    // Zuletzt gesehene Wracks (R1): { id, typ, art, x, y, radius, masse, voll, tick }; tick ist der
+    // Tick der letzten Sicht (gleich k.tick: gerade sichtbar). Wracks gehoeren niemandem.
+    wracks: [],
     // Je Ader (Index in world.deposits) der Tick, an dem man sie zuletzt gesehen hat; -1 nie
     adern: [],
   };
@@ -4483,6 +4638,29 @@ function aufklaeren(k, world) {
     if (k.adern.length <= i) k.adern.push(-1);
     if (inSicht(q, world.deposits[i].x, world.deposits[i].y)) k.adern[i] = world.tick;
   }
+  // Wracks: gesehene merken (mit der Masse, die man zuletzt sah); verschwindet eins, wo man hinsieht, ist es weg.
+  const wracks = [];
+  const bekannt = k.wracks || [];
+  const imBild = new Map(world.wracks.map((w) => [w.id, w]));
+  for (let i = 0; i < bekannt.length; i++) {
+    const m = bekannt[i];
+    if (!inSicht(q, m.x, m.y, m.radius)) {
+      wracks.push(m); // nicht in Sicht: so in Erinnerung behalten
+      continue;
+    }
+    const w = imBild.get(m.id);
+    if (!w) continue; // dort in Sicht und nicht mehr da
+    m.masse = w.masse;
+    m.tick = world.tick;
+    wracks.push(m);
+    imBild.delete(m.id);
+  }
+  for (let i = 0; i < world.wracks.length; i++) {
+    const w = world.wracks[i];
+    if (!imBild.has(w.id) || !inSicht(q, w.x, w.y, w.radius)) continue;
+    wracks.push({ id: w.id, typ: w.typ, art: w.art, x: w.x, y: w.y, radius: w.radius, masse: w.masse, voll: w.voll, tick: world.tick });
+  }
+  k.wracks = wracks;
   k.gesehen = k.gesehen.filter((u) => jetzt.has(u.id) || (world.tick - u.tick <= VERGESSEN && !inSicht(q, u.x, u.y)));
   return k;
 }
@@ -5057,8 +5235,15 @@ function stepAI(ai, world) {
       const site = wenigsteHelfer(ziele, helfer, u);
       helfer[site.id] = (helfer[site.id] || 0) + 1;
       issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
-    } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
-      issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
+    } else if (!u.auftrag) {
+      // Untaetig: erst ein Wrack in der eigenen Domaene bergen (R1), sonst heim.
+      const w = bergeZiel(world, ai.player, kunde, u, helfer, sicher);
+      if (w) {
+        helfer[w.id] = (helfer[w.id] || 0) + 1;
+        issue(world, { type: 'bergen', player: ai.player, ids: [u.id], id: w.id });
+      } else if (dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
+        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
+      }
     }
   }
 
@@ -5826,6 +6011,31 @@ function feindeBei(kunde, pt, r) {
     if (dist2(o.x, o.y, pt.x, pt.y) <= r * r) n++;
   }
   return n;
+}
+
+// Hoechstens so viele Arbeiter schickt die KI zugleich zu einem Wrack (R1).
+// Designzahl, ungemessen: mehr beschleunigen ein kleines Wrack kaum und fehlen
+// dann beim naechsten.
+const WRACK_HELFER = 2;
+
+/**
+ * Das naechste Wrack, das ein untaetiger Arbeiter bergen soll: eins, das die
+ * Kunde kennt, in der eigenen Domaene liegt, an dem Feinde nicht stehen und
+ * dem noch nicht genug Arbeiter zugeteilt sind. Bei Gleichstand das aeltere.
+ * Nur aus der Kunde -- ein ungesehenes Wrack gibt es fuer die KI nicht.
+ */
+function bergeZiel(world, player, kunde, u, helfer, sicher) {
+  let best = null;
+  let bestD = Infinity;
+  for (const w of kunde.wracks) {
+    if ((helfer[w.id] || 0) >= WRACK_HELFER || !inDomain(world, player, w.x, w.y) || !sicher(w, 1200)) continue;
+    const d = dist2(w.x, w.y, u.x, u.y);
+    if (d < bestD) {
+      bestD = d;
+      best = w;
+    }
+  }
+  return best;
 }
 
 /**
@@ -7289,8 +7499,8 @@ function routeVon(world, u) {
   const p = [[u.x, u.y, 'start']];
   if (u.auftrag) {
     for (const id of [u.auftrag, ...u.reihe]) {
-      const z = byId(world, id) || planVon(world, id);
-      if (z) p.push([z.x, z.y, 'bau']);
+      const z = byId(world, id) || planVon(world, id) || wrackVon(world, id);
+      if (z) p.push([z.x, z.y, z.kind === 'wrack' ? 'berge' : 'bau']);
     }
   } else if (!u.arrived) p.push([u.tx, u.ty, u.aggro || u.ziel ? 'angriff' : 'geh']);
   for (const [x, y, angriff] of u.wege) p.push([x, y, angriff ? 'angriff' : 'geh']);
@@ -7328,9 +7538,20 @@ function mitmachen(world, ich, sel, freund, anhaengen) {
   let rest = ids;
   if (freund.auftrag) {
     const bauer = ids.filter((id) => UNITS[byId(world, id).type].build);
+    const berger = ids.filter((id) => bergKraft(UNITS[byId(world, id).type]) > 0);
     const auftraege = [freund.auftrag, ...freund.reihe];
-    if (bauer.length) auftraege.forEach((a, i) => issue(world, { type: 'bauen', player: ich, ids: bauer, id: a, anhaengen: anhaengen || i > 0 }));
-    rest = ids.filter((id) => !bauer.includes(id));
+    // Bauauftraege an die Erbauer, Bergeauftraege (Wracks) an alle, die bergen koennen
+    const aktiv = new Set(); // wer in diesem Aufruf schon einen Auftrag hat: die weiteren haengen an
+    for (const a of auftraege) {
+      const art = wrackVon(world, a) ? 'bergen' : 'bauen';
+      const wer = art === 'bergen' ? berger : bauer;
+      const neu = wer.filter((id) => !aktiv.has(id));
+      const alt = wer.filter((id) => aktiv.has(id));
+      if (neu.length) issue(world, { type: art, player: ich, ids: neu, id: a, anhaengen });
+      if (alt.length) issue(world, { type: art, player: ich, ids: alt, id: a, anhaengen: true });
+      for (const id of wer) aktiv.add(id);
+    }
+    rest = ids.filter((id) => !aktiv.has(id));
   }
   if (!rest.length) return;
   const punkte = routeVon(world, freund).slice(1);
@@ -7339,6 +7560,71 @@ function mitmachen(world, ich, sel, freund, anhaengen) {
     issue(world, { type: art === 'angriff' ? 'attack' : 'move', player: ich, ids: rest, x, y, anhaengen: anhaengen || i > 0 });
   });
 }
+
+// ------------------------------------------------------------ Wracks und Bergung (R1)
+/**
+ * Die Wracks, die man sieht oder kennt: mit Nebel die der Kunde (zuletzt
+ * gesehen, mit der Masse von damals), ohne Nebel (Beobachter) alle.
+ */
+function wracksSichtbar(nebel, world) {
+  return nebel.an ? nebel.kunde.wracks : world.wracks;
+}
+
+/** Sieht man dieses Wrack gerade? (Sonst ist es nur in Erinnerung.) */
+function wrackJetzt(nebel, w) {
+  return !nebel.an || w.tick === nebel.kunde.tick;
+}
+
+/** Radius, mit dem ein Wrack gezeichnet wird (dm): waechst mit der Masse, wie die Einheit oder das Gebaeude, das es war, mindestens. */
+function wrackGroesse(w) {
+  return Math.round(Math.max(30, Math.min(260, 18 + Math.sqrt(w.masse) * 7)));
+}
+
+/** Das naechste sichtbare oder bekannte Wrack an diesem Punkt (innerhalb seiner gezeichneten Groesse plus Toleranz), sonst null. */
+function wrackBei(nebel, world, x, y, toleranz = 0) {
+  let beste = null;
+  let bestD = Infinity;
+  for (const w of wracksSichtbar(nebel, world)) {
+    const r = wrackGroesse(w) + toleranz;
+    const d = (w.x - x) ** 2 + (w.y - y) ** 2;
+    if (d <= r * r && d < bestD) {
+      beste = w;
+      bestD = d;
+    }
+  }
+  return beste;
+}
+
+/** Die ausgewaehlten eigenen Einheiten, die bergen koennen. */
+function bergerVon(world, sel, ich) {
+  return sel.filter((id) => {
+    const e = byId(world, id);
+    return e && !e.dead && e.kind === 'unit' && e.player === ich && bergKraft(UNITS[e.type]) > 0;
+  });
+}
+
+/**
+ * Info-Karte eines Wracks: Masse, was es war, wie lange die Auswahl braucht
+ * (wenn sie bergen kann), sonst wie man es birgt. jetzt false: nur in Erinnerung.
+ */
+function wrackKarte(world, w, berger, jetzt = true) {
+  const def = w.art === 'building' ? BUILDINGS[w.typ] : UNITS[w.typ];
+  let kraft = 0;
+  for (const id of berger) kraft += bergKraft(UNITS[byId(world, id).type]);
+  const zeilen = [['Masse', w.masse === w.voll ? `${w.masse}` : `${w.masse} von ${w.voll}`]];
+  if (kraft) zeilen.push(['Bergen', `${berger.length} Berger, ${sekunden(Math.ceil((w.masse * 600) / kraft))} (Rechtsklick, Shift hängt an)`]);
+  else zeilen.push(['Bergen', 'Erbauer wählen, Rechtsklick birgt es']);
+  if (!jetzt) zeilen.push(['Stand', 'zuletzt gesehen']);
+  return karte(`Wrack — ${w.masse} Masse`, `Überrest von ${def.name}. Wracks gehören niemandem: Wer birgt, bekommt die Masse.`, zeilen, '');
+}
+
+/** CSS-Mauszeiger fuer das Bergen: ein kleiner Haken mit Pfeil nach unten, als SVG. */
+const BERGE_CURSOR =
+  'url("data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M16 3v14M9 11l7 8 7-8" fill="none" stroke="#111" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 3v14M9 11l7 8 7-8" fill="none" stroke="#9ad0b4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 27h22" stroke="#111" stroke-width="5" stroke-linecap="round"/><path d="M5 27h22" stroke="#9ad0b4" stroke-width="2.4" stroke-linecap="round"/></svg>'
+  ) +
+  '") 16 16, copy';
 
 // ------------------------------------------------------------ Voelker
 /** Kurzname eines Volks: Menschen, Gott, Todesgott. */
@@ -8028,6 +8314,7 @@ function auswahlKopf(world, e) {
   if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');
   if (e.kind === 'unit' && e.beschworen) teile.push(`vergeht in ${sekunden(e.vergehtBei - world.tick)}`);
   if (e.kind === 'unit' && e.gebundenBis > world.tick) teile.push('festgehalten');
+  if (e.kind === 'unit' && e.auftrag && wrackVon(world, e.auftrag)) teile.push(e.birgt === e.auftrag ? 'birgt ein Wrack' : 'unterwegs zu einem Wrack');
   if (e.kind === 'unit' && e.langsamBis > world.tick) teile.push(`verlangsamt −${prozent(e.langsamWert)} (noch ${sekunden(e.langsamBis - world.tick)})`);
   // Regeneration, Auren (M3): was gerade auf die Einheit wirkt
   if (def.regeneration && e.hp < e.maxHp) teile.push(`regeneriert ${def.regeneration} LP/min`);

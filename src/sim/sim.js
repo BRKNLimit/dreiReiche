@@ -1618,7 +1618,7 @@ function bergen(world) {
       pl.masseAcc = (pl.masseAcc || 0) + (nimmt - verteilt) * 1000;
     }
     w.fein -= nimmt;
-    w.masse = Math.ceil(w.fein / WRACK_FEIN);
+    w.masse = ((w.fein + WRACK_FEIN - 1) / WRACK_FEIN) | 0; // aufgerundet, nur ganze Zahlen
     if (w.fein <= 0) {
       leer = true;
       world.events.push({ t: 'geborgen', id: w.id, x: w.x, y: w.y });

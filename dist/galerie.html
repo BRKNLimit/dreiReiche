@@ -1341,6 +1341,19 @@ const RULES = {
   skills: true,
   skillStart: 1,
   skillTakt: 1200,
+
+  // Wracks und Bergung (R1): Was eine gefallene Einheit oder ein gefallenes
+  // fertiges Gebaeude liegen laesst, in Promille seiner Masse-Kosten.
+  // Vergangene (Beschworene, Verfall Ausgeschiedener) und abgerissene
+  // hinterlassen nichts. 0 = keine Wracks; die Partie ist dann bitgleich zu
+  // der ohne Wrack-Regel. Designzahlen, ungemessen.
+  wrackAnteil: 700,
+  wrackAnteilGebaeude: 500,
+  // Bergekraft eines Erbauers (UNITS[...].build), der kein eigenes bergung-
+  // Feld hat: Masse pro Minute je 1000 Promille Baukraft. Designzahl,
+  // ungemessen: ein Bauer (Baukraft 400) birgt 200 Masse je Minute, ein
+  // Extraktor der Menschen foerdert 360.
+  bergungProBaukraft: 500,
 };
 const FACTIONS = {};
 
@@ -1439,7 +1452,11 @@ const FELDER = {
   // regeneration (M3): LP pro Minute, die die Einheit bzw. das Gebaeude von
   // selbst zurueckbekommt (Gebaeude nur versorgt, anteilig zu powered).
   // aura (M3): wirkt auf eigene Einheiten im Umkreis, siehe FELDER.aura.
-  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura'],
+  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura', 'bergung'],
+  // bergung (R1): die Einheit birgt Wracks (Befehl 'bergen'); kraft ist die
+  // Masse pro Minute. Erbauer (build) bergen auch ohne dieses Feld, mit ihrer
+  // Baukraft umgerechnet (RULES.bergungProBaukraft). Geborgen wird nur auf Befehl.
+  bergung: ['kraft'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
   // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
   // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,
@@ -7929,20 +7946,40 @@ MODELLE_DEF.flak = flakModell();
 // echte liefert (Wunsch in docs/grafik/wuensche.md). Fuellt nur Luecken: Was
 // in src/modelle3d.js oder src/icons.js steht, gewinnt. Wird von
 // tools/bundle.mjs nach diesen Dateien eingefuegt; in der Draufsicht gibt es
-// keine Modelle, daher die typeof-Pruefung. Derzeit leer -- alles hat ein
-// echtes Modell und Icon.
+// keine Modelle, daher die typeof-Pruefung. Derzeit nur das Wrack (R1).
 
 
 // Schluessel -> SVG mit viewBox="0 0 24 24"
-const PLATZHALTER_ICONS = {};
+const PLATZHALTER_ICONS = {
+  // Wrack (R1): ein Haufen verbogener Platten
+  wrack: `<svg viewBox="0 0 24 24">
+    <path d="M2.5 20 L6 13 L9 16 L12.5 8 L15.5 15 L18 12 L21.5 20 Z" fill="#3a3835" stroke="#8d8578" stroke-width="1.3" stroke-linejoin="round"/>
+    <path d="M6 13 L9.5 18 M12.5 8 L12 17 M18 12 L15 18" fill="none" stroke="#6b6458" stroke-width="1"/>
+    <circle cx="14.2" cy="16.5" r="1" fill="#ff7a2a"/>
+  </svg>`,
+};
 for (const [k, v] of Object.entries(PLATZHALTER_ICONS)) ICONS[k] ??= v;
 
 // Andere Schluessel im Spiel als in Geminis Entwurf (Totenreich): Faehigkeit -> Icon
 const ICON_NAMEN = { grabeskaelte: 'grabesklaelte', seelenrausch: 'seelenernte' };
 for (const [k, v] of Object.entries(ICON_NAMEN)) ICONS[k] ??= ICONS[v];
 
-// Schluessel -> Teile wie in src/modelle3d.js
-const PLATZHALTER_MODELLE = {};
+// Schluessel -> Teile wie in src/modelle3d.js. Team 2 ist GLUEHT (leuchtet selbst);
+// die Konstante steht in der Draufsicht nicht zur Verfuegung, daher die Zahl.
+const PLATZHALTER_MODELLE = {
+  // Wrack (R1): flacher Schrotthaufen, Radius 1, gehoert niemandem (kein Teamanteil)
+  wrack: [
+    ['z', [0.58, 0.74, 0.1, 9], [0, 0.05, 0], '#2b2926'],
+    ['k', [0.3, 6], [0, 0.14, 0], '#34312d'],
+    ['q', [0.7, 0.07, 0.36], [0.12, 0.24, 0.06], '#3d3b37', 0, [0.15, 0.5, 0.35]],
+    ['q', [0.46, 0.06, 0.62], [-0.3, 0.2, -0.2], '#4b3b2e', 0, [-0.25, -0.7, 0.2]],
+    ['q', [0.1, 0.1, 0.9], [0.26, 0.3, -0.26], '#59564f', 0, [0.4, 0.9, -0.3]],
+    ['q', [0.09, 0.09, 0.7], [-0.16, 0.28, 0.3], '#3d3a36', 0, [-0.3, 1.6, 0.4]],
+    ['q', [0.3, 0.18, 0.26], [0.42, 0.12, 0.34], '#46433e', 0, [0.1, 0.8, 0.2]],
+    ['k', [0.07, 4], [0.05, 0.3, 0.16], '#ff7a2a', 2],
+    ['k', [0.05, 4], [-0.36, 0.14, 0.1], '#ff7a2a', 2],
+  ],
+};
 if (typeof MODELLE_DEF !== 'undefined') {
   for (const [k, v] of Object.entries(PLATZHALTER_MODELLE)) MODELLE_DEF[k] ??= v;
 }

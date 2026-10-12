@@ -24,9 +24,16 @@ test('Daten: jedes Volk nur mit Feldern, die das Spiel kennt, und nur ganzen Zah
     nurBekannte(w('growth'), v.volk.growth, FELDER.growth);
     for (const [k, b] of Object.entries(v.gebaeude)) {
       nurBekannte(w(k), b, FELDER.gebaeude);
-      for (const f of ['weapon', 'buff', 'cost', 'schild']) if (b[f]) nurBekannte(w(`${k}.${f}`), b[f], FELDER[f]);
+      for (const f of ['weapon', 'buff', 'cost', 'schild', 'schlag', 'abwehr']) if (b[f]) nurBekannte(w(`${k}.${f}`), b[f], FELDER[f]);
       // Ein Schild ohne eines seiner drei Felder tut nichts oder teilt durch null
       if (b.schild) for (const f of FELDER.schild) assert.ok(b.schild[f] > 0, w(`${k}.schild.${f}: muss eine positive Zahl sein`));
+      // Fernschlag und Abwehr: alle Zahlen positiv (flug 0 schluege im selben Tick ein); kosten wie cost
+      if (b.schlag) {
+        for (const f of FELDER.schlag) if (f !== 'kosten') assert.ok(b.schlag[f] > 0, w(`${k}.schlag.${f}: muss eine positive Zahl sein`));
+        assert.ok(b.schlag.kosten && typeof b.schlag.kosten === 'object', w(`${k}.schlag.kosten: fehlt (wie cost, auch { fron: 0 })`));
+        nurBekannte(w(`${k}.schlag.kosten`), b.schlag.kosten, FELDER.cost);
+      }
+      if (b.abwehr) for (const f of FELDER.abwehr) assert.ok(b.abwehr[f] > 0, w(`${k}.abwehr.${f}: muss eine positive Zahl sein`));
       if (b.weapon?.ziele) assert.ok(FELDER.weaponZiele.includes(b.weapon.ziele), w(`${k}.weapon.ziele: „${b.weapon.ziele}“ ist keins von ${FELDER.weaponZiele}`));
       ganzzahlig(w(k), b);
     }
@@ -34,6 +41,8 @@ test('Daten: jedes Volk nur mit Feldern, die das Spiel kennt, und nur ganzen Zah
       nurBekannte(w(k), u, FELDER.einheit);
       for (const f of ['weapon', 'build', 'cost']) if (u[f]) nurBekannte(w(`${k}.${f}`), u[f], FELDER[f]);
       if (u.weapon?.ziele) assert.ok(FELDER.weaponZiele.includes(u.weapon.ziele), w(`${k}.weapon.ziele: „${u.weapon.ziele}“ ist keins von ${FELDER.weaponZiele}`));
+      // hoechstens 0 sperrte die Einheit fuer immer
+      if (u.hoechstens !== undefined) assert.ok(u.hoechstens > 0, w(`${k}.hoechstens: muss eine positive Zahl sein`));
       ganzzahlig(w(k), u);
     }
     for (const [k, s] of Object.entries(v.skills)) {

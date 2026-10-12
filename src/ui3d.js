@@ -40,6 +40,7 @@ let angriff = false;
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
+let schlagZielen = false; // Fernschlag scharf (Taste F): naechster Klick ist das Ziel
 let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
 let nebel = neuerNebel(true, ME); // Nebel des Krieges; beim Zuschauen aus
@@ -222,6 +223,7 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   skillsOffen = false;
   skillSig = '';
   zielen = null;
+  schlagZielen = false;
   wirkungen = [];
   vorher.clear();
   blick.clear();
@@ -336,17 +338,32 @@ function wirkeFaehigkeit3(id) {
   }
 }
 
-// Knoepfe der Faehigkeiten: ein Klick loest aus.
+/** Fernschlag scharf stellen (oder wieder abschalten): nur, wenn ein Schlaggebaeude der Auswahl feuern kann. */
+function schlagScharf3() {
+  if (schlagZielen) {
+    schlagZielen = false;
+    return;
+  }
+  const kann = schlagGebaeude(world, sel, ME).some((b) => schlagSchuetze(world, [b.id], ME, b.x, b.y));
+  if (!kann) return;
+  schlagZielen = true;
+  placing = null;
+  angriff = false;
+  zielen = null;
+}
+
+// Knoepfe der Faehigkeiten: ein Klick loest aus. Derselbe Platz traegt den Fernschlag-Knopf.
 document.getElementById('faehigkeiten').onclick = (ev) => {
   const b = ev.target && ev.target.closest ? ev.target.closest('[data-faeh]') : null;
   if (b && world) wirkeFaehigkeit3(b.dataset.faeh);
+  if (world && ev.target && ev.target.closest && ev.target.closest('[data-schlag]')) schlagScharf3();
 };
 let faehHtml = '';
 
-/** Knoepfe zeigen, solange der eigene Kommandant gewaehlt ist. */
+/** Knoepfe zeigen, solange der eigene Kommandant oder ein Schlaggebaeude gewaehlt ist. */
 function faehPanel3() {
   const k = kommandantVon(world, ME);
-  const html = k && sel.includes(k.id) ? faehigkeitenHtml(world, ME) : '';
+  const html = (k && sel.includes(k.id) ? faehigkeitenHtml(world, ME) : '') + schlagKnopfHtml(world, sel, ME);
   if (html === faehHtml) return;
   faehHtml = html;
   const el = document.getElementById('faehigkeiten');
@@ -376,7 +393,7 @@ document.getElementById('hilfeKnopf').onclick = () => {
 function leisten3() {
   const fabs = fabriken3();
   const qSig = fabs.map((f) => f.queue.join()).join(';');
-  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig;
+  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig + '|' + grenzenSignatur(world, ME, fabs);
   if (sig === leistenSig) return;
   leistenSig = sig;
   renderBar();
@@ -430,6 +447,7 @@ cv3.addEventListener('mousedown', (e) => {
   if (e.button === 2) {
     placing = null;
     zielen = null;
+    schlagZielen = false;
     if (sel.length) {
       // Rechtsklick auf einen sichtbaren Feind: gezielter Angriff
       const feind = angriff ? null : feindBei(world, p.x, p.y, 40, ME, (o) => !verborgen(o));
@@ -448,6 +466,16 @@ cv3.addEventListener('mousedown', (e) => {
   if (zielen) {
     issue(world, { type: 'faehigkeit', player: ME, faehigkeit: zielen, x: p.x, y: p.y });
     zielen = null;
+    return;
+  }
+  if (schlagZielen) {
+    // Fernschlag: das erste geladene Gebaeude der Auswahl, das das Ziel erreicht und bezahlbar ist.
+    // Liegt das Ziel ausser Reichweite, bleibt man im Zielmodus (grau gezeichnet) und kann es noch einmal versuchen.
+    const b = schlagSchuetze(world, sel, ME, p.x, p.y);
+    if (b) {
+      issue(world, { type: 'schlag', player: ME, id: b.id, x: p.x, y: p.y });
+      if (!e.shiftKey) schlagZielen = false;
+    }
     return;
   }
   if (placing) {
@@ -619,6 +647,7 @@ addEventListener('keydown', (e) => {
     placing = null;
     angriff = false;
     zielen = null;
+    schlagZielen = false;
     skillsOffen = false;
     sel = [];
     selPlan = null;
@@ -642,6 +671,8 @@ addEventListener('keydown', (e) => {
     angriff = true;
     placing = null;
   }
+  // F: Fernschlag scharf (nur mit einem geladenen, bezahlbaren Schlaggebaeude in der Auswahl)
+  if (e.key === 'f') schlagScharf3();
   if (e.key === 'k') {
     const k = kommandantVon(world, ME);
     if (k) {
@@ -1270,6 +1301,42 @@ function zeichneWirkungen() {
       octx.lineWidth = 1;
       octx.setLineDash([4, 4]);
       bodenKreis(k.x, k.y, f.reichweite);
+      octx.setLineDash([]);
+    }
+  }
+  // Fernschlaege im Flug: ein roter Kreis am Ziel mit Countdown -- fuer alle sichtbar, auch im Nebel
+  for (const s of world.schlaege) {
+    const rest = Math.max(0, s.landet - world.tick);
+    octx.strokeStyle = '#e8503a';
+    octx.lineWidth = 2.5;
+    octx.globalAlpha = 0.5 + 0.5 * Math.max(0, 1 - rest / 100);
+    bodenKreis(s.x, s.y, s.radius);
+    const m = aufSchirm(s.x * DM, 0.3, s.y * DM);
+    if (!m) continue;
+    octx.save();
+    octx.globalAlpha = 1;
+    octx.fillStyle = '#e8503a';
+    octx.font = 'bold 18px sans-serif';
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    octx.fillText(Math.ceil(rest / 10) + ' s', m[0], m[1]);
+    octx.restore();
+  }
+  octx.globalAlpha = 1;
+  if (schlagZielen) {
+    // Fernschlag scharf: Einschlagkreis am Mauszeiger, Reichweiten der bereiten Gebaeude gestrichelt;
+    // rot, solange ein Gebaeude das Ziel erreicht, sonst grau. Ohne Schlaggebaeude in der Auswahl endet der Zielmodus.
+    const gs = schlagGebaeude(world, sel, ME);
+    if (!gs.length) schlagZielen = false;
+    const schuetze = schlagSchuetze(world, sel, ME, hover.x, hover.y);
+    const s = schuetze ? BUILDINGS[schuetze.type].schlag : gs.length ? BUILDINGS[gs[0].type].schlag : null;
+    if (s) {
+      octx.strokeStyle = schuetze ? '#e8503a' : '#8a8a8a';
+      octx.lineWidth = 2;
+      bodenKreis(hover.x, hover.y, s.radius);
+      octx.lineWidth = 1;
+      octx.setLineDash([4, 4]);
+      for (const b of gs) if (schlagBereit(b)) bodenKreis(b.x, b.y, BUILDINGS[b.type].schlag.reichweite);
       octx.setLineDash([]);
     }
   }

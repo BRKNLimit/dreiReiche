@@ -7,7 +7,7 @@
 import {
   issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, rng, cosDeg, sinDeg,
   unterhaltProMin, foerderungProMin, aufHindernis, gesperrt, kannLernen, faehigkeitenVon, faehigkeitWarten,
-  erreicht, zieleVon,
+  erreicht, zieleVon, canAfford, anzahlVon, schlagBereit,
 } from './sim.js';
 import { neueKunde, aufklaeren, vermutetesHaupt, bekanntBei } from './kunde.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
@@ -195,6 +195,22 @@ export function stepAI(ai, world) {
     vergeben.push(z.x * MAP + z.y);
     if (r.tx !== z.x || r.ty !== z.y) issue(world, { type: 'move', player: ai.player, ids: [r.id], x: z.x, y: z.y });
   }
+  // 0b. Fernschlag (hat das Volk einen): jeder geladene, bezahlbare feuert auf
+  //     das wertvollste Ziel, das die Kunde kennt. Die Kosten werden unten von
+  //     dem abgezogen, was die Produktion ausgeben darf -- der Befehl wirkt
+  //     erst im naechsten Tick, sonst bestellte sie dasselbe Goetterblut noch einmal.
+  let schlagFron = 0;
+  let schlagBlut = 0;
+  for (const b of gebaeude) {
+    if (!schlagBereit(b)) continue;
+    const s = BUILDINGS[b.type].schlag;
+    if (!canAfford({ fron: fron - schlagFron, goetterblut: p.goetterblut - schlagBlut }, s.kosten || {})) continue;
+    const z = schlagZiel(kunde, b, s, mine, ziel);
+    if (!z) continue;
+    issue(world, { type: 'schlag', player: ai.player, id: b.id, x: z.x, y: z.y });
+    schlagFron += (s.kosten && s.kosten.fron) || 0;
+    schlagBlut += (s.kosten && s.kosten.goetterblut) || 0;
+  }
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
   // Abgelehnte Bauten merken: Steht nach einem Bauauftrag nichts an der
@@ -348,6 +364,34 @@ export function stepAI(ai, world) {
     }
   }
 
+  // Kann der Bau bezahlt werden? Wie fron >= cost.fron, aber auch das Goetterblut der teuren Bauten.
+  const bezahlbar = (t) => fron >= BUILDINGS[t].cost.fron && p.goetterblut >= (BUILDINGS[t].cost.goetterblut || 0) && bilanz >= (BUILDINGS[t].gegenwartIn || 0);
+
+  // 3h. Fernschlag (hat das Volk einen): einer beim Hauptgebaeude, wenn die
+  //     Wirtschaft steht und ab Minute 20 -- er kostet Goetterblut und lohnt erst,
+  //     wenn es etwas Grosses zu treffen gibt. Minute 20: Designzahl, nicht gemessen.
+  if (plan.schlag && frei(plan.schlag) && wirtschaftSteht && minute >= 20 && zahl(plan.schlag) < 1 && bezahlbar(plan.schlag)) {
+    const platz = daheimFrei(world, kunde, haupt, plan.schlag, 1100, front + 240);
+    if (platz && bau(plan.schlag, ...platz)) return;
+  }
+
+  // 3i. Abwehr (hat das Volk eine): eine beim Hauptgebaeude, sobald die Kunde ein
+  //     gegnerisches Schlag-Gebaeude kennt -- vorher faengt sie nichts ab.
+  if (plan.abwehr && frei(plan.abwehr) && zahl(plan.abwehr) < 1 && bezahlbar(plan.abwehr) && kunde.gebaeude.some((b) => BUILDINGS[b.type].schlag)) {
+    const platz = daheimFrei(world, kunde, haupt, plan.abwehr, 500, front + 90);
+    if (platz && bau(plan.abwehr, ...platz)) return;
+  }
+
+  // 3j. Werkstatt (hat das Volk eine): eine ab Minute 18, wenn die Wirtschaft steht
+  //     und Goetterblut fliesst (ein fertiger Schacht) -- Prototypen kosten Blut.
+  //     Minute 18: Designzahl, nicht gemessen.
+  if (plan.werkstatt && frei(plan.werkstatt) && wirtschaftSteht && minute >= 18 && zahl(plan.werkstatt) < 1 && bezahlbar(plan.werkstatt)) {
+    if (bauten.some((b) => b.done && b.type === plan.blut)) {
+      const platz = daheimFrei(world, kunde, haupt, plan.werkstatt, 1000, front + 300);
+      if (platz && bau(plan.werkstatt, ...platz)) return;
+    }
+  }
+
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
   if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
     if (bau(plan.blut, vene.x, vene.y)) return;
@@ -434,8 +478,9 @@ export function stepAI(ai, world) {
           ? kosten(plan.anker) + 100
           : 0;
   // Was die eigenen Plaene beim Baubeginn kosten, bleibt liegen.
-  let rest = fron - plaene.reduce((s, q) => s + kosten(q.type), 0);
-  let blutRest = p.goetterblut;
+  // ... und was ein eben befohlener Fernschlag kostet.
+  let rest = fron - plaene.reduce((s, q) => s + kosten(q.type), 0) - schlagFron;
+  let blutRest = p.goetterblut - schlagBlut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
   // Raben: einer ab Minute 2, ein zweiter ab Minute 10 -- billig, und wer
@@ -467,7 +512,15 @@ export function stepAI(ai, world) {
     if (!f.done || !BUILDINGS[f.type].buildList || f.queue.length >= tiefe) continue;
     const liste = BUILDINGS[f.type].buildList;
     let unit = null;
-    if (plan.luftfabrik && f.type === plan.luftfabrik) {
+    if (plan.werkstatt && f.type === plan.werkstatt) {
+      // Prototyp: sobald moeglich, aber nie mehr, als das Volk haben darf
+      // (hoechstens; ohne Angabe einer). Er kostet Goetterblut und wird nicht
+      // gegen das Sparen fuer den naechsten Bau aufgerechnet -- er ist selten.
+      const pt = plan.prototyp;
+      if (pt && liste.includes(pt) && frei(pt) && anzahlVon(world, ai.player, pt) < (UNITS[pt].hoechstens || 1) && blutRest >= (UNITS[pt].cost.goetterblut || 0)) {
+        unit = pt;
+      }
+    } else if (plan.luftfabrik && f.type === plan.luftfabrik) {
       // Flieger: Bomber gegen alles am Boden; Luftjaeger erst, wenn der Gegner
       // bewaffnete Flieger hat, dann im Wechsel mit den Bombern. Der Flieger-
       // Anteil bleibt unter dem Wert des Bodenheeres (plus ein Grundstock),
@@ -504,7 +557,7 @@ export function stepAI(ai, world) {
         }
       }
     }
-    if (!unit || rest - UNITS[unit].cost.fron < sparen) continue;
+    if (!unit || rest - UNITS[unit].cost.fron < (unit === plan.prototyp ? 0 : sparen)) continue;
     rest -= UNITS[unit].cost.fron;
     blutRest -= UNITS[unit].cost.goetterblut || 0;
     issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
@@ -811,6 +864,44 @@ function heimHeer(kunde, haupt, gegner) {
     summe += ((((kosten * (1000 + zorn)) / 1000) * 1000) / (1000 - wehr)) | 0;
   }
   return summe;
+}
+
+// Fernschlag der KI (Designzahlen, nicht gemessen): so viel zaehlt ein getroffenes
+// Hauptgebaeude zusaetzlich zu seinen Kosten, und so viel Gebaeudewert (Fron) muss
+// ein Schlag mindestens treffen, sonst bleibt er geladen.
+const SCHLAG_HAUPT = 1000;
+const SCHLAG_MINDEST = 300;
+
+/**
+ * Ziel fuer einen Fernschlag aus dem, was die Kunde kennt: die Mitte des
+ * gegnerischen Gebaeudes, in dessen Schlagkreis der meiste Wert steht (Kosten
+ * in Fron, das Hauptgebaeude mit Zuschlag) -- das Hauptgebaeude oder die
+ * dichteste Gruppe. Nicht gewaehlt wird, was ausser Reichweite liegt, was
+ * eigene Truppen oder Bauten im Kreis haette, und was eine bekannte fertige
+ * gegnerische Abwehr deckt: sie finge den Schlag ab (ob sie gerade geladen ist,
+ * weiss die KI nicht). Ist das Hauptgebaeude noch ungesehen, gilt der Ort, wo
+ * der Gegner beginnt. Gleichwertige Ziele entscheidet die Reihenfolge der Kunde.
+ */
+function schlagZiel(kunde, von, s, eigene, gegnerHaupt) {
+  const abwehr = kunde.gebaeude.filter((b) => b.done && BUILDINGS[b.type].abwehr);
+  const kandidaten = gegnerHaupt.vermutet ? kunde.gebaeude.concat([gegnerHaupt]) : kunde.gebaeude;
+  let best = null;
+  let bestWert = SCHLAG_MINDEST - 1;
+  for (const c of kandidaten) {
+    if (dist2(von.x, von.y, c.x, c.y) > s.reichweite * s.reichweite) continue;
+    if (eigene.some((o) => dist2(o.x, o.y, c.x, c.y) <= s.radius * s.radius)) continue;
+    if (abwehr.some((a) => dist2(a.x, a.y, c.x, c.y) <= BUILDINGS[a.type].abwehr.radius ** 2)) continue;
+    let wert = c.vermutet ? SCHLAG_HAUPT : 0;
+    for (const b of kunde.gebaeude) {
+      if (dist2(b.x, b.y, c.x, c.y) > s.radius * s.radius) continue;
+      wert += BUILDINGS[b.type].cost.fron + (BUILDINGS[b.type].vital ? SCHLAG_HAUPT : 0);
+    }
+    if (wert > bestWert) {
+      bestWert = wert;
+      best = c;
+    }
+  }
+  return best;
 }
 
 /** Gesehene feindliche Kaempfer im Umkreis r um einen Punkt. */

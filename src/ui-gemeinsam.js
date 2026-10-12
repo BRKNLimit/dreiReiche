@@ -5,6 +5,7 @@ import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PR
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
   gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon, zieleVon,
+  schlagBereit, anzahlVon,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
@@ -419,6 +420,10 @@ export function steuergruppenHtml(gruppen, world) {
  */
 export function ausbildenVerteilt(world, ich, fabs, einheit, anzahl) {
   if (gesperrt(world, ich, einheit) || !fabs.length) return;
+  // Einheiten mit Grenze (hoechstens): nicht mehr bestellen, als noch Platz ist -- die Simulation
+  // lehnte den Rest ohnehin ab
+  const grenze = UNITS[einheit].hoechstens;
+  if (grenze) anzahl = Math.min(anzahl, grenze - anzahlVon(world, ich, einheit));
   const laenge = fabs.map((f) => f.queue.length);
   for (let n = 0; n < anzahl; n++) {
     let beste = -1;
@@ -729,17 +734,39 @@ export function ausbildungsleisteHtml(world, player, fabriken) {
   return liste
     .map((u) => {
       const d = UNITS[u];
-      const zu = gesperrt(world, player, u);
+      const gesperrtSkill = gesperrt(world, player, u);
       const inQueue = fListe.reduce((sum, f) => sum + f.queue.filter((q) => q === u).length, 0);
-      const zahlHtml = inQueue ? `<span class="zahl">${inQueue}</span>` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[u]}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
+      // Einheiten mit Grenze (Prototypen): "1/1" statt der Schlangenlaenge, gesperrt, wenn voll
+      const grenze = d.hoechstens;
+      const da = grenze ? anzahlVon(world, player, u) : 0;
+      const voll = grenze && da >= grenze;
+      const zu = gesperrtSkill || voll;
+      const zahlHtml = grenze ? `<span class="zahl">${da}/${grenze}</span>` : inQueue ? `<span class="zahl">${inQueue}</span>` : '';
+      const grund = gesperrtSkill ? ' — gesperrt, Skillbaum (T)' : voll ? ` — schon ${da}/${grenze}, höchstens ${grenze} gleichzeitig` : '';
+      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u]}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
     })
     .join('');
+}
+
+/**
+ * Aendert sich, sobald sich ein Zaehlerstand "n/hoechstens" in der
+ * Ausbildungsleiste aendert (eine Einheit mit Grenze faellt oder entsteht) --
+ * dann muss die Leiste neu gezeichnet werden, auch wenn Auswahl und Schlange gleich bleiben.
+ */
+export function grenzenSignatur(world, player, fabriken) {
+  const liste = fabriken.length ? BUILDINGS[fabriken[0].type].buildList || [] : [];
+  return liste.filter((u) => UNITS[u].hoechstens).map((u) => anzahlVon(world, player, u)).join();
 }
 
 /** Statt einer Liste aller Netze: nur Warnungen, wo Gegenwart fehlt. */
 export function warnungenHtml(world, player) {
   const out = [];
+  // Fernschlaege im Flug sieht jeder, auch ohne Sicht auf das Ziel: Einschlag und Countdown.
+  for (const s of world.schlaege) {
+    const rest = Math.max(1, Math.ceil((s.landet - world.tick) / 10));
+    const eigen = s.player === player;
+    out.push(`<div class="warn schlag">${ICONS.schlag || ''}<span>${eigen ? 'Eigener Fernschlag' : 'Fernschlag des Gegners'} im Anflug — Einschlag in ${rest} s (${meterText(s.radius)} Umkreis)</span></div>`);
+  }
   for (const r of gridReport(world, player)) {
     if (!r.throttled) continue;
     let stufe = '';
@@ -819,6 +846,32 @@ function schildText(s) {
   return `${s.kapazitaet} Punkte, lädt ${s.laden * 10} pro s, Umkreis ${meterText(s.radius)}`;
 }
 
+/** Kosten, die auch nur aus Goetterblut bestehen (oder nichts) duerfen: "10 Fron + 5 Götterblut". */
+function kostenKurz(cost) {
+  const t = [];
+  if (cost && cost.fron) t.push(cost.fron + ' Fron');
+  if (cost && cost.goetterblut) t.push(cost.goetterblut + ' Götterblut');
+  return t.length ? t.join(' + ') : 'nichts';
+}
+
+/** Fernschlag eines Gebaeudes als Karten-Zeilen: Wirkung, Reichweite, Laden und Flug, Kosten je Schlag. */
+function schlagZeilen(s) {
+  return [
+    ['Fernschlag', `${s.schaden} Schaden an allem im Umkreis von ${meterText(s.radius)} — auch an Eigenem; Schilde fangen zuerst`],
+    ['Reichweite', meterText(s.reichweite) + ', das Ziel braucht keine Sicht'],
+    ['Laden', `${sekunden(s.laden)} bei voller Versorgung, Flug ${sekunden(s.flug)}`],
+    ['Je Schlag', kostenKurz(s.kosten)],
+  ];
+}
+
+/** Abwehr eines Gebaeudes: was sie abfaengt, wie lange sie danach laedt. */
+function abwehrZeilen(a) {
+  return [
+    ['Abwehr', `fängt einen gegnerischen Fernschlag ab, der im Umkreis von ${meterText(a.radius)} einschlägt`],
+    ['Laden', `${sekunden(a.laden)} bis zum nächsten Abfangen (bei voller Versorgung)`],
+  ];
+}
+
 /** Alles, was man vor dem Bau eines Gebaeudes wissen muss. */
 export function gebaeudeKarte(world, player, typ) {
   const d = BUILDINGS[typ];
@@ -849,6 +902,8 @@ export function gebaeudeKarte(world, player, typ) {
   }
   if (d.weapon) z.push(...waffeZeilen(d));
   if (d.schild) z.push(['Schild', schildText(d.schild)]);
+  if (d.schlag) z.push(...schlagZeilen(d.schlag));
+  if (d.abwehr) z.push(...abwehrZeilen(d.abwehr));
   if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
   if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
   if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : UNITS[u].kampf ? 'nah' : 'Späher'})`).join(', ')]);
@@ -862,6 +917,7 @@ export function einheitKarte(world, player, typ) {
   if (!d.commander) z.push(['Kosten', kostenText(d.cost)], ['Ausbildung', sekunden(d.buildTime)]);
   if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Fron/min']);
   z.push(['Leben', d.hp + ' LP']);
+  if (d.hoechstens) z.push(['Begrenzt', `höchstens ${d.hoechstens} gleichzeitig (lebend und in Ausbildung)`]);
   if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
   if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
@@ -908,7 +964,10 @@ export function ausbildungHtml(world, player, typ) {
     .map((u, i) => {
       const d = UNITS[u];
       if (gesperrt(world, player, u)) return `<div class="zeile zu"><kbd>${'QWER'[i]}</kbd> <s>${d.name}</s> — ${sperrText(world, player, u)}</div>`;
-      return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> (${d.kampf === 'fern' ? 'Fernkampf' : 'Nahkampf'}) · ${kostenText(d.cost)} · ${sekunden(d.buildTime)} · ${d.unterhalt} Fron/min</div>`;
+      // Prototypen: wie viele es gibt und wie viele es hoechstens geben darf
+      const grenze = d.hoechstens ? ` · ${anzahlVon(world, player, u)}/${d.hoechstens} (höchstens ${d.hoechstens} gleichzeitig)` : '';
+      const unterhalt = d.unterhalt ? ` · ${d.unterhalt} Fron/min` : '';
+      return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> (${d.kampf === 'fern' ? 'Fernkampf' : 'Nahkampf'}) · ${kostenText(d.cost)} · ${sekunden(d.buildTime)}${unterhalt}${grenze}</div>`;
     })
     .join('');
 }
@@ -917,6 +976,11 @@ export function ausbildungHtml(world, player, typ) {
 export function erfahrungText(world, e) {
   const erf = erfahrung(world, e);
   return erf ? `Erfahrung +${prozent(erf)}` : '';
+}
+
+/** "Fernschlag bereit" oder "Fernschlag lädt 40 %" -- in Fuenferschritten, damit die Anzeige nicht zappelt. */
+function ladeText(name, ladung, laden) {
+  return ladung >= laden ? `${name} bereit` : `${name} lädt ${Math.floor((ladung * 20) / laden) * 5} %`;
 }
 
 /** Kopfzeile einer einzelnen Auswahl: Name, Leben, Erfahrung. */
@@ -929,6 +993,9 @@ export function auswahlKopf(world, e) {
   if (e.kind === 'building' && e.done && def.schild) {
     teile.push(`Schild ${e.schildPunkte} / ${def.schild.kapazitaet}, lädt ${def.schild.laden * 10} pro s, Umkreis ${meterText(def.schild.radius)}`);
   }
+  // Fernschlag und Abwehr: bereit oder wie weit geladen
+  if (e.kind === 'building' && e.done && def.schlag) teile.push(ladeText('Fernschlag', e.schlagLadung, def.schlag.laden));
+  if (e.kind === 'building' && e.done && def.abwehr) teile.push(ladeText('Abwehr', e.abwehrLadung, def.abwehr.laden) + `, Umkreis ${meterText(def.abwehr.radius)}`);
   if (e.kind === 'unit' && e.rufBis > world.tick) teile.push('Schlachtruf');
   if (e.kind === 'unit' && e.wehrBis > world.tick) teile.push('Schildwall');
   if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');
@@ -972,6 +1039,62 @@ export function faehigkeitenHtml(world, player) {
         <kbd>${'QWE'[i]}</kbd> ${f.name}<small>${zustand}</small></button>`;
     })
     .join('');
+}
+
+// ------------------------------------------------------------ Fernschlag (M4)
+
+/** Gewaehlte eigene, fertige Gebaeude mit Fernschlag. */
+export function schlagGebaeude(world, sel, player) {
+  const out = [];
+  for (const id of sel) {
+    const b = byId(world, id);
+    if (b && !b.dead && b.kind === 'building' && b.player === player && b.done && BUILDINGS[b.type].schlag) out.push(b);
+  }
+  return out;
+}
+
+/** Kann der Spieler diesen Schlag bezahlen? */
+function schlagBezahlbar(world, b) {
+  return canAfford(world.players[b.player], BUILDINGS[b.type].schlag.kosten || {});
+}
+
+/**
+ * Welches der gewaehlten Gebaeude schiesst auf (x, y)? Das erste, das geladen
+ * ist, das Ziel erreicht und dessen Kosten der Spieler zahlen kann; sonst null.
+ */
+export function schlagSchuetze(world, sel, player, x, y) {
+  for (const b of schlagGebaeude(world, sel, player)) {
+    const s = BUILDINGS[b.type].schlag;
+    if (schlagBereit(b) && schlagBezahlbar(world, b) && (b.x - x) ** 2 + (b.y - y) ** 2 <= s.reichweite * s.reichweite) return b;
+  }
+  return null;
+}
+
+/**
+ * Knopf "Fernschlag" (Taste F), solange ein eigenes Schlaggebaeude gewaehlt ist:
+ * bereit, zu teuer oder wie weit geladen. Ein Klick scharfstellt, der naechste
+ * Klick auf die Karte feuert (wie beim Zielen der Faehigkeiten).
+ */
+export function schlagKnopfHtml(world, sel, player) {
+  const gs = schlagGebaeude(world, sel, player);
+  if (!gs.length) return '';
+  const bereit = gs.filter(schlagBereit);
+  const zahlbar = bereit.filter((b) => schlagBezahlbar(world, b));
+  const s = BUILDINGS[gs[0].type].schlag;
+  let klasse = 'wartet';
+  let zustand;
+  if (zahlbar.length) {
+    klasse = 'bereit';
+    zustand = zahlbar.length > 1 ? `${zahlbar.length} bereit` : 'bereit';
+  } else if (bereit.length) {
+    klasse = 'zu';
+    zustand = 'zu teuer';
+  } else {
+    const voll = Math.max(...gs.map((b) => b.schlagLadung / BUILDINGS[b.type].schlag.laden));
+    zustand = `lädt ${Math.floor(voll * 20) * 5} %`;
+  }
+  const titel = `Fernschlag: ${s.schaden} Schaden im Umkreis von ${meterText(s.radius)} (auch an Eigenem), Reichweite ${meterText(s.reichweite)}, Flug ${sekunden(s.flug)}, kostet ${kostenKurz(s.kosten)}`;
+  return `<button class="faeh ${klasse}" data-schlag="1" title="${titel}"${zahlbar.length ? '' : ' disabled'}><kbd>F</kbd> Fernschlag<small>${zustand}</small></button>`;
 }
 
 /** Was ein Skill bewirkt, Zahlen aus den Daten. */

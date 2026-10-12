@@ -80,6 +80,7 @@ export function createWorld(opts = {}) {
     ],
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
+    schlaege: [], // Fernschlaege im Flug (M4): { von, player, x, y, landet, radius, schaden }
     baubeginnRunde: 0, // Vorrang beim gleichzeitigen Baubeginn, siehe erschaffen()
     hindernisse: opts.empty ? [] : daten.hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -139,6 +140,10 @@ export function spawnBuilding(world, player, type, x, y, finished = false) {
     seelen: 0, // Gefallene im Umkreis (nur Anker mit growth.perTod)
     schildPunkte: 0, // Schild (def.schild): faengt Schaden ab; fertig gebaut startet er leer
     schildRest: 0, // Rest des Ladens in Tausendsteln, damit gedrosseltes Laden nicht verloren geht
+    schlagLadung: 0, // Fernschlag (def.schlag): geladene Ticks, bei schlag.laden ist er bereit
+    schlagRest: 0, // Rest des Ladens in Tausendsteln, wie schildRest
+    abwehrLadung: 0, // Abwehr (def.abwehr): geladene Ticks, bei abwehr.laden faengt sie einen Schlag ab
+    abwehrRest: 0,
     cooldown: 0,
     dead: false,
   };
@@ -504,7 +509,7 @@ function applyCommand(world, c) {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
         const def = BUILDINGS[e.type];
-        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit)) {
+        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit) && !vollBesetzt(world, c.player, c.unit)) {
           const p = world.players[c.player];
           if (canAfford(p, UNITS[c.unit].cost)) {
             pay(p, UNITS[c.unit].cost, 1000);
@@ -512,8 +517,35 @@ function applyCommand(world, c) {
           }
         }
       }
+    } else if (c.type === 'schlag') {
+      schlagAbfeuern(world, c.player, c.id, c.x | 0, c.y | 0);
     }
   }
+}
+
+/**
+ * Wie viele Einheiten dieses Typs hat der Spieler: lebende plus die in der
+ * Warteschlange seiner Gebaeude (M5, hoechstens). Bestellte zaehlen schon,
+ * sonst liessen sich beliebig viele auf einmal bestellen.
+ */
+export function anzahlVon(world, player, typ) {
+  let n = 0;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.player !== player) continue;
+    if (e.kind === 'unit') {
+      if (e.type === typ) n++;
+    } else if (e.kind === 'building') {
+      for (let k = 0; k < e.queue.length; k++) if (e.queue[k] === typ) n++;
+    }
+  }
+  return n;
+}
+
+/** Hat der Spieler schon so viele dieser Einheit, wie er (hoechstens) haben darf? Ohne Grenze nie. */
+export function vollBesetzt(world, player, typ) {
+  const h = UNITS[typ].hoechstens;
+  return !!h && anzahlVon(world, player, typ) >= h;
 }
 
 /**
@@ -1015,6 +1047,8 @@ export function step(world) {
     }
     if (def.forschung) pl.forschung += ((def.forschung * e.powered) / 1000) | 0;
     if (def.schild) schildLaden(e, def.schild);
+    if (def.schlag) ladungWeiter(e, 'schlag', def.schlag.laden);
+    if (def.abwehr) ladungWeiter(e, 'abwehr', def.abwehr.laden);
     if (def.fronOut || def.blutOut) {
       const mehr = 1000 + bonus(world, e.player, 'foerderung');
       if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
@@ -1089,6 +1123,7 @@ export function step(world) {
 
   moveUnits(world);
   combat(world);
+  einschlaege(world);
   cleanup(world);
 
   world.tick++;
@@ -1132,6 +1167,107 @@ function schildFaengt(world, schilde, ziel, dmg) {
     return dmg - ab;
   }
   return dmg;
+}
+
+/**
+ * Ladung eines Gebaeudes weiterzaehlen (Fernschlag, Abwehr): ein Tick je Tick
+ * bei voller Versorgung, anteilig zu powered; der Rest unter einem Tick bleibt
+ * in <feld>Rest stehen (wie beim Schild). Ohne Gegenwart laedt nichts, was
+ * schon geladen ist, bleibt.
+ */
+function ladungWeiter(e, feld, max) {
+  if (e[feld + 'Ladung'] >= max) {
+    e[feld + 'Rest'] = 0;
+    return;
+  }
+  const t = e[feld + 'Rest'] + e.powered;
+  const plus = (t / 1000) | 0;
+  e[feld + 'Rest'] = t - plus * 1000;
+  e[feld + 'Ladung'] = Math.min(max, e[feld + 'Ladung'] + plus);
+}
+
+/** Ist der Fernschlag dieses Gebaeudes geladen und das Gebaeude fertig? */
+export function schlagBereit(e) {
+  const s = e.kind === 'building' && !e.dead && e.done ? BUILDINGS[e.type].schlag : null;
+  return !!s && e.schlagLadung >= s.laden;
+}
+
+/**
+ * Fernschlag abfeuern (Befehl 'schlag'): nur ein eigenes, fertiges, geladenes
+ * Schlaggebaeude, ein Ziel auf der Karte in Reichweite, und der Spieler muss
+ * die Kosten zahlen koennen. Das Ziel braucht keine Sicht -- wer blind feuert,
+ * trifft eben auch ins Leere. Der Schlag geht als Eintrag in world.schlaege
+ * (Radius und Schaden werden mitgenommen, das Gebaeude darf inzwischen fallen)
+ * und schlaegt nach flug Ticks ein, siehe einschlaege().
+ */
+function schlagAbfeuern(world, player, id, x, y) {
+  const e = byId(world, id);
+  if (!e || e.player !== player || !schlagBereit(e)) return false;
+  const s = BUILDINGS[e.type].schlag;
+  if (x < 0 || y < 0 || x > MAP || y > MAP) return false;
+  if (dist2(e.x, e.y, x, y) > s.reichweite * s.reichweite) return false;
+  const p = world.players[player];
+  const kosten = s.kosten || {};
+  if (!canAfford(p, kosten)) return false;
+  pay(p, kosten, 1000);
+  e.schlagLadung = 0;
+  e.schlagRest = 0;
+  const landet = world.tick + s.flug;
+  world.schlaege.push({ von: e.id, player, x, y, landet, radius: s.radius, schaden: s.schaden });
+  world.events.push({ t: 'schlagStart', von: e.id, player, bx: e.x, by: e.y, x, y, landet, radius: s.radius });
+  return true;
+}
+
+/**
+ * Einschlaege dieses Ticks, in der Reihenfolge des Abschusses. Zuerst die
+ * Abwehr: das erste (kleinste Id) fertige, geladene Abwehrgebaeude eines
+ * ANDEREN Spielers, in dessen Umkreis das Ziel liegt, faengt den Schlag ab --
+ * seine Ladung ist danach leer, es ist kein Schaden. Sonst trifft der Schlag
+ * jede Entity beider Seiten, deren Mitte im Kreis liegt, mit dem vollen
+ * Schaden (kein Abfall zum Rand, keine Abzuege ausser den Schilden: die
+ * fangen zuerst, wie im Kampf). Gefallene wie im Kampf -- cleanup() zaehlt
+ * die Seelen und raeumt auf.
+ */
+function einschlaege(world) {
+  if (!world.schlaege.length) return;
+  const bleibt = [];
+  for (let i = 0; i < world.schlaege.length; i++) {
+    const s = world.schlaege[i];
+    if (s.landet > world.tick) {
+      bleibt.push(s);
+      continue;
+    }
+    let abwehr = null;
+    for (let k = 0; k < world.entities.length && !abwehr; k++) {
+      const b = world.entities[k];
+      if (b.dead || b.kind !== 'building' || !b.done || b.player === s.player) continue;
+      const a = BUILDINGS[b.type].abwehr;
+      if (a && b.abwehrLadung >= a.laden && dist2(b.x, b.y, s.x, s.y) <= a.radius * a.radius) abwehr = b;
+    }
+    if (abwehr) {
+      abwehr.abwehrLadung = 0;
+      abwehr.abwehrRest = 0;
+      world.events.push({ t: 'abgefangen', von: s.von, abwehr: abwehr.id, player: s.player, x: s.x, y: s.y, radius: s.radius, ax: abwehr.x, ay: abwehr.y });
+      continue;
+    }
+    const schilde = world.entities.filter((e) => !e.dead && e.kind === 'building' && e.done && BUILDINGS[e.type].schild);
+    const getroffen = [];
+    for (let k = 0; k < world.entities.length; k++) {
+      const e = world.entities[k];
+      if (e.dead || dist2(e.x, e.y, s.x, s.y) > s.radius * s.radius) continue;
+      e.hp -= s.schaden > 0 && schilde.length ? schildFaengt(world, schilde, e, s.schaden) : s.schaden;
+      getroffen.push(e);
+    }
+    world.events.push({ t: 'schlag', player: s.player, x: s.x, y: s.y, radius: s.radius, schaden: s.schaden });
+    for (let k = 0; k < getroffen.length; k++) {
+      const e = getroffen[k];
+      if (e.hp <= 0 && !e.dead) {
+        e.dead = true;
+        world.events.push({ t: 'died', id: e.id, kind: e.kind, type: e.type, player: e.player, x: e.x, y: e.y });
+      }
+    }
+  }
+  world.schlaege = bleibt;
 }
 
 /**
@@ -1842,6 +1978,15 @@ export function hash(world) {
         mix(e.schildPunkte);
         mix(e.schildRest);
       }
+      // Ebenso Fernschlag und Abwehr: nur Gebaeude mit dem Feld.
+      if (BUILDINGS[e.type].schlag) {
+        mix(e.schlagLadung);
+        mix(e.schlagRest);
+      }
+      if (BUILDINGS[e.type].abwehr) {
+        mix(e.abwehrLadung);
+        mix(e.abwehrRest);
+      }
     }
   }
   for (let p = 0; p < world.players.length; p++) {
@@ -1860,6 +2005,16 @@ export function hash(world) {
     mix(p.id);
     mix(p.x);
     mix(p.y);
+  }
+  // Fernschlaege im Flug: nur, wenn welche fliegen -- Partien ohne behalten ihre Pruefsumme.
+  for (const s of world.schlaege) {
+    mix(s.von);
+    mix(s.player);
+    mix(s.x);
+    mix(s.y);
+    mix(s.landet);
+    mix(s.radius);
+    mix(s.schaden);
   }
   mix(world.baubeginnRunde);
   mix(world.cleared.length);

@@ -16,6 +16,24 @@ const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
 
+/**
+ * Hat das Volk einen Skillbaum? Ohne (R0: skills {}, oder RULES.skills aus)
+ * verschwinden Gluehbirne, Skillbaum-Taste T und alle Skill-Hinweise.
+ */
+export function hatSkills(volk) {
+  return !!RULES.skills && Object.values(SKILLS).some((s) => s.faction === volk);
+}
+
+/** Hat das Volk Faehigkeiten des Kommandanten (Q/W/E-Leiste)? */
+export function hatFaehigkeiten(volk) {
+  return ((FACTIONS[volk] && FACTIONS[volk].faehigkeiten) || []).length > 0;
+}
+
+/** CSS-Klassen fuer die Hilfe: ohne Skills bzw. Faehigkeiten blendet das Stylesheet die zugehoerigen Zeilen aus. */
+export function rollenKlassen(volk) {
+  return (hatSkills(volk) ? '' : 'ohne-skills ') + (hatFaehigkeiten(volk) ? '' : 'ohne-faehigkeiten');
+}
+
 // ------------------------------------------------------------ Nebel des Krieges
 // Was man weiss, kommt aus src/sim/kunde.js -- dieselbe Sicht, mit der auch
 // die KI spielt. Hier nur die Darstellung: ein feines Sichtfeld mit weichem
@@ -172,7 +190,9 @@ export function ressourcenHtml(world, player) {
   const eintrag = (icon, wert, titel, klasse = '') =>
     `<div class="ri" title="${titel}">${icon}<span class="${klasse}">${wert}</span></div>`;
   return (
-    eintrag(ICONS.skillpunkte, skillFrei(world, player), `Skillpunkte, die du ausgeben kannst (T) — nächster in ${naechsterPunkt(world, player)}`, skillFrei(world, player) > 0 ? 'frei' : '') +
+    (hatSkills(p.faction)
+      ? eintrag(ICONS.skillpunkte, skillFrei(world, player), `Skillpunkte, die du ausgeben kannst (T) — nächster in ${naechsterPunkt(world, player)}`, skillFrei(world, player) > 0 ? 'frei' : '')
+      : '') +
     eintrag(ICONS.gegenwart, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
     eintrag(ICONS.goetterblut, p.goetterblut, 'Götterblut') +
     eintrag(ICONS.fron, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
@@ -696,7 +716,7 @@ export function beobachterHtml(world) {
   };
   const kopf = z.map((s) => `<th style="color:${s.farbe}${s.aus ? ';text-decoration:line-through' : ''}">${s.name}</th>`).join('');
   return `<table class="beobachter"><tr><th></th>${kopf}</tr>
-    ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${zeile('Skills', 'skills')}</table>`;
+    ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${world.players.some((pl) => hatSkills(pl.faction)) ? zeile('Skills', 'skills') : ''}</table>`;
 }
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)

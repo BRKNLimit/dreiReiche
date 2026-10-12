@@ -39,6 +39,7 @@ let placing = null;
 let bauGruppeSchl = 'wirtschaft'; // aktive Gruppe der Bauleiste (BAU_GRUPPEN in ui-gemeinsam.js)
 let angriff = false;
 let skillsOffen = false; // T: Skillbaum
+let hilfeKlassen = ''; // zuletzt gesetzte Klassen der Hilfe (ohne-skills, ohne-faehigkeiten)
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
 let schlagZielen = false; // Fernschlag scharf (Taste F): naechster Klick ist das Ziel
@@ -340,7 +341,7 @@ function infoKarte3() {
 
 /** Faehigkeit des Kommandanten ausloesen: ein Griff braucht ein Ziel, alles andere wirkt sofort. */
 function wirkeFaehigkeit3(id) {
-  if (!faehigkeitenVon(world, ME).includes(id) || faehigkeitWarten(world, ME, id)) return;
+  if (!id || !faehigkeitenVon(world, ME).includes(id) || faehigkeitWarten(world, ME, id)) return;
   if (FAEHIGKEITEN[id].art === 'griff') {
     zielen = id;
     placing = null;
@@ -413,6 +414,13 @@ function leisten3() {
 
 /** Skillbaum und Sperren neu zeichnen, sobald sich daran etwas aendert. */
 function skillPanel3() {
+  // Ohne Skills (R0) kein Skillbaum, und die Hilfe laesst T und die Faehigkeiten weg
+  if (!hatSkills(meFaction)) skillsOffen = false;
+  const klassen = rollenKlassen(meFaction);
+  if (klassen !== hilfeKlassen) {
+    hilfeKlassen = klassen;
+    document.getElementById('hilfe').className = klassen;
+  }
   const el = document.getElementById('skills');
   el.hidden = !skillsOffen;
   const sig = skillSignatur(world, ME) + (skillsOffen ? '|offen' : '');
@@ -679,11 +687,11 @@ addEventListener('keydown', (e) => {
     selPlan = null;
     document.getElementById('hilfe').hidden = true;
   }
-  if (e.key === 't') skillsOffen = !skillsOffen;
+  if (e.key === 't' && hatSkills(meFaction)) skillsOffen = !skillsOffen;
   // Kommandant gewaehlt: Q, W, E loesen seine Faehigkeiten aus.
   const kdtGewaehlt = kommandantVon(world, ME);
   const fi = 'qwe'.indexOf(e.key);
-  if (fi >= 0 && kdtGewaehlt && sel.includes(kdtGewaehlt.id)) {
+  if (fi >= 0 && kdtGewaehlt && sel.includes(kdtGewaehlt.id) && hatFaehigkeiten(meFaction)) {
     wirkeFaehigkeit3(FACTIONS[meFaction].faehigkeiten[fi]);
     return;
   }
@@ -1626,10 +1634,10 @@ function introHtml3() {
     — ohne Kosten, ohne Sicht. Gebaut und bezahlt wird, sobald ein Erbauer daneben steht; wer weggeht,
     baut nicht weiter. Mit <kbd>Shift</kbd> reiht man mehrere Pläne hintereinander.</p>
     <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
-    Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
+    ${Object.keys(FACTIONS).some(hatSkills) ? `Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
     Schreine, Verbesserungen und drei Fähigkeiten des Kommandanten frei — Kommandant wählen, dann
     <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,
-    sammelt ein wenig Erfahrung.</p>
+    sammelt ein wenig Erfahrung.` : ''}</p>
     </details>
     <p style="color:var(--dim)">Dieselbe Simulation wie die 2D-Ansicht — Spielstände, Kampagnen und Wiederholungen passen in beide.</p>
     <div class="stil">Gegner:

@@ -233,6 +233,8 @@
   #hilfe dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
   #hilfe dt { color: var(--accent); white-space: nowrap; }
   #hilfe dd { margin: 0; color: var(--text); }
+  /* Volk ohne Skillbaum bzw. Faehigkeiten (R0): die Klassen setzt ui.js auf #hilfe */
+  #hilfe.ohne-skills .nur-skills, #hilfe.ohne-faehigkeiten .nur-faehigkeiten { display: none; }
   /* Siegbildschirm */
   #intro table.sieg { border-collapse: collapse; margin: 8px 0 12px; }
   #intro table.sieg td, #intro table.sieg th { padding: 3px 14px; text-align: right; font-weight: 500; }
@@ -357,14 +359,14 @@
   <dt>1–0</dt><dd>bauen (Erbauer gewählt, Gruppe leer) aus der gewählten Bau-Gruppe · mit Shift: weitere in die Reihe</dd>
   <dt>Tab, Umschalt+Tab</dt><dd>Erbauer gewählt: Bau-Gruppe wechseln (Wirtschaft, Militär, Besonderes), auch per Klick auf den Reiter</dd>
   <dt>Fabrik gewählt, Rechtsklick</dt><dd>Sammelpunkt für neue Einheiten</dd>
-  <dt>Q–R</dt><dd>Gebäude gewählt: ausbilden · Kommandant gewählt: Fähigkeiten</dd>
+  <dt>Q–R</dt><dd>Gebäude gewählt: ausbilden<span class="nur-faehigkeiten"> · Kommandant gewählt: Fähigkeiten</span></dd>
   <dt>F</dt><dd>Fernschlag-Gebäude gewählt und geladen: scharf stellen, dann Klick aufs Ziel (Shift: weiter feuern)</dd>
   <dt>Entf</dt><dd>Gebäude abreißen, Bauplan verwerfen</dd>
   <dt>K</dt><dd>Kommandant</dd>
   <dt>.</dt><dd>nächster untätiger Arbeiter</dd>
   <dt>F2</dt><dd>ganzes Heer wählen</dd>
   <dt>Rechtsklick Minikarte</dt><dd>Auswahl dorthin schicken</dd>
-  <dt>T</dt><dd>Skillbaum</dd>
+  <dt class="nur-skills">T</dt><dd class="nur-skills">Skillbaum</dd>
   <dt>Mausrad, mittlere Taste</dt><dd>zoomen, schieben</dd>
   <dt>I</dt><dd>Auswertung</dd>
   <dt>Leertaste, + −</dt><dd>Pause, Tempo</dd>

@@ -9,7 +9,7 @@ import {
   unterhaltProMin, foerderungProMin, aufHindernis, gesperrt, kannLernen, faehigkeitenVon, faehigkeitWarten,
   erreicht, zieleVon, canAfford, anzahlVon, schlagBereit,
 } from './sim.js';
-import { neueKunde, aufklaeren, vermutetesHaupt, bekanntBei } from './kunde.js';
+import { neueKunde, aufklaeren, vermutetesHaupt, bekanntBei, gegnerPlaetze } from './kunde.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
 
 
@@ -89,8 +89,62 @@ export function createAI(player = 1, seed = 1, stil = 'standard', stufe = 'mitte
     welleX: 0, welleY: 0, welleAufHaupt: false,
     // Raben: wie viele es beim letzten Zug gab, und ab wann nach einem Verlust ein neuer kommt
     rabenVorher: 0, rabeAb: 0,
+    // Gegner, auf den sie zielt (Spielernummer, -1 noch keiner), und seit wann -- bei mehr als zwei Spielern
+    gegner: -1, gegnerSeit: 0,
     kunde: neueKunde(player),
   };
+}
+
+// Mindestens so lange bleibt die KI bei einem Gegner, bevor sie zu einem
+// anderen wechselt, der sie angreift (Ticks, 2 min). Designzahl, ungemessen:
+// ohne das springt das Ziel (und mit ihm die Bauausrichtung zur Front) hin und
+// her, sobald zwei Gegner abwechselnd vor der Tuer stehen.
+const GEGNER_WECHSEL = 1200;
+
+/**
+ * Der Gegner, auf den die KI gerade zielt -- nur aus dem, was die Kunde kennt.
+ * Mit einem lebenden Gegner ist die Wahl trivial (Verhalten wie bei zwei
+ * Spielern). Mit mehreren (Designzahl, ungemessen): wer die KI angreift --
+ * ein gesehener Kaempfer in ihrer Domaene --, wird ihr Ziel, sonst der
+ * naechste: der, dessen Hauptgebaeude (gesehen, sonst Startplatz) dem eigenen
+ * am naechsten steht. Sie bleibt bei ihm, bis er ausscheidet oder (nach
+ * GEGNER_WECHSEL) ein anderer sie angreift. Liefert { player, x, y } oder null.
+ */
+function waehleGegner(ai, world, kunde, haupt) {
+  let kand = gegnerPlaetze(world, ai.player, haupt, true);
+  if (!kand.length) kand = gegnerPlaetze(world, ai.player, haupt);
+  if (!kand.length) return null;
+  let wahl = kand.length === 1 ? kand[0] : kand.find((c) => c.player === ai.gegner) || null;
+  if (kand.length > 1 && (!wahl || world.tick - ai.gegnerSeit >= GEGNER_WECHSEL)) {
+    // Angreifer: der naechste gesehene Kaempfer in der eigenen Domaene
+    let nah = null;
+    let nahD = Infinity;
+    for (const o of kunde.einheiten) {
+      if (!UNITS[o.type].weapon || !kand.some((c) => c.player === o.player) || !inDomain(world, ai.player, o.x, o.y)) continue;
+      const dd = dist2(o.x, o.y, haupt.x, haupt.y);
+      if (dd < nahD) {
+        nahD = dd;
+        nah = o;
+      }
+    }
+    if (nah) wahl = kand.find((c) => c.player === nah.player);
+  }
+  if (!wahl) {
+    let bestD = Infinity;
+    for (const c of kand) {
+      const bekannt = kunde.gebaeude.find((g) => g.player === c.player && BUILDINGS[g.type].vital) || c;
+      const dd = dist2(bekannt.x, bekannt.y, haupt.x, haupt.y);
+      if (dd < bestD) {
+        bestD = dd;
+        wahl = c;
+      }
+    }
+  }
+  if (wahl.player !== ai.gegner) {
+    ai.gegner = wahl.player;
+    ai.gegnerSeit = world.tick;
+  }
+  return wahl;
 }
 
 export function stepAI(ai, world) {
@@ -98,6 +152,7 @@ export function stepAI(ai, world) {
   ai.next = world.tick + ai.stufe.takt;
 
   const p = world.players[ai.player];
+  if (!p.alive) return; // ausgeschieden: seine Reste verfallen, geplant wird nichts mehr
   const plan = FACTIONS[p.faction].rollen; // Bau-Rollen (src/sim/voelker/)
   const mine = world.entities.filter((e) => e.player === ai.player && !e.dead);
   const haupt = mine.find((e) => e.kind === 'building' && BUILDINGS[e.type].vital);
@@ -181,7 +236,10 @@ export function stepAI(ai, world) {
     if (d.anchor) bilanz += ankerGegenwart(anchorRadius(world, b));
   }
   // Das gegnerische Hauptgebaeude -- gesehen oder dort vermutet, wo der Gegner beginnt.
-  const ziel = vermutetesHaupt(kunde, haupt);
+  // Bei mehreren Gegnern das des gewaehlten (waehleGegner).
+  const gegnerWahl = waehleGegner(ai, world, kunde, haupt);
+  if (!gegnerWahl) return;
+  const ziel = vermutetesHaupt(kunde, haupt, gegnerWahl.player, gegnerWahl);
 
   // Raben spaehen: jeder fliegt zur Ader auf der gegnerischen Seite, die am
   // laengsten keiner gesehen hat, sonst zum gegnerischen Hauptgebaeude.
@@ -640,7 +698,7 @@ export function stepAI(ai, world) {
   for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
-  const angriff = angriffsziel(kunde, haupt) || vermuteteFoerderung(world, kunde, haupt, ziel, haupt) || ziel;
+  const angriff = angriffsziel(kunde, haupt, ziel.player) || vermuteteFoerderung(world, kunde, haupt, ziel, haupt) || ziel;
   const welleAuf = (z) => {
     ai.welleZiel = z.id;
     ai.welleX = z.x;
@@ -659,7 +717,7 @@ export function stepAI(ai, world) {
       y: (welle.reduce((s, u) => s + u.y, 0) / welle.length) | 0,
     };
     const bekannt = kunde.gebaeude.some((b) => b.id === ai.welleZiel);
-    const besser = angriffsziel(kunde, mitte) || vermuteteFoerderung(world, kunde, mitte, ziel, haupt);
+    const besser = angriffsziel(kunde, mitte, ziel.player) || vermuteteFoerderung(world, kunde, mitte, ziel, haupt);
     if (!bekannt || (ai.welleAufHaupt && besser)) {
       const weiter = besser || ziel;
       if (weiter.id !== ai.welleZiel || weiter.x !== ai.welleX || weiter.y !== ai.welleY) {
@@ -848,10 +906,12 @@ const TURM_WERT = 600;
  */
 function heimHeer(kunde, haupt, gegner) {
   let summe = 0;
-  for (const b of kunde.gebaeude) if (b.done && b.powered && bodenTurm(b.type)) summe += TURM_WERT;
+  // Mit mehreren Gegnern zaehlt nur, was dem gewaehlten gehoert (gegner.player)
+  const seiner = (o) => gegner.player === undefined || o.player === gegner.player;
+  for (const b of kunde.gebaeude) if (b.done && b.powered && bodenTurm(b.type) && seiner(b)) summe += TURM_WERT;
   for (const o of kunde.gesehen) {
     const d = UNITS[o.type];
-    if (d.worker || !d.weapon || dist2(o.x, o.y, gegner.x, gegner.y) >= dist2(o.x, o.y, haupt.x, haupt.y)) continue;
+    if (!seiner(o) || d.worker || !d.weapon || dist2(o.x, o.y, gegner.x, gegner.y) >= dist2(o.x, o.y, haupt.x, haupt.y)) continue;
     let zorn = 0;
     let wehr = 0;
     for (const s of kunde.gebaeude) {
@@ -1074,15 +1134,17 @@ function vermuteteFoerderung(world, kunde, von, gegner, haupt) {
  * den kein gesehener Turm deckt -- Wirtschaft treffen statt an Mauern
  * zerschellen --, dann Goetterblut vor Fron, dann der naechste vom Punkt von aus.
  */
-function angriffsziel(kunde, von) {
+function angriffsziel(kunde, von, spieler = -1) {
   let best = null;
   let bestRang = Infinity;
   let bestD = Infinity;
   for (const e of kunde.gebaeude) {
     const d = BUILDINGS[e.type];
     if (!d.fronOut && !d.blutOut) continue;
+    // Mit mehreren Gegnern nur Bauten des gewaehlten (spieler); deckt ein Turm nur der Besitzer des Ziels
+    if (spieler >= 0 && e.player !== spieler) continue;
     const gedeckt = kunde.gebaeude.some(
-      (t) => t.done && bodenTurm(t.type) && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
+      (t) => t.done && t.player === e.player && bodenTurm(t.type) && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
     );
     const rang = (gedeckt ? 2 : 0) + (d.blutOut ? 0 : 1);
     const dd = dist2(e.x, e.y, von.x, von.y);

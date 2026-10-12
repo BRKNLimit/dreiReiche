@@ -5,10 +5,13 @@
 // Entity-Reihenfolge; Sets nur zum Nachschlagen, nie zum Durchlaufen.
 //
 // Bekannt ist ohne Sicht nur die Karte selbst (Hindernisse, Adern) und, wie
-// auf jeder Zwei-Spieler-Karte, wo der Gegner beginnt: punktsymmetrisch
-// gegenueber dem eigenen Hauptgebaeude.
+// in jedem RTS mit festen Startplaetzen, wo die Gegner beginnen koennen: auf
+// einer Zwei-Spieler-Karte punktsymmetrisch gegenueber dem eigenen
+// Hauptgebaeude, auf einer Karte mit mehreren Basen (`basen`) auf allen
+// Basen ausser der eigenen. Dazu gehoert, wer noch mitspielt: Das Ausscheiden
+// eines Spielers wird allen gemeldet.
 
-import { sichtweite, dist2 } from './sim.js';
+import { sichtweite, dist2, startplatz } from './sim.js';
 import { BUILDINGS, MAP } from './defs.js';
 
 // Wie lange eine gesehene Einheit in Erinnerung bleibt (Ticks, 10 min).
@@ -106,12 +109,37 @@ export function aufklaeren(k, world) {
 }
 
 /**
- * Das gegnerische Hauptgebaeude, soweit bekannt; sonst dort, wo der Gegner
- * beginnt -- gegenueber dem eigenen Hauptgebaeude.
+ * Die moeglichen Startplaetze der Gegner: [{ player, x, y }] in Spielerreihenfolge.
+ * Zwei Spieler ohne `basen` in den Kartendaten: genau einer, gegenueber dem
+ * eigenen Hauptgebaeude. Sonst die Basen aller anderen Spieler der Partie
+ * (Basen der Karte, die niemand besetzt, zaehlen nicht). nurLebende laesst
+ * die Ausgeschiedenen weg.
  */
-export function vermutetesHaupt(k, haupt) {
-  const b = k.gebaeude.find((g) => BUILDINGS[g.type].vital);
-  return b || { id: 0, x: MAP - haupt.x, y: MAP - haupt.y, vermutet: true };
+export function gegnerPlaetze(world, player, haupt, nurLebende = false) {
+  const out = [];
+  const zwei = world.players.length === 2 && !(world.karteDaten && world.karteDaten.basen);
+  for (let q = 0; q < world.players.length; q++) {
+    if (q === player || (nurLebende && !world.players[q].alive)) continue;
+    if (zwei && haupt) out.push({ player: q, x: MAP - haupt.x, y: MAP - haupt.y });
+    else {
+      const s = startplatz(world.karteDaten, q);
+      out.push({ player: q, x: s.x, y: s.y });
+    }
+  }
+  return out;
+}
+
+/**
+ * Das Hauptgebaeude des Gegners, soweit bekannt; sonst dort, wo er beginnt.
+ * Mit gegner (Spielernummer) und platz (sein Startplatz aus gegnerPlaetze)
+ * gilt das fuer genau diesen Gegner; ohne beides gilt, wie bei zwei Spielern,
+ * jedes gesehene Hauptgebaeude, sonst gegenueber dem eigenen.
+ */
+export function vermutetesHaupt(k, haupt, gegner = -1, platz = null) {
+  const b = k.gebaeude.find((g) => BUILDINGS[g.type].vital && (gegner < 0 || g.player === gegner));
+  if (b) return b;
+  if (platz) return { id: 0, x: platz.x, y: platz.y, vermutet: true, player: gegner };
+  return { id: 0, x: MAP - haupt.x, y: MAP - haupt.y, vermutet: true };
 }
 
 /** Steht hier ein bekanntes gegnerisches Gebaeude im Weg (fuer Bauplaetze)? */

@@ -60,13 +60,39 @@ const PER_MIN = 600 * 1000;
 
 // ------------------------------------------------------------------ Weltbau
 
+/**
+ * Wie viele Spieler eine Karte hoechstens fasst: `spieler` in den Kartendaten,
+ * sonst zwei (klassisch, Flusstal, Zufalls- und eigene Karten).
+ */
+export function maxSpieler(daten) {
+  return daten && daten.spieler > 2 ? daten.spieler | 0 : 2;
+}
+
+/**
+ * Startplatz des Hauptgebaeudes von Spieler p: `basen[p]` der Karte, sonst
+ * wie immer die beiden Ecken (3000,3000) und (MAP-3000,MAP-3000). Nur aus den
+ * (unveraenderlichen) Kartendaten abgeleitet -- ein geladener Spielstand und
+ * die Kunde brauchen kein eigenes Feld dafuer.
+ */
+export function startplatz(daten, p) {
+  const b = daten && daten.basen && daten.basen[p];
+  if (b) return { x: b.x, y: b.y };
+  return p === 0 ? { x: 3000, y: 3000 } : { x: MAP - 3000, y: MAP - 3000 };
+}
+
 export function createWorld(opts = {}) {
-  const f0 = opts.factions?.[0] ?? 'mensch';
-  const f1 = opts.factions?.[1] ?? 'gott';
   // Eine der festen Karten -- oder eigene Daten (Zufallskarte, Editor),
   // gleiches Format wie KARTEN in defs.js, gepruefte mit kartenFehler().
   const karte = opts.karteDaten ? opts.karte || 'eigen' : KARTEN[opts.karte] ? opts.karte : 'klassisch';
   const daten = opts.karteDaten || KARTEN[karte];
+  // So viele Spieler, wie Voelker uebergeben werden, mindestens zwei, hoechstens
+  // so viele, wie die Karte Basen hat. Fehlende Voelker: Menschen, Gott.
+  const n = Math.max(2, Math.min(opts.factions?.length ?? 2, maxSpieler(daten)));
+  const standard = ['mensch', 'gott'];
+  const players = [];
+  for (let i = 0; i < n; i++) {
+    players.push({ id: i, faction: opts.factions?.[i] ?? standard[i] ?? 'mensch', fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 });
+  }
   const world = {
     tick: 0,
     seed: opts.seed ?? 12345,
@@ -74,10 +100,7 @@ export function createWorld(opts = {}) {
     karteDaten: daten, // die Kartendaten selbst (unveraenderlich)
     nextId: 1,
     entities: [],
-    players: [
-      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 },
-      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 },
-    ],
+    players,
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
     schlaege: [], // Fernschlaege im Flug (M4): { von, player, x, y, landet, radius, schaden }
@@ -97,15 +120,14 @@ export function createWorld(opts = {}) {
 }
 
 function setupMap(world) {
-  const lo = 3000;
-  const hi = MAP - 3000;
-
-  for (let p = 0; p < 2; p++) {
+  const n = world.players.length;
+  for (let p = 0; p < n; p++) {
     const f = world.players[p].faction;
     const home = FACTIONS[f].haupt;
-    spawnBuilding(world, p, home, p === 0 ? lo : hi, p === 0 ? lo : hi, true);
+    const platz = startplatz(world.karteDaten, p);
+    spawnBuilding(world, p, home, platz.x, platz.y, true);
   }
-  if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
+  if (RULES.kommandanten) for (let p = 0; p < n; p++) spawnKommandant(world, p);
 
   for (const a of world.karteDaten.adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
 }
@@ -207,9 +229,15 @@ export function spawnKommandant(world, player) {
   if (!haupt) return null;
   const type = FACTIONS[world.players[player].faction].kommandant;
   const off = BUILDINGS[haupt.type].radius + 250;
-  const dx = (MAP >> 1) - haupt.x;
-  const dy = (MAP >> 1) - haupt.y;
-  const d = isqrt(dx * dx + dy * dy) || 1;
+  let dx = (MAP >> 1) - haupt.x;
+  let dy = (MAP >> 1) - haupt.y;
+  let d = isqrt(dx * dx + dy * dy);
+  if (d === 0) {
+    // Basis genau auf der Kartenmitte (3-Spieler-Karte): kein "zur Mitte hin" -- nach Osten
+    dx = 1;
+    dy = 0;
+    d = 1;
+  }
   const x = clamp(haupt.x + (((dx * off) / d) | 0));
   const y = clamp(haupt.y + (((dy * off) / d) | 0));
   const u = spawnUnit(world, player, type, x, y);
@@ -420,6 +448,8 @@ function applyCommands(world) {
 }
 
 function applyCommand(world, c) {
+  // Wer ausgeschieden ist, gibt keine Befehle mehr (seine Einheiten verfallen, siehe verfall()).
+  if (!world.players[c.player].alive) return;
   {
     if (c.type === 'move' || c.type === 'attack') {
       for (let k = 0; k < c.ids.length; k++) {
@@ -491,12 +521,8 @@ function applyCommand(world, c) {
       demolish(world, c.player, c.id);
     } else if (c.type === 'aufgeben') {
       // Aufgeben zaehlt wie ein gefallener Kommandant
-      world.players[c.player].alive = false;
-      const rest = world.players.filter((p) => p.alive);
-      if (rest.length === 1) {
-        world.over = true;
-        world.winner = rest[0].id;
-      }
+      ausscheiden(world, c.player);
+      siegPruefen(world);
     } else if (c.type === 'lernen') {
       if (kannLernen(world, c.player, c.skill)) world.players[c.player].gelernt.push(c.skill);
     } else if (c.type === 'faehigkeit') {
@@ -1156,6 +1182,7 @@ export function step(world) {
   moveUnits(world, auren);
   combat(world, auren);
   einschlaege(world);
+  verfall(world);
   cleanup(world);
 
   world.tick++;
@@ -2029,14 +2056,70 @@ function cleanup(world) {
     }
     // Hauptgebaeude und Kommandant sind vital: Faellt einer, ist die Partie verloren.
     const vital = e.kind === 'building' ? BUILDINGS[e.type].vital : UNITS[e.type].commander;
-    if (vital) world.players[e.player].alive = false;
+    if (vital) ausscheiden(world, e.player);
   }
   world.entities = world.entities.filter((e) => !e.dead);
+  siegPruefen(world);
+}
 
-  const alive = world.players.filter((p) => p.alive);
-  if (alive.length === 1) {
+/**
+ * Ein Spieler scheidet aus (Hauptgebaeude und Kommandant verloren, oder
+ * aufgegeben): alive false, der Tick wird fuer den Verfall gemerkt. Seine
+ * Einheiten und Gebaeude bleiben stehen und verfallen langsam, siehe verfall().
+ */
+function ausscheiden(world, player) {
+  const pl = world.players[player];
+  if (!pl.alive) return;
+  pl.alive = false;
+  pl.ausgeschiedenBei = world.tick;
+  world.events.push({ t: 'ausgeschieden', player });
+}
+
+/**
+ * Gewonnen hat der letzte Uebrige. Scheiden alle im selben Tick aus, endet die
+ * Partie ohne Sieger (winner -1).
+ */
+function siegPruefen(world) {
+  let n = 0;
+  let letzter = -1;
+  for (let i = 0; i < world.players.length; i++) {
+    if (world.players[i].alive) {
+      n++;
+      letzter = i;
+    }
+  }
+  if (n <= 1) {
     world.over = true;
-    world.winner = alive[0].id;
+    world.winner = letzter;
+  }
+}
+
+// Wie lange es dauert, bis alles verfallen ist, was ein ausgeschiedener Spieler
+// hinterlaesst (Ticks, 5 min): bis dahin steht es weiter da -- und kaempft,
+// wenn jemand in Reichweite kommt. Designzahl, ungemessen: lang genug, dass
+// ein Angreifer die Reste noch einnehmen kann, kurz genug, dass kein Turm
+// ewig in der Landschaft stehen bleibt.
+export const VERFALL = 3000;
+
+/**
+ * Verfall der Ausgeschiedenen: Jedes Gebaeude und jede Einheit verliert je
+ * Tick einen gleichen Teil ihrer Lebenspunkte (maxHp / VERFALL, aufgerundet)
+ * und vergeht bei null -- vergangen, nicht gefallen: keine Seele fuer
+ * Totenreich-Anker. Ohne Ausgeschiedene kostet das nur den Blick auf die Spieler.
+ */
+function verfall(world) {
+  let aus = false;
+  for (let p = 0; p < world.players.length; p++) if (!world.players[p].alive) aus = true;
+  if (!aus) return;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || world.players[e.player].alive) continue;
+    e.hp -= Math.max(1, Math.ceil(e.maxHp / VERFALL));
+    if (e.hp > 0) continue;
+    e.hp = 0;
+    e.dead = true;
+    e.vergangen = true;
+    world.events.push({ t: 'died', id: e.id, kind: e.kind, type: e.type, player: e.player, x: e.x, y: e.y });
   }
 }
 
@@ -2207,6 +2290,8 @@ export function hash(world) {
     mix(world.players[p].forschung);
     mix(world.players[p].reparaturAcc);
     for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);
+    // Nur bei drei und mehr Spielern: Ausgeschiedene gibt es bei zweien nicht mehr, die Partie ist aus.
+    if (world.players.length > 2 && !world.players[p].alive) mix(7 + p);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   for (const p of world.plaene) {

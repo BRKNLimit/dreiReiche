@@ -80,6 +80,62 @@ KI weiter alle Kämpfer an (Altverhalten, Prüfsummen). Nicht jetzt ändern.
    nichts; Partie mit Schild deterministisch; `node tools/referenz.mjs`
    bitgleich.
 
-## M4 Fernschlag und Abwehr · M5 Prototypen · M3 Volks-Mechaniken · M6 Tech-Baum · M8 Oberfläche · M7 KI
+## M2 — abgenommen und gemergt (12.10.)
+
+## M4 Fernschlag und Abwehr
+
+1. Gebäudefeld `schlag: { laden, flug, reichweite, radius, schaden, kosten }`
+   (ganze Zahlen; `kosten` wie `cost`, z. B. `{ goetterblut: 40 }`):
+   `laden` Ticks bis zum nächsten Schlag bei voller Versorgung (skaliert mit
+   `powered`, Fortschritt in Tausendsteln wie beim Schild), `flug` Ticks vom
+   Abschuss bis zum Einschlag, `reichweite` (dm, vom Gebäude zum Ziel),
+   `radius` (dm) und `schaden` am Einschlag.
+2. Befehl `{ type: 'schlag', player, id, x, y }`: gilt nur, wenn das Gebäude
+   eigen, fertig und geladen ist, das Ziel in Reichweite liegt und der
+   Spieler `kosten` bezahlen kann — dann bezahlt, Ladung auf 0, ein Eintrag
+   in `world.schlaege` (`{ von, player, x, y, landet, radius, schaden }`),
+   Ereignis `{ t: 'schlagStart', … }`. Ziel braucht keine Sicht.
+3. Einschlag zum Tick `landet`: Zuerst die Abwehr — ein fertiges, geladenes
+   Gebäude mit `abwehr: { radius, laden }` eines **anderen** Spielers, in
+   dessen Umkreis das Ziel liegt (kleinste Id), fängt ab: seine Ladung auf 0,
+   Ereignis `{ t: 'abgefangen', … }`, kein Schaden. Sonst Schaden an
+   **allen** Entities (beide Seiten) im Radius — gleich hoch im ganzen
+   Kreis —, durch Schilde (M2, `schildFaengt`), Ereignis `{ t: 'schlag', x,
+   y, radius }`. Tote wie im Kampf (Seelen, Ereignisse `died`).
+4. Zustand: `schlagLadung` bzw. `abwehrLadung` am Gebäude (nur bei Gebäuden
+   mit dem Feld in `hash()` einmischen), `world.schlaege` in `hash()` und im
+   Spielstand (ist schlichtes JSON). Referenz bleibt bitgleich.
+5. `FELDER`: `gebaeude` um `schlag`, `abwehr`; `FELDER.schlag`,
+   `FELDER.abwehr`; `ROLLEN.frei` um `schlag`, `abwehr` (Gebäude);
+   `test/daten.test.js` prüft die Unterfelder (`schlag.kosten` wie `cost`).
+6. KI: Rolle `schlag` ab Minute 20, wenn die Wirtschaft steht — feuert, wenn
+   geladen und bezahlbar, auf das wertvollste bekannte Ziel aus der Kunde
+   (Hauptgebäude oder dichteste Gebäudegruppe), möglichst außerhalb bekannter
+   gegnerischer Abwehr. Rolle `abwehr`: eine beim Hauptgebäude, sobald die
+   Kunde ein gegnerisches Schlag-Gebäude kennt. Designzahlen kennzeichnen.
+7. Oberfläche: Schlag-Gebäude gewählt → Knopf „Fernschlag“ (und Taste F),
+   dann Klick aufs Ziel wie beim Zielen der Fähigkeiten; Ladung im
+   `auswahlKopf`; ein Schlag im Anflug ist für **alle** sichtbar (roter
+   Kreis am Ziel mit Countdown, Warnung im HUD); Einschlag mit großem Effekt
+   und Beben (`src/effekte.js`), Abfangen mit eigenem Effekt.
+8. Tests (`test/fernschlag.test.js`): Befehl nur geladen/in Reichweite/
+   bezahlbar; Einschlag trifft beide Seiten im Radius, nichts außerhalb;
+   Abwehr fängt ab und muss neu laden; eigene Abwehr fängt eigenen Schlag
+   nicht; Schild nimmt zuerst; Laden skaliert mit Versorgung; Spielstand
+   mit Schlag im Flug lädt bitgleich weiter; Referenz bitgleich.
+
+## M5 Prototypen
+
+1. Einheitenfeld `hoechstens`: wie viele davon ein Spieler gleichzeitig haben
+   darf — lebende plus in Ausbildung. Ein `produce`-Befehl darüber hinaus
+   wird abgelehnt.
+2. `ROLLEN.frei` um `werkstatt` (Gebäude) und `prototyp` (Einheit).
+3. KI: Werkstatt ab Minute 18, wenn die Wirtschaft steht und Götterblut
+   fließt; Prototyp ausbilden, sobald möglich; er zieht mit den Wellen.
+4. Oberfläche: Ausbildungsknopf zeigt „1/1“ und ist gesperrt, wenn voll;
+   Info-Karte nennt „höchstens n gleichzeitig“.
+5. Tests: Grenze bei lebenden und bestellten; nach dem Tod wieder frei.
+
+## M3 Volks-Mechaniken · M6 Tech-Baum · M8 Oberfläche · M7 KI
 
 Genaue Aufträge folgen nach Abnahme von M1/M2 (Konzept Abschnitt 2).

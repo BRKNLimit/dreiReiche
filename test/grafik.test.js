@@ -10,7 +10,7 @@ import { ICONS } from '../src/icons.js';
 import '../src/platzhalter.js'; // Platzhalter fuer Neues, bis Gemini echte Modelle und Icons liefert
 
 // Modelle, die die Oberflaeche ausser Einheiten und Gebaeuden braucht
-const KARTE_UND_EFFEKTE = ['scheibe', 'masseAder', 'resonitAder', 'baum', 'pfeil', 'kugel', 'stein', 'fels', 'staubwolke'];
+const KARTE_UND_EFFEKTE = ['scheibe', 'masseAder', 'resonitAder', 'baum', 'pfeil', 'kugel', 'stein', 'fels', 'staubwolke', 'wrack'];
 
 // Groessenbudget je Modell in Ecken (drei je Dreieck): ein Heer hat Hunderte Einheiten.
 const ECKEN_EINHEIT = 6000;
@@ -53,7 +53,7 @@ test('Waldgott-Varianten fuer die Stil-Auswahl sind gueltig', () => {
 });
 
 test('Icons: Ressourcen, Einheiten, Gebaeude und Faehigkeiten, jedes ein sicheres SVG', () => {
-  const brauche = ['skillpunkte', 'energie', 'resonit', 'masse', ...Object.keys(UNITS), ...Object.keys(BUILDINGS), ...Object.keys(FAEHIGKEITEN)];
+  const brauche = ['skillpunkte', 'energie', 'resonit', 'masse', 'wrack', ...Object.keys(UNITS), ...Object.keys(BUILDINGS), ...Object.keys(FAEHIGKEITEN)];
   for (const k of brauche) {
     const svg = ICONS[k];
     assert.ok(typeof svg === 'string', 'Icon fehlt: ' + k);

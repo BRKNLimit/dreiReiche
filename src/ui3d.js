@@ -1557,7 +1557,7 @@ function zeichneHud() {
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
       <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : ais[0] ? ' · Zuschauen' : netz ? ' · Online' : tagesAktiv ? ' · Tagesherausforderung' : ''}</span>
     </div>
-    ${spielerLeisteHtml(world, ME)}${(wiederholung && wdhSicht === 'alle') || ais[0] ? beobachterHtml(world) : ''}${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
+    ${spielerLeisteHtml(world, wiederholung || ais[0] ? -1 : ME)}${(wiederholung && wdhSicht === 'alle') || ais[0] ? beobachterHtml(world) : ''}${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahl}
     ${(world.over || !(wiederholung || ais[0])) && endeAnzeige(world, ME) ? `<div class="over">${endeAnzeige(world, ME)}</div>` : ''}`;
 }

@@ -654,7 +654,7 @@ export function spielerLeisteHtml(world, ich) {
     const stil = `color:${spielerFarbe(world, p)};${aus ? 'text-decoration:line-through;opacity:.55' : ''}`;
     return `<span class="spieler" style="${stil}" title="${aus ? 'ausgeschieden' : 'im Spiel'}">● ${volkName(pl.faction)}${p === ich ? ' (du)' : ''}</span>`;
   };
-  return `<div class="res spielerleiste" style="flex-wrap:wrap;gap:2px 10px">${world.players.map(chip).join('')}</div>`;
+  return `<div class="spielerleiste" style="display:flex;flex-wrap:wrap;gap:2px 12px;margin:5px 0;font-size:12px">${world.players.map(chip).join('')}</div>`;
 }
 
 // ------------------------------------------------------------ Beobachter (Zuschauen, Wiederholung)

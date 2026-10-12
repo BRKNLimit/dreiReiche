@@ -42,13 +42,43 @@ hat eine Waffe.
 7. Oberfläche: Info-Karte nennt „trifft: Boden / Luft / beides“
    (`waffeZeilen` in `src/ui-gemeinsam.js`).
 
-## M2 Schild (danach)
+## M1 — abgenommen und gemergt (12.10.)
 
-Gebäudefeld `schild: { kapazitaet, radius, laden }` (laden: Punkte pro Tick
-bei voller Versorgung, braucht `gegenwartIn`). Schaden an eigenen Gebäuden
-und Einheiten im Umkreis geht zuerst auf den Schild (bei Überlappung der mit
-der kleinsten Id und Ladung > 0). Hash, Spielstand, Oberfläche (Kuppel und
-Ladebalken), Tests.
+Offener Punkt aus M1, für später (M7): Ein unbewaffneter Späher zieht in der
+KI weiter alle Kämpfer an (Altverhalten, Prüfsummen). Nicht jetzt ändern.
+
+## M2 Schild
+
+1. Gebäudefeld `schild: { kapazitaet, radius, laden }` (ganze Zahlen):
+   `kapazitaet` höchste Schildpunkte, `radius` Umkreis in dm (Mitte zu
+   Mitte), `laden` Punkte pro Tick bei voller Versorgung — skaliert mit
+   `powered` (Promille), ohne Gegenwart lädt nichts. Ein Schildgebäude hat
+   wie andere `gegenwartIn` und `prio` (Wehr).
+2. Zustand am Gebäude: `schildPunkte` (in `spawnBuilding` mit 0 anlegen,
+   fertig gebaut startet leer und lädt auf; in `hash()` aufnehmen).
+3. Schaden: Überall, wo eine Entity Schaden nimmt (Kampf, Belagerung,
+   Fähigkeiten — such alle Stellen, an denen `hp` sinkt), fängt zuerst ein
+   Schild ab: ein fertiges, eigenes (gleicher Spieler) Schildgebäude mit
+   `schildPunkte > 0`, in dessen Umkreis das Ziel steht; bei mehreren das mit
+   der kleinsten Id. Er fängt `min(schaden, schildPunkte)` ab, der Rest geht
+   auf `hp`. Das Schildgebäude schützt sich selbst mit. Flieger auch.
+4. Ereignis `{ t: 'schild', id, x, y, wert }` je Abfangen (für Effekte).
+5. `FELDER.gebaeude` um `schild`, neues `FELDER.schild = ['kapazitaet',
+   'radius', 'laden']`; `ROLLEN.frei` um `schild: 'gebaeude'`;
+   `test/daten.test.js` prüft die Unterfelder.
+6. KI: hat ein Volk die Rolle `schild`, baut sie eins beim Hauptgebäude,
+   sobald die Wirtschaft steht und ab Minute 10 (Designzahl, kennzeichnen).
+7. Oberfläche (`src/ui.js`, `src/ui3d.js`, `src/ui-gemeinsam.js`): Kuppel
+   als Kreis um gewählte und eigene Schildgebäude (2D: Kreislinie,
+   Deckkraft nach Ladung; 3D: Modell `schildkuppel`, falls es ein Modell
+   dieses Namens gibt — sonst ein Ring auf dem Overlay), Info-Karte des
+   Gebäudes: „Schild: x / y, lädt z pro s, Umkreis r m“. Effekt beim
+   Abfangen in `src/effekte.js` (kurzes Aufleuchten am Ziel).
+8. Tests (`test/schild.test.js`, Testtypen zur Laufzeit): fängt ab und der
+   Rest trifft; lädt mit Gegenwart, ohne nicht; schützt keine Feinde und
+   nichts außerhalb; Überlappung nimmt kleinste Id; leerer Schild hält
+   nichts; Partie mit Schild deterministisch; `node tools/referenz.mjs`
+   bitgleich.
 
 ## M4 Fernschlag und Abwehr · M5 Prototypen · M3 Volks-Mechaniken · M6 Tech-Baum · M8 Oberfläche · M7 KI
 

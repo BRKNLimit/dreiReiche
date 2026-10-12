@@ -32,6 +32,9 @@ Tabellen in `docs/scope.md`.
   einfacher Klick in 2D wählt jetzt nur die nächste Einheit (wie in 3D),
   nicht den ganzen Haufen. **Shift+Klick** auf ein Ausbildungs-Icon bestellt
   fünf, verteilt auf die gewählten Fabriken.
+- **📖 Kodex** im Startbildschirm: alle Einheiten und Gebäude beider Völker
+  mit Icon und Karte (Kosten, Werte, was sie freischaltet) — aus den Daten,
+  also immer aktuell.
 - Endbildschirm: „Zufallskarte“ statt „zufall“.
 - **„✨ Neu in 0.37“** im Startbildschirm — einmal, bis man „Verstanden“
   klickt. Der Startbildschirm schneidet lange Inhalte oben nicht mehr ab.

@@ -4,7 +4,7 @@
 import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PRIO_NAMES } from './sim/defs.js';
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
-  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue,
+  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
@@ -504,6 +504,7 @@ export const NEUHEITEN = {
     '<b>Tagesherausforderung</b> und <b>12 Erfolge</b>',
     '<b>Zufallskarten</b> und der <b>Karteneditor</b>; Geminis High-Res-Modelle und Wasser',
     '<b>2D ⇄ 3D</b> mitten in der Partie wechseln, <b>Fotomodus</b> in 3D (P), Kartenvorschau, Beobachter-Tafel beim Zuschauen',
+    '<b>📖 Kodex</b> aller Einheiten und Gebäude, <b>Einstellungen</b> (Lautstärke, Wackeln), Doppelklick wählt alle eines Typs, Shift+Klick bildet fünf aus',
     'Bedienung: gezielter Angriff (Rechtsklick auf Feind), S = Stopp, Shift = Wegpunkte, F2 = ganzes Heer, . = untätiger Arbeiter',
   ],
 };
@@ -525,6 +526,47 @@ export function neuheitenGesehen() {
   } catch {
     /* nur fuer diese Sitzung */
   }
+}
+
+// ------------------------------------------------------------ Kodex (Startbildschirm)
+let kodexWelt = null; // leere Partie, nur damit die Karten Sperren nennen koennen
+
+export function kodexKnopfHtml() {
+  return '<div class="stil"><button id="kodexOeffnen">📖 Kodex — alle Einheiten und Gebäude</button></div>';
+}
+
+function kodexHtml(volk, typ) {
+  if (!kodexWelt) kodexWelt = createWorld({ factions: ['mensch', 'gott'] });
+  const p = volk === 'mensch' ? 0 : 1;
+  const einheiten = Object.keys(UNITS).filter((k) => UNITS[k].faction === volk);
+  const bauten = Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].faction === volk);
+  const knopf = (k, name) => `<button class="ikon${k === typ ? ' an' : ''}" data-kodex="${k}" title="${name}">${ICONS[k] || ''}<span>${name}</span></button>`;
+  const karteHtml = !typ
+    ? '<p class="leise">Ein Icon wählen — Werte, Kosten und was es freischaltet.</p>'
+    : UNITS[typ]
+      ? einheitKarte(kodexWelt, p, typ)
+      : gebaeudeKarte(kodexWelt, p, typ);
+  const volkKnopf = (v, name) => `<button data-volk="${v}"${v === volk ? ' class="an"' : ''}>${name}</button>`;
+  return `<div class="vorwort kodex"><div class="kapitel">Kodex</div><h1 style="color:${FACTIONS[volk].color}">${FACTIONS[volk].name}</h1>
+    <div class="go">${volkKnopf('mensch', 'Menschen')}${volkKnopf('gott', 'Wald- und Wiesengott')}</div>
+    <h2>Einheiten</h2><div class="kodexgitter">${einheiten.map((k) => knopf(k, UNITS[k].name)).join('')}</div>
+    <h2>Gebäude</h2><div class="kodexgitter">${bauten.map((k) => knopf(k, BUILDINGS[k].name)).join('')}</div>
+    <div class="kodexkarte">${karteHtml}</div>
+    <div class="go"><button id="kodexZurueck">Zurück</button></div></div>`;
+}
+
+/** Kodex im Overlay zeigen; Klick auf ein Icon zeigt seine Karte. */
+export function kodexZeigen(el, zurueck, volk = 'mensch', typ = null) {
+  el.innerHTML = kodexHtml(volk, typ);
+  const box = el.querySelector ? el.querySelector('.kodex') : null;
+  if (!box) return;
+  box.onclick = (e) => {
+    const b = e.target.closest ? e.target.closest('button') : null;
+    if (!b) return;
+    if (b.dataset.kodex) kodexZeigen(el, zurueck, volk, b.dataset.kodex);
+    else if (b.dataset.volk) kodexZeigen(el, zurueck, b.dataset.volk, null);
+    else if (b.id === 'kodexZurueck') zurueck();
+  };
 }
 
 // ------------------------------------------------------------ Einstellungen

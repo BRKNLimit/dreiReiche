@@ -1417,6 +1417,7 @@ function introHtml3() {
     ${kampagneHtml()}
     ${onlineHtml()}
     ${bilanzHtml()}
+    ${kodexKnopfHtml()}
     <details class="regeln"><summary>Spielregeln in Kürze</summary>
     <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
     (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
@@ -1866,6 +1867,8 @@ function startbildschirm() {
       startbildschirm();
     };
   }
+  const kodexKnopf = document.getElementById('kodexOeffnen');
+  if (kodexKnopf) kodexKnopf.onclick = () => kodexZeigen(el, startbildschirm);
   const tagesKnopf = document.getElementById('tagesStart');
   if (tagesKnopf) tagesKnopf.onclick = tagesAnnehmen;
   const erfolgeKnopf = document.getElementById('erfolgeZeigen');

@@ -112,7 +112,7 @@ test('Daten: keine Namen doppelt -- sonst ueberschreibt ein Volk still das ander
   for (const k of Object.keys(BUILDINGS)) assert.ok(!UNITS[k], `„${k}“ ist Gebaeude und Einheit zugleich`);
 });
 
-test('Daten: jedes Volk besetzt alle Rollen der Basis mit Eigenem', () => {
+test('Daten: jedes Volk besetzt die Pflichtrollen mit Eigenem; freie Rollen, wenn es sie hat, mit Eigenem der richtigen Art', () => {
   for (const v of VOELKER) {
     const f = v.schluessel;
     const eigen = (art, typ) => (art === 'gebaeude' ? BUILDINGS : UNITS)[typ]?.faction === f;

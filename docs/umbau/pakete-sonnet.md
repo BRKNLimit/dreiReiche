@@ -223,3 +223,42 @@ nur einmischen, wo das Feld existiert).
 ## M7 KI
 
 Genaue Aufträge folgen nach Abnahme von M1/M2 (Konzept Abschnitt 2).
+
+(M7 wartet, bis Gemini die neuen Rollen in die Völker eingetragen hat (G3a) —
+ohne sie lässt sich die KI nicht messen. Vorher kommt M9.)
+
+## M9 Mehrspieler: 3 und 4 Spieler (Wunsch des Nutzers)
+
+Gemini hat die Karten `dreiReiche` (3 Basen) und `vierlande` (4 Basen) in
+`KARTEN` eingetragen (`spieler`, `basen: [{x, y}]`). Das Spiel kann bisher
+nur zwei Spieler. Ziel: **Jeder gegen jeden** mit 2–4 Spielern, ein Mensch
+und bis zu drei KIs, in 2D und 3D. Online und Kampagne bleiben bei zwei.
+
+1. **Simulation:** `createWorld({ factions: [...] })` legt so viele Spieler
+   an, wie Völker übergeben werden (höchstens `karteDaten.spieler`, sonst 2;
+   Karten ohne `spieler` haben 2). `setupMap` nimmt die Startplätze aus
+   `karteDaten.basen`, ohne sie wie heute (3000,3000)/(MAP-3000,MAP-3000).
+   Hat eine Karte für 3–4 Spieler nur 2 Völker, spielen sie auf den ersten
+   beiden Basen. Sieg: Wer kein Hauptgebäude und keinen Kommandanten mehr
+   hat, scheidet aus (`alive: false`), seine Einheiten und Gebäude bleiben
+   bis zur Zerstörung stehen oder verfallen nach einer Designzahl (kennzeichnen);
+   gewonnen hat der letzte Übrige. Überall `p < 2`, `1 - p` usw. auf
+   `world.players.length` umstellen.
+2. **Kunde:** Die möglichen Startplätze der Gegner sind alle Basen außer der
+   eigenen (wie in StarCraft bekannt) — nicht mehr „gegenüber“. Bei zwei
+   Spielern gilt weiter genau die eine Gegenbasis (bitgleich).
+3. **KI:** wählt ein Ziel unter mehreren Gegnern (Designzahl, kennzeichnen:
+   z. B. der nächste bekannte, bei Angriff auf die eigene Basis der
+   Angreifer), Verteidigung gegen jeden. Nur über die Kunde.
+4. **Oberfläche (2D und 3D):** Startmenü zeigt bei Karten mit mehr als zwei
+   Basen bis zu drei Gegner (Volk je Gegner, „keiner“ möglich); Farben für
+   bis zu vier Spieler (`teamFarbe` o. ä.), Minikarte, HUD-Werte (Stärke,
+   Domäne) je Spieler, Ende-Bildschirm „Gewonnen/Verloren/ausgeschieden“,
+   Beobachter und Wiederholung mit N Spielern. Speichern/Laden mit N.
+5. **Werkzeuge:** `tools/match.mjs` und `tools/sweep.mjs` können eine
+   Karte mit N Spielern fahren (z. B. `spieler=3 karte=dreiReiche`);
+   die Zwei-Spieler-Messungen bleiben unverändert.
+6. **Bitgleich:** `node tools/referenz.mjs` unverändert für zwei Spieler.
+   Tests: 3 und 4 Spieler deterministisch (Spielstand mitten im Gefecht),
+   Ausscheiden, Sieg des Letzten, Kunde ohne Blick auf fremde Entities,
+   KI-gegen-KI-Partie mit 4 Spielern endet ohne Hänger.

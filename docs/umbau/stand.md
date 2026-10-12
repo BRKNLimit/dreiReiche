@@ -11,8 +11,8 @@ nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Feld
 | M1 Luftebene | `weapon.ziele` (`boden`/`luft`/`beide`), Flieger mit `weapon` kämpfen, Rollen `luftfabrik`, `flak` (Gebäude), `luftjaeger`, `bomber` (Einheiten) — die KI nutzt sie, wenn ein Volk sie hat | **nutzbar** (seit 12.10.) |
 | M2 Schild | `schild: { kapazitaet, radius, laden }` (laden je Tick bei voller Versorgung, braucht `gegenwartIn`), Rolle `schild` (Gebäude) — die KI baut einen ab Minute 10 | **nutzbar** (seit 12.10.); ein Modell `schildkuppel` wäre schön (3D zeigt bisher einen Ring) |
 | M3 Volks-Mechaniken | `regeneration`, `aura`, `auferstehen`, `flaechenschaden`, `verlangsamt` | geplant |
-| M4 Fernschlag, Abwehr | `schlag`, `abwehr` | in Arbeit (Sonnet) |
-| M5 Prototypen | `hoechstens` | in Arbeit (Sonnet) |
+| M4 Fernschlag, Abwehr | `schlag: { laden, flug, reichweite, radius, schaden, kosten }`, `abwehr: { radius, laden }` (laden in Ticks bei voller Versorgung), Rollen `schlag`, `abwehr` — Einschlag trifft beide Seiten, Schilde zuerst; die KI baut ab Minute 20 bzw. bei Bedarf | **nutzbar** (seit 12.10.) |
+| M5 Prototypen | `hoechstens` (Einheit: lebende + bestellte), Rollen `werkstatt` (Gebäude), `prototyp` (Einheit) — die KI baut die Werkstatt ab Minute 18 | **nutzbar** (seit 12.10.) |
 | M6 Tech-Baum | `wirkung.tempo/reichweite/sicht/baukraft/regeneration`, `nur` | geplant |
 | M7 KI | — | geplant |
 | M8 Oberfläche | — | geplant |

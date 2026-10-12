@@ -302,6 +302,7 @@
   <dt>1–0</dt><dd>bauen (Erbauer gewählt, Gruppe leer) · mit Shift: weitere in die Reihe</dd>
   <dt>Fabrik gewählt, Rechtsklick</dt><dd>Sammelpunkt für neue Einheiten</dd>
   <dt>Q–R</dt><dd>Gebäude gewählt: ausbilden · Kommandant gewählt: Fähigkeiten</dd>
+  <dt>F</dt><dd>Fernschlag-Gebäude gewählt und geladen: scharf stellen, dann Klick aufs Ziel (Shift: weiter feuern)</dd>
   <dt>Entf</dt><dd>Gebäude abreißen, Bauplan verwerfen</dd>
   <dt>K</dt><dd>Kommandant</dd>
   <dt>.</dt><dd>nächster untätiger Arbeiter</dd>
@@ -325,7 +326,7 @@
 <div id="nogl"><p>Dieser Browser kann kein WebGL 2 — die 2D-Ansicht läuft trotzdem:
   <a class="btn" href="resonit.html">2D-Ansicht öffnen</a></p></div>
 <script>
-const SPIEL_STAND = '7e208f7d1b';
+const SPIEL_STAND = 'a06772bbf2';
 
 /* ---------------------------------- */
 
@@ -1519,9 +1520,12 @@ const FELDER = {
     'name', 'desc', 'short', 'faction', 'hp', 'radius', 'sicht', 'cost', 'buildTime',
     'anchor', 'anchorMin', 'vital', 'needs', 'needsGrowth', 'clears',
     'gegenwartIn', 'gegenwartOut', 'prio', 'fronOut', 'blutOut', 'forschung',
-    'buildList', 'buff', 'kampf', 'weapon', 'schild',
+    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr',
   ],
-  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt'],
+  // hoechstens (M5): so viele Einheiten dieses Typs darf ein Spieler zugleich
+  // haben -- lebende plus in Ausbildung. Ein produce darueber hinaus wird
+  // abgelehnt (sim.js, anzahlVon). Fuer Prototypen; ohne Angabe keine Grenze.
+  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
   // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
   // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,
@@ -1535,6 +1539,22 @@ const FELDER = {
   //   radius      Umkreis in dm, Mitte zu Mitte
   //   laden       Punkte pro Tick bei voller Versorgung (skaliert mit powered)
   schild: ['kapazitaet', 'radius', 'laden'],
+  // schlag (M4): Fernschlag. Der Befehl 'schlag' feuert auf einen Punkt (ohne
+  // Sicht), nach flug Ticks schlaegt er ein und trifft ALLE Entities im Kreis
+  // gleich hart (durch Schilde), auch die eigenen.
+  //   laden       Ticks bis zum naechsten Schlag bei voller Versorgung
+  //               (skaliert mit powered, Fortschritt in Tausendsteln)
+  //   flug        Ticks vom Abschuss bis zum Einschlag
+  //   reichweite  dm, vom Gebaeude zum Ziel
+  //   radius      dm, Umkreis des Einschlags (Mitte der Entity im Kreis)
+  //   schaden     Schaden am Einschlag, im ganzen Kreis gleich
+  //   kosten      zahlt der Spieler beim Abschuss, wie cost
+  schlag: ['laden', 'flug', 'reichweite', 'radius', 'schaden', 'kosten'],
+  // abwehr (M4): faengt einen gegnerischen Fernschlag ab, dessen Ziel in
+  // ihrem Umkreis liegt -- danach muss sie neu laden.
+  //   radius      dm, Umkreis (Mitte des Gebaeudes zum Ziel des Schlags)
+  //   laden       Ticks bis zur naechsten Abwehr bei voller Versorgung
+  abwehr: ['radius', 'laden'],
   build: ['power'],
   cost: ['fron', 'goetterblut'],
   skill: ['faction', 'ast', 'name', 'desc', 'kosten', 'braucht', 'frei', 'wirkung', 'faehigkeit'],
@@ -1555,7 +1575,13 @@ const ROLLEN = {
   // luftjaeger/bomber: Flieger gegen Flieger bzw. gegen Boden; rabe bleibt der
   // unbewaffnete Spaeher.
   // schild (M2): Gebaeude mit Schildkuppel ueber Eigenem im Umkreis.
-  frei: { posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit' },
+  // schlag/abwehr (M4): Fernschlag-Gebaeude bzw. das, was Fernschlaege abfaengt.
+  // werkstatt/prototyp (M5): Gebaeude, das Prototypen ausbildet, und die
+  // Einheit selbst (mit hoechstens).
+  frei: {
+    posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', schlag: 'gebaeude', abwehr: 'gebaeude', werkstatt: 'gebaeude',
+    rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit', prototyp: 'einheit',
+  },
 };
 const START_FRON = 1100;
 
@@ -2045,6 +2071,7 @@ function createWorld(opts = {}) {
     ],
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
+    schlaege: [], // Fernschlaege im Flug (M4): { von, player, x, y, landet, radius, schaden }
     baubeginnRunde: 0, // Vorrang beim gleichzeitigen Baubeginn, siehe erschaffen()
     hindernisse: opts.empty ? [] : daten.hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -2103,6 +2130,10 @@ function spawnBuilding(world, player, type, x, y, finished = false) {
     seelen: 0, // Gefallene im Umkreis (nur Anker mit growth.perTod)
     schildPunkte: 0, // Schild (def.schild): faengt Schaden ab; fertig gebaut startet er leer
     schildRest: 0, // Rest des Ladens in Tausendsteln, damit gedrosseltes Laden nicht verloren geht
+    schlagLadung: 0, // Fernschlag (def.schlag): geladene Ticks, bei schlag.laden ist er bereit
+    schlagRest: 0, // Rest des Ladens in Tausendsteln, wie schildRest
+    abwehrLadung: 0, // Abwehr (def.abwehr): geladene Ticks, bei abwehr.laden faengt sie einen Schlag ab
+    abwehrRest: 0,
     cooldown: 0,
     dead: false,
   };
@@ -2465,7 +2496,7 @@ function applyCommand(world, c) {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
         const def = BUILDINGS[e.type];
-        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit)) {
+        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit) && !vollBesetzt(world, c.player, c.unit)) {
           const p = world.players[c.player];
           if (canAfford(p, UNITS[c.unit].cost)) {
             pay(p, UNITS[c.unit].cost, 1000);
@@ -2473,8 +2504,35 @@ function applyCommand(world, c) {
           }
         }
       }
+    } else if (c.type === 'schlag') {
+      schlagAbfeuern(world, c.player, c.id, c.x | 0, c.y | 0);
     }
   }
+}
+
+/**
+ * Wie viele Einheiten dieses Typs hat der Spieler: lebende plus die in der
+ * Warteschlange seiner Gebaeude (M5, hoechstens). Bestellte zaehlen schon,
+ * sonst liessen sich beliebig viele auf einmal bestellen.
+ */
+function anzahlVon(world, player, typ) {
+  let n = 0;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.player !== player) continue;
+    if (e.kind === 'unit') {
+      if (e.type === typ) n++;
+    } else if (e.kind === 'building') {
+      for (let k = 0; k < e.queue.length; k++) if (e.queue[k] === typ) n++;
+    }
+  }
+  return n;
+}
+
+/** Hat der Spieler schon so viele dieser Einheit, wie er (hoechstens) haben darf? Ohne Grenze nie. */
+function vollBesetzt(world, player, typ) {
+  const h = UNITS[typ].hoechstens;
+  return !!h && anzahlVon(world, player, typ) >= h;
 }
 
 /**
@@ -2972,6 +3030,8 @@ function step(world) {
     }
     if (def.forschung) pl.forschung += ((def.forschung * e.powered) / 1000) | 0;
     if (def.schild) schildLaden(e, def.schild);
+    if (def.schlag) ladungWeiter(e, 'schlag', def.schlag.laden);
+    if (def.abwehr) ladungWeiter(e, 'abwehr', def.abwehr.laden);
     if (def.fronOut || def.blutOut) {
       const mehr = 1000 + bonus(world, e.player, 'foerderung');
       if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
@@ -3046,6 +3106,7 @@ function step(world) {
 
   moveUnits(world);
   combat(world);
+  einschlaege(world);
   cleanup(world);
 
   world.tick++;
@@ -3089,6 +3150,107 @@ function schildFaengt(world, schilde, ziel, dmg) {
     return dmg - ab;
   }
   return dmg;
+}
+
+/**
+ * Ladung eines Gebaeudes weiterzaehlen (Fernschlag, Abwehr): ein Tick je Tick
+ * bei voller Versorgung, anteilig zu powered; der Rest unter einem Tick bleibt
+ * in <feld>Rest stehen (wie beim Schild). Ohne Gegenwart laedt nichts, was
+ * schon geladen ist, bleibt.
+ */
+function ladungWeiter(e, feld, max) {
+  if (e[feld + 'Ladung'] >= max) {
+    e[feld + 'Rest'] = 0;
+    return;
+  }
+  const t = e[feld + 'Rest'] + e.powered;
+  const plus = (t / 1000) | 0;
+  e[feld + 'Rest'] = t - plus * 1000;
+  e[feld + 'Ladung'] = Math.min(max, e[feld + 'Ladung'] + plus);
+}
+
+/** Ist der Fernschlag dieses Gebaeudes geladen und das Gebaeude fertig? */
+function schlagBereit(e) {
+  const s = e.kind === 'building' && !e.dead && e.done ? BUILDINGS[e.type].schlag : null;
+  return !!s && e.schlagLadung >= s.laden;
+}
+
+/**
+ * Fernschlag abfeuern (Befehl 'schlag'): nur ein eigenes, fertiges, geladenes
+ * Schlaggebaeude, ein Ziel auf der Karte in Reichweite, und der Spieler muss
+ * die Kosten zahlen koennen. Das Ziel braucht keine Sicht -- wer blind feuert,
+ * trifft eben auch ins Leere. Der Schlag geht als Eintrag in world.schlaege
+ * (Radius und Schaden werden mitgenommen, das Gebaeude darf inzwischen fallen)
+ * und schlaegt nach flug Ticks ein, siehe einschlaege().
+ */
+function schlagAbfeuern(world, player, id, x, y) {
+  const e = byId(world, id);
+  if (!e || e.player !== player || !schlagBereit(e)) return false;
+  const s = BUILDINGS[e.type].schlag;
+  if (x < 0 || y < 0 || x > MAP || y > MAP) return false;
+  if (dist2(e.x, e.y, x, y) > s.reichweite * s.reichweite) return false;
+  const p = world.players[player];
+  const kosten = s.kosten || {};
+  if (!canAfford(p, kosten)) return false;
+  pay(p, kosten, 1000);
+  e.schlagLadung = 0;
+  e.schlagRest = 0;
+  const landet = world.tick + s.flug;
+  world.schlaege.push({ von: e.id, player, x, y, landet, radius: s.radius, schaden: s.schaden });
+  world.events.push({ t: 'schlagStart', von: e.id, player, bx: e.x, by: e.y, x, y, landet, radius: s.radius });
+  return true;
+}
+
+/**
+ * Einschlaege dieses Ticks, in der Reihenfolge des Abschusses. Zuerst die
+ * Abwehr: das erste (kleinste Id) fertige, geladene Abwehrgebaeude eines
+ * ANDEREN Spielers, in dessen Umkreis das Ziel liegt, faengt den Schlag ab --
+ * seine Ladung ist danach leer, es ist kein Schaden. Sonst trifft der Schlag
+ * jede Entity beider Seiten, deren Mitte im Kreis liegt, mit dem vollen
+ * Schaden (kein Abfall zum Rand, keine Abzuege ausser den Schilden: die
+ * fangen zuerst, wie im Kampf). Gefallene wie im Kampf -- cleanup() zaehlt
+ * die Seelen und raeumt auf.
+ */
+function einschlaege(world) {
+  if (!world.schlaege.length) return;
+  const bleibt = [];
+  for (let i = 0; i < world.schlaege.length; i++) {
+    const s = world.schlaege[i];
+    if (s.landet > world.tick) {
+      bleibt.push(s);
+      continue;
+    }
+    let abwehr = null;
+    for (let k = 0; k < world.entities.length && !abwehr; k++) {
+      const b = world.entities[k];
+      if (b.dead || b.kind !== 'building' || !b.done || b.player === s.player) continue;
+      const a = BUILDINGS[b.type].abwehr;
+      if (a && b.abwehrLadung >= a.laden && dist2(b.x, b.y, s.x, s.y) <= a.radius * a.radius) abwehr = b;
+    }
+    if (abwehr) {
+      abwehr.abwehrLadung = 0;
+      abwehr.abwehrRest = 0;
+      world.events.push({ t: 'abgefangen', von: s.von, abwehr: abwehr.id, player: s.player, x: s.x, y: s.y, radius: s.radius, ax: abwehr.x, ay: abwehr.y });
+      continue;
+    }
+    const schilde = world.entities.filter((e) => !e.dead && e.kind === 'building' && e.done && BUILDINGS[e.type].schild);
+    const getroffen = [];
+    for (let k = 0; k < world.entities.length; k++) {
+      const e = world.entities[k];
+      if (e.dead || dist2(e.x, e.y, s.x, s.y) > s.radius * s.radius) continue;
+      e.hp -= s.schaden > 0 && schilde.length ? schildFaengt(world, schilde, e, s.schaden) : s.schaden;
+      getroffen.push(e);
+    }
+    world.events.push({ t: 'schlag', player: s.player, x: s.x, y: s.y, radius: s.radius, schaden: s.schaden });
+    for (let k = 0; k < getroffen.length; k++) {
+      const e = getroffen[k];
+      if (e.hp <= 0 && !e.dead) {
+        e.dead = true;
+        world.events.push({ t: 'died', id: e.id, kind: e.kind, type: e.type, player: e.player, x: e.x, y: e.y });
+      }
+    }
+  }
+  world.schlaege = bleibt;
 }
 
 /**
@@ -3797,6 +3959,15 @@ function hash(world) {
         mix(e.schildPunkte);
         mix(e.schildRest);
       }
+      // Ebenso Fernschlag und Abwehr: nur Gebaeude mit dem Feld.
+      if (BUILDINGS[e.type].schlag) {
+        mix(e.schlagLadung);
+        mix(e.schlagRest);
+      }
+      if (BUILDINGS[e.type].abwehr) {
+        mix(e.abwehrLadung);
+        mix(e.abwehrRest);
+      }
     }
   }
   for (let p = 0; p < world.players.length; p++) {
@@ -3815,6 +3986,16 @@ function hash(world) {
     mix(p.id);
     mix(p.x);
     mix(p.y);
+  }
+  // Fernschlaege im Flug: nur, wenn welche fliegen -- Partien ohne behalten ihre Pruefsumme.
+  for (const s of world.schlaege) {
+    mix(s.von);
+    mix(s.player);
+    mix(s.x);
+    mix(s.y);
+    mix(s.landet);
+    mix(s.radius);
+    mix(s.schaden);
   }
   mix(world.baubeginnRunde);
   mix(world.cleared.length);
@@ -4408,6 +4589,22 @@ function stepAI(ai, world) {
     vergeben.push(z.x * MAP + z.y);
     if (r.tx !== z.x || r.ty !== z.y) issue(world, { type: 'move', player: ai.player, ids: [r.id], x: z.x, y: z.y });
   }
+  // 0b. Fernschlag (hat das Volk einen): jeder geladene, bezahlbare feuert auf
+  //     das wertvollste Ziel, das die Kunde kennt. Die Kosten werden unten von
+  //     dem abgezogen, was die Produktion ausgeben darf -- der Befehl wirkt
+  //     erst im naechsten Tick, sonst bestellte sie dasselbe Goetterblut noch einmal.
+  let schlagFron = 0;
+  let schlagBlut = 0;
+  for (const b of gebaeude) {
+    if (!schlagBereit(b)) continue;
+    const s = BUILDINGS[b.type].schlag;
+    if (!canAfford({ fron: fron - schlagFron, goetterblut: p.goetterblut - schlagBlut }, s.kosten || {})) continue;
+    const z = schlagZiel(kunde, b, s, mine, ziel);
+    if (!z) continue;
+    issue(world, { type: 'schlag', player: ai.player, id: b.id, x: z.x, y: z.y });
+    schlagFron += (s.kosten && s.kosten.fron) || 0;
+    schlagBlut += (s.kosten && s.kosten.goetterblut) || 0;
+  }
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
   // Abgelehnte Bauten merken: Steht nach einem Bauauftrag nichts an der
@@ -4561,6 +4758,34 @@ function stepAI(ai, world) {
     }
   }
 
+  // Kann der Bau bezahlt werden? Wie fron >= cost.fron, aber auch das Goetterblut der teuren Bauten.
+  const bezahlbar = (t) => fron >= BUILDINGS[t].cost.fron && p.goetterblut >= (BUILDINGS[t].cost.goetterblut || 0) && bilanz >= (BUILDINGS[t].gegenwartIn || 0);
+
+  // 3h. Fernschlag (hat das Volk einen): einer beim Hauptgebaeude, wenn die
+  //     Wirtschaft steht und ab Minute 20 -- er kostet Goetterblut und lohnt erst,
+  //     wenn es etwas Grosses zu treffen gibt. Minute 20: Designzahl, nicht gemessen.
+  if (plan.schlag && frei(plan.schlag) && wirtschaftSteht && minute >= 20 && zahl(plan.schlag) < 1 && bezahlbar(plan.schlag)) {
+    const platz = daheimFrei(world, kunde, haupt, plan.schlag, 1100, front + 240);
+    if (platz && bau(plan.schlag, ...platz)) return;
+  }
+
+  // 3i. Abwehr (hat das Volk eine): eine beim Hauptgebaeude, sobald die Kunde ein
+  //     gegnerisches Schlag-Gebaeude kennt -- vorher faengt sie nichts ab.
+  if (plan.abwehr && frei(plan.abwehr) && zahl(plan.abwehr) < 1 && bezahlbar(plan.abwehr) && kunde.gebaeude.some((b) => BUILDINGS[b.type].schlag)) {
+    const platz = daheimFrei(world, kunde, haupt, plan.abwehr, 500, front + 90);
+    if (platz && bau(plan.abwehr, ...platz)) return;
+  }
+
+  // 3j. Werkstatt (hat das Volk eine): eine ab Minute 18, wenn die Wirtschaft steht
+  //     und Goetterblut fliesst (ein fertiger Schacht) -- Prototypen kosten Blut.
+  //     Minute 18: Designzahl, nicht gemessen.
+  if (plan.werkstatt && frei(plan.werkstatt) && wirtschaftSteht && minute >= 18 && zahl(plan.werkstatt) < 1 && bezahlbar(plan.werkstatt)) {
+    if (bauten.some((b) => b.done && b.type === plan.blut)) {
+      const platz = daheimFrei(world, kunde, haupt, plan.werkstatt, 1000, front + 300);
+      if (platz && bau(plan.werkstatt, ...platz)) return;
+    }
+  }
+
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
   if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
     if (bau(plan.blut, vene.x, vene.y)) return;
@@ -4647,8 +4872,9 @@ function stepAI(ai, world) {
           ? kosten(plan.anker) + 100
           : 0;
   // Was die eigenen Plaene beim Baubeginn kosten, bleibt liegen.
-  let rest = fron - plaene.reduce((s, q) => s + kosten(q.type), 0);
-  let blutRest = p.goetterblut;
+  // ... und was ein eben befohlener Fernschlag kostet.
+  let rest = fron - plaene.reduce((s, q) => s + kosten(q.type), 0) - schlagFron;
+  let blutRest = p.goetterblut - schlagBlut;
   const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
   // Raben: einer ab Minute 2, ein zweiter ab Minute 10 -- billig, und wer
@@ -4680,7 +4906,15 @@ function stepAI(ai, world) {
     if (!f.done || !BUILDINGS[f.type].buildList || f.queue.length >= tiefe) continue;
     const liste = BUILDINGS[f.type].buildList;
     let unit = null;
-    if (plan.luftfabrik && f.type === plan.luftfabrik) {
+    if (plan.werkstatt && f.type === plan.werkstatt) {
+      // Prototyp: sobald moeglich, aber nie mehr, als das Volk haben darf
+      // (hoechstens; ohne Angabe einer). Er kostet Goetterblut und wird nicht
+      // gegen das Sparen fuer den naechsten Bau aufgerechnet -- er ist selten.
+      const pt = plan.prototyp;
+      if (pt && liste.includes(pt) && frei(pt) && anzahlVon(world, ai.player, pt) < (UNITS[pt].hoechstens || 1) && blutRest >= (UNITS[pt].cost.goetterblut || 0)) {
+        unit = pt;
+      }
+    } else if (plan.luftfabrik && f.type === plan.luftfabrik) {
       // Flieger: Bomber gegen alles am Boden; Luftjaeger erst, wenn der Gegner
       // bewaffnete Flieger hat, dann im Wechsel mit den Bombern. Der Flieger-
       // Anteil bleibt unter dem Wert des Bodenheeres (plus ein Grundstock),
@@ -4717,7 +4951,7 @@ function stepAI(ai, world) {
         }
       }
     }
-    if (!unit || rest - UNITS[unit].cost.fron < sparen) continue;
+    if (!unit || rest - UNITS[unit].cost.fron < (unit === plan.prototyp ? 0 : sparen)) continue;
     rest -= UNITS[unit].cost.fron;
     blutRest -= UNITS[unit].cost.goetterblut || 0;
     issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
@@ -5024,6 +5258,44 @@ function heimHeer(kunde, haupt, gegner) {
     summe += ((((kosten * (1000 + zorn)) / 1000) * 1000) / (1000 - wehr)) | 0;
   }
   return summe;
+}
+
+// Fernschlag der KI (Designzahlen, nicht gemessen): so viel zaehlt ein getroffenes
+// Hauptgebaeude zusaetzlich zu seinen Kosten, und so viel Gebaeudewert (Fron) muss
+// ein Schlag mindestens treffen, sonst bleibt er geladen.
+const SCHLAG_HAUPT = 1000;
+const SCHLAG_MINDEST = 300;
+
+/**
+ * Ziel fuer einen Fernschlag aus dem, was die Kunde kennt: die Mitte des
+ * gegnerischen Gebaeudes, in dessen Schlagkreis der meiste Wert steht (Kosten
+ * in Fron, das Hauptgebaeude mit Zuschlag) -- das Hauptgebaeude oder die
+ * dichteste Gruppe. Nicht gewaehlt wird, was ausser Reichweite liegt, was
+ * eigene Truppen oder Bauten im Kreis haette, und was eine bekannte fertige
+ * gegnerische Abwehr deckt: sie finge den Schlag ab (ob sie gerade geladen ist,
+ * weiss die KI nicht). Ist das Hauptgebaeude noch ungesehen, gilt der Ort, wo
+ * der Gegner beginnt. Gleichwertige Ziele entscheidet die Reihenfolge der Kunde.
+ */
+function schlagZiel(kunde, von, s, eigene, gegnerHaupt) {
+  const abwehr = kunde.gebaeude.filter((b) => b.done && BUILDINGS[b.type].abwehr);
+  const kandidaten = gegnerHaupt.vermutet ? kunde.gebaeude.concat([gegnerHaupt]) : kunde.gebaeude;
+  let best = null;
+  let bestWert = SCHLAG_MINDEST - 1;
+  for (const c of kandidaten) {
+    if (dist2(von.x, von.y, c.x, c.y) > s.reichweite * s.reichweite) continue;
+    if (eigene.some((o) => dist2(o.x, o.y, c.x, c.y) <= s.radius * s.radius)) continue;
+    if (abwehr.some((a) => dist2(a.x, a.y, c.x, c.y) <= BUILDINGS[a.type].abwehr.radius ** 2)) continue;
+    let wert = c.vermutet ? SCHLAG_HAUPT : 0;
+    for (const b of kunde.gebaeude) {
+      if (dist2(b.x, b.y, c.x, c.y) > s.radius * s.radius) continue;
+      wert += BUILDINGS[b.type].cost.fron + (BUILDINGS[b.type].vital ? SCHLAG_HAUPT : 0);
+    }
+    if (wert > bestWert) {
+      bestWert = wert;
+      best = c;
+    }
+  }
+  return best;
 }
 
 /** Gesehene feindliche Kaempfer im Umkreis r um einen Punkt. */
@@ -6417,6 +6689,10 @@ function steuergruppenHtml(gruppen, world) {
  */
 function ausbildenVerteilt(world, ich, fabs, einheit, anzahl) {
   if (gesperrt(world, ich, einheit) || !fabs.length) return;
+  // Einheiten mit Grenze (hoechstens): nicht mehr bestellen, als noch Platz ist -- die Simulation
+  // lehnte den Rest ohnehin ab
+  const grenze = UNITS[einheit].hoechstens;
+  if (grenze) anzahl = Math.min(anzahl, grenze - anzahlVon(world, ich, einheit));
   const laenge = fabs.map((f) => f.queue.length);
   for (let n = 0; n < anzahl; n++) {
     let beste = -1;
@@ -6725,17 +7001,39 @@ function ausbildungsleisteHtml(world, player, fabriken) {
   return liste
     .map((u) => {
       const d = UNITS[u];
-      const zu = gesperrt(world, player, u);
+      const gesperrtSkill = gesperrt(world, player, u);
       const inQueue = fListe.reduce((sum, f) => sum + f.queue.filter((q) => q === u).length, 0);
-      const zahlHtml = inQueue ? `<span class="zahl">${inQueue}</span>` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[u]}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
+      // Einheiten mit Grenze (Prototypen): "1/1" statt der Schlangenlaenge, gesperrt, wenn voll
+      const grenze = d.hoechstens;
+      const da = grenze ? anzahlVon(world, player, u) : 0;
+      const voll = grenze && da >= grenze;
+      const zu = gesperrtSkill || voll;
+      const zahlHtml = grenze ? `<span class="zahl">${da}/${grenze}</span>` : inQueue ? `<span class="zahl">${inQueue}</span>` : '';
+      const grund = gesperrtSkill ? ' — gesperrt, Skillbaum (T)' : voll ? ` — schon ${da}/${grenze}, höchstens ${grenze} gleichzeitig` : '';
+      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u]}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
     })
     .join('');
+}
+
+/**
+ * Aendert sich, sobald sich ein Zaehlerstand "n/hoechstens" in der
+ * Ausbildungsleiste aendert (eine Einheit mit Grenze faellt oder entsteht) --
+ * dann muss die Leiste neu gezeichnet werden, auch wenn Auswahl und Schlange gleich bleiben.
+ */
+function grenzenSignatur(world, player, fabriken) {
+  const liste = fabriken.length ? BUILDINGS[fabriken[0].type].buildList || [] : [];
+  return liste.filter((u) => UNITS[u].hoechstens).map((u) => anzahlVon(world, player, u)).join();
 }
 
 /** Statt einer Liste aller Netze: nur Warnungen, wo Gegenwart fehlt. */
 function warnungenHtml(world, player) {
   const out = [];
+  // Fernschlaege im Flug sieht jeder, auch ohne Sicht auf das Ziel: Einschlag und Countdown.
+  for (const s of world.schlaege) {
+    const rest = Math.max(1, Math.ceil((s.landet - world.tick) / 10));
+    const eigen = s.player === player;
+    out.push(`<div class="warn schlag">${ICONS.schlag || ''}<span>${eigen ? 'Eigener Fernschlag' : 'Fernschlag des Gegners'} im Anflug — Einschlag in ${rest} s (${meterText(s.radius)} Umkreis)</span></div>`);
+  }
   for (const r of gridReport(world, player)) {
     if (!r.throttled) continue;
     let stufe = '';
@@ -6815,6 +7113,32 @@ function schildText(s) {
   return `${s.kapazitaet} Punkte, lädt ${s.laden * 10} pro s, Umkreis ${meterText(s.radius)}`;
 }
 
+/** Kosten, die auch nur aus Goetterblut bestehen (oder nichts) duerfen: "10 Fron + 5 Götterblut". */
+function kostenKurz(cost) {
+  const t = [];
+  if (cost && cost.fron) t.push(cost.fron + ' Fron');
+  if (cost && cost.goetterblut) t.push(cost.goetterblut + ' Götterblut');
+  return t.length ? t.join(' + ') : 'nichts';
+}
+
+/** Fernschlag eines Gebaeudes als Karten-Zeilen: Wirkung, Reichweite, Laden und Flug, Kosten je Schlag. */
+function schlagZeilen(s) {
+  return [
+    ['Fernschlag', `${s.schaden} Schaden an allem im Umkreis von ${meterText(s.radius)} — auch an Eigenem; Schilde fangen zuerst`],
+    ['Reichweite', meterText(s.reichweite) + ', das Ziel braucht keine Sicht'],
+    ['Laden', `${sekunden(s.laden)} bei voller Versorgung, Flug ${sekunden(s.flug)}`],
+    ['Je Schlag', kostenKurz(s.kosten)],
+  ];
+}
+
+/** Abwehr eines Gebaeudes: was sie abfaengt, wie lange sie danach laedt. */
+function abwehrZeilen(a) {
+  return [
+    ['Abwehr', `fängt einen gegnerischen Fernschlag ab, der im Umkreis von ${meterText(a.radius)} einschlägt`],
+    ['Laden', `${sekunden(a.laden)} bis zum nächsten Abfangen (bei voller Versorgung)`],
+  ];
+}
+
 /** Alles, was man vor dem Bau eines Gebaeudes wissen muss. */
 function gebaeudeKarte(world, player, typ) {
   const d = BUILDINGS[typ];
@@ -6845,6 +7169,8 @@ function gebaeudeKarte(world, player, typ) {
   }
   if (d.weapon) z.push(...waffeZeilen(d));
   if (d.schild) z.push(['Schild', schildText(d.schild)]);
+  if (d.schlag) z.push(...schlagZeilen(d.schlag));
+  if (d.abwehr) z.push(...abwehrZeilen(d.abwehr));
   if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
   if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
   if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : UNITS[u].kampf ? 'nah' : 'Späher'})`).join(', ')]);
@@ -6858,6 +7184,7 @@ function einheitKarte(world, player, typ) {
   if (!d.commander) z.push(['Kosten', kostenText(d.cost)], ['Ausbildung', sekunden(d.buildTime)]);
   if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Fron/min']);
   z.push(['Leben', d.hp + ' LP']);
+  if (d.hoechstens) z.push(['Begrenzt', `höchstens ${d.hoechstens} gleichzeitig (lebend und in Ausbildung)`]);
   if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
   if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
@@ -6904,7 +7231,10 @@ function ausbildungHtml(world, player, typ) {
     .map((u, i) => {
       const d = UNITS[u];
       if (gesperrt(world, player, u)) return `<div class="zeile zu"><kbd>${'QWER'[i]}</kbd> <s>${d.name}</s> — ${sperrText(world, player, u)}</div>`;
-      return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> (${d.kampf === 'fern' ? 'Fernkampf' : 'Nahkampf'}) · ${kostenText(d.cost)} · ${sekunden(d.buildTime)} · ${d.unterhalt} Fron/min</div>`;
+      // Prototypen: wie viele es gibt und wie viele es hoechstens geben darf
+      const grenze = d.hoechstens ? ` · ${anzahlVon(world, player, u)}/${d.hoechstens} (höchstens ${d.hoechstens} gleichzeitig)` : '';
+      const unterhalt = d.unterhalt ? ` · ${d.unterhalt} Fron/min` : '';
+      return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> (${d.kampf === 'fern' ? 'Fernkampf' : 'Nahkampf'}) · ${kostenText(d.cost)} · ${sekunden(d.buildTime)}${unterhalt}${grenze}</div>`;
     })
     .join('');
 }
@@ -6913,6 +7243,11 @@ function ausbildungHtml(world, player, typ) {
 function erfahrungText(world, e) {
   const erf = erfahrung(world, e);
   return erf ? `Erfahrung +${prozent(erf)}` : '';
+}
+
+/** "Fernschlag bereit" oder "Fernschlag lädt 40 %" -- in Fuenferschritten, damit die Anzeige nicht zappelt. */
+function ladeText(name, ladung, laden) {
+  return ladung >= laden ? `${name} bereit` : `${name} lädt ${Math.floor((ladung * 20) / laden) * 5} %`;
 }
 
 /** Kopfzeile einer einzelnen Auswahl: Name, Leben, Erfahrung. */
@@ -6925,6 +7260,9 @@ function auswahlKopf(world, e) {
   if (e.kind === 'building' && e.done && def.schild) {
     teile.push(`Schild ${e.schildPunkte} / ${def.schild.kapazitaet}, lädt ${def.schild.laden * 10} pro s, Umkreis ${meterText(def.schild.radius)}`);
   }
+  // Fernschlag und Abwehr: bereit oder wie weit geladen
+  if (e.kind === 'building' && e.done && def.schlag) teile.push(ladeText('Fernschlag', e.schlagLadung, def.schlag.laden));
+  if (e.kind === 'building' && e.done && def.abwehr) teile.push(ladeText('Abwehr', e.abwehrLadung, def.abwehr.laden) + `, Umkreis ${meterText(def.abwehr.radius)}`);
   if (e.kind === 'unit' && e.rufBis > world.tick) teile.push('Schlachtruf');
   if (e.kind === 'unit' && e.wehrBis > world.tick) teile.push('Schildwall');
   if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');
@@ -6968,6 +7306,62 @@ function faehigkeitenHtml(world, player) {
         <kbd>${'QWE'[i]}</kbd> ${f.name}<small>${zustand}</small></button>`;
     })
     .join('');
+}
+
+// ------------------------------------------------------------ Fernschlag (M4)
+
+/** Gewaehlte eigene, fertige Gebaeude mit Fernschlag. */
+function schlagGebaeude(world, sel, player) {
+  const out = [];
+  for (const id of sel) {
+    const b = byId(world, id);
+    if (b && !b.dead && b.kind === 'building' && b.player === player && b.done && BUILDINGS[b.type].schlag) out.push(b);
+  }
+  return out;
+}
+
+/** Kann der Spieler diesen Schlag bezahlen? */
+function schlagBezahlbar(world, b) {
+  return canAfford(world.players[b.player], BUILDINGS[b.type].schlag.kosten || {});
+}
+
+/**
+ * Welches der gewaehlten Gebaeude schiesst auf (x, y)? Das erste, das geladen
+ * ist, das Ziel erreicht und dessen Kosten der Spieler zahlen kann; sonst null.
+ */
+function schlagSchuetze(world, sel, player, x, y) {
+  for (const b of schlagGebaeude(world, sel, player)) {
+    const s = BUILDINGS[b.type].schlag;
+    if (schlagBereit(b) && schlagBezahlbar(world, b) && (b.x - x) ** 2 + (b.y - y) ** 2 <= s.reichweite * s.reichweite) return b;
+  }
+  return null;
+}
+
+/**
+ * Knopf "Fernschlag" (Taste F), solange ein eigenes Schlaggebaeude gewaehlt ist:
+ * bereit, zu teuer oder wie weit geladen. Ein Klick scharfstellt, der naechste
+ * Klick auf die Karte feuert (wie beim Zielen der Faehigkeiten).
+ */
+function schlagKnopfHtml(world, sel, player) {
+  const gs = schlagGebaeude(world, sel, player);
+  if (!gs.length) return '';
+  const bereit = gs.filter(schlagBereit);
+  const zahlbar = bereit.filter((b) => schlagBezahlbar(world, b));
+  const s = BUILDINGS[gs[0].type].schlag;
+  let klasse = 'wartet';
+  let zustand;
+  if (zahlbar.length) {
+    klasse = 'bereit';
+    zustand = zahlbar.length > 1 ? `${zahlbar.length} bereit` : 'bereit';
+  } else if (bereit.length) {
+    klasse = 'zu';
+    zustand = 'zu teuer';
+  } else {
+    const voll = Math.max(...gs.map((b) => b.schlagLadung / BUILDINGS[b.type].schlag.laden));
+    zustand = `lädt ${Math.floor(voll * 20) * 5} %`;
+  }
+  const titel = `Fernschlag: ${s.schaden} Schaden im Umkreis von ${meterText(s.radius)} (auch an Eigenem), Reichweite ${meterText(s.reichweite)}, Flug ${sekunden(s.flug)}, kostet ${kostenKurz(s.kosten)}`;
+  return `<button class="faeh ${klasse}" data-schlag="1" title="${titel}"${zahlbar.length ? '' : ' disabled'}><kbd>F</kbd> Fernschlag<small>${zustand}</small></button>`;
 }
 
 /** Was ein Skill bewirkt, Zahlen aus den Daten. */
@@ -7190,6 +7584,33 @@ function effekteAusEreignissen(fx, world, ich, sichtbar, hoerer, imBild) {
       if (!sichtbar(ev)) continue;
       fx.blitze.set(ev.id, fx.jetzt);
       if (fx.ringe.length < 120) fx.ringe.push({ x: ev.x, y: ev.y, r: 160, t: 0, dauer: 0.3, farbe: '#7ab8ff' });
+    } else if (ev.t === 'schlagStart') {
+      // Fernschlag abgefeuert: Flammenstoss und Ring am Gebaeude (nur, wenn man es sieht), Alarm bei einem gegnerischen.
+      if (ev.player !== ich) klang(fx, 'warnung', 0.7, 0);
+      if (!sichtbar({ player: ev.player, x: ev.bx, y: ev.by })) continue;
+      partikel(fx, 'glut', ev.bx, ev.by, 3);
+      if (fx.ringe.length < 120) fx.ringe.push({ x: ev.bx, y: ev.by, r: 500, t: 0, dauer: 0.7, farbe: '#ff9a3a' });
+      beben(fx, 5, ev.bx, ev.by, hoerer);
+      raum(fx, 'schlagstart', ev.bx, ev.by, hoerer, 0.9);
+    } else if (ev.t === 'schlag') {
+      // Einschlag: fuer alle sichtbar -- Feuerball, Druckwellen, Truemmer, starkes Beben.
+      partikel(fx, 'glut', ev.x, ev.y, 7);
+      partikel(fx, 'wucht', ev.x, ev.y, 4);
+      if (fx.ringe.length < 120) {
+        fx.ringe.push({ x: ev.x, y: ev.y, r: ev.radius, t: 0, dauer: 1.1, farbe: '#ff7020' });
+        fx.ringe.push({ x: ev.x, y: ev.y, r: ev.radius * 0.6, t: 0, dauer: 0.7, farbe: '#ffe080' });
+        fx.ringe.push({ x: ev.x, y: ev.y, r: ev.radius * 1.4, t: 0, dauer: 1.5, farbe: '#c8b890' });
+      }
+      beben(fx, 14, ev.x, ev.y, hoerer);
+      raum(fx, 'schlageinschlag', ev.x, ev.y, hoerer, 1);
+    } else if (ev.t === 'abgefangen') {
+      // Abwehr hat einen Schlag abgefangen: Lichtblitz im Zielkreis, Ring an der Abwehr.
+      partikel(fx, 'magie', ev.x, ev.y, 4);
+      if (fx.ringe.length < 120) {
+        fx.ringe.push({ x: ev.x, y: ev.y, r: ev.radius, t: 0, dauer: 0.8, farbe: '#9ae8ff' });
+        fx.ringe.push({ x: ev.ax, y: ev.ay, r: 350, t: 0, dauer: 0.6, farbe: '#9ae8ff' });
+      }
+      raum(fx, 'abfangen', ev.x, ev.y, hoerer, 0.9);
     } else if (ev.t === 'built') {
       const b = byId(ev.id);
       if (b && b.player === ich) klang(fx, 'fertig', 0.5, 0);
@@ -7526,6 +7947,21 @@ const REZEPTE = {
   einsturz: (t, z, t0) => {
     rauschen(t, z, t0, 0.9, 'lowpass', 300, 0.7, 1);
     ton1(t, z, t0, 0.7, 'sine', 70, 25, 0.8);
+  },
+  // Fernschlag: Start mit steigendem Fauchen, Einschlag mit tiefem Donner, Abfangen mit hellem Klirren
+  schlagstart: (t, z, t0) => {
+    rauschen(t, z, t0, 0.8, 'bandpass', 700, 0.8, 0.8);
+    ton1(t, z, t0, 0.7, 'sawtooth', 70, 400, 0.25);
+  },
+  schlageinschlag: (t, z, t0) => {
+    rauschen(t, z, t0, 1.4, 'lowpass', 260, 0.7, 1);
+    ton1(t, z, t0, 1.1, 'sine', 80, 20, 1);
+    ton1(t, z, t0, 0.5, 'square', 55, 25, 0.35);
+  },
+  abfangen: (t, z, t0) => {
+    ton1(t, z, t0, 0.35, 'sine', 1400, 2400, 0.25);
+    ton1(t, z, t0, 0.45, 'triangle', 900, 1800, 0.18, 0.06);
+    rauschen(t, z, t0, 0.15, 'highpass', 4000, 1, 0.4);
   },
   fertig: (t, z, t0) => {
     ton1(t, z, t0, 0.25, 'sine', 660, 660, 0.25);
@@ -8559,6 +8995,7 @@ function zustandLaden(z) {
   world.karteDaten = world.karteDaten || KARTEN[world.karte];
   world.hindernisse = world.leer ? [] : world.karteDaten.hindernisse;
   delete world.leer;
+  world.schlaege = world.schlaege || []; // Staende von vor dem Fernschlag (M4) kennen keine
   world.weg = wegGitter(world.hindernisse);
   const nachId = new Map(world.entities.map((e) => [e.id, e]));
   const zurueck = (x) => (typeof x === 'number' ? nachId.get(x) : x);
@@ -14994,6 +15431,7 @@ let angriff = false;
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
+let schlagZielen = false; // Fernschlag scharf (Taste F): naechster Klick ist das Ziel
 let wirkungen = []; // Faehigkeits-Einsaetze, eine Sekunde lang sichtbar
 let karteTyp = null; // Gebaeude unter der Maus in der Bauleiste
 let nebel = neuerNebel(true, ME); // Nebel des Krieges; beim Zuschauen aus
@@ -15176,6 +15614,7 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   skillsOffen = false;
   skillSig = '';
   zielen = null;
+  schlagZielen = false;
   wirkungen = [];
   vorher.clear();
   blick.clear();
@@ -15290,17 +15729,32 @@ function wirkeFaehigkeit3(id) {
   }
 }
 
-// Knoepfe der Faehigkeiten: ein Klick loest aus.
+/** Fernschlag scharf stellen (oder wieder abschalten): nur, wenn ein Schlaggebaeude der Auswahl feuern kann. */
+function schlagScharf3() {
+  if (schlagZielen) {
+    schlagZielen = false;
+    return;
+  }
+  const kann = schlagGebaeude(world, sel, ME).some((b) => schlagSchuetze(world, [b.id], ME, b.x, b.y));
+  if (!kann) return;
+  schlagZielen = true;
+  placing = null;
+  angriff = false;
+  zielen = null;
+}
+
+// Knoepfe der Faehigkeiten: ein Klick loest aus. Derselbe Platz traegt den Fernschlag-Knopf.
 document.getElementById('faehigkeiten').onclick = (ev) => {
   const b = ev.target && ev.target.closest ? ev.target.closest('[data-faeh]') : null;
   if (b && world) wirkeFaehigkeit3(b.dataset.faeh);
+  if (world && ev.target && ev.target.closest && ev.target.closest('[data-schlag]')) schlagScharf3();
 };
 let faehHtml = '';
 
-/** Knoepfe zeigen, solange der eigene Kommandant gewaehlt ist. */
+/** Knoepfe zeigen, solange der eigene Kommandant oder ein Schlaggebaeude gewaehlt ist. */
 function faehPanel3() {
   const k = kommandantVon(world, ME);
-  const html = k && sel.includes(k.id) ? faehigkeitenHtml(world, ME) : '';
+  const html = (k && sel.includes(k.id) ? faehigkeitenHtml(world, ME) : '') + schlagKnopfHtml(world, sel, ME);
   if (html === faehHtml) return;
   faehHtml = html;
   const el = document.getElementById('faehigkeiten');
@@ -15330,7 +15784,7 @@ document.getElementById('hilfeKnopf').onclick = () => {
 function leisten3() {
   const fabs = fabriken3();
   const qSig = fabs.map((f) => f.queue.join()).join(';');
-  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig;
+  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig + '|' + grenzenSignatur(world, ME, fabs);
   if (sig === leistenSig) return;
   leistenSig = sig;
   renderBar();
@@ -15384,6 +15838,7 @@ cv3.addEventListener('mousedown', (e) => {
   if (e.button === 2) {
     placing = null;
     zielen = null;
+    schlagZielen = false;
     if (sel.length) {
       // Rechtsklick auf einen sichtbaren Feind: gezielter Angriff
       const feind = angriff ? null : feindBei(world, p.x, p.y, 40, ME, (o) => !verborgen(o));
@@ -15402,6 +15857,16 @@ cv3.addEventListener('mousedown', (e) => {
   if (zielen) {
     issue(world, { type: 'faehigkeit', player: ME, faehigkeit: zielen, x: p.x, y: p.y });
     zielen = null;
+    return;
+  }
+  if (schlagZielen) {
+    // Fernschlag: das erste geladene Gebaeude der Auswahl, das das Ziel erreicht und bezahlbar ist.
+    // Liegt das Ziel ausser Reichweite, bleibt man im Zielmodus (grau gezeichnet) und kann es noch einmal versuchen.
+    const b = schlagSchuetze(world, sel, ME, p.x, p.y);
+    if (b) {
+      issue(world, { type: 'schlag', player: ME, id: b.id, x: p.x, y: p.y });
+      if (!e.shiftKey) schlagZielen = false;
+    }
     return;
   }
   if (placing) {
@@ -15573,6 +16038,7 @@ addEventListener('keydown', (e) => {
     placing = null;
     angriff = false;
     zielen = null;
+    schlagZielen = false;
     skillsOffen = false;
     sel = [];
     selPlan = null;
@@ -15596,6 +16062,8 @@ addEventListener('keydown', (e) => {
     angriff = true;
     placing = null;
   }
+  // F: Fernschlag scharf (nur mit einem geladenen, bezahlbaren Schlaggebaeude in der Auswahl)
+  if (e.key === 'f') schlagScharf3();
   if (e.key === 'k') {
     const k = kommandantVon(world, ME);
     if (k) {
@@ -16224,6 +16692,42 @@ function zeichneWirkungen() {
       octx.lineWidth = 1;
       octx.setLineDash([4, 4]);
       bodenKreis(k.x, k.y, f.reichweite);
+      octx.setLineDash([]);
+    }
+  }
+  // Fernschlaege im Flug: ein roter Kreis am Ziel mit Countdown -- fuer alle sichtbar, auch im Nebel
+  for (const s of world.schlaege) {
+    const rest = Math.max(0, s.landet - world.tick);
+    octx.strokeStyle = '#e8503a';
+    octx.lineWidth = 2.5;
+    octx.globalAlpha = 0.5 + 0.5 * Math.max(0, 1 - rest / 100);
+    bodenKreis(s.x, s.y, s.radius);
+    const m = aufSchirm(s.x * DM, 0.3, s.y * DM);
+    if (!m) continue;
+    octx.save();
+    octx.globalAlpha = 1;
+    octx.fillStyle = '#e8503a';
+    octx.font = 'bold 18px sans-serif';
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    octx.fillText(Math.ceil(rest / 10) + ' s', m[0], m[1]);
+    octx.restore();
+  }
+  octx.globalAlpha = 1;
+  if (schlagZielen) {
+    // Fernschlag scharf: Einschlagkreis am Mauszeiger, Reichweiten der bereiten Gebaeude gestrichelt;
+    // rot, solange ein Gebaeude das Ziel erreicht, sonst grau. Ohne Schlaggebaeude in der Auswahl endet der Zielmodus.
+    const gs = schlagGebaeude(world, sel, ME);
+    if (!gs.length) schlagZielen = false;
+    const schuetze = schlagSchuetze(world, sel, ME, hover.x, hover.y);
+    const s = schuetze ? BUILDINGS[schuetze.type].schlag : gs.length ? BUILDINGS[gs[0].type].schlag : null;
+    if (s) {
+      octx.strokeStyle = schuetze ? '#e8503a' : '#8a8a8a';
+      octx.lineWidth = 2;
+      bodenKreis(hover.x, hover.y, s.radius);
+      octx.lineWidth = 1;
+      octx.setLineDash([4, 4]);
+      for (const b of gs) if (schlagBereit(b)) bodenKreis(b.x, b.y, BUILDINGS[b.type].schlag.reichweite);
       octx.setLineDash([]);
     }
   }

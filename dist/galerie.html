@@ -1273,9 +1273,12 @@ const FELDER = {
     'name', 'desc', 'short', 'faction', 'hp', 'radius', 'sicht', 'cost', 'buildTime',
     'anchor', 'anchorMin', 'vital', 'needs', 'needsGrowth', 'clears',
     'gegenwartIn', 'gegenwartOut', 'prio', 'fronOut', 'blutOut', 'forschung',
-    'buildList', 'buff', 'kampf', 'weapon', 'schild',
+    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr',
   ],
-  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt'],
+  // hoechstens (M5): so viele Einheiten dieses Typs darf ein Spieler zugleich
+  // haben -- lebende plus in Ausbildung. Ein produce darueber hinaus wird
+  // abgelehnt (sim.js, anzahlVon). Fuer Prototypen; ohne Angabe keine Grenze.
+  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
   // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
   // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,
@@ -1289,6 +1292,22 @@ const FELDER = {
   //   radius      Umkreis in dm, Mitte zu Mitte
   //   laden       Punkte pro Tick bei voller Versorgung (skaliert mit powered)
   schild: ['kapazitaet', 'radius', 'laden'],
+  // schlag (M4): Fernschlag. Der Befehl 'schlag' feuert auf einen Punkt (ohne
+  // Sicht), nach flug Ticks schlaegt er ein und trifft ALLE Entities im Kreis
+  // gleich hart (durch Schilde), auch die eigenen.
+  //   laden       Ticks bis zum naechsten Schlag bei voller Versorgung
+  //               (skaliert mit powered, Fortschritt in Tausendsteln)
+  //   flug        Ticks vom Abschuss bis zum Einschlag
+  //   reichweite  dm, vom Gebaeude zum Ziel
+  //   radius      dm, Umkreis des Einschlags (Mitte der Entity im Kreis)
+  //   schaden     Schaden am Einschlag, im ganzen Kreis gleich
+  //   kosten      zahlt der Spieler beim Abschuss, wie cost
+  schlag: ['laden', 'flug', 'reichweite', 'radius', 'schaden', 'kosten'],
+  // abwehr (M4): faengt einen gegnerischen Fernschlag ab, dessen Ziel in
+  // ihrem Umkreis liegt -- danach muss sie neu laden.
+  //   radius      dm, Umkreis (Mitte des Gebaeudes zum Ziel des Schlags)
+  //   laden       Ticks bis zur naechsten Abwehr bei voller Versorgung
+  abwehr: ['radius', 'laden'],
   build: ['power'],
   cost: ['fron', 'goetterblut'],
   skill: ['faction', 'ast', 'name', 'desc', 'kosten', 'braucht', 'frei', 'wirkung', 'faehigkeit'],
@@ -1309,7 +1328,13 @@ const ROLLEN = {
   // luftjaeger/bomber: Flieger gegen Flieger bzw. gegen Boden; rabe bleibt der
   // unbewaffnete Spaeher.
   // schild (M2): Gebaeude mit Schildkuppel ueber Eigenem im Umkreis.
-  frei: { posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit' },
+  // schlag/abwehr (M4): Fernschlag-Gebaeude bzw. das, was Fernschlaege abfaengt.
+  // werkstatt/prototyp (M5): Gebaeude, das Prototypen ausbildet, und die
+  // Einheit selbst (mit hoechstens).
+  frei: {
+    posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', schlag: 'gebaeude', abwehr: 'gebaeude', werkstatt: 'gebaeude',
+    rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit', prototyp: 'einheit',
+  },
 };
 const START_FRON = 1100;
 

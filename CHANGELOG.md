@@ -20,6 +20,21 @@ Merges). Rahmen in `docs/umbau/konzept.md`, Stand in `docs/umbau/stand.md`.
 - **M2 Schild (Sonnet):** Schildgebäude fangen Schaden an Eigenem im Umkreis
   ab und laden mit Gegenwart wieder auf; Kuppel in 2D und 3D, Anzeige im
   HUD, Aufleuchten beim Abfangen; die KI baut einen ab Minute 10.
+- **M4 Fernschlag und Abwehr (Sonnet):** Ein Schlaggebäude lädt lange und
+  trifft einen Punkt in Reichweite — beide Seiten, Schilde zuerst; Taste F
+  oder Knopf, dann Ziel. Ein Schlag im Anflug ist für alle sichtbar (roter
+  Kreis mit Countdown, Warnung). Eine gegnerische Abwehr in der Nähe fängt
+  ihn ab und muss neu laden.
+- **M5 Prototypen (Sonnet):** `hoechstens` begrenzt, wie viele einer Einheit
+  gleichzeitig leben oder bestellt sind (Ausbildungsknopf zeigt „0/1“).
+- **Gemini (G1, G2):** Modelle, Icons und 2D-Figuren für alle neuen Rollen
+  aller drei Völker (Luftfabrik, Flak, Schild, Umwandler, Werkstatt,
+  Fernschlag, Abwehr, Posten, Luftjäger, Bomber, Prototyp), Effekte
+  (Schildkuppel, Fernschlag, Flak), das Totenreich überarbeitet; Entwürfe je
+  Volk in `docs/umbau/entwurf-*.md`; Spähposten für Gott und Todesgott.
+- Messung danach (36 Seeds × 2): Menschen : Gott 38 : 24, Todesgott :
+  Menschen 32 : 40, Todesgott : Gott 33 : 29 — die Spähposten verschieben
+  die Balance, nachgestellt wird mit den Inhalten.
 - Noch kein Volk hat diese Rollen — die Inhalte trägt Gemini nach.
 
 ## 0.39 — Befehle: Routen, Mitmachen, verwaiste Baupläne

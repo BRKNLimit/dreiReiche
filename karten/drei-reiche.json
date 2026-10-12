@@ -81,112 +81,112 @@
     {
       "x": 4800,
       "y": 2200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 15200,
       "y": 17800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 2200,
       "y": 4800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 17800,
       "y": 15200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 6200,
       "y": 4500,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 13800,
       "y": 15500,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 6700,
       "y": 2100,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 13300,
       "y": 17900,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 2100,
       "y": 6700,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 17900,
       "y": 13300,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 8600,
       "y": 9200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 11400,
       "y": 10800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 9200,
       "y": 11400,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 10800,
       "y": 8600,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 11400,
       "y": 8600,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 8600,
       "y": 11400,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 15500,
       "y": 4200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 4500,
       "y": 15800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 14200,
       "y": 5500,
-      "kind": "goetterblut"
+      "kind": "resonit"
     },
     {
       "x": 5800,
       "y": 14500,
-      "kind": "goetterblut"
+      "kind": "resonit"
     },
     {
       "x": 7400,
       "y": 6800,
-      "kind": "goetterblut"
+      "kind": "resonit"
     },
     {
       "x": 12600,
       "y": 13200,
-      "kind": "goetterblut"
+      "kind": "resonit"
     }
   ],
   "wald": [

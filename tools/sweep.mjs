@@ -28,7 +28,7 @@ export const CONFIGS = {
   'B30 Jaeger 15 Schaden': { units: { jaeger: { weapon: { damage: 15 } } } },
   'B30 Menschen-Unterhalt -25%': { units: { bauer: { unterhalt: 3 }, soldat: { unterhalt: 7 }, jaeger: { unterhalt: 8 }, soeldner: { unterhalt: 18 } } },
   'B30 Wolf 500 LP': { units: { wolf: { hp: 500 } } },
-  'ohne Blutkosten': { units: { soeldner: { cost: { goetterblut: 0 } }, ent: { cost: { goetterblut: 0 } } } },
+  'ohne Blutkosten': { units: { soeldner: { cost: { resonit: 0 } }, ent: { cost: { resonit: 0 } } } },
   // Kommandant: langsamer bzw. weniger zaeh -- macht das den Vorstoss riskanter?
   'Kdt langsam': { units: { held: { speed: 16 }, waldgott: { speed: 15 } } },
   'Kdt 4000 HP': { units: { held: { hp: 4000 }, waldgott: { hp: 4000 } } },
@@ -183,7 +183,7 @@ if (isMainThread) {
       results[name] = r;
       continue;
     }
-    const r = { m: 0, g: 0, seat0: 0, n: 0, sum: 0, games: [], blut: { a: [], b: [] }, paar: {} };
+    const r = { m: 0, g: 0, seat0: 0, n: 0, sum: 0, games: [], resonit: { a: [], b: [] }, paar: {} };
     for (const t of liste) {
       r.m += t.m;
       r.g += t.g;
@@ -191,8 +191,8 @@ if (isMainThread) {
       r.n += t.n;
       r.sum += t.sum;
       r.games.push(...t.games);
-      r.blut.a.push(...t.blut.a);
-      r.blut.b.push(...t.blut.b);
+      r.resonit.a.push(...t.resonit.a);
+      r.resonit.b.push(...t.resonit.b);
       for (const [k, z] of Object.entries(t.paar)) {
         r.paar[k] = r.paar[k] || { m: 0, n: 0 };
         r.paar[k].m += z.m;
@@ -201,7 +201,7 @@ if (isMainThread) {
     }
     const median = (a) => (a.length ? a.sort((x, y) => x - y)[a.length >> 1].toFixed(1) : '—');
     r.avg = r.n ? (r.sum / r.n).toFixed(1) : '—';
-    r.blutInfo = `Blut: ${voelker[0]} ${r.blut.a.length}× ab ${median(r.blut.a)}, ${voelker[1]} ${r.blut.b.length}× ab ${median(r.blut.b)} min`;
+    r.resonitInfo = `Blut: ${voelker[0]} ${r.resonit.a.length}× ab ${median(r.resonit.a)}, ${voelker[1]} ${r.resonit.b.length}× ab ${median(r.resonit.b)} min`;
     results[name] = r;
   }
 
@@ -225,7 +225,7 @@ if (isMainThread) {
       `M ${String(r.m).padStart(2)} : G ${String(r.g).padStart(2)}`,
       ` Sitz 0 gewinnt ${r.seat0}/${r.n}`,
       ` Ø ${r.avg} min`,
-      ` ${r.blutInfo}`
+      ` ${r.resonitInfo}`
     );
     console.log(' '.repeat(35) + r.games.join(' '));
     if (stufen && names.length === 1) {
@@ -274,9 +274,9 @@ if (isMainThread) {
   if (c.karte === 'ohneGrat') KARTE.hindernisse = KARTE.hindernisse.filter((h) => h.art !== 'fels' || (Math.abs(h.x + h.y - 13000) > 100 && Math.abs(h.x + h.y - 27000) > 100));
   if (c.karte === 'leer' || c.karte === 'alt') KARTE.hindernisse = [];
   if (c.karte === 'alt') {
-    const f = (x, y) => ({ x, y, kind: 'fron' });
+    const f = (x, y) => ({ x, y, kind: 'masse' });
     KARTE.adern = [f(4800, 2200), f(2200, 4800), f(6200, 4500), f(15200, 17800), f(17800, 15200), f(13800, 15500), f(10000, 7400), f(10000, 12600),
-      { x: 10000, y: 10000, kind: 'goetterblut' }, { x: 6600, y: 13400, kind: 'goetterblut' }, { x: 13400, y: 6600, kind: 'goetterblut' }];
+      { x: 10000, y: 10000, kind: 'resonit' }, { x: 6600, y: 13400, kind: 'resonit' }, { x: 13400, y: 6600, kind: 'resonit' }];
   }
   mische(UNITS, c.units);
   mische(BUILDINGS, c.buildings);
@@ -331,7 +331,7 @@ if (isMainThread) {
     let n = 0;
     let sum = 0;
     // Erste Minute mit Goetterblut je Fraktion, nur Partien, in denen es dazu kam.
-    const blut = { a: [], b: [] };
+    const resonit = { a: [], b: [] };
     // Siege der Menschen je Paarung "menschStil/gottStil"
     const paar = {};
     for (let k = 0; k < seeds.length; k++) {
@@ -357,9 +357,9 @@ if (isMainThread) {
           stepAI(ais[0], w);
           stepAI(ais[1], w);
           step(w);
-          for (let p = 0; p < 2; p++) if (erst[p] < 0 && w.players[p].goetterblut > 0) erst[p] = w.tick;
+          for (let p = 0; p < 2; p++) if (erst[p] < 0 && w.players[p].resonit > 0) erst[p] = w.tick;
         }
-        for (let p = 0; p < 2; p++) if (erst[p] >= 0) blut[p === sf ? 'a' : 'b'].push(erst[p] / 600);
+        for (let p = 0; p < 2; p++) if (erst[p] >= 0) resonit[p === sf ? 'a' : 'b'].push(erst[p] / 600);
         const min = Math.round(w.tick / 600);
         if (!w.over) {
           games.push('—' + min);
@@ -379,6 +379,6 @@ if (isMainThread) {
         sum += w.tick / 600;
       }
     }
-    parentPort.postMessage({ m, g, seat0, n, sum, games, blut, paar });
+    parentPort.postMessage({ m, g, seat0, n, sum, games, resonit, paar });
   }
 }

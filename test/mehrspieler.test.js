@@ -84,7 +84,7 @@ test('Welt: jeder Spieler hat sein eigenes Fron-Vorkommen in der Naehe seiner Ba
   const w = createWorld({ factions: VIER, karte: 'vierlande' });
   for (let p = 0; p < 4; p++) {
     const h = haupt(w, p);
-    const nah = w.deposits.filter((d) => d.kind === 'fron' && (d.x - h.x) ** 2 + (d.y - h.y) ** 2 < 5000 * 5000);
+    const nah = w.deposits.filter((d) => d.kind === 'masse' && (d.x - h.x) ** 2 + (d.y - h.y) ** 2 < 5000 * 5000);
     assert.ok(nah.length >= 5, `Basis ${p} hat ${nah.length} Adern in Reichweite`);
   }
 });

@@ -227,7 +227,7 @@ if (!hauptgebaeude || !bauer) {
   const x = hauptgebaeude.x;
   const y = hauptgebaeude.y;
   const andere = 1 - T.ME;
-  T.UNITS.testflieger = { name: 'Testflieger', desc: '', faction: 'gott', hp: 100000, radius: 14, speed: 1, cost: { fron: 1 }, buildTime: 50, fliegt: true };
+  T.UNITS.testflieger = { name: 'Testflieger', desc: '', faction: 'gott', hp: 100000, radius: 14, speed: 1, cost: { masse: 1 }, buildTime: 50, fliegt: true };
   T.BUILDINGS.testkuppel = { ...T.BUILDINGS[hauptgebaeude.type], name: 'Testkuppel', vital: false, anchor: false, schild: { kapazitaet: 1000, radius: 600, laden: 1 } };
   T.BUILDINGS.testschlag = { ...T.BUILDINGS.testkuppel, name: 'Testschlag', schild: undefined, schlag: { laden: 5, flug: 60, reichweite: 9000, radius: 300, schaden: 1, kosten: {} } };
   T.BUILDINGS.testflak = { ...T.BUILDINGS.testkuppel, name: 'Testflak', schild: undefined, hp: 100000, weapon: { range: 900, damage: 1, cooldown: 3, ziele: 'luft' } };

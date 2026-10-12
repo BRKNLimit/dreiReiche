@@ -44,7 +44,7 @@ function partie({ ticks, maxVerzoegerung, stoerung = null }) {
       }
       const offen = gsEinsetzen(s.gs, s.world);
       step(s.world);
-      if (stoerung && s.ich === 1 && s.world.tick === stoerung) s.world.players[1].fron += 1; // absichtlich verstimmt
+      if (stoerung && s.ich === 1 && s.world.tick === stoerung) s.world.players[1].masse += 1; // absichtlich verstimmt
       gsNachSchritt(s.gs, s.world, offen, senden(s.ich));
     }
     if (bild > ticks * 20) throw new Error('haengt');

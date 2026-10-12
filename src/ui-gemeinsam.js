@@ -10,7 +10,7 @@ import {
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { createAI } from './sim/ai.js';
 import { ICONS } from './icons.js';
-import { zufallsKarte, kartenFehler } from './sim/kartenbau.js';
+import { zufallsKarte, kartenFehler, alteNamen } from './sim/kartenbau.js';
 
 const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
@@ -193,9 +193,9 @@ export function ressourcenHtml(world, player) {
     (hatSkills(p.faction)
       ? eintrag(ICONS.skillpunkte, skillFrei(world, player), `Skillpunkte, die du ausgeben kannst (T) — nächster in ${naechsterPunkt(world, player)}`, skillFrei(world, player) > 0 ? 'frei' : '')
       : '') +
-    eintrag(ICONS.gegenwart, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
-    eintrag(ICONS.goetterblut, p.goetterblut, 'Götterblut') +
-    eintrag(ICONS.fron, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
+    eintrag(ICONS.energie, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
+    eintrag(ICONS.resonit, p.resonit, 'Götterblut') +
+    eintrag(ICONS.masse, p.masse, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
   );
 }
 
@@ -221,7 +221,7 @@ export function vorgewaehlteKarte() {
 export function eigeneKarten() {
   try {
     const l = JSON.parse(localStorage.getItem(KARTEN_SPEICHER) || '[]');
-    return Array.isArray(l) ? l : [];
+    return Array.isArray(l) ? l.map(alteNamen) : [];
   } catch {
     return [];
   }
@@ -287,7 +287,7 @@ export function karteVorschauMalen(leinwand, daten, zufall = false) {
   for (const w of daten.wald || []) kreis(w.x, w.y, w.r, '#223019');
   for (const h of daten.hindernisse) kreis(h.x, h.y, h.r, h.art === 'fels' ? '#6b6a62' : '#2f5a78');
   for (const f of daten.furten || []) kreis(f.x, f.y, 260, '#8a7f5c');
-  for (const a of daten.adern) kreis(a.x, a.y, 230, a.kind === 'goetterblut' ? '#b04a4a' : '#d8b06a');
+  for (const a of daten.adern) kreis(a.x, a.y, 230, a.kind === 'resonit' ? '#b04a4a' : '#d8b06a');
   // Startbasen: oben links Sitzplatz 1, unten rechts Sitzplatz 2 (wie in der Draufsicht);
   // Karten fuer 3 und 4 Spieler bringen ihre Basen mit, in der Reihenfolge der Sitze
   const basen = [];
@@ -691,16 +691,16 @@ export function beobachterHtml(world) {
       else {
         einheiten++;
         const u = UNITS[e.type];
-        if (u.weapon && !u.worker && !u.commander) heer += u.cost.fron;
+        if (u.weapon && !u.worker && !u.commander) heer += u.cost.masse;
       }
     }
     return {
       name: volkName(pl.faction),
       farbe: spielerFarbe(world, p),
       aus: !pl.alive,
-      fron: pl.fron | 0,
+      masse: pl.masse | 0,
       foerderung: Math.round(foerderungProMin(world, p)),
-      blut: pl.goetterblut | 0,
+      resonit: pl.resonit | 0,
       heer,
       einheiten,
       gebaeude,
@@ -716,7 +716,7 @@ export function beobachterHtml(world) {
   };
   const kopf = z.map((s) => `<th style="color:${s.farbe}${s.aus ? ';text-decoration:line-through' : ''}">${s.name}</th>`).join('');
   return `<table class="beobachter"><tr><th></th>${kopf}</tr>
-    ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${world.players.some((pl) => hatSkills(pl.faction)) ? zeile('Skills', 'skills') : ''}</table>`;
+    ${zeile('Fron', 'masse')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'resonit')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${world.players.some((pl) => hatSkills(pl.faction)) ? zeile('Skills', 'skills') : ''}</table>`;
 }
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
@@ -873,7 +873,7 @@ export function menueHtml(laufend, hatStand, speicherbar = true) {
 // (volkseigene) landen unter "Besonderes". Die Reihenfolge innerhalb einer
 // Gruppe ist die in FACTIONS[v].bauten.
 export const BAU_GRUPPEN = [
-  { schluessel: 'wirtschaft', name: 'Wirtschaft', rollen: ['kraft', 'fron', 'blut', 'umwandler', 'anker', 'forschung', 'posten'] },
+  { schluessel: 'wirtschaft', name: 'Wirtschaft', rollen: ['kraft', 'masse', 'resonit', 'umwandler', 'anker', 'forschung', 'posten'] },
   { schluessel: 'militaer', name: 'Militär', rollen: ['fabrik', 'luftfabrik', 'werkstatt', 'turm', 'flak'] },
   { schluessel: 'besonderes', name: 'Besonderes', rollen: ['zorn', 'wehr', 'schild', 'schlag', 'abwehr'] },
 ];
@@ -920,7 +920,7 @@ export function bauleisteHtml(world, player, gruppen, aktiv) {
       const zu = gesperrt(world, player, t);
       // Taste nur fuer die ersten zehn; weitere bleiben anklickbar
       const taste = i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t] || ''}<span class="kosten">${BUILDINGS[t].cost.fron}</span>${taste}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t] || ''}<span class="kosten">${BUILDINGS[t].cost.masse}</span>${taste}</button>`;
     })
     .join('');
   return reiter + knoepfe;
@@ -945,7 +945,7 @@ export function ausbildungsleisteHtml(world, player, fabriken) {
       const zu = gesperrtSkill || voll;
       const zahlHtml = grenze ? `<span class="zahl">${da}/${grenze}</span>` : inQueue ? `<span class="zahl">${inQueue}</span>` : '';
       const grund = gesperrtSkill ? ' — gesperrt, Skillbaum (T)' : voll ? ` — schon ${da}/${grenze}, höchstens ${grenze} gleichzeitig` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u] || ''}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u] || ''}<span class="kosten">${d.cost.masse}</span>${zahlHtml}</button>`;
     })
     .join('');
 }
@@ -973,7 +973,7 @@ export function warnungenHtml(world, player) {
     if (!r.throttled) continue;
     let stufe = '';
     for (let i = 3; i >= 0 && !stufe; i--) if (r.satPrio[i] < 1000) stufe = PRIO_NAMES[i];
-    out.push(`<div class="warn">${ICONS.gegenwart}<span>Gegenwart knapp ${r.supply}/${r.demand} — ${stufe} gedrosselt</span></div>`);
+    out.push(`<div class="warn">${ICONS.energie}<span>Gegenwart knapp ${r.supply}/${r.demand} — ${stufe} gedrosselt</span></div>`);
   }
   // Tuerme ohne Gegenwart schlafen -- das sieht man ihnen sonst nicht an.
   const schlafen = {};
@@ -1011,7 +1011,7 @@ export function planHtml(world, plan) {
 
 /** Kosten als Text: "120 Fron" oder "130 Fron + 10 Götterblut". */
 export function kostenText(cost) {
-  return cost.fron + ' Fron' + (cost.goetterblut ? ` + ${cost.goetterblut} Götterblut` : '');
+  return cost.masse + ' Fron' + (cost.resonit ? ` + ${cost.resonit} Götterblut` : '');
 }
 
 const tempo = (v) => (v >= 32 ? 'sehr schnell' : v >= 28 ? 'schnell' : v >= 24 ? 'mittel' : v >= 20 ? 'gemächlich' : 'langsam');
@@ -1081,8 +1081,8 @@ function schildText(s) {
 /** Kosten, die auch nur aus Goetterblut bestehen (oder nichts) duerfen: "10 Fron + 5 Götterblut". */
 function kostenKurz(cost) {
   const t = [];
-  if (cost && cost.fron) t.push(cost.fron + ' Fron');
-  if (cost && cost.goetterblut) t.push(cost.goetterblut + ' Götterblut');
+  if (cost && cost.masse) t.push(cost.masse + ' Fron');
+  if (cost && cost.resonit) t.push(cost.resonit + ' Götterblut');
   return t.length ? t.join(' + ') : 'nichts';
 }
 
@@ -1116,16 +1116,16 @@ export function gebaeudeKarte(world, player, typ) {
     z.push(['Kosten', kostenText(d.cost)], ['Bauzeit', `${dauer(kdt)} · ${dauer(arb)} (allein)`]);
   }
   z.push(['Leben', d.hp + ' LP']);
-  if (d.gegenwartIn) z.push(['Gegenwart', 'braucht ' + d.gegenwartIn]);
-  if (d.gegenwartOut) z.push(['Gegenwart', 'liefert ' + d.gegenwartOut]);
+  if (d.energieIn) z.push(['Gegenwart', 'braucht ' + d.energieIn]);
+  if (d.energieOut) z.push(['Gegenwart', 'liefert ' + d.energieOut]);
   if (d.anchor) {
     const g = FACTIONS[d.faction].growth;
     const start = Math.max(d.anchorMin || 0, g.start);
     z.push(['Domäne', g.perTick && g.max > start ? `${meterText(start)}, wächst bis ${meterText(g.max)}` : meterText(start)]);
   }
-  if (d.fronOut) z.push(['Förderung', d.fronOut + ' Fron/min']);
-  if (d.blutOut) z.push(['Förderung', d.blutOut + ' Götterblut/min']);
-  if (d.needs) z.push(['Standort', d.needs === 'fron' ? 'auf einem Steinvorkommen' : 'auf einer Götterblut-Ader']);
+  if (d.masseOut) z.push(['Förderung', d.masseOut + ' Fron/min']);
+  if (d.resonitOut) z.push(['Förderung', d.resonitOut + ' Götterblut/min']);
+  if (d.needs) z.push(['Standort', d.needs === 'masse' ? 'auf einem Steinvorkommen' : 'auf einer Götterblut-Ader']);
   if (d.needsGrowth) z.push(['Standort', 'nur auf ungerodetem Boden']);
   if (d.clears) z.push(['Rodet', meterText(d.clears) + ' ringsum']);
   if (d.buff) {

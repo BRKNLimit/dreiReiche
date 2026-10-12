@@ -19,7 +19,7 @@ function kmBaue(world, p, typ, x, y) {
   return b;
 }
 // Mission 2 -- Designzahlen, mit der KI auf beiden Seiten abgestimmt (siehe CHANGELOG 0.33)
-const WUT = { fron: 900, soldaten: 6, jaeger: 2, ersteWelle: 600, wellenTakt: 1200, wellen: 5 };
+const WUT = { masse: 900, soldaten: 6, jaeger: 2, ersteWelle: 600, wellenTakt: 1200, wellen: 5 };
 
 /** Ticks als m:ss */
 function uhr(t) {
@@ -98,7 +98,7 @@ const RODUNG = [
       zurück — für jetzt. Aber am Fluss haben die Späher etwas gefunden: rote
       Adern im Gestein, die in der Nacht glimmen.`,
     aufbau(world) {
-      world.players[0].fron = WUT.fron;
+      world.players[0].masse = WUT.masse;
       kmBaue(world, 0, 'saege', 4800, 2200);
       kmBaue(world, 0, 'saege', 2200, 4800);
       kmBaue(world, 0, 'schmiede', 3100, 4400);
@@ -146,7 +146,7 @@ const RODUNG = [
     sieg: 'ziele',
   },
   {
-    id: 'blut-der-goetter',
+    id: 'resonit-der-goetter',
     titel: 'Blut der Götter',
     volk: 'mensch',
     karte: 'flusstal',
@@ -159,16 +159,16 @@ const RODUNG = [
     nachwort: `Rotes Gold füllt die Truhen. Mit ihm lassen sich Ballisten bauen, die
       weiter schießen als jeder Wächterbaum. Es ist Zeit, den Gott selbst zu stellen.`,
     aufbau(world) {
-      world.players[0].fron += 500;
+      world.players[0].masse += 500;
     },
     ziele: [
       { text: 'Errichte zwei Blutschächte auf Götterblut-Adern', erfuellt: (w, ich) => kmZahl(w, ich, 'schacht') >= 2 },
-      { text: 'Sammle 300 Götterblut', erfuellt: (w, ich) => w.players[ich].goetterblut >= 300 },
+      { text: 'Sammle 300 Götterblut', erfuellt: (w, ich) => w.players[ich].resonit >= 300 },
     ],
     meldungen: [
       { wer: MIRA, text: 'Rotes Glimmen jenseits des Flusses. Hinüber kommt man nur an den Furten, wo es flach ist.', wann: (w) => w.tick >= 30 },
       { wer: MIRA, text: 'Der erste Schacht läuft. Der Wald wird das nicht mögen.', wann: (w, ich) => kmZahl(w, ich, 'schacht') >= 1 },
-      { wer: HEDWIG, text: 'Die Truhen sind halb voll. Haltet die Schächte!', wann: (w, ich) => w.players[ich].goetterblut >= 150 },
+      { wer: HEDWIG, text: 'Die Truhen sind halb voll. Haltet die Schächte!', wann: (w, ich) => w.players[ich].resonit >= 150 },
     ],
     sieg: 'ziele',
   },
@@ -186,7 +186,7 @@ const RODUNG = [
       Die Ältesten sagen, ein Gott stirbt nicht — er wartet. <b>Ende der Kampagne.</b>
       Wie es aus seiner Sicht aussah, erzählt „Der Zorn des Waldes“.`,
     aufbau(world) {
-      world.players[0].fron = 2000;
+      world.players[0].masse = 2000;
       // Der Gott hat sich eingegraben: Waechterbaeume am Weg zum Herzbaum, Quellen fuer ihre Kraft
       for (const [x, y] of [[15600, 15900], [15900, 15600], [16400, 14600], [14600, 16400]]) kmBaue(world, 1, 'waechterbaum', x, y);
       kmBaue(world, 1, 'quelle', 17600, 15900);
@@ -262,7 +262,7 @@ const ZORN = [
       Türme aus Stein und schicken Boten in die Ebene. Bald kommt ihr Held — mit
       allem, was sie haben.`,
     aufbau(world) {
-      world.players[0].fron += 400;
+      world.players[0].masse += 400;
       world.saegen = SIEDLUNG_SAEGEN.map(([x, y]) => kmBaue(world, 1, 'saege', x, y).id);
     },
     ziele: [
@@ -294,7 +294,7 @@ const ZORN = [
       erzählen sich noch lange von dem Winter, in dem der Wald zurückkam.
       <b>Ende der Kampagne.</b> Danke fürs Spielen!`,
     aufbau(world) {
-      world.players[0].fron = 2000;
+      world.players[0].masse = 2000;
       for (const [x, y] of [[15600, 15900], [15900, 15600], [16400, 14600], [14600, 16400]]) kmBaue(world, 1, 'wachturm', x, y);
       // und eine Garnison
       for (let i = 0; i < 8; i++) spawnUnit(world, 1, 'soldat', 15300 - (i % 4) * 90, 15300 - ((i / 4) | 0) * 90);
@@ -395,7 +395,7 @@ const HERAUSFORDERUNGEN = ['mensch', 'gott'].map((volk) => ({
         <b>Wie lange hält dein Wald?</b> Wer die Thingstätte fällt, gewinnt.`,
   nachwort: 'Gewonnen! Das Hauptgebäude des Gegners ist gefallen — die Wellen hören auf.',
   aufbau(world) {
-    world.players[0].fron += 300;
+    world.players[0].masse += 300;
   },
   takt(world) {
     ueberlebenWelle(world, 0);

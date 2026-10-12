@@ -1,6 +1,6 @@
 // Datenschicht. Keine Logik hier drin.
 // Alle Werte Integer. Entfernungen in Dezimetern, Zeiten in Ticks (10 Hz),
-// Gegenwart pro Tick, Foerderung (fronOut, blutOut) pro Minute.
+// Gegenwart pro Tick, Foerderung (masseOut, resonitOut) pro Minute.
 //
 // Drei Voelker, dieselben Systeme, dieselben Ressourcen. Ihre Daten stehen in
 // src/sim/voelker/*.js; hier werden sie zusammengesetzt, dazu Regeln, Karten
@@ -44,10 +44,10 @@ export const RULES = {
 
   // Reparatur: Erbauer mit Auftrag direkt neben einem beschaedigten fertigen
   // Gebaeude geben ihm Leben zurueck -- reparaturProTick LP je Tick bei voller
-  // Baukraft. Je reparaturLpJeFron LP kostet es 1 Fron; ohne Fron keine
+  // Baukraft. Je reparaturLpJeMasse LP kostet es 1 Fron; ohne Fron keine
   // Reparatur.
   reparaturProTick: 3,
-  reparaturLpJeFron: 20,
+  reparaturLpJeMasse: 20,
 
   // Skillbaum (SKILLS): Punkte kommen mit der Zeit -- skillStart zu Beginn,
   // dann einer je skillTakt Ticks. Forschungsgebaeude (forschung, Promille)
@@ -147,7 +147,7 @@ export const FELDER = {
   gebaeude: [
     'name', 'desc', 'short', 'faction', 'hp', 'radius', 'sicht', 'cost', 'buildTime',
     'anchor', 'anchorMin', 'vital', 'needs', 'needsGrowth', 'clears',
-    'gegenwartIn', 'gegenwartOut', 'prio', 'fronOut', 'blutOut', 'forschung',
+    'energieIn', 'energieOut', 'prio', 'masseOut', 'resonitOut', 'forschung',
     'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr', 'regeneration', 'aura', 'auferstehen',
   ],
   // hoechstens (M5): so viele Einheiten dieses Typs darf ein Spieler zugleich
@@ -208,7 +208,7 @@ export const FELDER = {
   //   laden       Ticks bis zur naechsten Abwehr bei voller Versorgung
   abwehr: ['radius', 'laden'],
   build: ['power'],
-  cost: ['fron', 'goetterblut'],
+  cost: ['masse', 'resonit'],
   // nur (M6): Liste eigener Einheiten-/Gebaeudetypen, auf die die wirkung des
   // Skills beschraenkt ist (sonst ganzes Volk). Siehe bonus() in sim.js.
   skill: ['faction', 'ast', 'name', 'desc', 'kosten', 'braucht', 'frei', 'wirkung', 'nur', 'faehigkeit'],
@@ -222,11 +222,11 @@ export const FELDER = {
 // Rollen; die Unterschiede der Voelker liegen darin, WIE sie eine Rolle fuellen,
 // und in allem, was keine Rolle ist (eigene Einheiten, Gebaeude, Skillbaum).
 // Pflicht (R0, "Keine Pendants"): nur was jede Partie braucht -- ein Netzknoten
-// (anker), Energie (kraft), Masse (fron), Resonit (blut), eine Fabrik, ein
+// (anker), Energie (kraft), Masse (masse), Resonit (resonit), eine Fabrik, ein
 // Erbauer und eine Einheit fuers Heer. Alles andere ist frei: ein Volk darf es
 // haben, muss aber nicht -- die KI spielt ohne jede freie Rolle weiter.
 export const ROLLEN = {
-  gebaeude: ['anker', 'kraft', 'fron', 'blut', 'fabrik'],
+  gebaeude: ['anker', 'kraft', 'masse', 'resonit', 'fabrik'],
   einheit: ['bauer', 'leicht'],
   // Frei; die Art (Gebaeude/Einheit) wird geprueft.
   // turm/zorn/wehr/forschung: Verteidigung, Schreine, Gebaeude fuer Skillpunkte
@@ -247,7 +247,7 @@ export const ROLLEN = {
   },
 };
 
-export const START_FRON = 1100;
+export const START_MASSE = 1100;
 
 // ------------------------------------------------------------- Karte
 // Punktsymmetrisch um die Kartenmitte -- beide Sitzplaetze spielen dieselbe
@@ -287,17 +287,17 @@ const KLASSISCH = {
   adern: [
     // je Basis fuenf Vorkommen -- alle in der Grunddomaene des Hauptgebaeudes
     ...paarweise([
-      { x: 4800, y: 2200, kind: 'fron' },
-      { x: 2200, y: 4800, kind: 'fron' },
-      { x: 6200, y: 4500, kind: 'fron' },
-      { x: 6700, y: 2100, kind: 'fron' },
-      { x: 2100, y: 6700, kind: 'fron' },
+      { x: 4800, y: 2200, kind: 'masse' },
+      { x: 2200, y: 4800, kind: 'masse' },
+      { x: 6200, y: 4500, kind: 'masse' },
+      { x: 6700, y: 2100, kind: 'masse' },
+      { x: 2100, y: 6700, kind: 'masse' },
     ]),
     // Mitte: je eines naeher an jedem Spieler
-    ...paarweise([{ x: 10000, y: 7400, kind: 'fron' }]),
+    ...paarweise([{ x: 10000, y: 7400, kind: 'masse' }]),
     // Goetterblut: die grosse Ader im Felsring, zwei an den Seitenraendern
-    { x: 10000, y: 10000, kind: 'goetterblut' },
-    ...paarweise([{ x: 5200, y: 14800, kind: 'goetterblut' }]),
+    { x: 10000, y: 10000, kind: 'resonit' },
+    ...paarweise([{ x: 5200, y: 14800, kind: 'resonit' }]),
   ],
   wald: [],
   wiesen: [],
@@ -359,19 +359,19 @@ const FLUSSTAL = {
   adern: [
     ...paarweise([
       // je Basis fuenf Vorkommen in der Grunddomaene, wie auf der klassischen Karte
-      { x: 4800, y: 2200, kind: 'fron' },
-      { x: 2200, y: 4800, kind: 'fron' },
-      { x: 6200, y: 4500, kind: 'fron' },
-      { x: 6700, y: 2100, kind: 'fron' },
-      { x: 2100, y: 6700, kind: 'fron' },
+      { x: 4800, y: 2200, kind: 'masse' },
+      { x: 2200, y: 4800, kind: 'masse' },
+      { x: 6200, y: 4500, kind: 'masse' },
+      { x: 6700, y: 2100, kind: 'masse' },
+      { x: 2100, y: 6700, kind: 'masse' },
       // im Wald: am Felsmassiv, Richtung Furt der Gegenseite, am Flussufer
-      { x: 9200, y: 2000, kind: 'fron' },
-      { x: 14200, y: 6200, kind: 'fron' },
-      { x: 5600, y: 8200, kind: 'fron' },
+      { x: 9200, y: 2000, kind: 'masse' },
+      { x: 14200, y: 6200, kind: 'masse' },
+      { x: 5600, y: 8200, kind: 'masse' },
       // Wiese jenseits des Flusses
-      { x: 1600, y: 15400, kind: 'fron' },
-      { x: 5200, y: 16200, kind: 'fron' },
-      { x: 2800, y: 17400, kind: 'goetterblut' },
+      { x: 1600, y: 15400, kind: 'masse' },
+      { x: 5200, y: 16200, kind: 'masse' },
+      { x: 2800, y: 17400, kind: 'resonit' },
     ]),
   ],
   // Nur Optik: Wald und Wiesen als Kreise { x, y, r }, Furten als Punkte
@@ -426,23 +426,23 @@ const DREI_REICHE = {
   adern: [
     // Basis 1 (NW) & Basis 2 (SE)
     ...paarweise([
-      { x: 4800, y: 2200, kind: 'fron' },
-      { x: 2200, y: 4800, kind: 'fron' },
-      { x: 6200, y: 4500, kind: 'fron' },
-      { x: 6700, y: 2100, kind: 'fron' },
-      { x: 2100, y: 6700, kind: 'fron' },
+      { x: 4800, y: 2200, kind: 'masse' },
+      { x: 2200, y: 4800, kind: 'masse' },
+      { x: 6200, y: 4500, kind: 'masse' },
+      { x: 6700, y: 2100, kind: 'masse' },
+      { x: 2100, y: 6700, kind: 'masse' },
     ]),
     // Basis 3 (Zentrum)
     ...paarweise([
-      { x: 8600, y: 9200, kind: 'fron' },
-      { x: 9200, y: 11400, kind: 'fron' },
-      { x: 11400, y: 8600, kind: 'fron' },
+      { x: 8600, y: 9200, kind: 'masse' },
+      { x: 9200, y: 11400, kind: 'masse' },
+      { x: 11400, y: 8600, kind: 'masse' },
     ]),
     // Externe Adern
     ...paarweise([
-      { x: 15500, y: 4200, kind: 'fron' },
-      { x: 14200, y: 5500, kind: 'goetterblut' },
-      { x: 7400, y: 6800, kind: 'goetterblut' },
+      { x: 15500, y: 4200, kind: 'masse' },
+      { x: 14200, y: 5500, kind: 'resonit' },
+      { x: 7400, y: 6800, kind: 'resonit' },
     ]),
   ],
   wald: paarweise([
@@ -476,20 +476,20 @@ const VIERLANDE = {
   adern: [
     // Basis-Fronadern (5 je Quadrant)
     ...rotVier([
-      { x: 4800, y: 2200, kind: 'fron' },
-      { x: 2200, y: 4800, kind: 'fron' },
-      { x: 5800, y: 3600, kind: 'fron' },
-      { x: 3600, y: 5800, kind: 'fron' },
-      { x: 6200, y: 2100, kind: 'fron' },
+      { x: 4800, y: 2200, kind: 'masse' },
+      { x: 2200, y: 4800, kind: 'masse' },
+      { x: 5800, y: 3600, kind: 'masse' },
+      { x: 3600, y: 5800, kind: 'masse' },
+      { x: 6200, y: 2100, kind: 'masse' },
     ]),
     // Ausbauadern
     ...rotVier([
-      { x: 10000, y: 1600, kind: 'fron' },
+      { x: 10000, y: 1600, kind: 'masse' },
     ]),
     // Götterblut
-    { x: 10000, y: 10000, kind: 'goetterblut' },
+    { x: 10000, y: 10000, kind: 'resonit' },
     ...rotVier([
-      { x: 7200, y: 7200, kind: 'goetterblut' },
+      { x: 7200, y: 7200, kind: 'resonit' },
     ]),
   ],
   wald: rotVier([
@@ -516,7 +516,7 @@ export function karteWaehlen(schluessel, daten = null) {
 }
 
 /** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
-export const RESOURCES = ['fron', 'goetterblut'];
+export const RESOURCES = ['masse', 'resonit'];
 
 /** Alle Gebäude bzw. Einheiten einer Fraktion. */
 export function buildingsOf(f) {

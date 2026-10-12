@@ -3,6 +3,17 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.42 — Schlüssel heißen wie in Resonit
+
+- **Plan T2 (Claude):** Im Code und in den Daten heißen die Ressourcen jetzt
+  `energie` (früher `gegenwart`), `masse` (`fron`) und `resonit`
+  (`goetterblut`) — Felder (`energieIn`, `masseOut`, `cost.masse` …),
+  Rollen, Adern, Icons und Modelle (`masseAder`, `resonitAder`). Mechanisch
+  umbenannt, Partien bitgleich. Eigene Karten mit den alten Adernamen laden
+  weiter (`alteNamen` in `src/sim/kartenbau.js`). Die Anzeige sagt noch
+  „Gegenwart, Fron, Götterblut“ — das kommt mit T1. Alte Spielstände und
+  Wiederholungen passen nicht mehr.
+
 ## 0.41 — Bis zu vier Spieler; Richtung Resonit
 
 - **Richtungswechsel (Nutzer):** Das Spiel wird **Resonit**, ein Sci-Fi-RTS

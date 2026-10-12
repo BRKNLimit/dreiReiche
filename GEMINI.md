@@ -70,7 +70,7 @@ in `docs/grafik/wuensche.md` ein — Claude setzt es um.
 
 **`src/modelle3d.js`**
 - `MODELLE_DEF` braucht jeden Schlüssel aus `UNITS` und `BUILDINGS`
-  (`src/sim/defs.js`) und dazu `scheibe`, `fronAder`, `blutAder`, `baum`,
+  (`src/sim/defs.js`) und dazu `scheibe`, `masseAder`, `resonitAder`, `baum`,
   `pfeil`, `kugel`, `stein`, `fels`, `staubwolke`. Neue Schlüssel sind erlaubt.
 - Ein Modell ist eine Liste von Teilen
   `[form, masse, position, farbe, team, drehung]`:
@@ -104,8 +104,8 @@ Dezimetern, `art: 'fels' | 'see'`). **Die Kreise sind die Wahrheit:** Einheiten
 laufen genau bis an ihren Rand. Organisch aussehen darf es, aber die
 sichtbare Kante darf nicht mehr als etwa 10 % vom Kreis abweichen.
 
-**`src/icons.js`** — `ICONS` braucht `skillpunkte`, `gegenwart`,
-`goetterblut`, `fron`, jeden Schlüssel aus `UNITS`, `BUILDINGS` und
+**`src/icons.js`** — `ICONS` braucht `skillpunkte`, `energie`,
+`resonit`, `masse`, jeden Schlüssel aus `UNITS`, `BUILDINGS` und
 `FAEHIGKEITEN`. Jedes Icon: SVG-String mit `viewBox="0 0 24 24"`, ohne
 `width`/`height` am `<svg>`, ohne Skripte und externe Verweise.
 

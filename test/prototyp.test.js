@@ -11,23 +11,23 @@ import { createAI, stepAI } from '../src/sim/ai.js';
 
 const TEST_EINHEITEN = {
   // Prototyp: hoechstens 2, braucht etwas Goetterblut; kein Angriff, nur zum Zaehlen
-  tproto: { name: 'Testprototyp', desc: '', faction: 'mensch', hp: 500, radius: 20, speed: 30, cost: { fron: 50, goetterblut: 5 }, buildTime: 20, hoechstens: 2 },
+  tproto: { name: 'Testprototyp', desc: '', faction: 'mensch', hp: 500, radius: 20, speed: 30, cost: { masse: 50, resonit: 5 }, buildTime: 20, hoechstens: 2 },
   // Prototyp mit Grenze 1 (wie im Konzept: einer je Volk)
-  tkoloss: { name: 'Testkoloss', desc: '', faction: 'mensch', hp: 900, radius: 20, speed: 20, cost: { fron: 60 }, buildTime: 20, hoechstens: 1 },
+  tkoloss: { name: 'Testkoloss', desc: '', faction: 'mensch', hp: 900, radius: 20, speed: 20, cost: { masse: 60 }, buildTime: 20, hoechstens: 1 },
   // ohne Grenze
-  tfuss: { name: 'Testfuss', desc: '', faction: 'mensch', hp: 100, radius: 20, speed: 30, cost: { fron: 5 }, buildTime: 20 },
+  tfuss: { name: 'Testfuss', desc: '', faction: 'mensch', hp: 100, radius: 20, speed: 30, cost: { masse: 5 }, buildTime: 20 },
 };
 const TEST_GEBAEUDE = {
   twerk: {
-    name: 'Testwerkstatt', desc: '', short: 'WRK', faction: 'mensch', hp: 800, radius: 30, cost: { fron: 100 }, buildTime: 50,
+    name: 'Testwerkstatt', desc: '', short: 'WRK', faction: 'mensch', hp: 800, radius: 30, cost: { masse: 100 }, buildTime: 50,
     buildList: ['tproto', 'tkoloss', 'tfuss'],
   },
   // fuer die KI: kleiner Bedarf, bildet nur den Prototyp aus
   twerkki: {
-    name: 'Testwerkstatt KI', desc: '', short: 'WKI', faction: 'mensch', hp: 800, radius: 30, cost: { fron: 100 }, buildTime: 50, gegenwartIn: 2,
+    name: 'Testwerkstatt KI', desc: '', short: 'WKI', faction: 'mensch', hp: 800, radius: 30, cost: { masse: 100 }, buildTime: 50, energieIn: 2,
     buildList: ['tkoloss'],
   },
-  tblutki: { name: 'Testschacht', desc: '', short: 'BLU', faction: 'mensch', hp: 400, radius: 30, cost: { fron: 100 }, buildTime: 50 },
+  tblutki: { name: 'Testschacht', desc: '', short: 'BLU', faction: 'mensch', hp: 400, radius: 30, cost: { masse: 100 }, buildTime: 50 },
 };
 
 Object.assign(UNITS, TEST_EINHEITEN);
@@ -41,7 +41,7 @@ after(() => {
 
 function bare() {
   const w = createWorld({ empty: true, factions: ['mensch', 'gott'] });
-  w.players[0].goetterblut = 100;
+  w.players[0].resonit = 100;
   return w;
 }
 const schritte = (w, n) => {
@@ -57,8 +57,8 @@ test('Grenze bei bestellten: die dritte Bestellung wird abgelehnt und kostet nic
   bestelle(w, werk, 'tproto');
   step(w);
   assert.deepEqual(werk.queue, ['tproto', 'tproto']);
-  assert.equal(w.players[0].fron, 1100 - 100);
-  assert.equal(w.players[0].goetterblut, 100 - 10);
+  assert.equal(w.players[0].masse, 1100 - 100);
+  assert.equal(w.players[0].resonit, 100 - 10);
   assert.equal(anzahlVon(w, 0, 'tproto'), 2);
   assert.ok(vollBesetzt(w, 0, 'tproto'));
 });
@@ -171,7 +171,7 @@ function kiLage(minute = 19, mitRollen = true) {
 }
 /** Zusaetzlich ein fertiger Goetterblut-Schacht -- Goetterblut fliesst. */
 function mitSchacht(w) {
-  spawnBuilding(w, 0, FACTIONS.mensch.rollen.blut, 12000, 9000, true);
+  spawnBuilding(w, 0, FACTIONS.mensch.rollen.resonit, 12000, 9000, true);
   return w;
 }
 const befehle = (w, t) => w.pending.filter((c) => c.type === t);

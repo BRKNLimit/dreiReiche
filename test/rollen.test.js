@@ -1,5 +1,5 @@
 // R0 Rollen optional, KI robust (docs/umbau/pakete-sonnet.md). Pflicht sind nur
-// anker, kraft, fron, blut, fabrik, bauer, leicht; alles andere darf fehlen.
+// anker, kraft, masse, resonit, fabrik, bauer, leicht; alles andere darf fehlen.
 // Ein Testvolk mit nur diesen Rollen, ohne Skills und ohne Faehigkeiten wird
 // zur Laufzeit aus den Menschen abgeleitet (eigene Typen, eigene Faction) und im
 // after() wieder entfernt. Es spielt KI gegen KI und gegen einen untaetigen
@@ -36,7 +36,7 @@ const T_EINHEITEN = {
   tschwer: klon(UNITS.soeldner),
   tkdt: klon(UNITS.held),
 };
-const T_ROLLEN = { anker: 'tanker', kraft: 'tkraft', fron: 'tfron', blut: 'tblut', fabrik: 'tfabrik', bauer: 'tbauer', leicht: 'tleicht' };
+const T_ROLLEN = { anker: 'tanker', kraft: 'tkraft', masse: 'tfron', resonit: 'tblut', fabrik: 'tfabrik', bauer: 'tbauer', leicht: 'tleicht' };
 const T_VOLK = {
   name: 'Testvolk', color: '#88aacc', growth: { start: 2600, max: 2600, perTick: 0 }, kommandant: 'tkdt', haupt: 'thalle',
   kurz: 'Testvolk', bauten: ['tkraft', 'tfron', 'tanker', 'tfabrik', 'tblut'], faehigkeiten: [],
@@ -87,7 +87,7 @@ function partie(fraktionen, kis, ticks, seed = 7) {
 }
 
 test('ROLLEN: Pflicht sind genau Anker, Kraft, Foerderung, Blut, Fabrik, Erbauer und Leichte; der Rest ist frei', () => {
-  assert.deepEqual(ROLLEN.gebaeude, ['anker', 'kraft', 'fron', 'blut', 'fabrik']);
+  assert.deepEqual(ROLLEN.gebaeude, ['anker', 'kraft', 'masse', 'resonit', 'fabrik']);
   assert.deepEqual(ROLLEN.einheit, ['bauer', 'leicht']);
   for (const r of ['turm', 'zorn', 'wehr', 'forschung', 'fern', 'schwer', 'belagerung']) assert.ok(ROLLEN.frei[r], `${r} ist frei`);
   assert.equal(ROLLEN.frei.turm, 'gebaeude');

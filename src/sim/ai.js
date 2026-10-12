@@ -5,7 +5,7 @@
 // gesehen haben (src/sim/kunde.js) -- der Nebel gilt auch fuer sie.
 
 import {
-  issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, rng, cosDeg, sinDeg,
+  issue, dist2, isqrt, isCleared, anchorRadius, ankerEnergie, inDomain, rng, cosDeg, sinDeg,
   unterhaltProMin, foerderungProMin, aufHindernis, gesperrt, kannLernen, faehigkeitenVon, faehigkeitWarten,
   erreicht, zieleVon, canAfford, anzahlVon, schlagBereit,
 } from './sim.js';
@@ -28,18 +28,18 @@ const MISCHUNG = ['leicht', 'fern', 'leicht', 'fern', 'schwer'];
  * zuerst. Teure Typen sind so seltener, billige zahlreicher -- ohne dass die
  * KI wissen muss, was ein Typ "ist". Null, wenn nichts passt.
  */
-function kampfWahl(world, player, plan, liste, frei, einheiten, bauten, heuteBestellt, blutRest) {
+function kampfWahl(world, player, plan, liste, frei, einheiten, bauten, heuteBestellt, resonitRest) {
   let best = null;
   let bestWert = 0;
   for (const t of liste) {
     const d = UNITS[t];
     if (!d || !d.weapon || d.worker || d.commander || t === plan.belagerung || !frei(t)) continue;
-    if ((d.cost.goetterblut || 0) > blutRest) continue;
+    if ((d.cost.resonit || 0) > resonitRest) continue;
     if (d.hoechstens && anzahlVon(world, player, t) + heuteBestellt.filter((q) => q === t).length >= d.hoechstens) continue;
     let da = einheiten.filter((u) => u.type === t).length + heuteBestellt.filter((q) => q === t).length;
     for (const b of bauten) if (b.queue) da += b.queue.filter((q) => q === t).length;
-    const wertDa = da * d.cost.fron;
-    if (!best || wertDa < bestWert || (wertDa === bestWert && d.cost.fron < UNITS[best].cost.fron)) {
+    const wertDa = da * d.cost.masse;
+    if (!best || wertDa < bestWert || (wertDa === bestWert && d.cost.masse < UNITS[best].cost.masse)) {
       best = t;
       bestWert = wertDa;
     }
@@ -48,7 +48,7 @@ function kampfWahl(world, player, plan, liste, frei, einheiten, bauten, heuteBes
 }
 
 /** Heereswert in Fron -- Wellen und Leibwache zaehlen Wert, nicht Koepfe. */
-const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
+const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.masse, 0);
 
 /** Schiesst das Gebaeude auf Bodenziele? Eine Flak deckt kein Gebaeude und haelt keine Bodenwelle auf. */
 const bodenTurm = (typ) => !!BUILDINGS[typ].weapon && zieleVon(BUILDINGS[typ]) !== 'luft';
@@ -213,8 +213,8 @@ export function stepAI(ai, world) {
   const feindFlieger = kunde.gesehen.filter((o) => kampfFlieger(o.type)).length;
   const feindLuft = kunde.gesehen.filter((o) => UNITS[o.type].fliegt).length;
   const zahl = (t) => bauten.filter((b) => b.type === t).length;
-  const kosten = (t) => BUILDINGS[t].cost.fron;
-  const fron = p.fron;
+  const kosten = (t) => BUILDINGS[t].cost.masse;
+  const masse = p.masse;
   const minute = (world.tick / 600) | 0;
   const frei = (t) => !gesperrt(world, ai.player, t);
 
@@ -263,8 +263,8 @@ export function stepAI(ai, world) {
   let bilanz = 0;
   for (const b of bauten) {
     const d = BUILDINGS[b.type];
-    bilanz += (d.gegenwartOut || 0) - (d.gegenwartIn || 0);
-    if (d.anchor) bilanz += ankerGegenwart(anchorRadius(world, b));
+    bilanz += (d.energieOut || 0) - (d.energieIn || 0);
+    if (d.anchor) bilanz += ankerEnergie(anchorRadius(world, b));
   }
   // Das gegnerische Hauptgebaeude -- gesehen oder dort vermutet, wo der Gegner beginnt.
   // Bei mehreren Gegnern das des gewaehlten (waehleGegner).
@@ -288,17 +288,17 @@ export function stepAI(ai, world) {
   //     das wertvollste Ziel, das die Kunde kennt. Die Kosten werden unten von
   //     dem abgezogen, was die Produktion ausgeben darf -- der Befehl wirkt
   //     erst im naechsten Tick, sonst bestellte sie dasselbe Goetterblut noch einmal.
-  let schlagFron = 0;
-  let schlagBlut = 0;
+  let schlagMasse = 0;
+  let schlagResonit = 0;
   for (const b of gebaeude) {
     if (!schlagBereit(b)) continue;
     const s = BUILDINGS[b.type].schlag;
-    if (!canAfford({ fron: fron - schlagFron, goetterblut: p.goetterblut - schlagBlut }, s.kosten || {})) continue;
+    if (!canAfford({ masse: masse - schlagMasse, resonit: p.resonit - schlagResonit }, s.kosten || {})) continue;
     const z = schlagZiel(kunde, b, s, mine, ziel);
     if (!z) continue;
     issue(world, { type: 'schlag', player: ai.player, id: b.id, x: z.x, y: z.y });
-    schlagFron += (s.kosten && s.kosten.fron) || 0;
-    schlagBlut += (s.kosten && s.kosten.goetterblut) || 0;
+    schlagMasse += (s.kosten && s.kosten.masse) || 0;
+    schlagResonit += (s.kosten && s.kosten.resonit) || 0;
   }
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
@@ -320,7 +320,7 @@ export function stepAI(ai, world) {
   const erbauerZahl = arbeiter.length + (kdt ? 1 : 0);
   const bau = (building, x, y) => {
     // Foerderung geht immer vor -- ohne sie fehlt spaeter alles.
-    if (offen.length >= Math.max(1, erbauerZahl) && building !== plan.fron) return false;
+    if (offen.length >= Math.max(1, erbauerZahl) && building !== plan.masse) return false;
     if (ai.gesperrt.some((g) => g.building === building && dist2(g.x, g.y, x, y) < 200 * 200)) return false;
     issue(world, { type: 'build', player: ai.player, building, x, y });
     ai.letzterBau = { building, x, y };
@@ -333,20 +333,20 @@ export function stepAI(ai, world) {
   const [fab2, fab3] = ai.stufe.fabriken;
   const [aus4, aus5] = ai.stufe.ausbau;
   const fabrikZiel = 1 + (minute >= fab2 ? 1 : 0) + (minute >= fab3 ? 1 : 0);
-  const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= aus4 ? 1 : 0) + (minute >= aus5 ? 1 : 0);
-  const ader = freieAder(world, haupt, 'fron', plaene, kunde);
+  const masseZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= aus4 ? 1 : 0) + (minute >= aus5 ? 1 : 0);
+  const ader = freieAder(world, haupt, 'masse', plaene, kunde);
 
   // Goetterblut liegt in der Mitte. Ein Schacht braucht Gegenwart, also muss
   // die Ader in einer versorgten eigenen Domaene liegen -- hier zaehlt Reichweite.
   // Erst wenn Fron-Foerderung und Fabrik stehen -- sonst frisst der Vorstoss die Wirtschaft.
-  const wirtschaftSteht = zahl(plan.fabrik) > 0 && (zahl(plan.fron) >= 3 || !ader);
-  const blutZiel = !wirtschaftSteht ? 0 : minute >= 12 ? 2 : 1;
-  const vene = zahl(plan.blut) < blutZiel ? freieAder(world, haupt, 'goetterblut', plaene, kunde) : null;
+  const wirtschaftSteht = zahl(plan.fabrik) > 0 && (zahl(plan.masse) >= 3 || !ader);
+  const resonitZiel = !wirtschaftSteht ? 0 : minute >= 12 ? 2 : 1;
+  const vene = zahl(plan.resonit) < resonitZiel ? freieAder(world, haupt, 'resonit', plaene, kunde) : null;
   const veneBereit = vene && versorgt(world, ai.player, vene);
 
   // 1. Foerderung, aber nur mit Deckung.
-  if (ader && zahl(plan.fron) < fronZiel && fron >= kosten(plan.fron)) {
-    if (bilanz >= BUILDINGS[plan.fron].gegenwartIn && bau(plan.fron, ader.x, ader.y)) return;
+  if (ader && zahl(plan.masse) < masseZiel && masse >= kosten(plan.masse)) {
+    if (bilanz >= BUILDINGS[plan.masse].energieIn && bau(plan.masse, ader.x, ader.y)) return;
   }
 
   // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
@@ -357,28 +357,28 @@ export function stepAI(ai, world) {
   const turmZiel = !plan.turm ? 0 : minute >= Math.max(12, ai.stufe.turmAb) ? 2 : minute >= ai.stufe.turmAb ? 1 : 0;
   const forschungZiel = !plan.forschung ? 0 : minute >= 12 ? 2 : minute >= 4 ? 1 : 0;
   const naechster =
-    ader && zahl(plan.fron) < fronZiel
-      ? plan.fron
+    ader && zahl(plan.masse) < masseZiel
+      ? plan.masse
       : zahl(plan.fabrik) < fabrikZiel
         ? plan.fabrik
         : zahl(plan.turm) < turmZiel
           ? plan.turm
           : veneBereit
-            ? plan.blut
+            ? plan.resonit
             : zahl(plan.forschung) < forschungZiel
               ? plan.forschung
-              : ader && zahl(plan.fron) < 3
-                ? plan.fron
+              : ader && zahl(plan.masse) < 3
+                ? plan.masse
                 : null;
-  const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
-  if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
+  const bedarf = naechster ? BUILDINGS[naechster].energieIn : 0;
+  if (bilanz < bedarf && masse >= kosten(plan.kraft)) {
     const n = zahl(plan.kraft);
     const platz = daheimFrei(world, kunde, haupt, plan.kraft, 700 + n * 250, front + 40 + n * 83);
     if (platz && bau(plan.kraft, ...platz)) return;
   }
 
   // 3. Fabrik
-  if (zahl(plan.fabrik) < fabrikZiel && fron >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].gegenwartIn) {
+  if (zahl(plan.fabrik) < fabrikZiel && masse >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].energieIn) {
     const n = zahl(plan.fabrik);
     const platz = daheimFrei(world, kunde, haupt, plan.fabrik, 900, front + 200 + n * 70);
     if (platz && bau(plan.fabrik, ...platz)) return;
@@ -389,7 +389,7 @@ export function stepAI(ai, world) {
   if (minute >= 5 && zahl(plan.fabrik) > 0) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
-      if (!typ || zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
+      if (!typ || zahl(typ) > 0 || !frei(typ) || masse < kosten(typ) || bilanz < BUILDINGS[typ].energieIn) continue;
       const platz = daheimFrei(world, kunde, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
@@ -397,7 +397,7 @@ export function stepAI(ai, world) {
 
   // 3c. Verteidigung: ein Turm vor dem Hauptgebaeude zur Front hin.
   const tb = plan.turm ? BUILDINGS[plan.turm] : null;
-  if (tb && zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
+  if (tb && zahl(plan.turm) < turmZiel && masse >= tb.cost.masse && bilanz >= tb.energieIn) {
     const platz = daheimFrei(world, kunde, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
     if (platz && bau(plan.turm, ...platz)) return;
   }
@@ -408,7 +408,7 @@ export function stepAI(ai, world) {
   if (plan.flak && frei(plan.flak) && feindLuft) {
     const flakZiel = feindFlieger >= 3 ? 2 : 1;
     const fk = BUILDINGS[plan.flak];
-    if (zahl(plan.flak) < flakZiel && fron >= fk.cost.fron && bilanz >= (fk.gegenwartIn || 0)) {
+    if (zahl(plan.flak) < flakZiel && masse >= fk.cost.masse && bilanz >= (fk.energieIn || 0)) {
       const platz = daheimFrei(world, kunde, haupt, plan.flak, 1000, front + 150 + zahl(plan.flak) * 120);
       if (platz && bau(plan.flak, ...platz)) return;
     }
@@ -416,7 +416,7 @@ export function stepAI(ai, world) {
 
   // 3d. Forschung beim Hauptgebaeude -- mehr Skillpunkte.
   const fb = plan.forschung ? BUILDINGS[plan.forschung] : null;
-  if (fb && zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
+  if (fb && zahl(plan.forschung) < forschungZiel && masse >= fb.cost.masse && bilanz >= fb.energieIn) {
     const platz = daheimFrei(world, kunde, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
     if (platz && bau(plan.forschung, ...platz)) return;
   }
@@ -427,7 +427,7 @@ export function stepAI(ai, world) {
   //     Abschnitt 20).
   if (plan.posten && frei(plan.posten)) {
     const postenZiel = minute >= 4 ? 1 : 0;
-    if (zahl(plan.posten) < postenZiel && fron >= kosten(plan.posten)) {
+    if (zahl(plan.posten) < postenZiel && masse >= kosten(plan.posten)) {
       const platz = postenPlatz(world, kunde, haupt, ziel, gebaeude, plan.posten);
       if (platz && bau(plan.posten, platz.x, platz.y)) return;
     }
@@ -438,7 +438,7 @@ export function stepAI(ai, world) {
   //     Unterhalt und sollen die Bodenfabriken nicht ersetzen.
   if (plan.luftfabrik && frei(plan.luftfabrik) && wirtschaftSteht && minute >= 7) {
     const lf = BUILDINGS[plan.luftfabrik];
-    if (zahl(plan.luftfabrik) < 1 && fron >= lf.cost.fron && bilanz >= (lf.gegenwartIn || 0)) {
+    if (zahl(plan.luftfabrik) < 1 && masse >= lf.cost.masse && bilanz >= (lf.energieIn || 0)) {
       const platz = daheimFrei(world, kunde, haupt, plan.luftfabrik, 900, front + 270);
       if (platz && bau(plan.luftfabrik, ...platz)) return;
     }
@@ -449,14 +449,14 @@ export function stepAI(ai, world) {
   //     verschwendet, den noch niemand braucht. Minute 10: Designzahl, nicht gemessen.
   if (plan.schild && frei(plan.schild) && wirtschaftSteht && minute >= 10) {
     const sg = BUILDINGS[plan.schild];
-    if (zahl(plan.schild) < 1 && fron >= sg.cost.fron && bilanz >= (sg.gegenwartIn || 0)) {
+    if (zahl(plan.schild) < 1 && masse >= sg.cost.masse && bilanz >= (sg.energieIn || 0)) {
       const platz = daheimFrei(world, kunde, haupt, plan.schild, 500, front + 330);
       if (platz && bau(plan.schild, ...platz)) return;
     }
   }
 
-  // Kann der Bau bezahlt werden? Wie fron >= cost.fron, aber auch das Goetterblut der teuren Bauten.
-  const bezahlbar = (t) => fron >= BUILDINGS[t].cost.fron && p.goetterblut >= (BUILDINGS[t].cost.goetterblut || 0) && bilanz >= (BUILDINGS[t].gegenwartIn || 0);
+  // Kann der Bau bezahlt werden? Wie masse >= cost.masse, aber auch das Goetterblut der teuren Bauten.
+  const bezahlbar = (t) => masse >= BUILDINGS[t].cost.masse && p.resonit >= (BUILDINGS[t].cost.resonit || 0) && bilanz >= (BUILDINGS[t].energieIn || 0);
 
   // 3h. Fernschlag (hat das Volk einen): einer beim Hauptgebaeude, wenn die
   //     Wirtschaft steht und ab Minute 20 -- er kostet Goetterblut und lohnt erst,
@@ -477,15 +477,15 @@ export function stepAI(ai, world) {
   //     und Goetterblut fliesst (ein fertiger Schacht) -- Prototypen kosten Blut.
   //     Minute 18: Designzahl, nicht gemessen.
   if (plan.werkstatt && frei(plan.werkstatt) && wirtschaftSteht && minute >= 18 && zahl(plan.werkstatt) < 1 && bezahlbar(plan.werkstatt)) {
-    if (bauten.some((b) => b.done && b.type === plan.blut)) {
+    if (bauten.some((b) => b.done && b.type === plan.resonit)) {
       const platz = daheimFrei(world, kunde, haupt, plan.werkstatt, 1000, front + 300);
       if (platz && bau(plan.werkstatt, ...platz)) return;
     }
   }
 
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
-  if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
-    if (bau(plan.blut, vene.x, vene.y)) return;
+  if (veneBereit && masse >= kosten(plan.resonit) && bilanz >= BUILDINGS[plan.resonit].energieIn) {
+    if (bau(plan.resonit, vene.x, vene.y)) return;
   }
   const ankerImBau = bauten.some((b) => !b.done && BUILDINGS[b.type].anchor);
   if (kdt && ai.stil.kdtVorn && vene && !veneBereit) {
@@ -495,21 +495,21 @@ export function stepAI(ai, world) {
     const start = FACTIONS[p.faction].growth.start;
     const posten = bauten.find((b) => BUILDINGS[b.type].anchor && dist2(b.x, b.y, vene.x, vene.y) <= start * start);
     if (!posten) {
-      if (fron >= kosten(plan.anker)) {
+      if (masse >= kosten(plan.anker)) {
         const platz = nahePlatz(world, kunde, vene, haupt, Math.min(start >> 1, 600), BUILDINGS[plan.anker].radius, plan.anker);
         if (platz && bau(plan.anker, platz.x, platz.y)) return;
       }
     } else {
       const reg = world.regions[posten.region];
       const quelleDa = bauten.some(
-        (b) => BUILDINGS[b.type].gegenwartOut && dist2(b.x, b.y, posten.x, posten.y) <= start * start
+        (b) => BUILDINGS[b.type].energieOut && dist2(b.x, b.y, posten.x, posten.y) <= start * start
       );
-      if (posten.done && (!reg || reg.supply === 0) && !quelleDa && fron >= kosten(plan.kraft)) {
+      if (posten.done && (!reg || reg.supply === 0) && !quelleDa && masse >= kosten(plan.kraft)) {
         const platz = nahePlatz(world, kunde, posten, haupt, 350, BUILDINGS[plan.kraft].radius, plan.kraft, 90);
         if (platz && bau(plan.kraft, platz.x, platz.y)) return;
       }
     }
-  } else if (vene && !veneBereit && !ankerImBau && fron >= kosten(plan.anker) + 100) {
+  } else if (vene && !veneBereit && !ankerImBau && masse >= kosten(plan.anker) + 100) {
     // Lohnt der Vorstoss? Nur wenn zwei neue Anker die Luecke schliessen.
     // Sonst warten: wachsende Kreise oder Anker am Rand bringen die Ader naeher.
     // Dieselbe Regel fuer alle -- der Startradius der Fraktion entscheidet.
@@ -525,7 +525,7 @@ export function stepAI(ai, world) {
   //    sonst ueberdecken sich die Kreise und Wachstum bringt keine Flaeche.
   // Gedeckelt: spaet im Spiel braucht es Truppen, nicht den zwanzigsten Anker.
   const ankerZiel = Math.min(ANKER_HOECHSTENS, 2 + ((minute / ai.stil.ankerTakt) | 0));
-  if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + ai.stil.ankerAb) {
+  if (zahl(plan.anker) < ankerZiel && masse >= kosten(plan.anker) + ai.stil.ankerAb) {
     const platz = randplatz(world, ai, kunde, haupt, front, bauten, plan.anker);
     if (platz && bau(plan.anker, platz.x, platz.y)) return;
   }
@@ -538,10 +538,10 @@ export function stepAI(ai, world) {
   const steht = bauten.find(
     (b) =>
       b.powered === 0 &&
-      (!b.done || BUILDINGS[b.type].gegenwartIn) &&
+      (!b.done || BUILDINGS[b.type].energieIn) &&
       !(kdt && ai.stil.kdtVorn && vene && dist2(b.x, b.y, vene.x, vene.y) <= postenStart * postenStart)
   );
-  if (steht && fron >= kosten(plan.anker)) {
+  if (steht && masse >= kosten(plan.anker)) {
     const quelle = naechsteVersorgte(world, bauten, steht);
     if (quelle) {
       const x = quelle.x + (((steht.x - quelle.x) / 2) | 0);
@@ -570,15 +570,15 @@ export function stepAI(ai, world) {
           : 0;
   // Was die eigenen Plaene beim Baubeginn kosten, bleibt liegen.
   // ... und was ein eben befohlener Fernschlag kostet.
-  let rest = fron - plaene.reduce((s, q) => s + kosten(q.type), 0) - schlagFron;
-  let blutRest = p.goetterblut - schlagBlut;
-  const blutSchwer = plan.schwer ? UNITS[plan.schwer].cost.goetterblut || 0 : 0;
+  let rest = masse - plaene.reduce((s, q) => s + kosten(q.type), 0) - schlagMasse;
+  let resonitRest = p.resonit - schlagResonit;
+  const resonitSchwer = plan.schwer ? UNITS[plan.schwer].cost.resonit || 0 : 0;
   // Fehlt dem Volk fern oder schwer (R0), gibt es keine feste Mischung: das Heer
   // kommt aus dem, was die Fabrik ausbildet (kampfWahl). Heute gestellte
   // Bestellungen zaehlen schon mit -- im selben Zug sieht die Warteschlange sie nicht.
   const festeMischung = !!plan.fern && !!plan.schwer;
   const heuteBestellt = [];
-  const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
+  const tiefe = masse > 900 ? 3 : masse > 400 ? 2 : 1;
   // Raben: einer ab Minute 2, ein zweiter ab Minute 10 -- billig, und wer
   // faellt, wird ersetzt.
   if (plan.rabe && haupt.done && BUILDINGS[haupt.type].buildList?.includes(plan.rabe)) {
@@ -589,7 +589,7 @@ export function stepAI(ai, world) {
     const rabenZiel = world.tick < ai.rabeAb ? 0 : minute >= 10 ? 2 : minute >= 2 ? 1 : 0;
     let bestellt = raben.length;
     for (const b of gebaeude) bestellt += b.queue ? b.queue.filter((u) => u === plan.rabe).length : 0;
-    const k = UNITS[plan.rabe].cost.fron;
+    const k = UNITS[plan.rabe].cost.masse;
     if (bestellt < rabenZiel && rest >= k && haupt.queue.length < tiefe) {
       rest -= k;
       issue(world, { type: 'produce', player: ai.player, id: haupt.id, unit: plan.rabe });
@@ -602,7 +602,7 @@ export function stepAI(ai, world) {
   for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
   // Wert der Flieger (stehende und bestellte) und des Bodenheeres, fuer die Luftfabrik
   let fliegerWert = wert(kaempfer.filter((u) => kampfFlieger(u.type)));
-  for (const b of bauten) for (const q of b.queue || []) if (kampfFlieger(q)) fliegerWert += UNITS[q].cost.fron;
+  for (const b of bauten) for (const q of b.queue || []) if (kampfFlieger(q)) fliegerWert += UNITS[q].cost.masse;
   const bodenWert = wert(kaempfer) - wert(kaempfer.filter((u) => kampfFlieger(u.type)));
   for (const f of bauten) {
     if (!f.done || !BUILDINGS[f.type].buildList || f.queue.length >= tiefe) continue;
@@ -613,7 +613,7 @@ export function stepAI(ai, world) {
       // (hoechstens; ohne Angabe einer). Er kostet Goetterblut und wird nicht
       // gegen das Sparen fuer den naechsten Bau aufgerechnet -- er ist selten.
       const pt = plan.prototyp;
-      if (pt && liste.includes(pt) && frei(pt) && anzahlVon(world, ai.player, pt) < (UNITS[pt].hoechstens || 1) && blutRest >= (UNITS[pt].cost.goetterblut || 0)) {
+      if (pt && liste.includes(pt) && frei(pt) && anzahlVon(world, ai.player, pt) < (UNITS[pt].hoechstens || 1) && resonitRest >= (UNITS[pt].cost.resonit || 0)) {
         unit = pt;
       }
     } else if (plan.luftfabrik && f.type === plan.luftfabrik) {
@@ -627,7 +627,7 @@ export function stepAI(ai, world) {
       const anzahl = (t) => einheiten.filter((u) => u.type === t).length + bauten.reduce((s, b) => s + (b.queue ? b.queue.filter((q) => q === t).length : 0), 0);
       if (fliegerWert <= bodenWert + 300) {
         unit = jaeger && (!bomber || anzahl(jaeger) <= anzahl(bomber)) ? jaeger : bomber;
-        if (unit) fliegerWert += UNITS[unit].cost.fron;
+        if (unit) fliegerWert += UNITS[unit].cost.masse;
       }
     } else if (arbeiterBestellt < arbeiterZiel && liste.includes(plan.bauer)) {
       unit = plan.bauer;
@@ -642,8 +642,8 @@ export function stepAI(ai, world) {
         unit = plan.belagerung;
       }
       if (festeMischung) {
-        const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
-        const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+        const schwerMoeglich = resonitRest >= resonitSchwer && frei(plan.schwer);
+        const reichlich = schwerMoeglich && resonitSchwer > 0 && resonitRest >= 3 * resonitSchwer;
         if (!unit && reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
         for (let k = 0; !unit && k < MISCHUNG.length; k++) {
           const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
@@ -654,12 +654,12 @@ export function stepAI(ai, world) {
           }
         }
       } else if (!unit) {
-        unit = kampfWahl(world, ai.player, plan, liste, frei, einheiten, bauten, heuteBestellt, blutRest);
+        unit = kampfWahl(world, ai.player, plan, liste, frei, einheiten, bauten, heuteBestellt, resonitRest);
       }
     }
-    if (!unit || rest - UNITS[unit].cost.fron < (unit === plan.prototyp ? 0 : sparen)) continue;
-    rest -= UNITS[unit].cost.fron;
-    blutRest -= UNITS[unit].cost.goetterblut || 0;
+    if (!unit || rest - UNITS[unit].cost.masse < (unit === plan.prototyp ? 0 : sparen)) continue;
+    rest -= UNITS[unit].cost.masse;
+    resonitRest -= UNITS[unit].cost.resonit || 0;
     heuteBestellt.push(unit);
     issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
   }
@@ -738,7 +738,7 @@ export function stepAI(ai, world) {
     : daheimAlle;
   const wacheWert = kdt ? Math.max(ai.stil.wache, ((wert(nachNaehe) * 3) / 10) | 0) : 0;
   let wacheZahl = 0;
-  for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
+  for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.masse;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
   const angriff = angriffsziel(kunde, haupt, ziel.player) || vermuteteFoerderung(world, kunde, haupt, ziel, haupt) || ziel;
@@ -963,7 +963,7 @@ function heimHeer(kunde, haupt, gegner) {
       zorn = Math.max(zorn, buff.zorn || 0);
       wehr = Math.max(wehr, buff.wehr || 0);
     }
-    const kosten = d.commander ? 600 : d.cost.fron;
+    const kosten = d.commander ? 600 : d.cost.masse;
     summe += ((((kosten * (1000 + zorn)) / 1000) * 1000) / (1000 - wehr)) | 0;
   }
   return summe;
@@ -997,7 +997,7 @@ function schlagZiel(kunde, von, s, eigene, gegnerHaupt) {
     let wert = c.vermutet ? SCHLAG_HAUPT : 0;
     for (const b of kunde.gebaeude) {
       if (dist2(b.x, b.y, c.x, c.y) > s.radius * s.radius) continue;
-      wert += BUILDINGS[b.type].cost.fron + (BUILDINGS[b.type].vital ? SCHLAG_HAUPT : 0);
+      wert += BUILDINGS[b.type].cost.masse + (BUILDINGS[b.type].vital ? SCHLAG_HAUPT : 0);
     }
     if (wert > bestWert) {
       bestWert = wert;
@@ -1183,13 +1183,13 @@ function angriffsziel(kunde, von, spieler = -1) {
   let bestD = Infinity;
   for (const e of kunde.gebaeude) {
     const d = BUILDINGS[e.type];
-    if (!d.fronOut && !d.blutOut) continue;
+    if (!d.masseOut && !d.resonitOut) continue;
     // Mit mehreren Gegnern nur Bauten des gewaehlten (spieler); deckt ein Turm nur der Besitzer des Ziels
     if (spieler >= 0 && e.player !== spieler) continue;
     const gedeckt = kunde.gebaeude.some(
       (t) => t.done && t.player === e.player && bodenTurm(t.type) && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
     );
-    const rang = (gedeckt ? 2 : 0) + (d.blutOut ? 0 : 1);
+    const rang = (gedeckt ? 2 : 0) + (d.resonitOut ? 0 : 1);
     const dd = dist2(e.x, e.y, von.x, von.y);
     if (rang < bestRang || (rang === bestRang && dd < bestD)) {
       bestRang = rang;

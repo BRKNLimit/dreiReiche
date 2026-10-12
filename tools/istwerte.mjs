@@ -35,7 +35,7 @@ for (const v of VOELKER) {
     '',
     '### Gebäude',
     '',
-    tabelle(v.gebaeude, ['name', 'hp', 'radius', 'cost', 'buildTime', 'gegenwartIn', 'gegenwartOut', 'fronOut', 'blutOut', 'weapon', 'buff', 'buildList', 'sicht', 'forschung', 'anchor', 'needs', 'schild', 'schlag', 'abwehr']),
+    tabelle(v.gebaeude, ['name', 'hp', 'radius', 'cost', 'buildTime', 'energieIn', 'energieOut', 'masseOut', 'resonitOut', 'weapon', 'buff', 'buildList', 'sicht', 'forschung', 'anchor', 'needs', 'schild', 'schlag', 'abwehr']),
     '',
     '### Einheiten',
     '',

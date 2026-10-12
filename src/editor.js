@@ -29,8 +29,8 @@ const WERKZEUGE = [
   { id: 'see', name: 'See', taste: '2', groesse: 1100 },
   { id: 'fluss', name: 'Fluss', taste: '3', groesse: 300 },
   { id: 'furt', name: 'Furt', taste: '4', groesse: 520 },
-  { id: 'fron', name: 'Fron-Ader', taste: '5', groesse: 200 },
-  { id: 'goetterblut', name: 'Götterblut', taste: '6', groesse: 200 },
+  { id: 'masse', name: 'Fron-Ader', taste: '5', groesse: 200 },
+  { id: 'resonit', name: 'Götterblut', taste: '6', groesse: 200 },
   { id: 'wald', name: 'Wald', taste: '7', groesse: 2200 },
   { id: 'wiese', name: 'Wiese', taste: '8', groesse: 2000 },
   { id: 'weg', name: 'Radierer', taste: '9', groesse: 800 },
@@ -68,7 +68,7 @@ function setzen(x, y) {
   y = rund(y);
   if (werkzeug.id === 'fels' || werkzeug.id === 'see') {
     entwurf.hindernisse.push(...paar({ x, y, r, art: werkzeug.id }));
-  } else if (werkzeug.id === 'fron' || werkzeug.id === 'goetterblut') {
+  } else if (werkzeug.id === 'masse' || werkzeug.id === 'resonit') {
     entwurf.adern.push(...paar({ x, y, kind: werkzeug.id }));
   } else if (werkzeug.id === 'wald') {
     entwurf.wald.push(...paar({ x, y, r }));
@@ -114,7 +114,7 @@ function entwurfPruefen() {
   const z = (l, f) => l.filter(f).length;
   document.getElementById('zahlen').textContent =
     `${z(entwurf.hindernisse, (h) => h.art === 'fels')} Felsen · ${z(entwurf.hindernisse, (h) => h.art === 'see')} Wasser · ` +
-    `${z(entwurf.adern, (d) => d.kind === 'fron')} Fron · ${z(entwurf.adern, (d) => d.kind === 'goetterblut')} Götterblut · ${entwurf.furten.length} Furten`;
+    `${z(entwurf.adern, (d) => d.kind === 'masse')} Fron · ${z(entwurf.adern, (d) => d.kind === 'resonit')} Götterblut · ${entwurf.furten.length} Furten`;
   document.getElementById('spielen2d').disabled = !!fehler.length;
   document.getElementById('spielen3d').disabled = !!fehler.length;
   return fehler;
@@ -202,7 +202,7 @@ function zeichneEditor() {
   }
   // Adern
   for (const d of entwurf.adern) {
-    ctx.fillStyle = d.kind === 'fron' ? '#9ab87a' : '#c0485a';
+    ctx.fillStyle = d.kind === 'masse' ? '#9ab87a' : '#c0485a';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
     ctx.beginPath();

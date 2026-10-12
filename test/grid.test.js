@@ -5,7 +5,7 @@ import {
   spawnBuilding,
   spawnUnit,
   computeRegions,
-  distributeGegenwart,
+  distributeEnergie,
   anchorRadius,
   inDomain,
   isCleared,
@@ -123,7 +123,7 @@ test('eine entfernte Vorwärtsstellung ist eine eigene Region', () => {
   spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 15000, 15000, true);
   computeRegions(w);
-  distributeGegenwart(w);
+  distributeEnergie(w);
   assert.equal(w.regions.length, 2);
   const remote = gridReport(w, 0).find((r) => r.size === 1 && r.supply === 40);
   assert.ok(remote, 'die Außenstelle steht für sich');
@@ -148,7 +148,7 @@ test('Drosselleiter: Werk fällt vor Segen', () => {
   kaserne.queue.push('soldat');
 
   computeRegions(w);
-  distributeGegenwart(w);
+  distributeEnergie(w);
 
   assert.equal(saege.powered, 1000, 'Segen bleibt versorgt');
   assert.ok(kaserne.powered < 1000, 'Werk wird gedrosselt');
@@ -195,12 +195,12 @@ test('in der Domaene: erst wenn der Erbauer ankommt, geht es los', () => {
 test('Bauplan: kein Gebaeude, keine Kosten, keine Sicht -- bis ein Erbauer anfaengt', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
-  const fron = w.players[0].fron;
+  const masse = w.players[0].masse;
   issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 14000, y: 14000 });
   step(w);
   assert.equal(w.plaene.length, 1);
   assert.ok(!w.entities.some((e) => e.type === 'grenzstein'), 'noch kein Gebaeude');
-  assert.equal(w.players[0].fron, fron, 'noch nichts bezahlt');
+  assert.equal(w.players[0].masse, masse, 'noch nichts bezahlt');
   const zelle = ((14000 / ZELLE) | 0) * (MAP / ZELLE) + ((14000 / ZELLE) | 0);
   assert.equal(sichtGitter(w, 0)[zelle], 0, 'ein Plan sieht nichts');
   const bauer = spawnUnit(w, 0, 'bauer', 14000 + 90, 14000);
@@ -208,27 +208,27 @@ test('Bauplan: kein Gebaeude, keine Kosten, keine Sicht -- bis ein Erbauer anfae
   step(w);
   const b = w.entities.find((e) => e.type === 'grenzstein');
   assert.ok(b, 'jetzt eine Baustelle');
-  assert.equal(w.players[0].fron, fron - BUILDINGS.grenzstein.cost.fron, 'bezahlt beim Baubeginn');
+  assert.equal(w.players[0].masse, masse - BUILDINGS.grenzstein.cost.masse, 'bezahlt beim Baubeginn');
   assert.equal(bauer.auftrag, b.id, 'der Auftrag zeigt auf die Baustelle');
   assert.equal(w.plaene.length, 0);
 });
 
 test('Bauplan: ohne Fron wartet der Erbauer, mit Fron geht es los', () => {
   const w = bare();
-  w.players[0].fron = 10;
+  w.players[0].masse = 10;
   const bauer = spawnUnit(w, 0, 'bauer', 9000, 9000);
   issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9100, y: 9000, ids: [bauer.id] });
   for (let i = 0; i < 30; i++) step(w);
   assert.equal(w.plaene.length, 1, 'wartet');
   assert.ok(planVon(w, bauer.auftrag), 'der Auftrag bleibt');
-  w.players[0].fron = 1000;
+  w.players[0].masse = 1000;
   step(w);
   assert.ok(w.entities.some((e) => e.type === 'grenzstein'));
 });
 
 test('Baureihe: mit Shift angehaengte Plaene baut der Erbauer nacheinander', () => {
   const w = bare();
-  w.players[0].fron = 2000;
+  w.players[0].masse = 2000;
   const k = spawnUnit(w, 0, 'held', 9000, 9000);
   issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9200, y: 9000, ids: [k.id] });
   issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9200, y: 9600, ids: [k.id], anhaengen: true });
@@ -253,7 +253,7 @@ test('Bauplan: ohne Shift ersetzt ein neuer Auftrag die ganze Reihe', () => {
 
 test('Bauplan: auf inzwischen belegtem Platz verfaellt er, entfernen geht auch', () => {
   const w = bare();
-  w.players[0].fron = 2000;
+  w.players[0].masse = 2000;
   const bauer = spawnUnit(w, 0, 'bauer', 6000, 6000);
   issue(w, { type: 'build', player: 0, building: 'grenzstein', x: 9000, y: 9000, ids: [bauer.id] });
   step(w);
@@ -309,7 +309,7 @@ test('ein Sägewerk rodet den Boden und sperrt Haine aus', () => {
   const w = bare();
   spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
-  w.deposits.push({ x: 5000, y: 6200, kind: 'fron', takenBy: 0 });
+  w.deposits.push({ x: 5000, y: 6200, kind: 'masse', takenBy: 0 });
   const s = tryPlace(w, 0, 'saege', 5000, 6200);
   assert.ok(s, 'Sägewerk steht');
   assert.equal(isCleared(w, 5000, 6200), false, 'erst nach Fertigstellung');
@@ -428,7 +428,7 @@ test('Startkarte stellt beide Fraktionen auf', () => {
   const w = createWorld();
   assert.ok(w.entities.find((e) => e.type === 'halle'));
   assert.ok(w.entities.find((e) => e.type === 'herzbaum'));
-  assert.ok(w.deposits.some((d) => d.kind === 'goetterblut'));
+  assert.ok(w.deposits.some((d) => d.kind === 'resonit'));
 });
 
 // ---------------------------------------------------- Mindestfluss
@@ -443,7 +443,7 @@ test('überbuchte Domäne: Fabriken bekommen trotzdem den Mindestfluss', () => {
   const kas = spawnBuilding(w, 0, 'kaserne', 4000, 5000, true);
   kas.queue.push('soldat');
   computeRegions(w);
-  distributeGegenwart(w);
+  distributeEnergie(w);
   assert.ok(kas.powered > 0, 'Werk steht nicht still');
 });
 
@@ -453,11 +453,11 @@ test('Baustellen ziehen keine Gegenwart -- auch eine Quelle entsteht in überbuc
   const s1 = spawnBuilding(w, 0, 'saege', 5000, 6000, true);
   spawnBuilding(w, 0, 'saege', 6000, 5000, true);
   computeRegions(w);
-  distributeGegenwart(w);
+  distributeEnergie(w);
   const vorher = s1.powered;
   const schmiede = spawnBuilding(w, 0, 'schmiede', 4000, 5000, false);
   computeRegions(w);
-  distributeGegenwart(w);
+  distributeEnergie(w);
   assert.equal(s1.powered, vorher, 'die Baustelle nimmt niemandem etwas');
   erbauerDaneben(w, schmiede);
   for (let i = 0; i < BUILDINGS.schmiede.buildTime + 2; i++) step(w);
@@ -470,7 +470,7 @@ test('ohne Überbuchung ändert der Mindestfluss nichts an der Leiter', () => {
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
   const saege = spawnBuilding(w, 0, 'saege', 5000, 5800, true);
   computeRegions(w);
-  distributeGegenwart(w);
+  distributeEnergie(w);
   assert.equal(saege.powered, 1000);
 });
 
@@ -506,7 +506,7 @@ test('beide KIs bauen eine Wirtschaft und beide Einheitentypen', () => {
   // Mit Goetterblut im Vorrat: prueft die Produktionslogik, nicht das
   // Rennen um die Adern (das misst tools/sweep.mjs).
   const w = createWorld({ seed: 4242 });
-  for (const p of w.players) p.goetterblut = 200;
+  for (const p of w.players) p.resonit = 200;
   const ais = [createAI(0, 1), createAI(1, 2)];
   const typen = [new Set(), new Set()];
   for (let i = 0; i < 600 * 12 && !w.over; i++) {
@@ -539,13 +539,13 @@ test('KI: eine Ader mit eigenem Plan gilt nicht mehr als frei', () => {
   // Sonst setzt die KI den Plan jeden Zug neu, die Simulation lehnt ab, und
   // die KI kommt nie zur Produktion -- Fron haeufte sich auf 3000.
   const w = bare();
-  w.deposits.push({ x: 10000, y: 10000, kind: 'goetterblut', takenBy: 0 });
+  w.deposits.push({ x: 10000, y: 10000, kind: 'resonit', takenBy: 0 });
   const haupt = { x: 3000, y: 3000 };
-  assert.equal(freieAder(w, haupt, 'goetterblut', [], neueKunde(0)).x, 10000);
+  assert.equal(freieAder(w, haupt, 'resonit', [], neueKunde(0)).x, 10000);
   issue(w, { type: 'build', player: 0, building: 'schacht', x: 10000, y: 10000 });
   step(w);
   assert.equal(w.plaene.length, 1);
-  assert.equal(freieAder(w, haupt, 'goetterblut', w.plaene, neueKunde(0)), null);
+  assert.equal(freieAder(w, haupt, 'resonit', w.plaene, neueKunde(0)), null);
 });
 
 test('KI: verwirft einen Plan ohne Erbauer, bei dem Feinde stehen', () => {
@@ -655,8 +655,8 @@ test('Kunde: das gegnerische Hauptgebaeude wird gegenueber vermutet, bis man es 
 
 test('Nebel: ein Plan verraet kein gegnerisches Gebaeude -- er verfaellt erst vor Ort', () => {
   const w = bare();
-  w.players[0].fron = 2000;
-  w.deposits.push({ x: 9000, y: 9000, kind: 'fron', takenBy: 0 });
+  w.players[0].masse = 2000;
+  w.deposits.push({ x: 9000, y: 9000, kind: 'masse', takenBy: 0 });
   spawnBuilding(w, 1, 'moos', 9000, 9000, true); // im Nebel
   spawnBuilding(w, 1, 'hain', 12000, 12000, true);
   issue(w, { type: 'build', player: 0, building: 'saege', x: 9000, y: 9000 });
@@ -670,7 +670,7 @@ test('Nebel: ein Plan verraet kein gegnerisches Gebaeude -- er verfaellt erst vo
   for (let i = 0; i < 100; i++) step(w);
   assert.equal(w.plaene.length, 0, 'vor Ort verfallen');
   assert.ok(!w.entities.some((e) => e.player === 0 && (e.type === 'saege' || e.type === 'grenzstein')), 'nichts gebaut');
-  assert.equal(w.players[0].fron, 2000, 'nichts bezahlt');
+  assert.equal(w.players[0].masse, 2000, 'nichts bezahlt');
 });
 
 test('KI-Partie ist deterministisch', () => {
@@ -691,22 +691,22 @@ test('KI-Partie ist deterministisch', () => {
 
 test('Unterhalt: jede lebende Einheit kostet laufend Fron', () => {
   const w = bare();
-  w.players[0].fron = 1000;
+  w.players[0].masse = 1000;
   spawnUnit(w, 0, 'soldat', 3000, 3000);
   spawnUnit(w, 0, 'jaeger', 3100, 3000);
   const proMin = UNITS.soldat.unterhalt + UNITS.jaeger.unterhalt;
   assert.equal(unterhaltProMin(w, 0), proMin);
   for (let i = 0; i < 600; i++) step(w);
-  assert.equal(w.players[0].fron, 1000 - proMin, 'nach einer Minute genau ein Minutenunterhalt');
-  assert.equal(w.players[1].fron, bare().players[1].fron, 'der andere Spieler zahlt nichts');
+  assert.equal(w.players[0].masse, 1000 - proMin, 'nach einer Minute genau ein Minutenunterhalt');
+  assert.equal(w.players[1].masse, bare().players[1].masse, 'der andere Spieler zahlt nichts');
 });
 
 test('Unterhalt: Fron faellt nicht unter null, die Einheiten bleiben', () => {
   const w = bare();
-  w.players[0].fron = 5;
+  w.players[0].masse = 5;
   const u = spawnUnit(w, 0, 'soldat', 3000, 3000);
   for (let i = 0; i < 1200; i++) step(w);
-  assert.equal(w.players[0].fron, 0);
+  assert.equal(w.players[0].masse, 0);
   assert.ok(!u.dead);
 });
 
@@ -816,7 +816,7 @@ test('Skillbaum: jede Fraktion hat alle vier Aeste, Voraussetzungen gibt es', ()
 
 test('Skillbaum: Gesperrtes laesst sich weder ausbilden noch bauen, gelernt schon', () => {
   const w = bare();
-  w.players[0].fron = 5000;
+  w.players[0].masse = 5000;
   const kas = spawnBuilding(w, 0, 'kaserne', 5000, 5000, true);
   assert.ok(gesperrt(w, 0, 'jaeger'));
   assert.ok(!gesperrt(w, 0, 'soldat'), 'Soldaten sind von Anfang an da');
@@ -862,11 +862,11 @@ test('Skillbaum: Verbesserungen wirken auf Schaden, Foerderung und Unterhalt', (
   // Unterhalt: Sold und Ordnung
   const u = bare();
   u.players[0].gelernt.push('sold');
-  u.players[0].fron = 1000;
+  u.players[0].masse = 1000;
   for (let i = 0; i < 4; i++) spawnUnit(u, 0, 'soldat', 3000 + i * 100, 3000);
   for (let i = 0; i < 600; i++) step(u);
   const voll = 4 * UNITS.soldat.unterhalt;
-  assert.equal(1000 - u.players[0].fron, ((voll * (1000 - SKILLS.sold.wirkung.unterhalt)) / 1000) | 0);
+  assert.equal(1000 - u.players[0].masse, ((voll * (1000 - SKILLS.sold.wirkung.unterhalt)) / 1000) | 0);
 });
 
 test('Schlachtruf: eigene Einheiten nahe dem Helden schlagen haerter, dann klingt er ab', () => {
@@ -987,14 +987,14 @@ test('Lebenssaft: eigene Einheiten nahe dem Waldgott bekommen Leben zurueck', ()
 
 test('Rudelruf: Woelfe erscheinen, kosten keinen Unterhalt und vergehen', () => {
   const { w } = mitKommandant('gott', ['rinde', 'wurzelgriff', 'rudelruf']);
-  w.players[0].fron = 1000;
+  w.players[0].masse = 1000;
   issue(w, { type: 'faehigkeit', player: 0, faehigkeit: 'rudelruf', x: 0, y: 0 });
   step(w);
   const f = FAEHIGKEITEN.rudelruf;
   const rudel = w.entities.filter((e) => e.type === f.einheit && e.player === 0);
   assert.equal(rudel.length, f.anzahl);
   for (let i = 0; i < 600; i++) step(w);
-  assert.equal(w.players[0].fron, 1000, 'kein Unterhalt');
+  assert.equal(w.players[0].masse, 1000, 'kein Unterhalt');
   for (let i = 0; i < f.dauer; i++) step(w);
   assert.equal(w.entities.filter((e) => e.type === f.einheit && !e.dead).length, 0, 'vergangen');
 });
@@ -1017,16 +1017,16 @@ test('ohne Skillbaum (RULES.skills aus) ist alles frei', () => {
 test('Abriss erstattet Kosten und gibt die Ader frei', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
-  w.deposits.push({ x: 5000, y: 6200, kind: 'fron', takenBy: 0 });
-  const vorher = w.players[0].fron;
+  w.deposits.push({ x: 5000, y: 6200, kind: 'masse', takenBy: 0 });
+  const vorher = w.players[0].masse;
   const s = tryPlace(w, 0, 'saege', 5000, 6200);
-  assert.equal(w.players[0].fron, vorher - BUILDINGS.saege.cost.fron);
+  assert.equal(w.players[0].masse, vorher - BUILDINGS.saege.cost.masse);
   issue(w, { type: 'demolish', player: 0, id: s.id });
   step(w);
   assert.equal(w.entities.includes(s), false, 'Gebäude ist weg');
   assert.equal(w.deposits[0].takenBy, 0, 'Ader wieder frei');
-  const zurueck = ((BUILDINGS.saege.cost.fron * 750) / 1000) | 0;
-  assert.equal(w.players[0].fron, vorher - BUILDINGS.saege.cost.fron + zurueck, 'Baustelle bringt drei Viertel zurück');
+  const zurueck = ((BUILDINGS.saege.cost.masse * 750) / 1000) | 0;
+  assert.equal(w.players[0].masse, vorher - BUILDINGS.saege.cost.masse + zurueck, 'Baustelle bringt drei Viertel zurück');
 });
 
 test('Hauptgebäude und fremde Gebäude lassen sich nicht abreißen', () => {
@@ -1108,10 +1108,10 @@ test('jede Einheit ist Nah- oder Fernkaempfer oder ein Spaeher ohne Waffe, jede 
 
 test('Spaehposten: sieht rund ein Zehntel der Karte weit, ohne Gegenwart und ausserhalb der Domaene', () => {
   assert.equal(BUILDINGS.spaehposten.sicht, MAP / 10);
-  assert.ok(!BUILDINGS.spaehposten.weapon && !BUILDINGS.spaehposten.gegenwartIn);
+  assert.ok(!BUILDINGS.spaehposten.weapon && !BUILDINGS.spaehposten.energieIn);
   const w = bare();
   spawnBuilding(w, 0, 'halle', 3000, 3000, true);
-  w.players[0].fron = 1000;
+  w.players[0].masse = 1000;
   const k = spawnUnit(w, 0, 'held', 12000, 12300);
   issue(w, { type: 'build', player: 0, building: 'spaehposten', x: 12000, y: 12000, ids: [k.id] });
   for (let i = 0; i < 300; i++) step(w);
@@ -1206,8 +1206,8 @@ test('Ents: gelernt und mit Goetterblut entstehen sie im Dickicht und kaempfen',
   spawnBuilding(w, 0, 'herzbaum', 5000, 5000, true);
   spawnBuilding(w, 0, 'quelle', 4200, 5000, true); // volle Gegenwart fuer das Dickicht
   const dick = spawnBuilding(w, 0, 'dickicht', 5900, 5000, true);
-  w.players[0].fron = 2000;
-  w.players[0].goetterblut = 100;
+  w.players[0].masse = 2000;
+  w.players[0].resonit = 100;
   issue(w, { type: 'produce', player: 0, id: dick.id, unit: 'ent' });
   step(w);
   assert.equal(dick.queue.length, 0, 'ohne Skill gesperrt');
@@ -1215,7 +1215,7 @@ test('Ents: gelernt und mit Goetterblut entstehen sie im Dickicht und kaempfen',
   issue(w, { type: 'produce', player: 0, id: dick.id, unit: 'ent' });
   step(w);
   assert.equal(dick.queue.length, 1);
-  assert.equal(w.players[0].goetterblut, 100 - UNITS.ent.cost.goetterblut);
+  assert.equal(w.players[0].resonit, 100 - UNITS.ent.cost.resonit);
   let ent = null;
   for (let i = 0; i < UNITS.ent.buildTime * 2 && !ent; i++) {
     step(w);
@@ -1283,7 +1283,7 @@ function beschaedigt() {
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   const turm = spawnBuilding(w, 0, 'wachturm', 6500, 5000, true);
   turm.hp = 1000;
-  w.players[0].fron = 1000;
+  w.players[0].masse = 1000;
   return { w, turm };
 }
 
@@ -1293,7 +1293,7 @@ test('Reparatur: ein Erbauer daneben gibt Leben zurueck und kostet Fron', () => 
   for (let i = 0; i < 100; i++) step(w);
   const lp = turm.hp - 1000;
   assert.equal(lp, 100 * RULES.reparaturProTick, 'volle Baukraft: reparaturProTick je Tick');
-  assert.equal(w.players[0].fron, 1000 - ((lp / RULES.reparaturLpJeFron) | 0));
+  assert.equal(w.players[0].masse, 1000 - ((lp / RULES.reparaturLpJeMasse) | 0));
 });
 
 test('Reparatur: ohne Erbauer daneben keine, und wer weggeht, hoert auf', () => {
@@ -1311,11 +1311,11 @@ test('Reparatur: ohne Erbauer daneben keine, und wer weggeht, hoert auf', () => 
 
 test('Reparatur: ohne Fron keine, und bei vollem Leben ist der Auftrag erledigt', () => {
   const { w, turm } = beschaedigt();
-  w.players[0].fron = 0;
+  w.players[0].masse = 0;
   const k = erbauerDaneben(w, turm, 'held');
   for (let i = 0; i < 50; i++) step(w);
   assert.equal(turm.hp, 1000, 'ohne Fron');
-  w.players[0].fron = 1000;
+  w.players[0].masse = 1000;
   for (let i = 0; i < 2000 && k.auftrag; i++) step(w);
   assert.equal(turm.hp, turm.maxHp);
   assert.equal(k.auftrag, 0, 'Auftrag erledigt');
@@ -1328,9 +1328,9 @@ test('jedes Volk: jede Rolle, die es hat, tut, was sie soll (Pflicht: Hauptgebae
     assert.ok(BUILDINGS[FACTIONS[f].haupt].vital, f + ' Hauptgebaeude');
     assert.ok(b('anker').anchor && !b('anker').vital, f + ' Anker');
     if (r.turm) assert.ok(b('turm').weapon && b('turm').weapon.ziele !== 'luft', f + ' Verteidigung gegen Boden');
-    assert.ok(b('kraft').gegenwartOut, f + ' Gegenwart');
-    assert.ok(b('fron').fronOut && b('fron').needs === 'fron', f + ' Fron');
-    assert.ok(b('blut').blutOut && b('blut').needs === 'goetterblut', f + ' Goetterblut');
+    assert.ok(b('kraft').energieOut, f + ' Gegenwart');
+    assert.ok(b('masse').masseOut && b('masse').needs === 'masse', f + ' Fron');
+    assert.ok(b('resonit').resonitOut && b('resonit').needs === 'resonit', f + ' Goetterblut');
     assert.ok(b('fabrik').buildList && !b('fabrik').vital, f + ' Fabrik');
     if (r.zorn) assert.ok(b('zorn').buff && b('zorn').buff.zorn, f + ' Zorn-Schrein');
     if (r.wehr) assert.ok(b('wehr').buff && b('wehr').buff.wehr, f + ' Wehr-Schrein');
@@ -1344,16 +1344,16 @@ function blutWelt() {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   spawnBuilding(w, 0, 'schmiede', 5800, 5000, true);
-  w.deposits.push({ x: 5000, y: 6500, kind: 'goetterblut', takenBy: 0 });
+  w.deposits.push({ x: 5000, y: 6500, kind: 'resonit', takenBy: 0 });
   return w;
 }
 
-test('ein Blutschacht in versorgter Domäne fördert blutOut pro Minute', () => {
+test('ein Blutschacht in versorgter Domäne fördert resonitOut pro Minute', () => {
   const w = blutWelt();
   const s = spawnBuilding(w, 0, 'schacht', 5000, 6500, true);
   w.deposits[0].takenBy = s.id;
   for (let i = 0; i < 600; i++) step(w);
-  assert.equal(w.players[0].goetterblut, BUILDINGS.schacht.blutOut);
+  assert.equal(w.players[0].resonit, BUILDINGS.schacht.resonitOut);
 });
 
 test('ein Blutschacht außerhalb jeder Domäne fördert nichts', () => {
@@ -1361,7 +1361,7 @@ test('ein Blutschacht außerhalb jeder Domäne fördert nichts', () => {
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   spawnBuilding(w, 0, 'schacht', 14000, 14000, true);
   for (let i = 0; i < 600; i++) step(w);
-  assert.equal(w.players[0].goetterblut, 0);
+  assert.equal(w.players[0].resonit, 0);
 });
 
 test('der Schacht steht nur auf einer Götterblut-Ader', () => {
@@ -1377,31 +1377,31 @@ test('schwere Einheiten brauchen Götterblut', () => {
   const w = bare();
   w.players[0].gelernt.push('bogenbau', 'soeldnervertraege');
   const kas = spawnBuilding(w, 0, 'kaserne', 5000, 5000, true);
-  w.players[0].fron = 5000;
+  w.players[0].masse = 5000;
   issue(w, { type: 'produce', player: 0, id: kas.id, unit: 'soeldner' });
   step(w);
   assert.equal(kas.queue.length, 0, 'ohne Götterblut kein Söldner');
 
-  w.players[0].goetterblut = UNITS.soeldner.cost.goetterblut;
-  const fron = w.players[0].fron;
+  w.players[0].resonit = UNITS.soeldner.cost.resonit;
+  const masse = w.players[0].masse;
   issue(w, { type: 'produce', player: 0, id: kas.id, unit: 'soeldner' });
   step(w);
   assert.equal(kas.queue.length, 1);
-  assert.equal(w.players[0].goetterblut, 0);
-  assert.equal(w.players[0].fron, fron - UNITS.soeldner.cost.fron);
+  assert.equal(w.players[0].resonit, 0);
+  assert.equal(w.players[0].masse, masse - UNITS.soeldner.cost.masse);
 });
 
 test('Abriss erstattet auch das Götterblut wartender Aufträge', () => {
   const w = bare();
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   const kas = spawnBuilding(w, 0, 'kaserne', 6000, 5000, true);
-  w.players[0].fron = 5000;
-  w.players[0].goetterblut = 30;
+  w.players[0].masse = 5000;
+  w.players[0].resonit = 30;
   issue(w, { type: 'produce', player: 0, id: kas.id, unit: 'soeldner' });
   step(w);
   issue(w, { type: 'demolish', player: 0, id: kas.id });
   step(w);
-  assert.equal(w.players[0].goetterblut, 30);
+  assert.equal(w.players[0].resonit, 30);
 });
 
 // ---------------------------------------------------- Fairness
@@ -1423,7 +1423,7 @@ test('Baubeginn reihum: umkaempfte Adern gehen abwechselnd an beide Sitzplaetze'
   const w = bare('mensch', 'mensch');
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   spawnBuilding(w, 1, 'halle', 15000, 15000, true);
-  w.deposits.push({ x: 9000, y: 9000, kind: 'fron', takenBy: 0 }, { x: 11000, y: 11000, kind: 'fron', takenBy: 0 });
+  w.deposits.push({ x: 9000, y: 9000, kind: 'masse', takenBy: 0 }, { x: 11000, y: 11000, kind: 'masse', takenBy: 0 });
   const sieger = [];
   for (const [x, y] of [[9000, 9000], [11000, 11000]]) {
     const a = spawnUnit(w, 0, 'held', x - 100, y);
@@ -1450,10 +1450,10 @@ test('Spiegelpartie bleibt punktsymmetrisch, bis eine geteilte Ader umkämpft is
       .join(' ');
   // Bis zum ersten Zugriff auf eine Goetterblut-Ader: Die Adern liegen auf
   // der Spiegelachse, wer sie zuerst belegt, bricht die Symmetrie zu Recht.
-  const belegt = () => w.deposits.some((d) => d.kind === 'goetterblut' && d.takenBy !== 0);
+  const belegt = () => w.deposits.some((d) => d.kind === 'resonit' && d.takenBy !== 0);
   let ticks = 0;
   while (ticks < 9000) {
-    const vorher = { a: lage(0, false), b: lage(1, true), f0: w.players[0].fron, f1: w.players[1].fron };
+    const vorher = { a: lage(0, false), b: lage(1, true), f0: w.players[0].masse, f1: w.players[1].masse };
     stepAI(ais[0], w);
     stepAI(ais[1], w);
     step(w);
@@ -1487,7 +1487,7 @@ test('keine Ader und kein Hauptgebaeude liegt auf einem Hindernis', () => {
 test('auf Felsen und Seen laesst sich nicht bauen', () => {
   const w = createWorld({ seed: 1 });
   const see = KARTE.hindernisse.find((h) => h.art === 'see');
-  w.players[0].fron = 5000;
+  w.players[0].masse = 5000;
   assert.equal(tryPlace(w, 0, 'grenzstein', see.x, see.y), null);
 });
 
@@ -1660,7 +1660,7 @@ test('Ankerkraft: eingeschaltet spendet jeder Anker Gegenwart nach Radius', () =
     const w = bare();
     spawnBuilding(w, 0, 'grenzstein', 5000, 5000, true);
     computeRegions(w);
-    distributeGegenwart(w);
+    distributeEnergie(w);
     return w.regions[0].supply;
   };
   const alt = RULES.ankerKraft;
@@ -1797,7 +1797,7 @@ test('RULES.kommandanten = false: keine Kommandanten', () => {
 
 test('Sammelpunkt: neue Einheiten laufen dorthin, nur eigene Fabriken nehmen ihn an', () => {
   const w = bare();
-  w.players[0].fron = 2000;
+  w.players[0].masse = 2000;
   spawnBuilding(w, 0, 'halle', 5000, 5000, true);
   const k = spawnBuilding(w, 0, 'kaserne', 6000, 5000, true);
   issue(w, { type: 'sammelpunkt', player: 1, ids: [k.id], x: 100, y: 100 });
@@ -2074,4 +2074,13 @@ test('Totenreich: KI-Partien mit dem Todesgott laufen deterministisch, in jeder 
     };
     assert.equal(lauf(), lauf());
   }
+});
+
+test('Karten mit den alten Adernamen (fron, goetterblut) laden weiter', async () => {
+  const { alteNamen, kartenFehler } = await import('../src/sim/kartenbau.js');
+  const k = JSON.parse(JSON.stringify(KARTEN.klassisch));
+  for (const a of k.adern) a.kind = a.kind === 'masse' ? 'fron' : 'goetterblut';
+  assert.deepEqual(kartenFehler(k), []);
+  assert.ok(k.adern.every((a) => a.kind === 'masse' || a.kind === 'resonit'));
+  assert.equal(alteNamen(null), null);
 });

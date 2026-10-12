@@ -15,15 +15,14 @@ Vorher `git fetch && git merge origin/main`.
 
 ## Was du heute schon verwenden kannst
 
-Der Kern hat die Systeme des Kompendiums schon, nur mit anderen Namen. Bis
-Claude die Schlüssel umbenennt (Plan T2), schreibst du in den Daten noch
-die alten Namen:
+Der Kern hat die Systeme des Kompendiums schon. Die Schlüssel heißen seit
+0.42 wie im Kompendium (Plan T2 ist erledigt):
 
 | Resonit | Schlüssel in den Daten |
 | --- | --- |
-| Energie (Fluss, Netz, Drossel-Leiter) | `gegenwartIn` (Verbrauch), `gegenwartOut` (Erzeugung) |
-| Masse | `cost.fron`, `fronOut` (Extraktor) |
-| Resonit | `cost.goetterblut`, `blutOut` (an Adern der Art `goetterblut`) |
+| Energie (Fluss, Netz, Drossel-Leiter) | `energieIn` (Verbrauch), `energieOut` (Erzeugung) |
+| Masse | `cost.masse`, `masseOut` (Extraktor) |
+| Resonit | `cost.resonit`, `resonitOut` (an Adern der Art `resonit`) |
 | Netzknoten (Netz wächst um ihn) | Rolle `anker`, Feld `anchor`, Volksfeld `growth` |
 | Drossel-Stufe eines Verbrauchers | `prio`: `PRIO.werk` (Fabrik) → `segen` → `wehr` (Schild) → `zorn` (Geschütz) |
 
@@ -46,7 +45,7 @@ Verlangsamen. Erlaubt sind nur Felder aus `FELDER`; `npm test` prüft das.
   Varianten eines Rumpfs geben (z. B. Palisade mit Kanone, Palisade mit
   Haubitze).
 - **Rollen (R0 ist da):** Pflicht sind nur Gebäude `anker`, `kraft`,
-  `fron`, `blut`, `fabrik` und Einheiten `bauer`, `leicht`. Alles andere
+  `masse`, `resonit`, `fabrik` und Einheiten `bauer`, `leicht`. Alles andere
   ist frei — besetze es nur, wo das Kompendium es vorsieht (`turm`, `flak`,
   `schild`, `luftfabrik`, `schlag`, `abwehr`, `werkstatt`, `prototyp` …).
   Schreine (`zorn`, `wehr`) und `forschung` braucht Resonit nicht. Die
@@ -80,7 +79,7 @@ Eine Ansicht je neuem Volk mit allen Gebäuden und Einheiten.
 Was Oberfläche oder Mechanik braucht, gehört nach `docs/grafik/wuensche.md`.
 Dazu gehören Begriffe wie „Energie“ statt „Gegenwart“ in der Anzeige (das
 macht Claude mit T1), Menüeinträge für die neuen Völker und Ressourcen-Icons
-im Sci-Fi-Stil (die Icons `gegenwart`, `fron`, `goetterblut` darfst du
+im Sci-Fi-Stil (die Icons `energie`, `masse`, `resonit` darfst du
 gleich neu zeichnen: Blitz, Masse-Barren, Kristall).
 
 ## Abnahme durch Claude

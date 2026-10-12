@@ -8,14 +8,14 @@ import { UNITS, BUILDINGS } from '../src/sim/defs.js';
 import { neueEffekte, effekteAusEreignissen, effekteFortschreiben, effekteLeeren } from '../src/effekte.js';
 
 const TEST_EINHEITEN = {
-  tflieger: { name: 'Testflieger', desc: '', faction: 'gott', hp: 100, radius: 14, speed: 40, cost: { fron: 20 }, buildTime: 50, fliegt: true },
-  tjaeger: { name: 'Testjaeger', desc: '', faction: 'mensch', hp: 100, radius: 14, speed: 40, cost: { fron: 20 }, buildTime: 50, fliegt: true, weapon: { range: 300, damage: 5, cooldown: 10, ziele: 'luft' } },
-  tbomber: { name: 'Testbomber', desc: '', faction: 'mensch', hp: 100, radius: 14, speed: 40, cost: { fron: 20 }, buildTime: 50, fliegt: true, weapon: { range: 50, damage: 5, cooldown: 10, ziele: 'boden' } },
-  tbodenziel: { name: 'Testziel', desc: '', faction: 'gott', hp: 100, radius: 14, speed: 40, cost: { fron: 20 }, buildTime: 50 },
+  tflieger: { name: 'Testflieger', desc: '', faction: 'gott', hp: 100, radius: 14, speed: 40, cost: { masse: 20 }, buildTime: 50, fliegt: true },
+  tjaeger: { name: 'Testjaeger', desc: '', faction: 'mensch', hp: 100, radius: 14, speed: 40, cost: { masse: 20 }, buildTime: 50, fliegt: true, weapon: { range: 300, damage: 5, cooldown: 10, ziele: 'luft' } },
+  tbomber: { name: 'Testbomber', desc: '', faction: 'mensch', hp: 100, radius: 14, speed: 40, cost: { masse: 20 }, buildTime: 50, fliegt: true, weapon: { range: 50, damage: 5, cooldown: 10, ziele: 'boden' } },
+  tbodenziel: { name: 'Testziel', desc: '', faction: 'gott', hp: 100, radius: 14, speed: 40, cost: { masse: 20 }, buildTime: 50 },
 };
 const TEST_GEBAEUDE = {
   // knapper Eintrag wie eine Flak: Waffe nur gegen Flieger, kein WAFFEN-Eintrag (also Hieb am Ziel)
-  tflak: { name: 'Testflak', desc: '', short: 'FLK', faction: 'mensch', hp: 100, radius: 30, cost: { fron: 10 }, buildTime: 50, weapon: { range: 800, damage: 5, cooldown: 10, ziele: 'luft' } },
+  tflak: { name: 'Testflak', desc: '', short: 'FLK', faction: 'mensch', hp: 100, radius: 30, cost: { masse: 10 }, buildTime: 50, weapon: { range: 800, damage: 5, cooldown: 10, ziele: 'luft' } },
 };
 Object.assign(UNITS, TEST_EINHEITEN);
 Object.assign(BUILDINGS, TEST_GEBAEUDE);

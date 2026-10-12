@@ -88,7 +88,7 @@ const COL = {
   dim: '#7d8575',
   bad: '#c4603f',
   gold: '#d8b06a',
-  blut: '#a86fb5',
+  resonit: '#a86fb5',
 };
 
 function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = null) {
@@ -1049,12 +1049,12 @@ function drawDeposits() {
   for (const d of world.deposits) {
     const x = w2sx(d.x);
     const y = w2sy(d.y);
-    const r = Math.max(3, (d.kind === 'goetterblut' ? 150 : 90) * cam.z);
-    ctx.strokeStyle = d.kind === 'goetterblut' ? COL.blut : COL.dim;
+    const r = Math.max(3, (d.kind === 'resonit' ? 150 : 90) * cam.z);
+    ctx.strokeStyle = d.kind === 'resonit' ? COL.resonit : COL.dim;
     ctx.globalAlpha = aderBesetzt(nebel, world, d, ME) ? 0.3 : 0.85;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    if (d.kind === 'goetterblut') {
+    if (d.kind === 'resonit') {
       for (let i = 0; i < 6; i++) {
         const a = (i * Math.PI) / 3;
         const px = x + Math.cos(a) * r;
@@ -1377,7 +1377,7 @@ function drawGhost() {
   ctx.fillStyle = COL.text;
   ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'center';
-  const ader = def.needs === 'goetterblut' ? 'Götterblut-Ader' : 'Fron-Ader';
+  const ader = def.needs === 'resonit' ? 'Götterblut-Ader' : 'Fron-Ader';
   const txt = ohneAder
     ? def.name + ' — braucht eine freie ' + ader
     : fels
@@ -1385,7 +1385,7 @@ function drawGhost() {
     : gerodet
     ? def.name + ' — gerodeter Boden trägt nicht'
     : def.name +
-      (drin || !def.gegenwartIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
+      (drin || !def.energieIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
       (erbauer().length ? '' : ' — keine Erbauer gewählt: die Baustelle wartet');
   ctx.fillText(txt, x, y - r - 8);
 }
@@ -1420,7 +1420,7 @@ function kommandantZeile() {
 // Baustellen), Kampfort, Anker und Goetterblut -- je Seite gezaehlt.
 function neueStats(n = 2) {
   const seite = () => ({
-    blut: -1,
+    resonit: -1,
     heim: 0,
     fremd: 0,
     frei: 0,
@@ -1436,7 +1436,7 @@ function neueStats(n = 2) {
 
 function zaehle() {
   for (let p = 0; p < world.players.length; p++) {
-    if (stats[p].blut < 0 && world.players[p].goetterblut > 0) stats[p].blut = world.tick;
+    if (stats[p].resonit < 0 && world.players[p].resonit > 0) stats[p].resonit = world.tick;
   }
   for (const ev of world.events) {
     if (ev.t === 'shot') {
@@ -1489,7 +1489,7 @@ function auswertungHtml() {
     <div class="fac">Auswertung${world.over ? '' : ' (I)'}</div>
     <div class="evg" style="grid-template-columns:1fr${' auto'.repeat(reihe.length)}">
       <b></b>${kopf}
-      ${zeile('Götterblut ab', (s) => min(s.blut))}
+      ${zeile('Götterblut ab', (s) => min(s.resonit))}
       ${zeile('Schüsse % heim·fremd·frei', ort)}
       ${zeile('Anker +/−', (s) => s.ankerGebaut + '/' + s.ankerVerloren)}
       ${zeile('Einheiten +/−', (s) => s.gebaut + '/' + s.gefallen)}

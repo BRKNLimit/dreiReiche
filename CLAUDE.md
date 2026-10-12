@@ -65,8 +65,8 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 
 - Entfernungen in **Dezimetern** (1 dm = 0,1 m), Integer. Karte 2000 × 2000 m.
 - Zeiten (`buildTime`, `cooldown`) in Ticks. Gegenwart als Integer pro Tick;
-  sie ist ein Fluss und wird nie gespeichert. Förderung (`fronOut`,
-  `blutOut`) in Einheiten **pro Minute**.
+  sie ist ein Fluss und wird nie gespeichert. Förderung (`masseOut`,
+  `resonitOut`) in Einheiten **pro Minute**.
 - Versorgungsgrad (`powered`) in Promille, 1000 = voll.
 - `RULES` in `defs.js`: Regeln, die für alle Fraktionen gelten (`werkFloor`,
   `fremdMalus`, `ankerKraft`, `kommandanten`). Ein Objekt, damit `tools/sweep.mjs`
@@ -76,9 +76,9 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 
 | Code | Design |
 | --- | --- |
-| `gegenwart` | Energie, nicht lagerbar, fließt in der Domäne |
-| `fron` | Masse: Holz, Stein, Hände |
-| `goetterblut` | Die umkämpfte dritte Ressource |
+| `energie` (früher `gegenwart`) | Energie, nicht lagerbar, fließt im Netz (Domäne) |
+| `masse` (früher `fron`) | Masse, lagerbar |
+| `resonit` (früher `goetterblut`) | Die umkämpfte dritte Ressource, nur erobert |
 | `anchor` | Gebäude, das Domäne projiziert |
 | `cleared` | Gerodeter Boden — dort pflanzt der Gott keinen Hain |
 

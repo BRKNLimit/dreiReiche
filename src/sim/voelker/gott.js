@@ -22,7 +22,7 @@ export const VOLK_GOTT = {
   },
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
-  rollen: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', posten: 'wipfelausguck', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
+  rollen: { anker: 'hain', kraft: 'quelle', masse: 'moos', resonit: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', posten: 'wipfelausguck', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
   lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'sporensaat', 'wucherwurzeln', 'reissklauen', 'borke', 'keimkraft', 'lebenssaft', 'wurzelbrecher', 'ents', 'genuegsamkeit', 'rudelruf', 'uralte_haine', 'tiefwaldschrecken', 'schwarmbrut', 'wildwuchs', 'lebensader', 'weltenwurz'],
   gebaeude: {
     herzbaum: {
@@ -35,8 +35,8 @@ export const VOLK_GOTT = {
       hp: 5000,
       radius: 90,
       anchor: true,
-      gegenwartOut: 24,
-      cost: { fron: 0 },
+      energieOut: 24,
+      cost: { masse: 0 },
       buildTime: 0,
       buildList: ['dryade', 'wolf', 'rabe'],
       vital: true,
@@ -50,7 +50,7 @@ export const VOLK_GOTT = {
       hp: 600,
       radius: 48,
       anchor: true,
-      cost: { fron: 110 },
+      cost: { masse: 110 },
       buildTime: 190,
       needsGrowth: true, // nur auf ungerodetem Boden
     },
@@ -62,9 +62,9 @@ export const VOLK_GOTT = {
       faction: 'gott',
       hp: 3000,
       radius: 40,
-      gegenwartIn: 10,
+      energieIn: 10,
       prio: PRIO.zorn, // Waffen fallen zuletzt
-      cost: { fron: 300 },
+      cost: { masse: 300 },
       buildTime: 250,
       kampf: 'fern',
       // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
@@ -78,8 +78,8 @@ export const VOLK_GOTT = {
       faction: 'gott',
       hp: 800,
       radius: 60,
-      gegenwartOut: 40,
-      cost: { fron: 280 },
+      energieOut: 40,
+      cost: { masse: 280 },
       buildTime: 230,
     },
     moos: {
@@ -89,12 +89,12 @@ export const VOLK_GOTT = {
       faction: 'gott',
       hp: 700,
       radius: 55,
-      gegenwartIn: 14,
+      energieIn: 14,
       prio: PRIO.segen,
-      fronOut: 360, // Fron pro Minute bei voller Versorgung
-      cost: { fron: 150 },
+      masseOut: 360, // Fron pro Minute bei voller Versorgung
+      cost: { masse: 150 },
       buildTime: 170,
-      needs: 'fron',
+      needs: 'masse',
     },
     dickicht: {
       name: 'Dickicht',
@@ -103,9 +103,9 @@ export const VOLK_GOTT = {
       faction: 'gott',
       hp: 1500,
       radius: 80,
-      gegenwartIn: 55,
+      energieIn: 55,
       prio: PRIO.werk,
-      cost: { fron: 400 },
+      cost: { masse: 400 },
       buildTime: 340,
       buildList: ['wolf', 'waldgeist', 'ent', 'wurzelbrecher'], // Dryaden ruft der Herzbaum
     },
@@ -116,12 +116,12 @@ export const VOLK_GOTT = {
       faction: 'gott',
       hp: 900,
       radius: 60,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      blutOut: 40,
-      cost: { fron: 250 },
+      resonitOut: 40,
+      cost: { masse: 250 },
       buildTime: 210,
-      needs: 'goetterblut',
+      needs: 'resonit',
     },
     // Beim Gott staerker: sein Wald ist sein Heimvorteil.
     dornenschrein: {
@@ -131,9 +131,9 @@ export const VOLK_GOTT = {
       faction: 'gott',
       hp: 600,
       radius: 40,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.zorn,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { zorn: 450, radius: 3000 },
     },
@@ -144,9 +144,9 @@ export const VOLK_GOTT = {
       faction: 'gott',
       hp: 700,
       radius: 50,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.wehr,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { wehr: 300, radius: 3000 },
     },
@@ -157,9 +157,9 @@ export const VOLK_GOTT = {
       faction: 'gott',
       hp: 900,
       radius: 55,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      cost: { fron: 250 },
+      cost: { masse: 250 },
       buildTime: 230,
       forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
     },
@@ -171,7 +171,7 @@ export const VOLK_GOTT = {
       faction: 'gott',
       hp: 400,
       radius: 26,
-      cost: { fron: 70 },
+      cost: { masse: 70 },
       buildTime: 90,
     },
   },
@@ -185,7 +185,7 @@ export const VOLK_GOTT = {
       hp: 6000,
       radius: 40,
       speed: 22,
-      cost: { fron: 0 },
+      cost: { masse: 0 },
       buildTime: 0,
       kampf: 'fern',
       weapon: { range: 380, damage: 42, cooldown: 6 },
@@ -199,7 +199,7 @@ export const VOLK_GOTT = {
       hp: 350,
       radius: 28,
       speed: 28,
-      cost: { fron: 90 },
+      cost: { masse: 90 },
       unterhalt: 12, // Fron pro Minute, solange sie lebt
       buildTime: 180,
       worker: true,
@@ -214,7 +214,7 @@ export const VOLK_GOTT = {
       hp: 540,
       radius: 30,
       speed: 34,
-      cost: { fron: 130 },
+      cost: { masse: 130 },
       unterhalt: 24, // Fron pro Minute, solange sie lebt
       buildTime: 210,
       kampf: 'nah',
@@ -232,7 +232,7 @@ export const VOLK_GOTT = {
       hp: 8,
       radius: 12,
       speed: 52,
-      cost: { fron: 35 },
+      cost: { masse: 35 },
       unterhalt: 2, // Fron pro Minute, solange er lebt
       buildTime: 60,
       fliegt: true,
@@ -245,7 +245,7 @@ export const VOLK_GOTT = {
       hp: 480,
       radius: 30,
       speed: 26,
-      cost: { fron: 130 },
+      cost: { masse: 130 },
       unterhalt: 24, // Fron pro Minute, solange sie lebt
       buildTime: 240,
       kampf: 'fern',
@@ -258,7 +258,7 @@ export const VOLK_GOTT = {
       hp: 2100,
       radius: 66, // maechtig gross
       speed: 16,
-      cost: { fron: 300, goetterblut: 20 },
+      cost: { masse: 300, resonit: 20 },
       unterhalt: 56, // Fron pro Minute, solange sie lebt
       buildTime: 480,
       kampf: 'nah',
@@ -272,7 +272,7 @@ export const VOLK_GOTT = {
       hp: 3200,
       radius: 50,
       speed: 14,
-      cost: { fron: 280 },
+      cost: { masse: 280 },
       unterhalt: 32, // Fron pro Minute, solange sie lebt
       buildTime: 320,
       kampf: 'nah',

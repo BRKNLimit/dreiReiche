@@ -1,7 +1,7 @@
 // Simulationskern. Engine-frei, deterministisch, nur Integer-Arithmetik.
 // Siehe CLAUDE.md fuer die Regeln, die dieser Code einhalten muss.
 
-import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_FRON, RULES, RESOURCES, SKILLS, FAEHIGKEITEN, KARTEN } from './defs.js';
+import { BUILDINGS, UNITS, FACTIONS, MAP, PRIO, START_MASSE, RULES, RESOURCES, SKILLS, FAEHIGKEITEN, KARTEN } from './defs.js';
 import { wegGitter, wegpunkt, ZELLE } from './weg.js';
 
 // ---------------------------------------------------------------- Mathematik
@@ -91,7 +91,7 @@ export function createWorld(opts = {}) {
   const standard = ['mensch', 'gott'];
   const players = [];
   for (let i = 0; i < n; i++) {
-    players.push({ id: i, faction: opts.factions?.[i] ?? standard[i] ?? 'mensch', fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 });
+    players.push({ id: i, faction: opts.factions?.[i] ?? standard[i] ?? 'mensch', masse: START_MASSE, resonit: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 });
   }
   const world = {
     tick: 0,
@@ -675,11 +675,11 @@ export function demolish(world, player, id) {
   const def = BUILDINGS[e.type];
   if (def.vital) return false;
   const p = world.players[player];
-  const vorher = p.fron;
+  const vorher = p.masse;
   pay(p, def.cost, e.done ? -500 : -750);
   for (let i = 0; i < e.queue.length; i++) pay(p, UNITS[e.queue[i]].cost, -1000);
   e.dead = true;
-  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, fron: p.fron - vorher });
+  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, masse: p.masse - vorher });
   return true;
 }
 
@@ -725,7 +725,7 @@ export function byId(world, id) {
 // ------------------------------------------------------- Domäne und Gegenwart
 
 /** Gegenwart, die ein Anker mit diesem Radius spendet (RULES.ankerKraft). */
-export function ankerGegenwart(r) {
+export function ankerEnergie(r) {
   return ((r * RULES.ankerKraft) / 1000) | 0;
 }
 
@@ -997,7 +997,7 @@ export function computeRegions(world) {
   return regions;
 }
 
-export function distributeGegenwart(world) {
+export function distributeEnergie(world) {
   for (let r = 0; r < world.regions.length; r++) {
     const reg = world.regions[r];
     let supply = 0;
@@ -1006,8 +1006,8 @@ export function distributeGegenwart(world) {
     for (let i = 0; i < reg.members.length; i++) {
       const e = reg.members[i];
       const def = BUILDINGS[e.type];
-      if (e.done && def.gegenwartOut) supply += def.gegenwartOut;
-      if (e.anchorR > 0) supply += ankerGegenwart(e.anchorR);
+      if (e.done && def.energieOut) supply += def.energieOut;
+      if (e.anchorR > 0) supply += ankerEnergie(e.anchorR);
       const d = demandOf(e);
       if (d > 0) demand[prioOf(e)] += d;
     }
@@ -1045,9 +1045,9 @@ export function distributeGegenwart(world) {
 function demandOf(e) {
   const def = BUILDINGS[e.type];
   if (!e.done) return 0; // Baustellen baut der Erbauer, nicht die Gegenwart
-  if (!def.gegenwartIn) return 0;
+  if (!def.energieIn) return 0;
   if (def.buildList && e.queue.length === 0) return 0;
-  return def.gegenwartIn;
+  return def.energieIn;
 }
 
 function prioOf(e) {
@@ -1063,7 +1063,7 @@ export function step(world) {
   world.events.length = 0;
   applyCommands(world);
   computeRegions(world);
-  distributeGegenwart(world);
+  distributeEnergie(world);
   erschaffen(world);
 
   for (let i = 0; i < world.entities.length; i++) {
@@ -1099,10 +1099,10 @@ export function step(world) {
     if (def.schild) schildLaden(e, def.schild);
     if (def.schlag) ladungWeiter(e, 'schlag', def.schlag.laden);
     if (def.abwehr) ladungWeiter(e, 'abwehr', def.abwehr.laden);
-    if (def.fronOut || def.blutOut) {
+    if (def.masseOut || def.resonitOut) {
       const mehr = 1000 + bonus(world, e.player, 'foerderung', e.type);
-      if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
-      if (def.blutOut) pl.blutAcc = (pl.blutAcc || 0) + (((def.blutOut * e.powered * mehr) / 1000) | 0);
+      if (def.masseOut) pl.masseAcc = (pl.masseAcc || 0) + (((def.masseOut * e.powered * mehr) / 1000) | 0);
+      if (def.resonitOut) pl.resonitAcc = (pl.resonitAcc || 0) + (((def.resonitOut * e.powered * mehr) / 1000) | 0);
     }
 
     if (e.queue.length > 0) {
@@ -1156,7 +1156,7 @@ export function step(world) {
   for (let p = 0; p < world.players.length; p++) {
     const pl = world.players[p];
     if (pl.unterhaltAcc >= PER_MIN) {
-      pl.fron = Math.max(0, pl.fron - ((pl.unterhaltAcc / PER_MIN) | 0));
+      pl.masse = Math.max(0, pl.masse - ((pl.unterhaltAcc / PER_MIN) | 0));
       pl.unterhaltAcc %= PER_MIN;
     }
   }
@@ -1165,13 +1165,13 @@ export function step(world) {
     const pl = world.players[p];
     pl.forschung += 1000; // Grundtakt der Skillpunkte
     // Foerderung ist pro Minute angegeben, powered in Promille: 600 Ticks x 1000.
-    if (pl.fronAcc) {
-      pl.fron += (pl.fronAcc / PER_MIN) | 0;
-      pl.fronAcc %= PER_MIN;
+    if (pl.masseAcc) {
+      pl.masse += (pl.masseAcc / PER_MIN) | 0;
+      pl.masseAcc %= PER_MIN;
     }
-    if (pl.blutAcc) {
-      pl.goetterblut += (pl.blutAcc / PER_MIN) | 0;
-      pl.blutAcc %= PER_MIN;
+    if (pl.resonitAcc) {
+      pl.resonit += (pl.resonitAcc / PER_MIN) | 0;
+      pl.resonitAcc %= PER_MIN;
     }
   }
 
@@ -1432,17 +1432,17 @@ function einschlaege(world) {
  */
 function reparieren(world, e) {
   const pl = world.players[e.player];
-  if (pl.fron <= 0 || e.hp >= e.maxHp) return;
+  if (pl.masse <= 0 || e.hp >= e.maxHp) return;
   e.flick += e.hilfe * RULES.reparaturProTick;
   const lp = Math.min((e.flick / 1000) | 0, e.maxHp - e.hp);
   e.flick %= 1000;
   if (lp <= 0) return;
   e.hp += lp;
   pl.reparaturAcc += lp;
-  const kosten = (pl.reparaturAcc / RULES.reparaturLpJeFron) | 0;
+  const kosten = (pl.reparaturAcc / RULES.reparaturLpJeMasse) | 0;
   if (kosten) {
-    pl.fron = Math.max(0, pl.fron - kosten);
-    pl.reparaturAcc %= RULES.reparaturLpJeFron;
+    pl.masse = Math.max(0, pl.masse - kosten);
+    pl.reparaturAcc %= RULES.reparaturLpJeMasse;
   }
 }
 
@@ -2184,7 +2184,7 @@ export function foerderungProMin(world, player) {
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.kind !== 'building' || !e.done || e.player !== player) continue;
-    const out = BUILDINGS[e.type].fronOut;
+    const out = BUILDINGS[e.type].masseOut;
     if (out) s += (((out * e.powered) / 1000) | 0) * (1000 + bonus(world, player, 'foerderung', e.type));
   }
   return (s / 1000) | 0;
@@ -2281,10 +2281,10 @@ export function hash(world) {
     }
   }
   for (let p = 0; p < world.players.length; p++) {
-    mix(world.players[p].fron);
-    mix(world.players[p].goetterblut);
-    mix(world.players[p].fronAcc || 0);
-    mix(world.players[p].blutAcc || 0);
+    mix(world.players[p].masse);
+    mix(world.players[p].resonit);
+    mix(world.players[p].masseAcc || 0);
+    mix(world.players[p].resonitAcc || 0);
     mix(world.players[p].unterhaltAcc || 0);
     for (const t of world.players[p].faehigkeitBereit) mix(t);
     mix(world.players[p].forschung);

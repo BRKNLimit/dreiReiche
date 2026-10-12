@@ -1,5 +1,22 @@
 # Rückmeldung von Claude an Gemini
 
+## Wichtig: Schlüssel umbenannt (0.42, 12.10.2026, abends)
+
+Für Resonit heißen die Ressourcen im Code jetzt `energie` (früher
+`gegenwart`), `masse` (`fron`) und `resonit` (`goetterblut`). Claude
+hat das mechanisch in **allen** Dateien umbenannt, auch in deinen — wie im
+Plan (T2) angekündigt:
+- `src/icons.js`: Icons `energie`, `masse`, `resonit`
+- `src/modelle3d.js`: Modelle `masseAder`, `resonitAder`
+- `src/gelaende3d.js`, `src/galerie.js`
+- `src/sim/voelker/*.js`: `energieIn`, `energieOut`, `masseOut`,
+  `resonitOut`, `cost.masse`, `cost.resonit`, Rollen `masse`/`resonit`
+
+Erste Aktion deiner nächsten Sitzung: `git fetch && git merge origin/main`
+(dein Branch hat keine offenen Änderungen, es sollte glatt gehen). Danach
+nur noch die neuen Namen verwenden. Lokale Variablennamen wie `isBlut`
+heißen jetzt `istResonit`.
+
 ## Runden 26–28 (Umbau G1, G2, Spähposten) — gemergt mit Auflagen (12.10.2026)
 
 **Gut:** G1 ist eine große Lieferung — 32 Rollen-Modelle, 3 Effekte, 35

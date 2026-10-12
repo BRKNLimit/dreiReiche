@@ -378,7 +378,7 @@
 </dl></div>
 </div>
 <script>
-const SPIEL_STAND = '51aad3de54';
+const SPIEL_STAND = 'bce7380e22';
 
 /* ---------------------------------- */
 
@@ -421,7 +421,7 @@ const VOLK_GOTT = {
   },
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
-  rollen: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', posten: 'wipfelausguck', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
+  rollen: { anker: 'hain', kraft: 'quelle', masse: 'moos', resonit: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', posten: 'wipfelausguck', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
   lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'sporensaat', 'wucherwurzeln', 'reissklauen', 'borke', 'keimkraft', 'lebenssaft', 'wurzelbrecher', 'ents', 'genuegsamkeit', 'rudelruf', 'uralte_haine', 'tiefwaldschrecken', 'schwarmbrut', 'wildwuchs', 'lebensader', 'weltenwurz'],
   gebaeude: {
     herzbaum: {
@@ -434,8 +434,8 @@ const VOLK_GOTT = {
       hp: 5000,
       radius: 90,
       anchor: true,
-      gegenwartOut: 24,
-      cost: { fron: 0 },
+      energieOut: 24,
+      cost: { masse: 0 },
       buildTime: 0,
       buildList: ['dryade', 'wolf', 'rabe'],
       vital: true,
@@ -449,7 +449,7 @@ const VOLK_GOTT = {
       hp: 600,
       radius: 48,
       anchor: true,
-      cost: { fron: 110 },
+      cost: { masse: 110 },
       buildTime: 190,
       needsGrowth: true, // nur auf ungerodetem Boden
     },
@@ -461,9 +461,9 @@ const VOLK_GOTT = {
       faction: 'gott',
       hp: 3000,
       radius: 40,
-      gegenwartIn: 10,
+      energieIn: 10,
       prio: PRIO.zorn, // Waffen fallen zuletzt
-      cost: { fron: 300 },
+      cost: { masse: 300 },
       buildTime: 250,
       kampf: 'fern',
       // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
@@ -477,8 +477,8 @@ const VOLK_GOTT = {
       faction: 'gott',
       hp: 800,
       radius: 60,
-      gegenwartOut: 40,
-      cost: { fron: 280 },
+      energieOut: 40,
+      cost: { masse: 280 },
       buildTime: 230,
     },
     moos: {
@@ -488,12 +488,12 @@ const VOLK_GOTT = {
       faction: 'gott',
       hp: 700,
       radius: 55,
-      gegenwartIn: 14,
+      energieIn: 14,
       prio: PRIO.segen,
-      fronOut: 360, // Fron pro Minute bei voller Versorgung
-      cost: { fron: 150 },
+      masseOut: 360, // Fron pro Minute bei voller Versorgung
+      cost: { masse: 150 },
       buildTime: 170,
-      needs: 'fron',
+      needs: 'masse',
     },
     dickicht: {
       name: 'Dickicht',
@@ -502,9 +502,9 @@ const VOLK_GOTT = {
       faction: 'gott',
       hp: 1500,
       radius: 80,
-      gegenwartIn: 55,
+      energieIn: 55,
       prio: PRIO.werk,
-      cost: { fron: 400 },
+      cost: { masse: 400 },
       buildTime: 340,
       buildList: ['wolf', 'waldgeist', 'ent', 'wurzelbrecher'], // Dryaden ruft der Herzbaum
     },
@@ -515,12 +515,12 @@ const VOLK_GOTT = {
       faction: 'gott',
       hp: 900,
       radius: 60,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      blutOut: 40,
-      cost: { fron: 250 },
+      resonitOut: 40,
+      cost: { masse: 250 },
       buildTime: 210,
-      needs: 'goetterblut',
+      needs: 'resonit',
     },
     // Beim Gott staerker: sein Wald ist sein Heimvorteil.
     dornenschrein: {
@@ -530,9 +530,9 @@ const VOLK_GOTT = {
       faction: 'gott',
       hp: 600,
       radius: 40,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.zorn,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { zorn: 450, radius: 3000 },
     },
@@ -543,9 +543,9 @@ const VOLK_GOTT = {
       faction: 'gott',
       hp: 700,
       radius: 50,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.wehr,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { wehr: 300, radius: 3000 },
     },
@@ -556,9 +556,9 @@ const VOLK_GOTT = {
       faction: 'gott',
       hp: 900,
       radius: 55,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      cost: { fron: 250 },
+      cost: { masse: 250 },
       buildTime: 230,
       forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
     },
@@ -570,7 +570,7 @@ const VOLK_GOTT = {
       faction: 'gott',
       hp: 400,
       radius: 26,
-      cost: { fron: 70 },
+      cost: { masse: 70 },
       buildTime: 90,
     },
   },
@@ -584,7 +584,7 @@ const VOLK_GOTT = {
       hp: 6000,
       radius: 40,
       speed: 22,
-      cost: { fron: 0 },
+      cost: { masse: 0 },
       buildTime: 0,
       kampf: 'fern',
       weapon: { range: 380, damage: 42, cooldown: 6 },
@@ -598,7 +598,7 @@ const VOLK_GOTT = {
       hp: 350,
       radius: 28,
       speed: 28,
-      cost: { fron: 90 },
+      cost: { masse: 90 },
       unterhalt: 12, // Fron pro Minute, solange sie lebt
       buildTime: 180,
       worker: true,
@@ -613,7 +613,7 @@ const VOLK_GOTT = {
       hp: 540,
       radius: 30,
       speed: 34,
-      cost: { fron: 130 },
+      cost: { masse: 130 },
       unterhalt: 24, // Fron pro Minute, solange sie lebt
       buildTime: 210,
       kampf: 'nah',
@@ -631,7 +631,7 @@ const VOLK_GOTT = {
       hp: 8,
       radius: 12,
       speed: 52,
-      cost: { fron: 35 },
+      cost: { masse: 35 },
       unterhalt: 2, // Fron pro Minute, solange er lebt
       buildTime: 60,
       fliegt: true,
@@ -644,7 +644,7 @@ const VOLK_GOTT = {
       hp: 480,
       radius: 30,
       speed: 26,
-      cost: { fron: 130 },
+      cost: { masse: 130 },
       unterhalt: 24, // Fron pro Minute, solange sie lebt
       buildTime: 240,
       kampf: 'fern',
@@ -657,7 +657,7 @@ const VOLK_GOTT = {
       hp: 2100,
       radius: 66, // maechtig gross
       speed: 16,
-      cost: { fron: 300, goetterblut: 20 },
+      cost: { masse: 300, resonit: 20 },
       unterhalt: 56, // Fron pro Minute, solange sie lebt
       buildTime: 480,
       kampf: 'nah',
@@ -671,7 +671,7 @@ const VOLK_GOTT = {
       hp: 3200,
       radius: 50,
       speed: 14,
-      cost: { fron: 280 },
+      cost: { masse: 280 },
       unterhalt: 32, // Fron pro Minute, solange sie lebt
       buildTime: 320,
       kampf: 'nah',
@@ -812,7 +812,7 @@ const VOLK_MENSCH = {
   },
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
-  rollen: { anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne', zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten', bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult' },
+  rollen: { anker: 'grenzstein', kraft: 'schmiede', masse: 'saege', resonit: 'schacht', fabrik: 'kaserne', zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten', bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult' },
   lernen: ['bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte', 'kapellenbau', 'drill_schuetzen', 'steinmetzkunst', 'soeldnervertraege', 'waffenmeister', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'belagerungsbau', 'plattenschmiede', 'wehrmauern', 'feldwerkstatt', 'ansturm', 'veteranenheer', 'festungsarchitektur', 'koenigsbann'],
   gebaeude: {
     halle: {
@@ -827,8 +827,8 @@ const VOLK_MENSCH = {
       hp: 5000,
       radius: 90,
       anchor: true,
-      gegenwartOut: 24,
-      cost: { fron: 0 },
+      energieOut: 24,
+      cost: { masse: 0 },
       buildTime: 0,
       buildList: ['bauer', 'soldat'],
       vital: true,
@@ -842,7 +842,7 @@ const VOLK_MENSCH = {
       hp: 800,
       radius: 48,
       anchor: true,
-      cost: { fron: 120 },
+      cost: { masse: 120 },
       buildTime: 150,
     },
     wachturm: {
@@ -853,9 +853,9 @@ const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 3000,
       radius: 40,
-      gegenwartIn: 10,
+      energieIn: 10,
       prio: PRIO.zorn, // Waffen fallen zuletzt
-      cost: { fron: 300 },
+      cost: { masse: 300 },
       buildTime: 250,
       kampf: 'fern',
       // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
@@ -873,7 +873,7 @@ const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 500,
       radius: 30,
-      cost: { fron: 90 },
+      cost: { masse: 90 },
       buildTime: 120,
     },
     schmiede: {
@@ -883,8 +883,8 @@ const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 900,
       radius: 60,
-      gegenwartOut: 40,
-      cost: { fron: 280 },
+      energieOut: 40,
+      cost: { masse: 280 },
       buildTime: 230,
     },
     saege: {
@@ -894,12 +894,12 @@ const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 700,
       radius: 55,
-      gegenwartIn: 14,
+      energieIn: 14,
       prio: PRIO.segen,
-      fronOut: 360, // Fron pro Minute bei voller Versorgung
-      cost: { fron: 150 },
+      masseOut: 360, // Fron pro Minute bei voller Versorgung
+      cost: { masse: 150 },
       buildTime: 170,
-      needs: 'fron',
+      needs: 'masse',
       clears: 2200, // rodet den Boden ringsum -- nimmt dem Gott Wachstumsgrund
     },
     kaserne: {
@@ -909,9 +909,9 @@ const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 1500,
       radius: 80,
-      gegenwartIn: 55,
+      energieIn: 55,
       prio: PRIO.werk,
-      cost: { fron: 400 },
+      cost: { masse: 400 },
       buildTime: 340,
       buildList: ['soldat', 'jaeger', 'soeldner', 'katapult'], // Bauern bildet die Thingstaette aus
     },
@@ -922,12 +922,12 @@ const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 900,
       radius: 60,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      blutOut: 40, // Goetterblut pro Minute bei voller Versorgung
-      cost: { fron: 250 },
+      resonitOut: 40, // Goetterblut pro Minute bei voller Versorgung
+      cost: { masse: 250 },
       buildTime: 210,
-      needs: 'goetterblut', // nur auf einer Ader -- und die liegen in der Mitte
+      needs: 'resonit', // nur auf einer Ader -- und die liegen in der Mitte
     },
     // Schreine: Heimvorteil kommt aus der Domaene, nicht aus den Einheiten.
     // Ein versorgter Schrein staerkt alle eigenen Einheiten, die im selben
@@ -941,9 +941,9 @@ const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 600,
       radius: 40,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.zorn,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { zorn: 250, radius: 3000 },
     },
@@ -954,9 +954,9 @@ const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 700,
       radius: 50,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.wehr,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { wehr: 200, radius: 3000 },
     },
@@ -967,9 +967,9 @@ const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 900,
       radius: 55,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      cost: { fron: 250 },
+      cost: { masse: 250 },
       buildTime: 230,
       forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
     },
@@ -984,7 +984,7 @@ const VOLK_MENSCH = {
       hp: 150,
       radius: 24,
       speed: 30,
-      cost: { fron: 40 },
+      cost: { masse: 40 },
       unterhalt: 3, // Fron pro Minute, solange sie lebt (0.31: 4 -> 3, Designzahl)
       buildTime: 80,
       worker: true,
@@ -1000,7 +1000,7 @@ const VOLK_MENSCH = {
       hp: 215,
       radius: 26,
       speed: 30,
-      cost: { fron: 45 },
+      cost: { masse: 45 },
       unterhalt: 7, // Fron pro Minute, solange sie lebt (0.31: 9 -> 7, Designzahl)
       buildTime: 80,
       kampf: 'nah',
@@ -1014,7 +1014,7 @@ const VOLK_MENSCH = {
       hp: 180,
       radius: 24,
       speed: 32,
-      cost: { fron: 55 },
+      cost: { masse: 55 },
       unterhalt: 8, // Fron pro Minute, solange sie lebt (0.31: 10 -> 8, Designzahl)
       buildTime: 100,
       kampf: 'fern',
@@ -1029,7 +1029,7 @@ const VOLK_MENSCH = {
       speed: 26,
       // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
       // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
-      cost: { fron: 130, goetterblut: 10 },
+      cost: { masse: 130, resonit: 10 },
       unterhalt: 18, // Fron pro Minute, solange sie lebt (0.31: 24 -> 18, Designzahl)
       buildTime: 190,
       kampf: 'nah',
@@ -1052,7 +1052,7 @@ const VOLK_MENSCH = {
       hp: 6000,
       radius: 36,
       speed: 24,
-      cost: { fron: 0 },
+      cost: { masse: 0 },
       buildTime: 0,
       kampf: 'nah',
       weapon: { range: 30, damage: 45, cooldown: 6 },
@@ -1068,7 +1068,7 @@ const VOLK_MENSCH = {
       hp: 500,
       radius: 40,
       speed: 14,
-      cost: { fron: 250 },
+      cost: { masse: 250 },
       unterhalt: 30, // Fron pro Minute, solange sie lebt
       buildTime: 300,
       kampf: 'fern',
@@ -1214,7 +1214,7 @@ const VOLK_TOD = {
   },
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
-  rollen: { anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe', zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv', posten: 'geisterturm', bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier' },
+  rollen: { anker: 'grabhuegel', kraft: 'seelenbrunnen', masse: 'knochenmuehle', resonit: 'fleischwurz', fabrik: 'katakombe', zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv', posten: 'geisterturm', bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier' },
   lernen: ['klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte', 'beinhaus', 'knochenstaub', 'totengruft', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'seelenrausch', 'titanenform', 'ewigerDienst', 'schattenpanzer', 'knochensturm', 'grabesschlaeger', 'ossuarium_mauern', 'gebeinflut', 'todesruhe', 'leichenmarsch', 'nekropolenmacht', 'seelenfresser'],
   gebaeude: {
     nekropole: {
@@ -1227,8 +1227,8 @@ const VOLK_TOD = {
       hp: 5000,
       radius: 90,
       anchor: true,
-      gegenwartOut: 24,
-      cost: { fron: 0 },
+      energieOut: 24,
+      cost: { masse: 0 },
       buildTime: 0,
       buildList: ['totengraeber', 'skelettkrieger', 'aasgeier'],
       vital: true,
@@ -1242,7 +1242,7 @@ const VOLK_TOD = {
       hp: 650,
       radius: 48,
       anchor: true,
-      cost: { fron: 115 },
+      cost: { masse: 115 },
       buildTime: 160,
     },
     knochenturm: {
@@ -1253,9 +1253,9 @@ const VOLK_TOD = {
       faction: 'tod',
       hp: 3000,
       radius: 40,
-      gegenwartIn: 10,
+      energieIn: 10,
       prio: PRIO.zorn,
-      cost: { fron: 300 },
+      cost: { masse: 300 },
       buildTime: 250,
       kampf: 'fern',
       weapon: { range: 900, damage: 60, cooldown: 4 },
@@ -1267,8 +1267,8 @@ const VOLK_TOD = {
       faction: 'tod',
       hp: 800,
       radius: 60,
-      gegenwartOut: 40,
-      cost: { fron: 280 },
+      energieOut: 40,
+      cost: { masse: 280 },
       buildTime: 230,
     },
     knochenmuehle: {
@@ -1278,12 +1278,12 @@ const VOLK_TOD = {
       faction: 'tod',
       hp: 700,
       radius: 55,
-      gegenwartIn: 14,
+      energieIn: 14,
       prio: PRIO.segen,
-      fronOut: 360,
-      cost: { fron: 150 },
+      masseOut: 360,
+      cost: { masse: 150 },
       buildTime: 170,
-      needs: 'fron',
+      needs: 'masse',
     },
     fleischwurz: {
       name: 'Fleischwurz',
@@ -1292,12 +1292,12 @@ const VOLK_TOD = {
       faction: 'tod',
       hp: 900,
       radius: 60,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      blutOut: 40,
-      cost: { fron: 250 },
+      resonitOut: 40,
+      cost: { masse: 250 },
       buildTime: 210,
-      needs: 'goetterblut',
+      needs: 'resonit',
     },
     katakombe: {
       name: 'Katakombe',
@@ -1306,9 +1306,9 @@ const VOLK_TOD = {
       faction: 'tod',
       hp: 1500,
       radius: 80,
-      gegenwartIn: 55,
+      energieIn: 55,
       prio: PRIO.werk,
-      cost: { fron: 400 },
+      cost: { masse: 400 },
       buildTime: 340,
       buildList: ['skelettkrieger', 'klageweib', 'grabwaechter', 'knochentitan'],
     },
@@ -1319,9 +1319,9 @@ const VOLK_TOD = {
       faction: 'tod',
       hp: 600,
       radius: 40,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.zorn,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { zorn: 300, radius: 3000 },
     },
@@ -1332,9 +1332,9 @@ const VOLK_TOD = {
       faction: 'tod',
       hp: 700,
       radius: 50,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.wehr,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { wehr: 250, radius: 3000 },
     },
@@ -1345,9 +1345,9 @@ const VOLK_TOD = {
       faction: 'tod',
       hp: 900,
       radius: 55,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      cost: { fron: 250 },
+      cost: { masse: 250 },
       buildTime: 230,
       forschung: 500, // wie Skriptorium und Raunende Eiche
     },
@@ -1359,7 +1359,7 @@ const VOLK_TOD = {
       faction: 'tod',
       hp: 380,
       radius: 26,
-      cost: { fron: 70 },
+      cost: { masse: 70 },
       buildTime: 90,
     },
   },
@@ -1372,7 +1372,7 @@ const VOLK_TOD = {
       hp: 6000,
       radius: 40,
       speed: 22,
-      cost: { fron: 0 },
+      cost: { masse: 0 },
       buildTime: 0,
       kampf: 'fern',
       weapon: { range: 360, damage: 44, cooldown: 6 },
@@ -1386,7 +1386,7 @@ const VOLK_TOD = {
       hp: 200,
       radius: 24,
       speed: 28,
-      cost: { fron: 50 },
+      cost: { masse: 50 },
       unterhalt: 5,
       buildTime: 90,
       worker: true,
@@ -1401,7 +1401,7 @@ const VOLK_TOD = {
       hp: 180,
       radius: 25,
       speed: 31,
-      cost: { fron: 45 }, // Designzahl: Geminis 40 Fron / 5 Unterhalt gewannen 48 : 22 gegen die Menschen
+      cost: { masse: 45 }, // Designzahl: Geminis 40 Fron / 5 Unterhalt gewannen 48 : 22 gegen die Menschen
       unterhalt: 7,
       buildTime: 70,
       kampf: 'nah',
@@ -1415,7 +1415,7 @@ const VOLK_TOD = {
       hp: 8,
       radius: 12,
       speed: 50,
-      cost: { fron: 35 },
+      cost: { masse: 35 },
       unterhalt: 2,
       buildTime: 60,
       fliegt: true,
@@ -1427,7 +1427,7 @@ const VOLK_TOD = {
       hp: 220,
       radius: 26,
       speed: 27,
-      cost: { fron: 70 },
+      cost: { masse: 70 },
       unterhalt: 10,
       buildTime: 120,
       kampf: 'fern',
@@ -1440,7 +1440,7 @@ const VOLK_TOD = {
       hp: 850,
       radius: 34,
       speed: 22,
-      cost: { fron: 160, goetterblut: 12 },
+      cost: { masse: 160, resonit: 12 },
       unterhalt: 22,
       buildTime: 230,
       kampf: 'nah',
@@ -1454,7 +1454,7 @@ const VOLK_TOD = {
       hp: 1800,
       radius: 52,
       speed: 14,
-      cost: { fron: 270 },
+      cost: { masse: 270 },
       unterhalt: 30,
       buildTime: 310,
       kampf: 'nah',
@@ -1588,7 +1588,7 @@ const VOELKER = [VOLK_MENSCH, VOLK_GOTT, VOLK_TOD];
 
 // Datenschicht. Keine Logik hier drin.
 // Alle Werte Integer. Entfernungen in Dezimetern, Zeiten in Ticks (10 Hz),
-// Gegenwart pro Tick, Foerderung (fronOut, blutOut) pro Minute.
+// Gegenwart pro Tick, Foerderung (masseOut, resonitOut) pro Minute.
 //
 // Drei Voelker, dieselben Systeme, dieselben Ressourcen. Ihre Daten stehen in
 // src/sim/voelker/*.js; hier werden sie zusammengesetzt, dazu Regeln, Karten
@@ -1628,10 +1628,10 @@ const RULES = {
 
   // Reparatur: Erbauer mit Auftrag direkt neben einem beschaedigten fertigen
   // Gebaeude geben ihm Leben zurueck -- reparaturProTick LP je Tick bei voller
-  // Baukraft. Je reparaturLpJeFron LP kostet es 1 Fron; ohne Fron keine
+  // Baukraft. Je reparaturLpJeMasse LP kostet es 1 Fron; ohne Fron keine
   // Reparatur.
   reparaturProTick: 3,
-  reparaturLpJeFron: 20,
+  reparaturLpJeMasse: 20,
 
   // Skillbaum (SKILLS): Punkte kommen mit der Zeit -- skillStart zu Beginn,
   // dann einer je skillTakt Ticks. Forschungsgebaeude (forschung, Promille)
@@ -1729,7 +1729,7 @@ const FELDER = {
   gebaeude: [
     'name', 'desc', 'short', 'faction', 'hp', 'radius', 'sicht', 'cost', 'buildTime',
     'anchor', 'anchorMin', 'vital', 'needs', 'needsGrowth', 'clears',
-    'gegenwartIn', 'gegenwartOut', 'prio', 'fronOut', 'blutOut', 'forschung',
+    'energieIn', 'energieOut', 'prio', 'masseOut', 'resonitOut', 'forschung',
     'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr', 'regeneration', 'aura', 'auferstehen',
   ],
   // hoechstens (M5): so viele Einheiten dieses Typs darf ein Spieler zugleich
@@ -1790,7 +1790,7 @@ const FELDER = {
   //   laden       Ticks bis zur naechsten Abwehr bei voller Versorgung
   abwehr: ['radius', 'laden'],
   build: ['power'],
-  cost: ['fron', 'goetterblut'],
+  cost: ['masse', 'resonit'],
   // nur (M6): Liste eigener Einheiten-/Gebaeudetypen, auf die die wirkung des
   // Skills beschraenkt ist (sonst ganzes Volk). Siehe bonus() in sim.js.
   skill: ['faction', 'ast', 'name', 'desc', 'kosten', 'braucht', 'frei', 'wirkung', 'nur', 'faehigkeit'],
@@ -1804,11 +1804,11 @@ const FELDER = {
 // Rollen; die Unterschiede der Voelker liegen darin, WIE sie eine Rolle fuellen,
 // und in allem, was keine Rolle ist (eigene Einheiten, Gebaeude, Skillbaum).
 // Pflicht (R0, "Keine Pendants"): nur was jede Partie braucht -- ein Netzknoten
-// (anker), Energie (kraft), Masse (fron), Resonit (blut), eine Fabrik, ein
+// (anker), Energie (kraft), Masse (masse), Resonit (resonit), eine Fabrik, ein
 // Erbauer und eine Einheit fuers Heer. Alles andere ist frei: ein Volk darf es
 // haben, muss aber nicht -- die KI spielt ohne jede freie Rolle weiter.
 const ROLLEN = {
-  gebaeude: ['anker', 'kraft', 'fron', 'blut', 'fabrik'],
+  gebaeude: ['anker', 'kraft', 'masse', 'resonit', 'fabrik'],
   einheit: ['bauer', 'leicht'],
   // Frei; die Art (Gebaeude/Einheit) wird geprueft.
   // turm/zorn/wehr/forschung: Verteidigung, Schreine, Gebaeude fuer Skillpunkte
@@ -1828,7 +1828,7 @@ const ROLLEN = {
     rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit', prototyp: 'einheit',
   },
 };
-const START_FRON = 1100;
+const START_MASSE = 1100;
 
 // ------------------------------------------------------------- Karte
 // Punktsymmetrisch um die Kartenmitte -- beide Sitzplaetze spielen dieselbe
@@ -1868,17 +1868,17 @@ const KLASSISCH = {
   adern: [
     // je Basis fuenf Vorkommen -- alle in der Grunddomaene des Hauptgebaeudes
     ...paarweise([
-      { x: 4800, y: 2200, kind: 'fron' },
-      { x: 2200, y: 4800, kind: 'fron' },
-      { x: 6200, y: 4500, kind: 'fron' },
-      { x: 6700, y: 2100, kind: 'fron' },
-      { x: 2100, y: 6700, kind: 'fron' },
+      { x: 4800, y: 2200, kind: 'masse' },
+      { x: 2200, y: 4800, kind: 'masse' },
+      { x: 6200, y: 4500, kind: 'masse' },
+      { x: 6700, y: 2100, kind: 'masse' },
+      { x: 2100, y: 6700, kind: 'masse' },
     ]),
     // Mitte: je eines naeher an jedem Spieler
-    ...paarweise([{ x: 10000, y: 7400, kind: 'fron' }]),
+    ...paarweise([{ x: 10000, y: 7400, kind: 'masse' }]),
     // Goetterblut: die grosse Ader im Felsring, zwei an den Seitenraendern
-    { x: 10000, y: 10000, kind: 'goetterblut' },
-    ...paarweise([{ x: 5200, y: 14800, kind: 'goetterblut' }]),
+    { x: 10000, y: 10000, kind: 'resonit' },
+    ...paarweise([{ x: 5200, y: 14800, kind: 'resonit' }]),
   ],
   wald: [],
   wiesen: [],
@@ -1940,19 +1940,19 @@ const FLUSSTAL = {
   adern: [
     ...paarweise([
       // je Basis fuenf Vorkommen in der Grunddomaene, wie auf der klassischen Karte
-      { x: 4800, y: 2200, kind: 'fron' },
-      { x: 2200, y: 4800, kind: 'fron' },
-      { x: 6200, y: 4500, kind: 'fron' },
-      { x: 6700, y: 2100, kind: 'fron' },
-      { x: 2100, y: 6700, kind: 'fron' },
+      { x: 4800, y: 2200, kind: 'masse' },
+      { x: 2200, y: 4800, kind: 'masse' },
+      { x: 6200, y: 4500, kind: 'masse' },
+      { x: 6700, y: 2100, kind: 'masse' },
+      { x: 2100, y: 6700, kind: 'masse' },
       // im Wald: am Felsmassiv, Richtung Furt der Gegenseite, am Flussufer
-      { x: 9200, y: 2000, kind: 'fron' },
-      { x: 14200, y: 6200, kind: 'fron' },
-      { x: 5600, y: 8200, kind: 'fron' },
+      { x: 9200, y: 2000, kind: 'masse' },
+      { x: 14200, y: 6200, kind: 'masse' },
+      { x: 5600, y: 8200, kind: 'masse' },
       // Wiese jenseits des Flusses
-      { x: 1600, y: 15400, kind: 'fron' },
-      { x: 5200, y: 16200, kind: 'fron' },
-      { x: 2800, y: 17400, kind: 'goetterblut' },
+      { x: 1600, y: 15400, kind: 'masse' },
+      { x: 5200, y: 16200, kind: 'masse' },
+      { x: 2800, y: 17400, kind: 'resonit' },
     ]),
   ],
   // Nur Optik: Wald und Wiesen als Kreise { x, y, r }, Furten als Punkte
@@ -2007,23 +2007,23 @@ const DREI_REICHE = {
   adern: [
     // Basis 1 (NW) & Basis 2 (SE)
     ...paarweise([
-      { x: 4800, y: 2200, kind: 'fron' },
-      { x: 2200, y: 4800, kind: 'fron' },
-      { x: 6200, y: 4500, kind: 'fron' },
-      { x: 6700, y: 2100, kind: 'fron' },
-      { x: 2100, y: 6700, kind: 'fron' },
+      { x: 4800, y: 2200, kind: 'masse' },
+      { x: 2200, y: 4800, kind: 'masse' },
+      { x: 6200, y: 4500, kind: 'masse' },
+      { x: 6700, y: 2100, kind: 'masse' },
+      { x: 2100, y: 6700, kind: 'masse' },
     ]),
     // Basis 3 (Zentrum)
     ...paarweise([
-      { x: 8600, y: 9200, kind: 'fron' },
-      { x: 9200, y: 11400, kind: 'fron' },
-      { x: 11400, y: 8600, kind: 'fron' },
+      { x: 8600, y: 9200, kind: 'masse' },
+      { x: 9200, y: 11400, kind: 'masse' },
+      { x: 11400, y: 8600, kind: 'masse' },
     ]),
     // Externe Adern
     ...paarweise([
-      { x: 15500, y: 4200, kind: 'fron' },
-      { x: 14200, y: 5500, kind: 'goetterblut' },
-      { x: 7400, y: 6800, kind: 'goetterblut' },
+      { x: 15500, y: 4200, kind: 'masse' },
+      { x: 14200, y: 5500, kind: 'resonit' },
+      { x: 7400, y: 6800, kind: 'resonit' },
     ]),
   ],
   wald: paarweise([
@@ -2057,20 +2057,20 @@ const VIERLANDE = {
   adern: [
     // Basis-Fronadern (5 je Quadrant)
     ...rotVier([
-      { x: 4800, y: 2200, kind: 'fron' },
-      { x: 2200, y: 4800, kind: 'fron' },
-      { x: 5800, y: 3600, kind: 'fron' },
-      { x: 3600, y: 5800, kind: 'fron' },
-      { x: 6200, y: 2100, kind: 'fron' },
+      { x: 4800, y: 2200, kind: 'masse' },
+      { x: 2200, y: 4800, kind: 'masse' },
+      { x: 5800, y: 3600, kind: 'masse' },
+      { x: 3600, y: 5800, kind: 'masse' },
+      { x: 6200, y: 2100, kind: 'masse' },
     ]),
     // Ausbauadern
     ...rotVier([
-      { x: 10000, y: 1600, kind: 'fron' },
+      { x: 10000, y: 1600, kind: 'masse' },
     ]),
     // Götterblut
-    { x: 10000, y: 10000, kind: 'goetterblut' },
+    { x: 10000, y: 10000, kind: 'resonit' },
     ...rotVier([
-      { x: 7200, y: 7200, kind: 'goetterblut' },
+      { x: 7200, y: 7200, kind: 'resonit' },
     ]),
   ],
   wald: rotVier([
@@ -2097,7 +2097,7 @@ function karteWaehlen(schluessel, daten = null) {
 }
 
 /** Alle Ressourcen, die gelagert werden. Gegenwart fliesst und gehoert nicht dazu. */
-const RESOURCES = ['fron', 'goetterblut'];
+const RESOURCES = ['masse', 'resonit'];
 
 /** Alle Gebäude bzw. Einheiten einer Fraktion. */
 function buildingsOf(f) {
@@ -2437,7 +2437,7 @@ function createWorld(opts = {}) {
   const standard = ['mensch', 'gott'];
   const players = [];
   for (let i = 0; i < n; i++) {
-    players.push({ id: i, faction: opts.factions?.[i] ?? standard[i] ?? 'mensch', fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 });
+    players.push({ id: i, faction: opts.factions?.[i] ?? standard[i] ?? 'mensch', masse: START_MASSE, resonit: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 });
   }
   const world = {
     tick: 0,
@@ -3017,11 +3017,11 @@ function demolish(world, player, id) {
   const def = BUILDINGS[e.type];
   if (def.vital) return false;
   const p = world.players[player];
-  const vorher = p.fron;
+  const vorher = p.masse;
   pay(p, def.cost, e.done ? -500 : -750);
   for (let i = 0; i < e.queue.length; i++) pay(p, UNITS[e.queue[i]].cost, -1000);
   e.dead = true;
-  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, fron: p.fron - vorher });
+  world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, masse: p.masse - vorher });
   return true;
 }
 
@@ -3065,7 +3065,7 @@ function byId(world, id) {
 // ------------------------------------------------------- Domäne und Gegenwart
 
 /** Gegenwart, die ein Anker mit diesem Radius spendet (RULES.ankerKraft). */
-function ankerGegenwart(r) {
+function ankerEnergie(r) {
   return ((r * RULES.ankerKraft) / 1000) | 0;
 }
 
@@ -3336,7 +3336,7 @@ function computeRegions(world) {
   world.regions = regions;
   return regions;
 }
-function distributeGegenwart(world) {
+function distributeEnergie(world) {
   for (let r = 0; r < world.regions.length; r++) {
     const reg = world.regions[r];
     let supply = 0;
@@ -3345,8 +3345,8 @@ function distributeGegenwart(world) {
     for (let i = 0; i < reg.members.length; i++) {
       const e = reg.members[i];
       const def = BUILDINGS[e.type];
-      if (e.done && def.gegenwartOut) supply += def.gegenwartOut;
-      if (e.anchorR > 0) supply += ankerGegenwart(e.anchorR);
+      if (e.done && def.energieOut) supply += def.energieOut;
+      if (e.anchorR > 0) supply += ankerEnergie(e.anchorR);
       const d = demandOf(e);
       if (d > 0) demand[prioOf(e)] += d;
     }
@@ -3384,9 +3384,9 @@ function distributeGegenwart(world) {
 function demandOf(e) {
   const def = BUILDINGS[e.type];
   if (!e.done) return 0; // Baustellen baut der Erbauer, nicht die Gegenwart
-  if (!def.gegenwartIn) return 0;
+  if (!def.energieIn) return 0;
   if (def.buildList && e.queue.length === 0) return 0;
-  return def.gegenwartIn;
+  return def.energieIn;
 }
 
 function prioOf(e) {
@@ -3401,7 +3401,7 @@ function step(world) {
   world.events.length = 0;
   applyCommands(world);
   computeRegions(world);
-  distributeGegenwart(world);
+  distributeEnergie(world);
   erschaffen(world);
 
   for (let i = 0; i < world.entities.length; i++) {
@@ -3437,10 +3437,10 @@ function step(world) {
     if (def.schild) schildLaden(e, def.schild);
     if (def.schlag) ladungWeiter(e, 'schlag', def.schlag.laden);
     if (def.abwehr) ladungWeiter(e, 'abwehr', def.abwehr.laden);
-    if (def.fronOut || def.blutOut) {
+    if (def.masseOut || def.resonitOut) {
       const mehr = 1000 + bonus(world, e.player, 'foerderung', e.type);
-      if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
-      if (def.blutOut) pl.blutAcc = (pl.blutAcc || 0) + (((def.blutOut * e.powered * mehr) / 1000) | 0);
+      if (def.masseOut) pl.masseAcc = (pl.masseAcc || 0) + (((def.masseOut * e.powered * mehr) / 1000) | 0);
+      if (def.resonitOut) pl.resonitAcc = (pl.resonitAcc || 0) + (((def.resonitOut * e.powered * mehr) / 1000) | 0);
     }
 
     if (e.queue.length > 0) {
@@ -3494,7 +3494,7 @@ function step(world) {
   for (let p = 0; p < world.players.length; p++) {
     const pl = world.players[p];
     if (pl.unterhaltAcc >= PER_MIN) {
-      pl.fron = Math.max(0, pl.fron - ((pl.unterhaltAcc / PER_MIN) | 0));
+      pl.masse = Math.max(0, pl.masse - ((pl.unterhaltAcc / PER_MIN) | 0));
       pl.unterhaltAcc %= PER_MIN;
     }
   }
@@ -3503,13 +3503,13 @@ function step(world) {
     const pl = world.players[p];
     pl.forschung += 1000; // Grundtakt der Skillpunkte
     // Foerderung ist pro Minute angegeben, powered in Promille: 600 Ticks x 1000.
-    if (pl.fronAcc) {
-      pl.fron += (pl.fronAcc / PER_MIN) | 0;
-      pl.fronAcc %= PER_MIN;
+    if (pl.masseAcc) {
+      pl.masse += (pl.masseAcc / PER_MIN) | 0;
+      pl.masseAcc %= PER_MIN;
     }
-    if (pl.blutAcc) {
-      pl.goetterblut += (pl.blutAcc / PER_MIN) | 0;
-      pl.blutAcc %= PER_MIN;
+    if (pl.resonitAcc) {
+      pl.resonit += (pl.resonitAcc / PER_MIN) | 0;
+      pl.resonitAcc %= PER_MIN;
     }
   }
 
@@ -3770,17 +3770,17 @@ function einschlaege(world) {
  */
 function reparieren(world, e) {
   const pl = world.players[e.player];
-  if (pl.fron <= 0 || e.hp >= e.maxHp) return;
+  if (pl.masse <= 0 || e.hp >= e.maxHp) return;
   e.flick += e.hilfe * RULES.reparaturProTick;
   const lp = Math.min((e.flick / 1000) | 0, e.maxHp - e.hp);
   e.flick %= 1000;
   if (lp <= 0) return;
   e.hp += lp;
   pl.reparaturAcc += lp;
-  const kosten = (pl.reparaturAcc / RULES.reparaturLpJeFron) | 0;
+  const kosten = (pl.reparaturAcc / RULES.reparaturLpJeMasse) | 0;
   if (kosten) {
-    pl.fron = Math.max(0, pl.fron - kosten);
-    pl.reparaturAcc %= RULES.reparaturLpJeFron;
+    pl.masse = Math.max(0, pl.masse - kosten);
+    pl.reparaturAcc %= RULES.reparaturLpJeMasse;
   }
 }
 
@@ -4522,7 +4522,7 @@ function foerderungProMin(world, player) {
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.kind !== 'building' || !e.done || e.player !== player) continue;
-    const out = BUILDINGS[e.type].fronOut;
+    const out = BUILDINGS[e.type].masseOut;
     if (out) s += (((out * e.powered) / 1000) | 0) * (1000 + bonus(world, player, 'foerderung', e.type));
   }
   return (s / 1000) | 0;
@@ -4617,10 +4617,10 @@ function hash(world) {
     }
   }
   for (let p = 0; p < world.players.length; p++) {
-    mix(world.players[p].fron);
-    mix(world.players[p].goetterblut);
-    mix(world.players[p].fronAcc || 0);
-    mix(world.players[p].blutAcc || 0);
+    mix(world.players[p].masse);
+    mix(world.players[p].resonit);
+    mix(world.players[p].masseAcc || 0);
+    mix(world.players[p].resonitAcc || 0);
     mix(world.players[p].unterhaltAcc || 0);
     for (const t of world.players[p].faehigkeitBereit) mix(t);
     mix(world.players[p].forschung);
@@ -4845,14 +4845,29 @@ function leereKarte(name = 'Eigene Karte') {
   };
 }
 const BASIS_ADERN = [
-  { x: 4800, y: 2200, kind: 'fron' },
-  { x: 2200, y: 4800, kind: 'fron' },
-  { x: 6200, y: 4500, kind: 'fron' },
-  { x: 6700, y: 2100, kind: 'fron' },
-  { x: 2100, y: 6700, kind: 'fron' },
+  { x: 4800, y: 2200, kind: 'masse' },
+  { x: 2200, y: 4800, kind: 'masse' },
+  { x: 6200, y: 4500, kind: 'masse' },
+  { x: 6700, y: 2100, kind: 'masse' },
+  { x: 2100, y: 6700, kind: 'masse' },
 ];
 
 // ------------------------------------------------------------ Pruefung
+
+/**
+ * Karten von vor 0.42 nennen die Adern noch 'fron' und 'goetterblut': auf die
+ * heutigen Namen 'masse' und 'resonit' umschreiben (in der Karte selbst).
+ * Eigene Karten aus dem Speicher und geladene Dateien laufen hier durch.
+ */
+function alteNamen(k) {
+  if (k && Array.isArray(k.adern)) {
+    for (const a of k.adern) {
+      if (a.kind === 'fron') a.kind = 'masse';
+      else if (a.kind === 'goetterblut') a.kind = 'resonit';
+    }
+  }
+  return k;
+}
 
 /**
  * Was an einer Karte nicht stimmt, als Liste von Saetzen; leer heisst
@@ -4860,6 +4875,7 @@ const BASIS_ADERN = [
  * Basis zu Basis kommt.
  */
 function kartenFehler(k) {
+  alteNamen(k);
   const fehler = [];
   for (const [name, liste] of [['Hindernis', k.hindernisse], ['Ader', k.adern]]) {
     for (const o of liste) {
@@ -4880,7 +4896,7 @@ function kartenFehler(k) {
       fehler.push(`Ader bei ${d.x},${d.y} liegt in einem Hindernis`);
     }
   }
-  if (k.adern.filter((d) => d.kind === 'fron').length < 6) fehler.push('Zu wenige Fron-Adern (mindestens drei je Seite)');
+  if (k.adern.filter((d) => d.kind === 'masse').length < 6) fehler.push('Zu wenige Fron-Adern (mindestens drei je Seite)');
   if (!verbunden(k.hindernisse, BASIS[0], BASIS[1])) fehler.push('Von Basis zu Basis gibt es keinen Weg');
   return fehler;
 }
@@ -4951,7 +4967,7 @@ function zufallsKarte(seed) {
   }
   // Notfall: eine Karte ohne Hindernisse ist immer spielbar
   const k = leereKarte('Zufall ' + seed);
-  k.adern = k.adern.concat(spiegelPaare([{ x: 10000, y: 6500, kind: 'fron' }]), [{ x: 10000, y: 10000, kind: 'goetterblut' }]);
+  k.adern = k.adern.concat(spiegelPaare([{ x: 10000, y: 6500, kind: 'masse' }]), [{ x: 10000, y: 10000, kind: 'resonit' }]);
   return k;
 }
 
@@ -5043,26 +5059,26 @@ function baueZufallsKarte(z, seed) {
     kbFrei(k, x, y, 200) && !adern.some((d) => (d.x - x) ** 2 + (d.y - y) ** 2 < 2200 * 2200) &&
     !adern.some((d) => (MAP - d.x - x) ** 2 + (MAP - d.y - y) ** 2 < 2200 * 2200) &&
     (x + y < MAP - 1500 || x + y > MAP + 1500); // nicht zu nah an der Mittellinie, sonst stoesst sie an ihr Spiegelbild
-  let fron = kbZufall(z, 3, 5);
-  for (let t = 0; t < 200 && fron > 0; t++) {
+  let masse = kbZufall(z, 3, 5);
+  for (let t = 0; t < 200 && masse > 0; t++) {
     const x = kbZufall(z, 1000, 19000);
     const y = kbZufall(z, 1000, 19000);
     if (!aderFrei(x, y)) continue;
-    adern.push({ x, y, kind: 'fron' });
-    fron--;
+    adern.push({ x, y, kind: 'masse' });
+    masse--;
   }
   const mitteFrei = mitte === 'ring' || mitte === 'offen';
-  if (mitteFrei) k.adern.push({ x: 10000, y: 10000, kind: 'goetterblut' });
-  let blut = mitteFrei ? kbZufall(z, 0, 1) : 1;
-  for (let t = 0; t < 200 && blut > 0; t++) {
+  if (mitteFrei) k.adern.push({ x: 10000, y: 10000, kind: 'resonit' });
+  let resonit = mitteFrei ? kbZufall(z, 0, 1) : 1;
+  for (let t = 0; t < 200 && resonit > 0; t++) {
     const x = kbZufall(z, 1500, 18500);
     const y = kbZufall(z, 1500, 18500);
     if (!aderFrei(x, y)) continue;
     // Goetterblut liegt nicht vor der eigenen Haustuer
     const dA = (x - BASIS[0].x) ** 2 + (y - BASIS[0].y) ** 2;
     if (dA < 9000 * 9000) continue;
-    adern.push({ x, y, kind: 'goetterblut' });
-    blut--;
+    adern.push({ x, y, kind: 'resonit' });
+    resonit--;
   }
   k.adern.push(...spiegelPaare(adern));
 
@@ -5100,18 +5116,18 @@ const MISCHUNG = ['leicht', 'fern', 'leicht', 'fern', 'schwer'];
  * zuerst. Teure Typen sind so seltener, billige zahlreicher -- ohne dass die
  * KI wissen muss, was ein Typ "ist". Null, wenn nichts passt.
  */
-function kampfWahl(world, player, plan, liste, frei, einheiten, bauten, heuteBestellt, blutRest) {
+function kampfWahl(world, player, plan, liste, frei, einheiten, bauten, heuteBestellt, resonitRest) {
   let best = null;
   let bestWert = 0;
   for (const t of liste) {
     const d = UNITS[t];
     if (!d || !d.weapon || d.worker || d.commander || t === plan.belagerung || !frei(t)) continue;
-    if ((d.cost.goetterblut || 0) > blutRest) continue;
+    if ((d.cost.resonit || 0) > resonitRest) continue;
     if (d.hoechstens && anzahlVon(world, player, t) + heuteBestellt.filter((q) => q === t).length >= d.hoechstens) continue;
     let da = einheiten.filter((u) => u.type === t).length + heuteBestellt.filter((q) => q === t).length;
     for (const b of bauten) if (b.queue) da += b.queue.filter((q) => q === t).length;
-    const wertDa = da * d.cost.fron;
-    if (!best || wertDa < bestWert || (wertDa === bestWert && d.cost.fron < UNITS[best].cost.fron)) {
+    const wertDa = da * d.cost.masse;
+    if (!best || wertDa < bestWert || (wertDa === bestWert && d.cost.masse < UNITS[best].cost.masse)) {
       best = t;
       bestWert = wertDa;
     }
@@ -5120,7 +5136,7 @@ function kampfWahl(world, player, plan, liste, frei, einheiten, bauten, heuteBes
 }
 
 /** Heereswert in Fron -- Wellen und Leibwache zaehlen Wert, nicht Koepfe. */
-const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
+const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.masse, 0);
 
 /** Schiesst das Gebaeude auf Bodenziele? Eine Flak deckt kein Gebaeude und haelt keine Bodenwelle auf. */
 const bodenTurm = (typ) => !!BUILDINGS[typ].weapon && zieleVon(BUILDINGS[typ]) !== 'luft';
@@ -5283,8 +5299,8 @@ function stepAI(ai, world) {
   const feindFlieger = kunde.gesehen.filter((o) => kampfFlieger(o.type)).length;
   const feindLuft = kunde.gesehen.filter((o) => UNITS[o.type].fliegt).length;
   const zahl = (t) => bauten.filter((b) => b.type === t).length;
-  const kosten = (t) => BUILDINGS[t].cost.fron;
-  const fron = p.fron;
+  const kosten = (t) => BUILDINGS[t].cost.masse;
+  const masse = p.masse;
   const minute = (world.tick / 600) | 0;
   const frei = (t) => !gesperrt(world, ai.player, t);
 
@@ -5333,8 +5349,8 @@ function stepAI(ai, world) {
   let bilanz = 0;
   for (const b of bauten) {
     const d = BUILDINGS[b.type];
-    bilanz += (d.gegenwartOut || 0) - (d.gegenwartIn || 0);
-    if (d.anchor) bilanz += ankerGegenwart(anchorRadius(world, b));
+    bilanz += (d.energieOut || 0) - (d.energieIn || 0);
+    if (d.anchor) bilanz += ankerEnergie(anchorRadius(world, b));
   }
   // Das gegnerische Hauptgebaeude -- gesehen oder dort vermutet, wo der Gegner beginnt.
   // Bei mehreren Gegnern das des gewaehlten (waehleGegner).
@@ -5358,17 +5374,17 @@ function stepAI(ai, world) {
   //     das wertvollste Ziel, das die Kunde kennt. Die Kosten werden unten von
   //     dem abgezogen, was die Produktion ausgeben darf -- der Befehl wirkt
   //     erst im naechsten Tick, sonst bestellte sie dasselbe Goetterblut noch einmal.
-  let schlagFron = 0;
-  let schlagBlut = 0;
+  let schlagMasse = 0;
+  let schlagResonit = 0;
   for (const b of gebaeude) {
     if (!schlagBereit(b)) continue;
     const s = BUILDINGS[b.type].schlag;
-    if (!canAfford({ fron: fron - schlagFron, goetterblut: p.goetterblut - schlagBlut }, s.kosten || {})) continue;
+    if (!canAfford({ masse: masse - schlagMasse, resonit: p.resonit - schlagResonit }, s.kosten || {})) continue;
     const z = schlagZiel(kunde, b, s, mine, ziel);
     if (!z) continue;
     issue(world, { type: 'schlag', player: ai.player, id: b.id, x: z.x, y: z.y });
-    schlagFron += (s.kosten && s.kosten.fron) || 0;
-    schlagBlut += (s.kosten && s.kosten.goetterblut) || 0;
+    schlagMasse += (s.kosten && s.kosten.masse) || 0;
+    schlagResonit += (s.kosten && s.kosten.resonit) || 0;
   }
   // Alle Bauwinkel relativ zur Front, damit beide Sitzplaetze gleich spielen.
   const front = winkel(haupt, ziel || { x: MAP >> 1, y: MAP >> 1 });
@@ -5390,7 +5406,7 @@ function stepAI(ai, world) {
   const erbauerZahl = arbeiter.length + (kdt ? 1 : 0);
   const bau = (building, x, y) => {
     // Foerderung geht immer vor -- ohne sie fehlt spaeter alles.
-    if (offen.length >= Math.max(1, erbauerZahl) && building !== plan.fron) return false;
+    if (offen.length >= Math.max(1, erbauerZahl) && building !== plan.masse) return false;
     if (ai.gesperrt.some((g) => g.building === building && dist2(g.x, g.y, x, y) < 200 * 200)) return false;
     issue(world, { type: 'build', player: ai.player, building, x, y });
     ai.letzterBau = { building, x, y };
@@ -5403,20 +5419,20 @@ function stepAI(ai, world) {
   const [fab2, fab3] = ai.stufe.fabriken;
   const [aus4, aus5] = ai.stufe.ausbau;
   const fabrikZiel = 1 + (minute >= fab2 ? 1 : 0) + (minute >= fab3 ? 1 : 0);
-  const fronZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= aus4 ? 1 : 0) + (minute >= aus5 ? 1 : 0);
-  const ader = freieAder(world, haupt, 'fron', plaene, kunde);
+  const masseZiel = zahl(plan.fabrik) === 0 ? 1 : 3 + (minute >= aus4 ? 1 : 0) + (minute >= aus5 ? 1 : 0);
+  const ader = freieAder(world, haupt, 'masse', plaene, kunde);
 
   // Goetterblut liegt in der Mitte. Ein Schacht braucht Gegenwart, also muss
   // die Ader in einer versorgten eigenen Domaene liegen -- hier zaehlt Reichweite.
   // Erst wenn Fron-Foerderung und Fabrik stehen -- sonst frisst der Vorstoss die Wirtschaft.
-  const wirtschaftSteht = zahl(plan.fabrik) > 0 && (zahl(plan.fron) >= 3 || !ader);
-  const blutZiel = !wirtschaftSteht ? 0 : minute >= 12 ? 2 : 1;
-  const vene = zahl(plan.blut) < blutZiel ? freieAder(world, haupt, 'goetterblut', plaene, kunde) : null;
+  const wirtschaftSteht = zahl(plan.fabrik) > 0 && (zahl(plan.masse) >= 3 || !ader);
+  const resonitZiel = !wirtschaftSteht ? 0 : minute >= 12 ? 2 : 1;
+  const vene = zahl(plan.resonit) < resonitZiel ? freieAder(world, haupt, 'resonit', plaene, kunde) : null;
   const veneBereit = vene && versorgt(world, ai.player, vene);
 
   // 1. Foerderung, aber nur mit Deckung.
-  if (ader && zahl(plan.fron) < fronZiel && fron >= kosten(plan.fron)) {
-    if (bilanz >= BUILDINGS[plan.fron].gegenwartIn && bau(plan.fron, ader.x, ader.y)) return;
+  if (ader && zahl(plan.masse) < masseZiel && masse >= kosten(plan.masse)) {
+    if (bilanz >= BUILDINGS[plan.masse].energieIn && bau(plan.masse, ader.x, ader.y)) return;
   }
 
   // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
@@ -5427,28 +5443,28 @@ function stepAI(ai, world) {
   const turmZiel = !plan.turm ? 0 : minute >= Math.max(12, ai.stufe.turmAb) ? 2 : minute >= ai.stufe.turmAb ? 1 : 0;
   const forschungZiel = !plan.forschung ? 0 : minute >= 12 ? 2 : minute >= 4 ? 1 : 0;
   const naechster =
-    ader && zahl(plan.fron) < fronZiel
-      ? plan.fron
+    ader && zahl(plan.masse) < masseZiel
+      ? plan.masse
       : zahl(plan.fabrik) < fabrikZiel
         ? plan.fabrik
         : zahl(plan.turm) < turmZiel
           ? plan.turm
           : veneBereit
-            ? plan.blut
+            ? plan.resonit
             : zahl(plan.forschung) < forschungZiel
               ? plan.forschung
-              : ader && zahl(plan.fron) < 3
-                ? plan.fron
+              : ader && zahl(plan.masse) < 3
+                ? plan.masse
                 : null;
-  const bedarf = naechster ? BUILDINGS[naechster].gegenwartIn : 0;
-  if (bilanz < bedarf && fron >= kosten(plan.kraft)) {
+  const bedarf = naechster ? BUILDINGS[naechster].energieIn : 0;
+  if (bilanz < bedarf && masse >= kosten(plan.kraft)) {
     const n = zahl(plan.kraft);
     const platz = daheimFrei(world, kunde, haupt, plan.kraft, 700 + n * 250, front + 40 + n * 83);
     if (platz && bau(plan.kraft, ...platz)) return;
   }
 
   // 3. Fabrik
-  if (zahl(plan.fabrik) < fabrikZiel && fron >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].gegenwartIn) {
+  if (zahl(plan.fabrik) < fabrikZiel && masse >= kosten(plan.fabrik) && bilanz >= BUILDINGS[plan.fabrik].energieIn) {
     const n = zahl(plan.fabrik);
     const platz = daheimFrei(world, kunde, haupt, plan.fabrik, 900, front + 200 + n * 70);
     if (platz && bau(plan.fabrik, ...platz)) return;
@@ -5459,7 +5475,7 @@ function stepAI(ai, world) {
   if (minute >= 5 && zahl(plan.fabrik) > 0) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
-      if (!typ || zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
+      if (!typ || zahl(typ) > 0 || !frei(typ) || masse < kosten(typ) || bilanz < BUILDINGS[typ].energieIn) continue;
       const platz = daheimFrei(world, kunde, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
@@ -5467,7 +5483,7 @@ function stepAI(ai, world) {
 
   // 3c. Verteidigung: ein Turm vor dem Hauptgebaeude zur Front hin.
   const tb = plan.turm ? BUILDINGS[plan.turm] : null;
-  if (tb && zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
+  if (tb && zahl(plan.turm) < turmZiel && masse >= tb.cost.masse && bilanz >= tb.energieIn) {
     const platz = daheimFrei(world, kunde, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
     if (platz && bau(plan.turm, ...platz)) return;
   }
@@ -5478,7 +5494,7 @@ function stepAI(ai, world) {
   if (plan.flak && frei(plan.flak) && feindLuft) {
     const flakZiel = feindFlieger >= 3 ? 2 : 1;
     const fk = BUILDINGS[plan.flak];
-    if (zahl(plan.flak) < flakZiel && fron >= fk.cost.fron && bilanz >= (fk.gegenwartIn || 0)) {
+    if (zahl(plan.flak) < flakZiel && masse >= fk.cost.masse && bilanz >= (fk.energieIn || 0)) {
       const platz = daheimFrei(world, kunde, haupt, plan.flak, 1000, front + 150 + zahl(plan.flak) * 120);
       if (platz && bau(plan.flak, ...platz)) return;
     }
@@ -5486,7 +5502,7 @@ function stepAI(ai, world) {
 
   // 3d. Forschung beim Hauptgebaeude -- mehr Skillpunkte.
   const fb = plan.forschung ? BUILDINGS[plan.forschung] : null;
-  if (fb && zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
+  if (fb && zahl(plan.forschung) < forschungZiel && masse >= fb.cost.masse && bilanz >= fb.energieIn) {
     const platz = daheimFrei(world, kunde, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
     if (platz && bau(plan.forschung, ...platz)) return;
   }
@@ -5497,7 +5513,7 @@ function stepAI(ai, world) {
   //     Abschnitt 20).
   if (plan.posten && frei(plan.posten)) {
     const postenZiel = minute >= 4 ? 1 : 0;
-    if (zahl(plan.posten) < postenZiel && fron >= kosten(plan.posten)) {
+    if (zahl(plan.posten) < postenZiel && masse >= kosten(plan.posten)) {
       const platz = postenPlatz(world, kunde, haupt, ziel, gebaeude, plan.posten);
       if (platz && bau(plan.posten, platz.x, platz.y)) return;
     }
@@ -5508,7 +5524,7 @@ function stepAI(ai, world) {
   //     Unterhalt und sollen die Bodenfabriken nicht ersetzen.
   if (plan.luftfabrik && frei(plan.luftfabrik) && wirtschaftSteht && minute >= 7) {
     const lf = BUILDINGS[plan.luftfabrik];
-    if (zahl(plan.luftfabrik) < 1 && fron >= lf.cost.fron && bilanz >= (lf.gegenwartIn || 0)) {
+    if (zahl(plan.luftfabrik) < 1 && masse >= lf.cost.masse && bilanz >= (lf.energieIn || 0)) {
       const platz = daheimFrei(world, kunde, haupt, plan.luftfabrik, 900, front + 270);
       if (platz && bau(plan.luftfabrik, ...platz)) return;
     }
@@ -5519,14 +5535,14 @@ function stepAI(ai, world) {
   //     verschwendet, den noch niemand braucht. Minute 10: Designzahl, nicht gemessen.
   if (plan.schild && frei(plan.schild) && wirtschaftSteht && minute >= 10) {
     const sg = BUILDINGS[plan.schild];
-    if (zahl(plan.schild) < 1 && fron >= sg.cost.fron && bilanz >= (sg.gegenwartIn || 0)) {
+    if (zahl(plan.schild) < 1 && masse >= sg.cost.masse && bilanz >= (sg.energieIn || 0)) {
       const platz = daheimFrei(world, kunde, haupt, plan.schild, 500, front + 330);
       if (platz && bau(plan.schild, ...platz)) return;
     }
   }
 
-  // Kann der Bau bezahlt werden? Wie fron >= cost.fron, aber auch das Goetterblut der teuren Bauten.
-  const bezahlbar = (t) => fron >= BUILDINGS[t].cost.fron && p.goetterblut >= (BUILDINGS[t].cost.goetterblut || 0) && bilanz >= (BUILDINGS[t].gegenwartIn || 0);
+  // Kann der Bau bezahlt werden? Wie masse >= cost.masse, aber auch das Goetterblut der teuren Bauten.
+  const bezahlbar = (t) => masse >= BUILDINGS[t].cost.masse && p.resonit >= (BUILDINGS[t].cost.resonit || 0) && bilanz >= (BUILDINGS[t].energieIn || 0);
 
   // 3h. Fernschlag (hat das Volk einen): einer beim Hauptgebaeude, wenn die
   //     Wirtschaft steht und ab Minute 20 -- er kostet Goetterblut und lohnt erst,
@@ -5547,15 +5563,15 @@ function stepAI(ai, world) {
   //     und Goetterblut fliesst (ein fertiger Schacht) -- Prototypen kosten Blut.
   //     Minute 18: Designzahl, nicht gemessen.
   if (plan.werkstatt && frei(plan.werkstatt) && wirtschaftSteht && minute >= 18 && zahl(plan.werkstatt) < 1 && bezahlbar(plan.werkstatt)) {
-    if (bauten.some((b) => b.done && b.type === plan.blut)) {
+    if (bauten.some((b) => b.done && b.type === plan.resonit)) {
       const platz = daheimFrei(world, kunde, haupt, plan.werkstatt, 1000, front + 300);
       if (platz && bau(plan.werkstatt, ...platz)) return;
     }
   }
 
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
-  if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
-    if (bau(plan.blut, vene.x, vene.y)) return;
+  if (veneBereit && masse >= kosten(plan.resonit) && bilanz >= BUILDINGS[plan.resonit].energieIn) {
+    if (bau(plan.resonit, vene.x, vene.y)) return;
   }
   const ankerImBau = bauten.some((b) => !b.done && BUILDINGS[b.type].anchor);
   if (kdt && ai.stil.kdtVorn && vene && !veneBereit) {
@@ -5565,21 +5581,21 @@ function stepAI(ai, world) {
     const start = FACTIONS[p.faction].growth.start;
     const posten = bauten.find((b) => BUILDINGS[b.type].anchor && dist2(b.x, b.y, vene.x, vene.y) <= start * start);
     if (!posten) {
-      if (fron >= kosten(plan.anker)) {
+      if (masse >= kosten(plan.anker)) {
         const platz = nahePlatz(world, kunde, vene, haupt, Math.min(start >> 1, 600), BUILDINGS[plan.anker].radius, plan.anker);
         if (platz && bau(plan.anker, platz.x, platz.y)) return;
       }
     } else {
       const reg = world.regions[posten.region];
       const quelleDa = bauten.some(
-        (b) => BUILDINGS[b.type].gegenwartOut && dist2(b.x, b.y, posten.x, posten.y) <= start * start
+        (b) => BUILDINGS[b.type].energieOut && dist2(b.x, b.y, posten.x, posten.y) <= start * start
       );
-      if (posten.done && (!reg || reg.supply === 0) && !quelleDa && fron >= kosten(plan.kraft)) {
+      if (posten.done && (!reg || reg.supply === 0) && !quelleDa && masse >= kosten(plan.kraft)) {
         const platz = nahePlatz(world, kunde, posten, haupt, 350, BUILDINGS[plan.kraft].radius, plan.kraft, 90);
         if (platz && bau(plan.kraft, platz.x, platz.y)) return;
       }
     }
-  } else if (vene && !veneBereit && !ankerImBau && fron >= kosten(plan.anker) + 100) {
+  } else if (vene && !veneBereit && !ankerImBau && masse >= kosten(plan.anker) + 100) {
     // Lohnt der Vorstoss? Nur wenn zwei neue Anker die Luecke schliessen.
     // Sonst warten: wachsende Kreise oder Anker am Rand bringen die Ader naeher.
     // Dieselbe Regel fuer alle -- der Startradius der Fraktion entscheidet.
@@ -5595,7 +5611,7 @@ function stepAI(ai, world) {
   //    sonst ueberdecken sich die Kreise und Wachstum bringt keine Flaeche.
   // Gedeckelt: spaet im Spiel braucht es Truppen, nicht den zwanzigsten Anker.
   const ankerZiel = Math.min(ANKER_HOECHSTENS, 2 + ((minute / ai.stil.ankerTakt) | 0));
-  if (zahl(plan.anker) < ankerZiel && fron >= kosten(plan.anker) + ai.stil.ankerAb) {
+  if (zahl(plan.anker) < ankerZiel && masse >= kosten(plan.anker) + ai.stil.ankerAb) {
     const platz = randplatz(world, ai, kunde, haupt, front, bauten, plan.anker);
     if (platz && bau(plan.anker, platz.x, platz.y)) return;
   }
@@ -5608,10 +5624,10 @@ function stepAI(ai, world) {
   const steht = bauten.find(
     (b) =>
       b.powered === 0 &&
-      (!b.done || BUILDINGS[b.type].gegenwartIn) &&
+      (!b.done || BUILDINGS[b.type].energieIn) &&
       !(kdt && ai.stil.kdtVorn && vene && dist2(b.x, b.y, vene.x, vene.y) <= postenStart * postenStart)
   );
-  if (steht && fron >= kosten(plan.anker)) {
+  if (steht && masse >= kosten(plan.anker)) {
     const quelle = naechsteVersorgte(world, bauten, steht);
     if (quelle) {
       const x = quelle.x + (((steht.x - quelle.x) / 2) | 0);
@@ -5640,15 +5656,15 @@ function stepAI(ai, world) {
           : 0;
   // Was die eigenen Plaene beim Baubeginn kosten, bleibt liegen.
   // ... und was ein eben befohlener Fernschlag kostet.
-  let rest = fron - plaene.reduce((s, q) => s + kosten(q.type), 0) - schlagFron;
-  let blutRest = p.goetterblut - schlagBlut;
-  const blutSchwer = plan.schwer ? UNITS[plan.schwer].cost.goetterblut || 0 : 0;
+  let rest = masse - plaene.reduce((s, q) => s + kosten(q.type), 0) - schlagMasse;
+  let resonitRest = p.resonit - schlagResonit;
+  const resonitSchwer = plan.schwer ? UNITS[plan.schwer].cost.resonit || 0 : 0;
   // Fehlt dem Volk fern oder schwer (R0), gibt es keine feste Mischung: das Heer
   // kommt aus dem, was die Fabrik ausbildet (kampfWahl). Heute gestellte
   // Bestellungen zaehlen schon mit -- im selben Zug sieht die Warteschlange sie nicht.
   const festeMischung = !!plan.fern && !!plan.schwer;
   const heuteBestellt = [];
-  const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
+  const tiefe = masse > 900 ? 3 : masse > 400 ? 2 : 1;
   // Raben: einer ab Minute 2, ein zweiter ab Minute 10 -- billig, und wer
   // faellt, wird ersetzt.
   if (plan.rabe && haupt.done && BUILDINGS[haupt.type].buildList?.includes(plan.rabe)) {
@@ -5659,7 +5675,7 @@ function stepAI(ai, world) {
     const rabenZiel = world.tick < ai.rabeAb ? 0 : minute >= 10 ? 2 : minute >= 2 ? 1 : 0;
     let bestellt = raben.length;
     for (const b of gebaeude) bestellt += b.queue ? b.queue.filter((u) => u === plan.rabe).length : 0;
-    const k = UNITS[plan.rabe].cost.fron;
+    const k = UNITS[plan.rabe].cost.masse;
     if (bestellt < rabenZiel && rest >= k && haupt.queue.length < tiefe) {
       rest -= k;
       issue(world, { type: 'produce', player: ai.player, id: haupt.id, unit: plan.rabe });
@@ -5672,7 +5688,7 @@ function stepAI(ai, world) {
   for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
   // Wert der Flieger (stehende und bestellte) und des Bodenheeres, fuer die Luftfabrik
   let fliegerWert = wert(kaempfer.filter((u) => kampfFlieger(u.type)));
-  for (const b of bauten) for (const q of b.queue || []) if (kampfFlieger(q)) fliegerWert += UNITS[q].cost.fron;
+  for (const b of bauten) for (const q of b.queue || []) if (kampfFlieger(q)) fliegerWert += UNITS[q].cost.masse;
   const bodenWert = wert(kaempfer) - wert(kaempfer.filter((u) => kampfFlieger(u.type)));
   for (const f of bauten) {
     if (!f.done || !BUILDINGS[f.type].buildList || f.queue.length >= tiefe) continue;
@@ -5683,7 +5699,7 @@ function stepAI(ai, world) {
       // (hoechstens; ohne Angabe einer). Er kostet Goetterblut und wird nicht
       // gegen das Sparen fuer den naechsten Bau aufgerechnet -- er ist selten.
       const pt = plan.prototyp;
-      if (pt && liste.includes(pt) && frei(pt) && anzahlVon(world, ai.player, pt) < (UNITS[pt].hoechstens || 1) && blutRest >= (UNITS[pt].cost.goetterblut || 0)) {
+      if (pt && liste.includes(pt) && frei(pt) && anzahlVon(world, ai.player, pt) < (UNITS[pt].hoechstens || 1) && resonitRest >= (UNITS[pt].cost.resonit || 0)) {
         unit = pt;
       }
     } else if (plan.luftfabrik && f.type === plan.luftfabrik) {
@@ -5697,7 +5713,7 @@ function stepAI(ai, world) {
       const anzahl = (t) => einheiten.filter((u) => u.type === t).length + bauten.reduce((s, b) => s + (b.queue ? b.queue.filter((q) => q === t).length : 0), 0);
       if (fliegerWert <= bodenWert + 300) {
         unit = jaeger && (!bomber || anzahl(jaeger) <= anzahl(bomber)) ? jaeger : bomber;
-        if (unit) fliegerWert += UNITS[unit].cost.fron;
+        if (unit) fliegerWert += UNITS[unit].cost.masse;
       }
     } else if (arbeiterBestellt < arbeiterZiel && liste.includes(plan.bauer)) {
       unit = plan.bauer;
@@ -5712,8 +5728,8 @@ function stepAI(ai, world) {
         unit = plan.belagerung;
       }
       if (festeMischung) {
-        const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
-        const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+        const schwerMoeglich = resonitRest >= resonitSchwer && frei(plan.schwer);
+        const reichlich = schwerMoeglich && resonitSchwer > 0 && resonitRest >= 3 * resonitSchwer;
         if (!unit && reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
         for (let k = 0; !unit && k < MISCHUNG.length; k++) {
           const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
@@ -5724,12 +5740,12 @@ function stepAI(ai, world) {
           }
         }
       } else if (!unit) {
-        unit = kampfWahl(world, ai.player, plan, liste, frei, einheiten, bauten, heuteBestellt, blutRest);
+        unit = kampfWahl(world, ai.player, plan, liste, frei, einheiten, bauten, heuteBestellt, resonitRest);
       }
     }
-    if (!unit || rest - UNITS[unit].cost.fron < (unit === plan.prototyp ? 0 : sparen)) continue;
-    rest -= UNITS[unit].cost.fron;
-    blutRest -= UNITS[unit].cost.goetterblut || 0;
+    if (!unit || rest - UNITS[unit].cost.masse < (unit === plan.prototyp ? 0 : sparen)) continue;
+    rest -= UNITS[unit].cost.masse;
+    resonitRest -= UNITS[unit].cost.resonit || 0;
     heuteBestellt.push(unit);
     issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
   }
@@ -5808,7 +5824,7 @@ function stepAI(ai, world) {
     : daheimAlle;
   const wacheWert = kdt ? Math.max(ai.stil.wache, ((wert(nachNaehe) * 3) / 10) | 0) : 0;
   let wacheZahl = 0;
-  for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
+  for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.masse;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
   const angriff = angriffsziel(kunde, haupt, ziel.player) || vermuteteFoerderung(world, kunde, haupt, ziel, haupt) || ziel;
@@ -6033,7 +6049,7 @@ function heimHeer(kunde, haupt, gegner) {
       zorn = Math.max(zorn, buff.zorn || 0);
       wehr = Math.max(wehr, buff.wehr || 0);
     }
-    const kosten = d.commander ? 600 : d.cost.fron;
+    const kosten = d.commander ? 600 : d.cost.masse;
     summe += ((((kosten * (1000 + zorn)) / 1000) * 1000) / (1000 - wehr)) | 0;
   }
   return summe;
@@ -6067,7 +6083,7 @@ function schlagZiel(kunde, von, s, eigene, gegnerHaupt) {
     let wert = c.vermutet ? SCHLAG_HAUPT : 0;
     for (const b of kunde.gebaeude) {
       if (dist2(b.x, b.y, c.x, c.y) > s.radius * s.radius) continue;
-      wert += BUILDINGS[b.type].cost.fron + (BUILDINGS[b.type].vital ? SCHLAG_HAUPT : 0);
+      wert += BUILDINGS[b.type].cost.masse + (BUILDINGS[b.type].vital ? SCHLAG_HAUPT : 0);
     }
     if (wert > bestWert) {
       bestWert = wert;
@@ -6253,13 +6269,13 @@ function angriffsziel(kunde, von, spieler = -1) {
   let bestD = Infinity;
   for (const e of kunde.gebaeude) {
     const d = BUILDINGS[e.type];
-    if (!d.fronOut && !d.blutOut) continue;
+    if (!d.masseOut && !d.resonitOut) continue;
     // Mit mehreren Gegnern nur Bauten des gewaehlten (spieler); deckt ein Turm nur der Besitzer des Ziels
     if (spieler >= 0 && e.player !== spieler) continue;
     const gedeckt = kunde.gebaeude.some(
       (t) => t.done && t.player === e.player && bodenTurm(t.type) && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
     );
-    const rang = (gedeckt ? 2 : 0) + (d.blutOut ? 0 : 1);
+    const rang = (gedeckt ? 2 : 0) + (d.resonitOut ? 0 : 1);
     const dd = dist2(e.x, e.y, von.x, von.y);
     if (rang < bestRang || (rang === bestRang && dd < bestD)) {
       bestRang = rang;
@@ -6390,9 +6406,9 @@ const IC_BLUT = '#ff3434';
 const ICONS = {
   // ------------------------------------------------------------- Ressourcen
   skillpunkte: `<svg viewBox="0 0 24 24" fill="none" stroke="#f7b55a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.8v2M4.6 4.8l1.3 1.3M19.4 4.8l-1.3 1.3M2.2 11h2M19.8 11h2"/><path d="M8.3 16.2a6.2 6.2 0 1 1 7.4 0c-.8.6-1.1 1.3-1.1 2.1v.7H9.4v-.7c0-.8-.3-1.5-1.1-2.1z"/><path d="M9.4 19.6h5.2"/><path d="M9.9 21.6h4.2"/></svg>`,
-  gegenwart: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3.2 2.2"/><circle cx="12" cy="12" r="5" fill="#38bdf8" opacity="0.35"/><path d="M12 2.5a9.5 9.5 0 0 1 9.5 9.5M21.5 12a9.5 9.5 0 0 1-9.5 9.5M12 21.5A9.5 9.5 0 0 1 2.5 12M2.5 12A9.5 9.5 0 0 1 12 2.5" fill="none" stroke="#0ea5e9" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3.2" fill="#e0f2fe"/><circle cx="12" cy="12" r="1.4" fill="#ffffff"/></svg>`,
-  goetterblut: `<svg viewBox="0 0 24 24"><path d="M12 2.2 6 12.6a6.9 6.9 0 1 0 12 0z" fill="#ff3434"/></svg>`,
-  fron: `<svg viewBox="0 0 24 24"><path d="M2.5 6.4 6.6 4.3l3.2 2.1-.9 5.2-4.7 1.9z" fill="#c9ffe0"/><path d="M9.8 5.1 14.6 2.2l5 1.9 1.1 5.9-4.6 3.8-5.4-2.1z" fill="#e6fff0"/><path d="M14.6 2.2l5 1.9-3.4 3.3z" fill="#7dffae"/><path d="M3.4 13.8 9.6 11.4l5.3 2.1-2.2 6.3H6z" fill="#1fd35a"/><path d="M9.6 11.4l5.3 2.1-4.1 1.6z" fill="#9dffc2"/><path d="M14.9 13.6l6-3.2 1.1 6.4-4.2 3.3h-4.1z" fill="#0fae3e"/><path d="M3.4 13.8 6 19.8H3z" fill="#078a2c"/></svg>`,
+  energie: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3.2 2.2"/><circle cx="12" cy="12" r="5" fill="#38bdf8" opacity="0.35"/><path d="M12 2.5a9.5 9.5 0 0 1 9.5 9.5M21.5 12a9.5 9.5 0 0 1-9.5 9.5M12 21.5A9.5 9.5 0 0 1 2.5 12M2.5 12A9.5 9.5 0 0 1 12 2.5" fill="none" stroke="#0ea5e9" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3.2" fill="#e0f2fe"/><circle cx="12" cy="12" r="1.4" fill="#ffffff"/></svg>`,
+  resonit: `<svg viewBox="0 0 24 24"><path d="M12 2.2 6 12.6a6.9 6.9 0 1 0 12 0z" fill="#ff3434"/></svg>`,
+  masse: `<svg viewBox="0 0 24 24"><path d="M2.5 6.4 6.6 4.3l3.2 2.1-.9 5.2-4.7 1.9z" fill="#c9ffe0"/><path d="M9.8 5.1 14.6 2.2l5 1.9 1.1 5.9-4.6 3.8-5.4-2.1z" fill="#e6fff0"/><path d="M14.6 2.2l5 1.9-3.4 3.3z" fill="#7dffae"/><path d="M3.4 13.8 9.6 11.4l5.3 2.1-2.2 6.3H6z" fill="#1fd35a"/><path d="M9.6 11.4l5.3 2.1-4.1 1.6z" fill="#9dffc2"/><path d="M14.9 13.6l6-3.2 1.1 6.4-4.2 3.3h-4.1z" fill="#0fae3e"/><path d="M3.4 13.8 6 19.8H3z" fill="#078a2c"/></svg>`,
 
   // ----------------------------------------------------- Einheiten: Menschen
   bauer: `<svg viewBox="0 0 24 24">
@@ -7268,9 +7284,9 @@ function ressourcenHtml(world, player) {
     (hatSkills(p.faction)
       ? eintrag(ICONS.skillpunkte, skillFrei(world, player), `Skillpunkte, die du ausgeben kannst (T) — nächster in ${naechsterPunkt(world, player)}`, skillFrei(world, player) > 0 ? 'frei' : '')
       : '') +
-    eintrag(ICONS.gegenwart, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
-    eintrag(ICONS.goetterblut, p.goetterblut, 'Götterblut') +
-    eintrag(ICONS.fron, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
+    eintrag(ICONS.energie, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
+    eintrag(ICONS.resonit, p.resonit, 'Götterblut') +
+    eintrag(ICONS.masse, p.masse, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
   );
 }
 
@@ -7296,7 +7312,7 @@ function vorgewaehlteKarte() {
 function eigeneKarten() {
   try {
     const l = JSON.parse(localStorage.getItem(KARTEN_SPEICHER) || '[]');
-    return Array.isArray(l) ? l : [];
+    return Array.isArray(l) ? l.map(alteNamen) : [];
   } catch {
     return [];
   }
@@ -7362,7 +7378,7 @@ function karteVorschauMalen(leinwand, daten, zufall = false) {
   for (const w of daten.wald || []) kreis(w.x, w.y, w.r, '#223019');
   for (const h of daten.hindernisse) kreis(h.x, h.y, h.r, h.art === 'fels' ? '#6b6a62' : '#2f5a78');
   for (const f of daten.furten || []) kreis(f.x, f.y, 260, '#8a7f5c');
-  for (const a of daten.adern) kreis(a.x, a.y, 230, a.kind === 'goetterblut' ? '#b04a4a' : '#d8b06a');
+  for (const a of daten.adern) kreis(a.x, a.y, 230, a.kind === 'resonit' ? '#b04a4a' : '#d8b06a');
   // Startbasen: oben links Sitzplatz 1, unten rechts Sitzplatz 2 (wie in der Draufsicht);
   // Karten fuer 3 und 4 Spieler bringen ihre Basen mit, in der Reihenfolge der Sitze
   const basen = [];
@@ -7766,16 +7782,16 @@ function beobachterHtml(world) {
       else {
         einheiten++;
         const u = UNITS[e.type];
-        if (u.weapon && !u.worker && !u.commander) heer += u.cost.fron;
+        if (u.weapon && !u.worker && !u.commander) heer += u.cost.masse;
       }
     }
     return {
       name: volkName(pl.faction),
       farbe: spielerFarbe(world, p),
       aus: !pl.alive,
-      fron: pl.fron | 0,
+      masse: pl.masse | 0,
       foerderung: Math.round(foerderungProMin(world, p)),
-      blut: pl.goetterblut | 0,
+      resonit: pl.resonit | 0,
       heer,
       einheiten,
       gebaeude,
@@ -7791,7 +7807,7 @@ function beobachterHtml(world) {
   };
   const kopf = z.map((s) => `<th style="color:${s.farbe}${s.aus ? ';text-decoration:line-through' : ''}">${s.name}</th>`).join('');
   return `<table class="beobachter"><tr><th></th>${kopf}</tr>
-    ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${world.players.some((pl) => hatSkills(pl.faction)) ? zeile('Skills', 'skills') : ''}</table>`;
+    ${zeile('Fron', 'masse')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'resonit')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${world.players.some((pl) => hatSkills(pl.faction)) ? zeile('Skills', 'skills') : ''}</table>`;
 }
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
@@ -7947,7 +7963,7 @@ function menueHtml(laufend, hatStand, speicherbar = true) {
 // (volkseigene) landen unter "Besonderes". Die Reihenfolge innerhalb einer
 // Gruppe ist die in FACTIONS[v].bauten.
 const BAU_GRUPPEN = [
-  { schluessel: 'wirtschaft', name: 'Wirtschaft', rollen: ['kraft', 'fron', 'blut', 'umwandler', 'anker', 'forschung', 'posten'] },
+  { schluessel: 'wirtschaft', name: 'Wirtschaft', rollen: ['kraft', 'masse', 'resonit', 'umwandler', 'anker', 'forschung', 'posten'] },
   { schluessel: 'militaer', name: 'Militär', rollen: ['fabrik', 'luftfabrik', 'werkstatt', 'turm', 'flak'] },
   { schluessel: 'besonderes', name: 'Besonderes', rollen: ['zorn', 'wehr', 'schild', 'schlag', 'abwehr'] },
 ];
@@ -7994,7 +8010,7 @@ function bauleisteHtml(world, player, gruppen, aktiv) {
       const zu = gesperrt(world, player, t);
       // Taste nur fuer die ersten zehn; weitere bleiben anklickbar
       const taste = i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t] || ''}<span class="kosten">${BUILDINGS[t].cost.fron}</span>${taste}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t] || ''}<span class="kosten">${BUILDINGS[t].cost.masse}</span>${taste}</button>`;
     })
     .join('');
   return reiter + knoepfe;
@@ -8019,7 +8035,7 @@ function ausbildungsleisteHtml(world, player, fabriken) {
       const zu = gesperrtSkill || voll;
       const zahlHtml = grenze ? `<span class="zahl">${da}/${grenze}</span>` : inQueue ? `<span class="zahl">${inQueue}</span>` : '';
       const grund = gesperrtSkill ? ' — gesperrt, Skillbaum (T)' : voll ? ` — schon ${da}/${grenze}, höchstens ${grenze} gleichzeitig` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u] || ''}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u] || ''}<span class="kosten">${d.cost.masse}</span>${zahlHtml}</button>`;
     })
     .join('');
 }
@@ -8047,7 +8063,7 @@ function warnungenHtml(world, player) {
     if (!r.throttled) continue;
     let stufe = '';
     for (let i = 3; i >= 0 && !stufe; i--) if (r.satPrio[i] < 1000) stufe = PRIO_NAMES[i];
-    out.push(`<div class="warn">${ICONS.gegenwart}<span>Gegenwart knapp ${r.supply}/${r.demand} — ${stufe} gedrosselt</span></div>`);
+    out.push(`<div class="warn">${ICONS.energie}<span>Gegenwart knapp ${r.supply}/${r.demand} — ${stufe} gedrosselt</span></div>`);
   }
   // Tuerme ohne Gegenwart schlafen -- das sieht man ihnen sonst nicht an.
   const schlafen = {};
@@ -8085,7 +8101,7 @@ function planHtml(world, plan) {
 
 /** Kosten als Text: "120 Fron" oder "130 Fron + 10 Götterblut". */
 function kostenText(cost) {
-  return cost.fron + ' Fron' + (cost.goetterblut ? ` + ${cost.goetterblut} Götterblut` : '');
+  return cost.masse + ' Fron' + (cost.resonit ? ` + ${cost.resonit} Götterblut` : '');
 }
 
 const tempo = (v) => (v >= 32 ? 'sehr schnell' : v >= 28 ? 'schnell' : v >= 24 ? 'mittel' : v >= 20 ? 'gemächlich' : 'langsam');
@@ -8155,8 +8171,8 @@ function schildText(s) {
 /** Kosten, die auch nur aus Goetterblut bestehen (oder nichts) duerfen: "10 Fron + 5 Götterblut". */
 function kostenKurz(cost) {
   const t = [];
-  if (cost && cost.fron) t.push(cost.fron + ' Fron');
-  if (cost && cost.goetterblut) t.push(cost.goetterblut + ' Götterblut');
+  if (cost && cost.masse) t.push(cost.masse + ' Fron');
+  if (cost && cost.resonit) t.push(cost.resonit + ' Götterblut');
   return t.length ? t.join(' + ') : 'nichts';
 }
 
@@ -8190,16 +8206,16 @@ function gebaeudeKarte(world, player, typ) {
     z.push(['Kosten', kostenText(d.cost)], ['Bauzeit', `${dauer(kdt)} · ${dauer(arb)} (allein)`]);
   }
   z.push(['Leben', d.hp + ' LP']);
-  if (d.gegenwartIn) z.push(['Gegenwart', 'braucht ' + d.gegenwartIn]);
-  if (d.gegenwartOut) z.push(['Gegenwart', 'liefert ' + d.gegenwartOut]);
+  if (d.energieIn) z.push(['Gegenwart', 'braucht ' + d.energieIn]);
+  if (d.energieOut) z.push(['Gegenwart', 'liefert ' + d.energieOut]);
   if (d.anchor) {
     const g = FACTIONS[d.faction].growth;
     const start = Math.max(d.anchorMin || 0, g.start);
     z.push(['Domäne', g.perTick && g.max > start ? `${meterText(start)}, wächst bis ${meterText(g.max)}` : meterText(start)]);
   }
-  if (d.fronOut) z.push(['Förderung', d.fronOut + ' Fron/min']);
-  if (d.blutOut) z.push(['Förderung', d.blutOut + ' Götterblut/min']);
-  if (d.needs) z.push(['Standort', d.needs === 'fron' ? 'auf einem Steinvorkommen' : 'auf einer Götterblut-Ader']);
+  if (d.masseOut) z.push(['Förderung', d.masseOut + ' Fron/min']);
+  if (d.resonitOut) z.push(['Förderung', d.resonitOut + ' Götterblut/min']);
+  if (d.needs) z.push(['Standort', d.needs === 'masse' ? 'auf einem Steinvorkommen' : 'auf einer Götterblut-Ader']);
   if (d.needsGrowth) z.push(['Standort', 'nur auf ungerodetem Boden']);
   if (d.clears) z.push(['Rodet', meterText(d.clears) + ' ringsum']);
   if (d.buff) {
@@ -9567,7 +9583,7 @@ function verlaufFortschreiben(v, world) {
         for (const e of world.entities) {
           if (e.dead || e.player !== p) continue;
           if (e.kind === 'building') gebaeude++;
-          else if (UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander) heer += UNITS[e.type].cost.fron;
+          else if (UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander) heer += UNITS[e.type].cost.masse;
         }
         return { heer, foerderung: foerderungProMin(world, p), gebaeude };
       })
@@ -9651,7 +9667,7 @@ function kmBaue(world, p, typ, x, y) {
   return b;
 }
 // Mission 2 -- Designzahlen, mit der KI auf beiden Seiten abgestimmt (siehe CHANGELOG 0.33)
-const WUT = { fron: 900, soldaten: 6, jaeger: 2, ersteWelle: 600, wellenTakt: 1200, wellen: 5 };
+const WUT = { masse: 900, soldaten: 6, jaeger: 2, ersteWelle: 600, wellenTakt: 1200, wellen: 5 };
 
 /** Ticks als m:ss */
 function uhr(t) {
@@ -9730,7 +9746,7 @@ const RODUNG = [
       zurück — für jetzt. Aber am Fluss haben die Späher etwas gefunden: rote
       Adern im Gestein, die in der Nacht glimmen.`,
     aufbau(world) {
-      world.players[0].fron = WUT.fron;
+      world.players[0].masse = WUT.masse;
       kmBaue(world, 0, 'saege', 4800, 2200);
       kmBaue(world, 0, 'saege', 2200, 4800);
       kmBaue(world, 0, 'schmiede', 3100, 4400);
@@ -9778,7 +9794,7 @@ const RODUNG = [
     sieg: 'ziele',
   },
   {
-    id: 'blut-der-goetter',
+    id: 'resonit-der-goetter',
     titel: 'Blut der Götter',
     volk: 'mensch',
     karte: 'flusstal',
@@ -9791,16 +9807,16 @@ const RODUNG = [
     nachwort: `Rotes Gold füllt die Truhen. Mit ihm lassen sich Ballisten bauen, die
       weiter schießen als jeder Wächterbaum. Es ist Zeit, den Gott selbst zu stellen.`,
     aufbau(world) {
-      world.players[0].fron += 500;
+      world.players[0].masse += 500;
     },
     ziele: [
       { text: 'Errichte zwei Blutschächte auf Götterblut-Adern', erfuellt: (w, ich) => kmZahl(w, ich, 'schacht') >= 2 },
-      { text: 'Sammle 300 Götterblut', erfuellt: (w, ich) => w.players[ich].goetterblut >= 300 },
+      { text: 'Sammle 300 Götterblut', erfuellt: (w, ich) => w.players[ich].resonit >= 300 },
     ],
     meldungen: [
       { wer: MIRA, text: 'Rotes Glimmen jenseits des Flusses. Hinüber kommt man nur an den Furten, wo es flach ist.', wann: (w) => w.tick >= 30 },
       { wer: MIRA, text: 'Der erste Schacht läuft. Der Wald wird das nicht mögen.', wann: (w, ich) => kmZahl(w, ich, 'schacht') >= 1 },
-      { wer: HEDWIG, text: 'Die Truhen sind halb voll. Haltet die Schächte!', wann: (w, ich) => w.players[ich].goetterblut >= 150 },
+      { wer: HEDWIG, text: 'Die Truhen sind halb voll. Haltet die Schächte!', wann: (w, ich) => w.players[ich].resonit >= 150 },
     ],
     sieg: 'ziele',
   },
@@ -9818,7 +9834,7 @@ const RODUNG = [
       Die Ältesten sagen, ein Gott stirbt nicht — er wartet. <b>Ende der Kampagne.</b>
       Wie es aus seiner Sicht aussah, erzählt „Der Zorn des Waldes“.`,
     aufbau(world) {
-      world.players[0].fron = 2000;
+      world.players[0].masse = 2000;
       // Der Gott hat sich eingegraben: Waechterbaeume am Weg zum Herzbaum, Quellen fuer ihre Kraft
       for (const [x, y] of [[15600, 15900], [15900, 15600], [16400, 14600], [14600, 16400]]) kmBaue(world, 1, 'waechterbaum', x, y);
       kmBaue(world, 1, 'quelle', 17600, 15900);
@@ -9894,7 +9910,7 @@ const ZORN = [
       Türme aus Stein und schicken Boten in die Ebene. Bald kommt ihr Held — mit
       allem, was sie haben.`,
     aufbau(world) {
-      world.players[0].fron += 400;
+      world.players[0].masse += 400;
       world.saegen = SIEDLUNG_SAEGEN.map(([x, y]) => kmBaue(world, 1, 'saege', x, y).id);
     },
     ziele: [
@@ -9926,7 +9942,7 @@ const ZORN = [
       erzählen sich noch lange von dem Winter, in dem der Wald zurückkam.
       <b>Ende der Kampagne.</b> Danke fürs Spielen!`,
     aufbau(world) {
-      world.players[0].fron = 2000;
+      world.players[0].masse = 2000;
       for (const [x, y] of [[15600, 15900], [15900, 15600], [16400, 14600], [14600, 16400]]) kmBaue(world, 1, 'wachturm', x, y);
       // und eine Garnison
       for (let i = 0; i < 8; i++) spawnUnit(world, 1, 'soldat', 15300 - (i % 4) * 90, 15300 - ((i / 4) | 0) * 90);
@@ -10027,7 +10043,7 @@ const HERAUSFORDERUNGEN = ['mensch', 'gott'].map((volk) => ({
         <b>Wie lange hält dein Wald?</b> Wer die Thingstätte fällt, gewinnt.`,
   nachwort: 'Gewonnen! Das Hauptgebäude des Gegners ist gefallen — die Wellen hören auf.',
   aufbau(world) {
-    world.players[0].fron += 300;
+    world.players[0].masse += 300;
   },
   takt(world) {
     ueberlebenWelle(world, 0);
@@ -12804,7 +12820,7 @@ const COL = {
   dim: '#7d8575',
   bad: '#c4603f',
   gold: '#d8b06a',
-  blut: '#a86fb5',
+  resonit: '#a86fb5',
 };
 
 function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = null) {
@@ -13765,12 +13781,12 @@ function drawDeposits() {
   for (const d of world.deposits) {
     const x = w2sx(d.x);
     const y = w2sy(d.y);
-    const r = Math.max(3, (d.kind === 'goetterblut' ? 150 : 90) * cam.z);
-    ctx.strokeStyle = d.kind === 'goetterblut' ? COL.blut : COL.dim;
+    const r = Math.max(3, (d.kind === 'resonit' ? 150 : 90) * cam.z);
+    ctx.strokeStyle = d.kind === 'resonit' ? COL.resonit : COL.dim;
     ctx.globalAlpha = aderBesetzt(nebel, world, d, ME) ? 0.3 : 0.85;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    if (d.kind === 'goetterblut') {
+    if (d.kind === 'resonit') {
       for (let i = 0; i < 6; i++) {
         const a = (i * Math.PI) / 3;
         const px = x + Math.cos(a) * r;
@@ -14093,7 +14109,7 @@ function drawGhost() {
   ctx.fillStyle = COL.text;
   ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'center';
-  const ader = def.needs === 'goetterblut' ? 'Götterblut-Ader' : 'Fron-Ader';
+  const ader = def.needs === 'resonit' ? 'Götterblut-Ader' : 'Fron-Ader';
   const txt = ohneAder
     ? def.name + ' — braucht eine freie ' + ader
     : fels
@@ -14101,7 +14117,7 @@ function drawGhost() {
     : gerodet
     ? def.name + ' — gerodeter Boden trägt nicht'
     : def.name +
-      (drin || !def.gegenwartIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
+      (drin || !def.energieIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
       (erbauer().length ? '' : ' — keine Erbauer gewählt: die Baustelle wartet');
   ctx.fillText(txt, x, y - r - 8);
 }
@@ -14136,7 +14152,7 @@ function kommandantZeile() {
 // Baustellen), Kampfort, Anker und Goetterblut -- je Seite gezaehlt.
 function neueStats(n = 2) {
   const seite = () => ({
-    blut: -1,
+    resonit: -1,
     heim: 0,
     fremd: 0,
     frei: 0,
@@ -14152,7 +14168,7 @@ function neueStats(n = 2) {
 
 function zaehle() {
   for (let p = 0; p < world.players.length; p++) {
-    if (stats[p].blut < 0 && world.players[p].goetterblut > 0) stats[p].blut = world.tick;
+    if (stats[p].resonit < 0 && world.players[p].resonit > 0) stats[p].resonit = world.tick;
   }
   for (const ev of world.events) {
     if (ev.t === 'shot') {
@@ -14205,7 +14221,7 @@ function auswertungHtml() {
     <div class="fac">Auswertung${world.over ? '' : ' (I)'}</div>
     <div class="evg" style="grid-template-columns:1fr${' auto'.repeat(reihe.length)}">
       <b></b>${kopf}
-      ${zeile('Götterblut ab', (s) => min(s.blut))}
+      ${zeile('Götterblut ab', (s) => min(s.resonit))}
       ${zeile('Schüsse % heim·fremd·frei', ort)}
       ${zeile('Anker +/−', (s) => s.ankerGebaut + '/' + s.ankerVerloren)}
       ${zeile('Einheiten +/−', (s) => s.gebaut + '/' + s.gefallen)}

@@ -6,7 +6,7 @@ import { routeVon, mitmachen } from '../src/ui-gemeinsam.js';
 /** Leere Partie mit zwei Bauern der Menschen. */
 function partie() {
   const w = createWorld({ empty: true, factions: ['mensch', 'gott'] });
-  w.players[0].fron = 5000;
+  w.players[0].masse = 5000;
   const a = spawnUnit(w, 0, 'bauer', 3000, 3000);
   const b = spawnUnit(w, 0, 'bauer', 3100, 3000);
   return { w, a, b };

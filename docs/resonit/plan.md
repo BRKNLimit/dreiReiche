@@ -18,10 +18,10 @@ Merges.
 
 | Resonit (Kompendium) | Heute im Kern |
 | --- | --- |
-| Energie: Fluss, nicht lagerbar, regional | `gegenwart`, Regionen, `powered` |
+| Energie: Fluss, nicht lagerbar, regional | `energie` (früher `gegenwart`), Regionen, `powered` |
 | Drossel-Leiter: Fabriken → Sonstiges → Schilde → Geschütze | `PRIO` werk → segen → wehr → zorn, genau diese Reihenfolge |
-| Masse: Bestand aus Extraktoren | `fron` aus Adern |
-| Resonit: nur erobert, Qualitätsobergrenze | `goetterblut` aus umkämpften Adern |
+| Masse: Bestand aus Extraktoren | `masse` (früher `fron`) aus Adern |
+| Resonit: nur erobert, Qualitätsobergrenze | `resonit` (früher `goetterblut`) aus umkämpften Adern |
 | Netz wächst über Gebäude, Außenstelle braucht eigene Erzeugung | Anker und Domäne |
 | Schilde, Flak und Luft, Nuke und Abwehr, Prototypen mit Limit, Werkstatt | M1–M5 |
 | Wegpunktketten, angezeigte Routen | 0.39 |
@@ -66,7 +66,7 @@ Merges.
 - **T1 Begriffe an einer Stelle:** Namen der Ressourcen, Prio-Stufen und
   „Netz“ statt „Domäne“ kommen aus einer Tabelle. Titel „Resonit“. Erst
   nach dem Merge von M9, weil dieselben Dateien betroffen sind.
-- **T2 Schlüssel umbenennen:** `gegenwart` → `energie`, `fron` →
+- **T2 Schlüssel umbenennen (erledigt, 0.42):** `gegenwart` → `energie`, `fron` →
   `masse`, `goetterblut` → `resonit`, in einem bitgleichen Schritt, wenn
   kein Zweig offen ist. Die Volksdateien zieht Claude dabei mechanisch mit.
 - **T3 Fantasy-Völker:** bleiben spielbar, bis Vanguard und Kranor stehen.

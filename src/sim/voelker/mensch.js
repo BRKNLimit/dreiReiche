@@ -20,7 +20,7 @@ export const VOLK_MENSCH = {
   },
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
-  rollen: { anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne', zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten', bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult' },
+  rollen: { anker: 'grenzstein', kraft: 'schmiede', masse: 'saege', resonit: 'schacht', fabrik: 'kaserne', zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten', bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult' },
   lernen: ['bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte', 'kapellenbau', 'drill_schuetzen', 'steinmetzkunst', 'soeldnervertraege', 'waffenmeister', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'belagerungsbau', 'plattenschmiede', 'wehrmauern', 'feldwerkstatt', 'ansturm', 'veteranenheer', 'festungsarchitektur', 'koenigsbann'],
   gebaeude: {
     halle: {
@@ -35,8 +35,8 @@ export const VOLK_MENSCH = {
       hp: 5000,
       radius: 90,
       anchor: true,
-      gegenwartOut: 24,
-      cost: { fron: 0 },
+      energieOut: 24,
+      cost: { masse: 0 },
       buildTime: 0,
       buildList: ['bauer', 'soldat'],
       vital: true,
@@ -50,7 +50,7 @@ export const VOLK_MENSCH = {
       hp: 800,
       radius: 48,
       anchor: true,
-      cost: { fron: 120 },
+      cost: { masse: 120 },
       buildTime: 150,
     },
     wachturm: {
@@ -61,9 +61,9 @@ export const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 3000,
       radius: 40,
-      gegenwartIn: 10,
+      energieIn: 10,
       prio: PRIO.zorn, // Waffen fallen zuletzt
-      cost: { fron: 300 },
+      cost: { masse: 300 },
       buildTime: 250,
       kampf: 'fern',
       // Haelt allein eine fruehe Welle von rund 600 Fron auf, faellt gegen die
@@ -81,7 +81,7 @@ export const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 500,
       radius: 30,
-      cost: { fron: 90 },
+      cost: { masse: 90 },
       buildTime: 120,
     },
     schmiede: {
@@ -91,8 +91,8 @@ export const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 900,
       radius: 60,
-      gegenwartOut: 40,
-      cost: { fron: 280 },
+      energieOut: 40,
+      cost: { masse: 280 },
       buildTime: 230,
     },
     saege: {
@@ -102,12 +102,12 @@ export const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 700,
       radius: 55,
-      gegenwartIn: 14,
+      energieIn: 14,
       prio: PRIO.segen,
-      fronOut: 360, // Fron pro Minute bei voller Versorgung
-      cost: { fron: 150 },
+      masseOut: 360, // Fron pro Minute bei voller Versorgung
+      cost: { masse: 150 },
       buildTime: 170,
-      needs: 'fron',
+      needs: 'masse',
       clears: 2200, // rodet den Boden ringsum -- nimmt dem Gott Wachstumsgrund
     },
     kaserne: {
@@ -117,9 +117,9 @@ export const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 1500,
       radius: 80,
-      gegenwartIn: 55,
+      energieIn: 55,
       prio: PRIO.werk,
-      cost: { fron: 400 },
+      cost: { masse: 400 },
       buildTime: 340,
       buildList: ['soldat', 'jaeger', 'soeldner', 'katapult'], // Bauern bildet die Thingstaette aus
     },
@@ -130,12 +130,12 @@ export const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 900,
       radius: 60,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      blutOut: 40, // Goetterblut pro Minute bei voller Versorgung
-      cost: { fron: 250 },
+      resonitOut: 40, // Goetterblut pro Minute bei voller Versorgung
+      cost: { masse: 250 },
       buildTime: 210,
-      needs: 'goetterblut', // nur auf einer Ader -- und die liegen in der Mitte
+      needs: 'resonit', // nur auf einer Ader -- und die liegen in der Mitte
     },
     // Schreine: Heimvorteil kommt aus der Domaene, nicht aus den Einheiten.
     // Ein versorgter Schrein staerkt alle eigenen Einheiten, die im selben
@@ -149,9 +149,9 @@ export const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 600,
       radius: 40,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.zorn,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { zorn: 250, radius: 3000 },
     },
@@ -162,9 +162,9 @@ export const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 700,
       radius: 50,
-      gegenwartIn: 15,
+      energieIn: 15,
       prio: PRIO.wehr,
-      cost: { fron: 160 },
+      cost: { masse: 160 },
       buildTime: 170,
       buff: { wehr: 200, radius: 3000 },
     },
@@ -175,9 +175,9 @@ export const VOLK_MENSCH = {
       faction: 'mensch',
       hp: 900,
       radius: 55,
-      gegenwartIn: 20,
+      energieIn: 20,
       prio: PRIO.segen,
-      cost: { fron: 250 },
+      cost: { masse: 250 },
       buildTime: 230,
       forschung: 500, // Promille zusaetzlich zum Grundtakt der Skillpunkte
     },
@@ -192,7 +192,7 @@ export const VOLK_MENSCH = {
       hp: 150,
       radius: 24,
       speed: 30,
-      cost: { fron: 40 },
+      cost: { masse: 40 },
       unterhalt: 3, // Fron pro Minute, solange sie lebt (0.31: 4 -> 3, Designzahl)
       buildTime: 80,
       worker: true,
@@ -208,7 +208,7 @@ export const VOLK_MENSCH = {
       hp: 215,
       radius: 26,
       speed: 30,
-      cost: { fron: 45 },
+      cost: { masse: 45 },
       unterhalt: 7, // Fron pro Minute, solange sie lebt (0.31: 9 -> 7, Designzahl)
       buildTime: 80,
       kampf: 'nah',
@@ -222,7 +222,7 @@ export const VOLK_MENSCH = {
       hp: 180,
       radius: 24,
       speed: 32,
-      cost: { fron: 55 },
+      cost: { masse: 55 },
       unterhalt: 8, // Fron pro Minute, solange sie lebt (0.31: 10 -> 8, Designzahl)
       buildTime: 100,
       kampf: 'fern',
@@ -237,7 +237,7 @@ export const VOLK_MENSCH = {
       speed: 26,
       // Schwere Einheiten kosten Goetterblut: Eskalation liegt auf der Karte,
       // nicht in einem Menue (docs/konzept.md). Designentscheidung, siehe scope.md.
-      cost: { fron: 130, goetterblut: 10 },
+      cost: { masse: 130, resonit: 10 },
       unterhalt: 18, // Fron pro Minute, solange sie lebt (0.31: 24 -> 18, Designzahl)
       buildTime: 190,
       kampf: 'nah',
@@ -260,7 +260,7 @@ export const VOLK_MENSCH = {
       hp: 6000,
       radius: 36,
       speed: 24,
-      cost: { fron: 0 },
+      cost: { masse: 0 },
       buildTime: 0,
       kampf: 'nah',
       weapon: { range: 30, damage: 45, cooldown: 6 },
@@ -276,7 +276,7 @@ export const VOLK_MENSCH = {
       hp: 500,
       radius: 40,
       speed: 14,
-      cost: { fron: 250 },
+      cost: { masse: 250 },
       unterhalt: 30, // Fron pro Minute, solange sie lebt
       buildTime: 300,
       kampf: 'fern',

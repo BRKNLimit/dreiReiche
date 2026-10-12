@@ -145,147 +145,147 @@
     {
       "x": 4800,
       "y": 2200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 17800,
       "y": 4800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 15200,
       "y": 17800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 2200,
       "y": 15200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 2200,
       "y": 4800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 15200,
       "y": 2200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 17800,
       "y": 15200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 4800,
       "y": 17800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 5800,
       "y": 3600,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 16400,
       "y": 5800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 14200,
       "y": 16400,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 3600,
       "y": 14200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 3600,
       "y": 5800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 14200,
       "y": 3600,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 16400,
       "y": 14200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 5800,
       "y": 16400,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 6200,
       "y": 2100,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 17900,
       "y": 6200,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 13800,
       "y": 17900,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 2100,
       "y": 13800,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 10000,
       "y": 1600,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 18400,
       "y": 10000,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 10000,
       "y": 18400,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 1600,
       "y": 10000,
-      "kind": "fron"
+      "kind": "masse"
     },
     {
       "x": 10000,
       "y": 10000,
-      "kind": "goetterblut"
+      "kind": "resonit"
     },
     {
       "x": 7200,
       "y": 7200,
-      "kind": "goetterblut"
+      "kind": "resonit"
     },
     {
       "x": 12800,
       "y": 7200,
-      "kind": "goetterblut"
+      "kind": "resonit"
     },
     {
       "x": 12800,
       "y": 12800,
-      "kind": "goetterblut"
+      "kind": "resonit"
     },
     {
       "x": 7200,
       "y": 12800,
-      "kind": "goetterblut"
+      "kind": "resonit"
     }
   ],
   "wald": [

@@ -112,8 +112,8 @@ function eintraege() {
       { key: 'staubwolke', name: 'Staubwolke' },
       { key: 'schilf', name: 'Uferschilf' },
       { key: 'wasser', name: 'Wasseroberfläche' },
-      { key: 'fronAder', name: 'Fronader' },
-      { key: 'blutAder', name: 'Götterblutader' },
+      { key: 'masseAder', name: 'Fronader' },
+      { key: 'resonitAder', name: 'Götterblutader' },
       { key: 'baum', name: 'Baum' },
       { key: 'fels', name: 'Felsformation' },
       { key: 'schildkuppel', name: 'Schildkuppel (Effekt)' },
@@ -310,10 +310,10 @@ function zeichneKarteVorschau(cv, karte, schluessel) {
 
   // 6. Adern
   for (const a of (karte.adern || [])) {
-    const isBlut = a.art === 'goetterblut';
-    ctx.fillStyle = isBlut ? '#f43f5e' : '#22c55e';
+    const istResonit = a.art === 'resonit';
+    ctx.fillStyle = istResonit ? '#f43f5e' : '#22c55e';
     ctx.beginPath();
-    ctx.arc(a.x * scale, a.y * scale, (isBlut ? 380 : 300) * scale, 0, Math.PI * 2);
+    ctx.arc(a.x * scale, a.y * scale, (istResonit ? 380 : 300) * scale, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
@@ -411,9 +411,9 @@ function iconsZeigen() {
     ...Object.fromEntries(Object.entries(UNITS).map(([k, u]) => [k, u.name])),
     ...Object.fromEntries(Object.entries(BUILDINGS).map(([k, b]) => [k, b.name])),
     skillpunkte: 'Skillpunkte',
-    gegenwart: 'Gegenwart',
-    goetterblut: 'Götterblut',
-    fron: 'Fron',
+    energie: 'Gegenwart',
+    resonit: 'Götterblut',
+    masse: 'Fron',
     ton: 'Ton (an)',
     stumm: 'Stumm',
     hilfe: 'Hilfe',

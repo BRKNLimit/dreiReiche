@@ -13,37 +13,37 @@ import { UNITS, BUILDINGS, FACTIONS } from '../src/sim/defs.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
 import { zustandSichern, zustandLaden } from '../src/spielstand.js';
 
-const SCHLAG = { laden: 20, flug: 30, reichweite: 5000, radius: 300, schaden: 100, kosten: { fron: 10, goetterblut: 5 } };
+const SCHLAG = { laden: 20, flug: 30, reichweite: 5000, radius: 300, schaden: 100, kosten: { masse: 10, resonit: 5 } };
 const TEST_EINHEITEN = {
   // ohne Waffe: nimmt nur Schaden. Zwei Seiten, damit Spieler 0 und 1 je eine haben.
-  tziel0: { name: 'Testziel', desc: '', faction: 'mensch', hp: 300, radius: 20, speed: 30, cost: { fron: 40 }, buildTime: 50 },
-  tziel1: { name: 'Testziel', desc: '', faction: 'gott', hp: 300, radius: 20, speed: 30, cost: { fron: 40 }, buildTime: 50 },
-  tflug1: { name: 'Testflieger', desc: '', faction: 'gott', hp: 300, radius: 14, speed: 40, cost: { fron: 20 }, buildTime: 50, fliegt: true },
+  tziel0: { name: 'Testziel', desc: '', faction: 'mensch', hp: 300, radius: 20, speed: 30, cost: { masse: 40 }, buildTime: 50 },
+  tziel1: { name: 'Testziel', desc: '', faction: 'gott', hp: 300, radius: 20, speed: 30, cost: { masse: 40 }, buildTime: 50 },
+  tflug1: { name: 'Testflieger', desc: '', faction: 'gott', hp: 300, radius: 14, speed: 40, cost: { masse: 20 }, buildTime: 50, fliegt: true },
 };
 const TEST_GEBAEUDE = {
   // ohne Gegenwartsbedarf: laedt immer voll
-  tschlag: { name: 'Testschlag', desc: '', short: 'SLG', faction: 'mensch', hp: 1000, radius: 30, cost: { fron: 100 }, buildTime: 50, schlag: SCHLAG },
+  tschlag: { name: 'Testschlag', desc: '', short: 'SLG', faction: 'mensch', hp: 1000, radius: 30, cost: { masse: 100 }, buildTime: 50, schlag: SCHLAG },
   // mit kleinem Bedarf, damit ihn ein Netz voll versorgt
-  tschlagnetz: { name: 'Testschlag mit Gegenwart', desc: '', short: 'SLN', faction: 'mensch', hp: 1000, radius: 30, cost: { fron: 100 }, buildTime: 50, gegenwartIn: 1, schlag: SCHLAG },
+  tschlagnetz: { name: 'Testschlag mit Gegenwart', desc: '', short: 'SLN', faction: 'mensch', hp: 1000, radius: 30, cost: { masse: 100 }, buildTime: 50, energieIn: 1, schlag: SCHLAG },
   // ... und einer mit hohem Bedarf: bleibt gedrosselt
   tschlagviel: {
-    name: 'Testschlag gierig', desc: '', short: 'SLV', faction: 'mensch', hp: 1000, radius: 30, cost: { fron: 100 }, buildTime: 50, gegenwartIn: 4000,
+    name: 'Testschlag gierig', desc: '', short: 'SLV', faction: 'mensch', hp: 1000, radius: 30, cost: { masse: 100 }, buildTime: 50, energieIn: 4000,
     schlag: { ...SCHLAG, laden: 100000 },
   },
   // fuer die KI: kleiner Bedarf, kostet nur Fron
   tschlagki: {
-    name: 'Testschlag KI', desc: '', short: 'SLK', faction: 'mensch', hp: 800, radius: 30, cost: { fron: 100 }, buildTime: 50, gegenwartIn: 2,
-    schlag: { ...SCHLAG, reichweite: 9000, kosten: { fron: 10 } },
+    name: 'Testschlag KI', desc: '', short: 'SLK', faction: 'mensch', hp: 800, radius: 30, cost: { masse: 100 }, buildTime: 50, energieIn: 2,
+    schlag: { ...SCHLAG, reichweite: 9000, kosten: { masse: 10 } },
   },
-  tabwehr0: { name: 'Testabwehr', desc: '', short: 'ABW', faction: 'mensch', hp: 1000, radius: 30, cost: { fron: 100 }, buildTime: 50, abwehr: { radius: 400, laden: 40 } },
-  tabwehr1: { name: 'Testabwehr', desc: '', short: 'ABW', faction: 'gott', hp: 1000, radius: 30, cost: { fron: 100 }, buildTime: 50, abwehr: { radius: 400, laden: 40 } },
+  tabwehr0: { name: 'Testabwehr', desc: '', short: 'ABW', faction: 'mensch', hp: 1000, radius: 30, cost: { masse: 100 }, buildTime: 50, abwehr: { radius: 400, laden: 40 } },
+  tabwehr1: { name: 'Testabwehr', desc: '', short: 'ABW', faction: 'gott', hp: 1000, radius: 30, cost: { masse: 100 }, buildTime: 50, abwehr: { radius: 400, laden: 40 } },
   // Abwehr mit Bedarf, aber ohne Netz: lädt nie -- die Ladung bleibt, wie sie gesetzt wird
-  tabwehrnetz: { name: 'Testabwehr ohne Netz', desc: '', short: 'ABN', faction: 'gott', hp: 1000, radius: 30, cost: { fron: 100 }, buildTime: 50, gegenwartIn: 1, abwehr: { radius: 400, laden: 40 } },
-  tabwehrki: { name: 'Testabwehr KI', desc: '', short: 'ABK', faction: 'mensch', hp: 800, radius: 30, cost: { fron: 100 }, buildTime: 50, gegenwartIn: 2, abwehr: { radius: 400, laden: 40 } },
+  tabwehrnetz: { name: 'Testabwehr ohne Netz', desc: '', short: 'ABN', faction: 'gott', hp: 1000, radius: 30, cost: { masse: 100 }, buildTime: 50, energieIn: 1, abwehr: { radius: 400, laden: 40 } },
+  tabwehrki: { name: 'Testabwehr KI', desc: '', short: 'ABK', faction: 'mensch', hp: 800, radius: 30, cost: { masse: 100 }, buildTime: 50, energieIn: 2, abwehr: { radius: 400, laden: 40 } },
   // Schild des Spielers 1; ohne Netz geladen, lädt also nicht nach
-  tschild1: { name: 'Testschild', desc: '', short: 'SCH', faction: 'gott', hp: 1000, radius: 30, cost: { fron: 100 }, buildTime: 50, gegenwartIn: 1, schild: { kapazitaet: 60, radius: 500, laden: 1 } },
+  tschild1: { name: 'Testschild', desc: '', short: 'SCH', faction: 'gott', hp: 1000, radius: 30, cost: { masse: 100 }, buildTime: 50, energieIn: 1, schild: { kapazitaet: 60, radius: 500, laden: 1 } },
   // Ziel mit wenig Leben
-  tturm1: { name: 'Testbau', desc: '', short: 'TST', faction: 'gott', hp: 80, radius: 30, cost: { fron: 100 }, buildTime: 50 },
+  tturm1: { name: 'Testbau', desc: '', short: 'TST', faction: 'gott', hp: 80, radius: 30, cost: { masse: 100 }, buildTime: 50 },
 };
 
 Object.assign(UNITS, TEST_EINHEITEN);
@@ -57,8 +57,8 @@ after(() => {
 
 function bare() {
   const w = createWorld({ empty: true, factions: ['mensch', 'gott'] });
-  w.players[0].goetterblut = 100;
-  w.players[1].goetterblut = 100;
+  w.players[0].resonit = 100;
+  w.players[1].resonit = 100;
   return w;
 }
 const festgehalten = (e) => {
@@ -91,11 +91,11 @@ test('Befehl: nur ein geladenes Gebaeude feuert; Ladung und Kosten wie gesagt', 
   schiesse(w, b, 5000, 3000);
   step(w);
   assert.equal(w.schlaege.length, 0, 'ungeladen: nichts');
-  assert.equal(w.players[0].fron, 1100, 'nichts bezahlt');
+  assert.equal(w.players[0].masse, 1100, 'nichts bezahlt');
   schritte(w, SCHLAG.laden); // der Befehl geht mit dem naechsten Tick: bis dahin ist die Ladung voll
   assert.equal(b.schlagLadung, SCHLAG.laden);
   assert.ok(schlagBereit(b));
-  const fron = w.players[0].fron;
+  const masse = w.players[0].masse;
   schiesse(w, b, 5000, 3000);
   step(w);
   assert.equal(w.schlaege.length, 1);
@@ -107,8 +107,8 @@ test('Befehl: nur ein geladenes Gebaeude feuert; Ladung und Kosten wie gesagt', 
   // leer, und im Abschusstick zaehlt schon der erste Ladetick (Befehle gelten vor dem Laden)
   assert.equal(b.schlagLadung, 1, 'Ladung leer');
   assert.ok(!schlagBereit(b));
-  assert.equal(w.players[0].fron, fron - 10);
-  assert.equal(w.players[0].goetterblut, 95);
+  assert.equal(w.players[0].masse, masse - 10);
+  assert.equal(w.players[0].resonit, 95);
   const start = ereignisse(w, 'schlagStart');
   assert.equal(start.length, 1);
   assert.deepEqual({ von: start[0].von, x: start[0].x, y: start[0].y, player: start[0].player }, { von: b.id, x: 5000, y: 3000, player: 0 });
@@ -133,23 +133,23 @@ test('Befehl: Reichweite vom Gebaeude zum Ziel, am Rand noch, einen dm weiter ni
 test('Befehl: nicht bezahlbar -- Fron oder Goetterblut zu wenig -- wird abgelehnt, geladen bleibt geladen', () => {
   const w = bare();
   const b = bereit(w);
-  w.players[0].goetterblut = 4;
+  w.players[0].resonit = 4;
   schiesse(w, b, 4000, 3000);
   step(w);
   assert.equal(w.schlaege.length, 0);
-  assert.equal(w.players[0].goetterblut, 4);
+  assert.equal(w.players[0].resonit, 4);
   assert.ok(schlagBereit(b));
-  w.players[0].goetterblut = 5;
-  w.players[0].fron = 9;
+  w.players[0].resonit = 5;
+  w.players[0].masse = 9;
   schiesse(w, b, 4000, 3000);
   step(w);
   assert.equal(w.schlaege.length, 0, 'Fron fehlt');
-  w.players[0].fron = 10;
+  w.players[0].masse = 10;
   schiesse(w, b, 4000, 3000);
   step(w);
   assert.equal(w.schlaege.length, 1);
-  assert.equal(w.players[0].fron, 0);
-  assert.equal(w.players[0].goetterblut, 0);
+  assert.equal(w.players[0].masse, 0);
+  assert.equal(w.players[0].resonit, 0);
 });
 
 test('Befehl: nur das eigene, fertige Gebaeude; Ziele ausserhalb der Karte nicht', () => {
@@ -561,7 +561,7 @@ test('KI: feuert auf das gegnerische Hauptgebaeude, wenn sie es sieht, es in Rei
   schlag.schlagLadung = SCHLAG.laden;
   const haupt1 = spawnBuilding(w, 1, FACTIONS.gott.haupt, 3000 + 4400, 4200, true);
   festgehalten(spawnUnit(w, 0, 'tziel0', haupt1.x - 800, haupt1.y)); // sieht es, steht aber ausserhalb des Kreises (300)
-  w.players[0].goetterblut = 0;
+  w.players[0].resonit = 0;
   const ai = ki();
   stepAI(ai, w);
   const s = befehle(w, 'schlag');
@@ -584,7 +584,7 @@ test('KI: haelt den Schlag zurueck -- ungeladen, zu weit, zu teuer, eigene im Kr
   assert.equal(lage(() => {}), 1, 'Vergleich: die Grundlage feuert');
   assert.equal(lage((w, s) => (s.schlagLadung = SCHLAG.laden - 1)), 0, 'ungeladen');
   assert.equal(lage((w, s, h) => (h.x = 3000 + 9100)), 0, 'ausser Reichweite (9000)');
-  assert.equal(lage((w) => (w.players[0].fron = 9)), 0, 'zu wenig Fron');
+  assert.equal(lage((w) => (w.players[0].masse = 9)), 0, 'zu wenig Fron');
   assert.equal(lage((w, s, h) => spawnUnit(w, 0, 'tziel0', h.x + 100, h.y)), 0, 'eigene Einheit im Kreis');
   assert.equal(lage((w, s, h) => abwehr(w, 1, h.x + 100, h.y + 100)), 0, 'bekannte Abwehr deckt das Ziel');
   // Eine einzelne, billige Huette lohnt den Schlag nicht (Mindestwert), das Hauptgebaeude schon
@@ -604,7 +604,7 @@ test('KI: zieht die Kosten des Schlags von dem ab, was die Produktion ausgeben d
   schlag.schlagLadung = SCHLAG.laden;
   const haupt1 = spawnBuilding(w, 1, FACTIONS.gott.haupt, 3000 + 4400, 4200, true);
   festgehalten(spawnUnit(w, 0, 'tziel0', haupt1.x - 800, haupt1.y));
-  w.players[0].fron = 10; // reicht genau fuer den Schlag (kosten.fron 10) und fuer nichts sonst
+  w.players[0].masse = 10; // reicht genau fuer den Schlag (kosten.masse 10) und fuer nichts sonst
   const ai = ki();
   stepAI(ai, w);
   assert.equal(befehle(w, 'schlag').length, 1);
@@ -615,7 +615,7 @@ test('KI: Fernschlag-Gebaeude erst ab Minute 20, nur mit der Rolle', () => {
   const lauf = (bisTick) => {
     FACTIONS.mensch.rollen.schlag = 'tschlagki';
     const w = createWorld({ seed: 7, factions: ['mensch', 'mensch'] });
-    w.players[0].goetterblut = 500;
+    w.players[0].resonit = 500;
     const ais = [createAI(0, 7, 'standard'), createAI(1, 8, 'standard')];
     let erster = -1;
     for (let t = 0; t < bisTick && !w.over; t++) {

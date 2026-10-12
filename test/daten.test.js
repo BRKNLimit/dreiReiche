@@ -59,7 +59,7 @@ test('Daten: jedes Volk nur mit Feldern, die das Spiel kennt, und nur ganzen Zah
       // Fernschlag und Abwehr: alle Zahlen positiv (flug 0 schluege im selben Tick ein); kosten wie cost
       if (b.schlag) {
         for (const f of FELDER.schlag) if (f !== 'kosten') assert.ok(b.schlag[f] > 0, w(`${k}.schlag.${f}: muss eine positive Zahl sein`));
-        assert.ok(b.schlag.kosten && typeof b.schlag.kosten === 'object', w(`${k}.schlag.kosten: fehlt (wie cost, auch { fron: 0 })`));
+        assert.ok(b.schlag.kosten && typeof b.schlag.kosten === 'object', w(`${k}.schlag.kosten: fehlt (wie cost, auch { masse: 0 })`));
         nurBekannte(w(`${k}.schlag.kosten`), b.schlag.kosten, FELDER.cost);
       }
       if (b.abwehr) for (const f of FELDER.abwehr) assert.ok(b.abwehr[f] > 0, w(`${k}.abwehr.${f}: muss eine positive Zahl sein`));

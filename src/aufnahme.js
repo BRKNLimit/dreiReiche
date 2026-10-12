@@ -106,7 +106,7 @@ export function verlaufFortschreiben(v, world) {
         for (const e of world.entities) {
           if (e.dead || e.player !== p) continue;
           if (e.kind === 'building') gebaeude++;
-          else if (UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander) heer += UNITS[e.type].cost.fron;
+          else if (UNITS[e.type].weapon && !UNITS[e.type].worker && !UNITS[e.type].commander) heer += UNITS[e.type].cost.masse;
         }
         return { heer, foerderung: foerderungProMin(world, p), gebaeude };
       })

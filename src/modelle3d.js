@@ -2302,7 +2302,7 @@ function baumModell() {
 }
 
 /** Fron-Ader: Steinbruch- und Erzabbau-Sohle mit Stuetzen, Schienen und Eisenerzglaenzern. */
-function fronAderModell() {
+function masseAderModell() {
   const t = [];
   const STEIN_D = '#3a3d3c';
   const STEIN_M = '#545956';
@@ -2345,7 +2345,7 @@ function fronAderModell() {
 }
 
 /** Goetterblut-Ader: Reissender Obsidiankrater mit gluehendem Magmasee, Raubwurzeln und Kristallspitzen. */
-function blutAderModell() {
+function resonitAderModell() {
   const t = [];
   const OBSIDIAN = '#15111c';
   const OBSIDIAN_H = '#231c2e';
@@ -2500,8 +2500,8 @@ export const MODELLE_DEF = {
 
   // ------------------------------------------------------------- Karte und Effekte
   scheibe: [['s', [1, 64], [0, 0, 0], '#ffffff', 1]],
-  fronAder: fronAderModell(),
-  blutAder: blutAderModell(),
+  masseAder: masseAderModell(),
+  resonitAder: resonitAderModell(),
   baum: baumModell(),
   staubwolke: staubwolkeModell(),
   pfeil: [

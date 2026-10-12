@@ -16,34 +16,34 @@ import { createAI, stepAI } from '../src/sim/ai.js';
 const TEST_EINHEITEN = {
   // Bomber: fliegt, trifft nur Boden (auch Gebaeude)
   tbomber: {
-    name: 'Testbomber', desc: '', faction: 'mensch', hp: 400, radius: 14, speed: 40, cost: { fron: 60 },
+    name: 'Testbomber', desc: '', faction: 'mensch', hp: 400, radius: 14, speed: 40, cost: { masse: 60 },
     buildTime: 50, kampf: 'fern', fliegt: true, weapon: { range: 200, damage: 40, cooldown: 5, ziele: 'boden' },
   },
   // Luftjaeger: fliegt, trifft nur Flieger
   tjaeger: {
-    name: 'Testjaeger', desc: '', faction: 'mensch', hp: 300, radius: 14, speed: 40, cost: { fron: 70 },
+    name: 'Testjaeger', desc: '', faction: 'mensch', hp: 300, radius: 14, speed: 40, cost: { masse: 70 },
     buildTime: 50, kampf: 'fern', fliegt: true, weapon: { range: 200, damage: 40, cooldown: 5, ziele: 'luft' },
   },
   // Fernkaempfer, der nur Boden trifft (ziele schlaegt kampf)
   tschuetze: {
-    name: 'Testschuetze', desc: '', faction: 'mensch', hp: 200, radius: 20, speed: 30, cost: { fron: 40 },
+    name: 'Testschuetze', desc: '', faction: 'mensch', hp: 200, radius: 20, speed: 30, cost: { masse: 40 },
     buildTime: 50, kampf: 'fern', weapon: { range: 400, damage: 20, cooldown: 5, ziele: 'boden' },
   },
   // Nahkaempfer, der Flieger trifft (ziele schlaegt kampf)
   tspeer: {
-    name: 'Testspeer', desc: '', faction: 'mensch', hp: 200, radius: 20, speed: 30, cost: { fron: 40 },
+    name: 'Testspeer', desc: '', faction: 'mensch', hp: 200, radius: 20, speed: 30, cost: { masse: 40 },
     buildTime: 50, kampf: 'nah', weapon: { range: 20, damage: 20, cooldown: 5, ziele: 'beide' },
   },
 };
 const TEST_GEBAEUDE = {
   // Flak: trifft nur Flieger
   tflak: {
-    name: 'Testflak', desc: '', short: 'FLK', faction: 'mensch', hp: 2000, radius: 30, cost: { fron: 100 },
+    name: 'Testflak', desc: '', short: 'FLK', faction: 'mensch', hp: 2000, radius: 30, cost: { masse: 100 },
     buildTime: 50, kampf: 'fern', weapon: { range: 700, damage: 50, cooldown: 5, ziele: 'luft' },
   },
   tluftfabrik: {
-    name: 'Testluftfabrik', desc: '', short: 'LFB', faction: 'mensch', hp: 1000, radius: 40, cost: { fron: 200 },
-    buildTime: 100, gegenwartIn: 5, buildList: ['tbomber', 'tjaeger'],
+    name: 'Testluftfabrik', desc: '', short: 'LFB', faction: 'mensch', hp: 1000, radius: 40, cost: { masse: 200 },
+    buildTime: 100, energieIn: 5, buildList: ['tbomber', 'tjaeger'],
   },
 };
 

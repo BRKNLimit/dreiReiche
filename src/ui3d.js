@@ -1528,7 +1528,7 @@ function zeichneUeberlagerung(now) {
     const def = BUILDINGS[placing];
     const text =
       def.name +
-      (drin || !def.gegenwartIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
+      (drin || !def.energieIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
       (erbauer3().length ? '' : ' — keine Erbauer gewählt: die Baustelle wartet');
     octx.fillText(text, maus.x, maus.y - 24);
   }

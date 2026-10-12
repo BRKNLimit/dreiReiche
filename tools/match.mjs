@@ -94,7 +94,7 @@ function snapshot(w) {
     const anker = bs.filter((e) => anchorRadius(w, e) > 0);
     const flaeche = vereinigung(w, p.id);
     return {
-      fron: p.fron,
+      masse: p.masse,
       bauten: bs.length,
       baustellen: bs.filter((e) => !e.done).length,
       anker: anker.length,
@@ -132,7 +132,7 @@ for (let s = 0; s < seeds; s++) {
       const t = sn.per
         .map(
           (x, p) =>
-            `${f[p]}: fron ${x.fron}, bauten ${x.bauten} (${x.baustellen} offen), anker ${x.anker} ${x.ha} ha, einh ${x.einheiten}`
+            `${f[p]}: masse ${x.masse}, bauten ${x.bauten} (${x.baustellen} offen), anker ${x.anker} ${x.ha} ha, einh ${x.einheiten}`
         )
         .join(' | ');
       console.log(`   ${String(sn.min).padStart(2)} min  ${t}`);

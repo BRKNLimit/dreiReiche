@@ -41,14 +41,29 @@ export function leereKarte(name = 'Eigene Karte') {
   };
 }
 const BASIS_ADERN = [
-  { x: 4800, y: 2200, kind: 'fron' },
-  { x: 2200, y: 4800, kind: 'fron' },
-  { x: 6200, y: 4500, kind: 'fron' },
-  { x: 6700, y: 2100, kind: 'fron' },
-  { x: 2100, y: 6700, kind: 'fron' },
+  { x: 4800, y: 2200, kind: 'masse' },
+  { x: 2200, y: 4800, kind: 'masse' },
+  { x: 6200, y: 4500, kind: 'masse' },
+  { x: 6700, y: 2100, kind: 'masse' },
+  { x: 2100, y: 6700, kind: 'masse' },
 ];
 
 // ------------------------------------------------------------ Pruefung
+
+/**
+ * Karten von vor 0.42 nennen die Adern noch 'fron' und 'goetterblut': auf die
+ * heutigen Namen 'masse' und 'resonit' umschreiben (in der Karte selbst).
+ * Eigene Karten aus dem Speicher und geladene Dateien laufen hier durch.
+ */
+export function alteNamen(k) {
+  if (k && Array.isArray(k.adern)) {
+    for (const a of k.adern) {
+      if (a.kind === 'fron') a.kind = 'masse';
+      else if (a.kind === 'goetterblut') a.kind = 'resonit';
+    }
+  }
+  return k;
+}
 
 /**
  * Was an einer Karte nicht stimmt, als Liste von Saetzen; leer heisst
@@ -56,6 +71,7 @@ const BASIS_ADERN = [
  * Basis zu Basis kommt.
  */
 export function kartenFehler(k) {
+  alteNamen(k);
   const fehler = [];
   for (const [name, liste] of [['Hindernis', k.hindernisse], ['Ader', k.adern]]) {
     for (const o of liste) {
@@ -76,7 +92,7 @@ export function kartenFehler(k) {
       fehler.push(`Ader bei ${d.x},${d.y} liegt in einem Hindernis`);
     }
   }
-  if (k.adern.filter((d) => d.kind === 'fron').length < 6) fehler.push('Zu wenige Fron-Adern (mindestens drei je Seite)');
+  if (k.adern.filter((d) => d.kind === 'masse').length < 6) fehler.push('Zu wenige Fron-Adern (mindestens drei je Seite)');
   if (!verbunden(k.hindernisse, BASIS[0], BASIS[1])) fehler.push('Von Basis zu Basis gibt es keinen Weg');
   return fehler;
 }
@@ -147,7 +163,7 @@ export function zufallsKarte(seed) {
   }
   // Notfall: eine Karte ohne Hindernisse ist immer spielbar
   const k = leereKarte('Zufall ' + seed);
-  k.adern = k.adern.concat(spiegelPaare([{ x: 10000, y: 6500, kind: 'fron' }]), [{ x: 10000, y: 10000, kind: 'goetterblut' }]);
+  k.adern = k.adern.concat(spiegelPaare([{ x: 10000, y: 6500, kind: 'masse' }]), [{ x: 10000, y: 10000, kind: 'resonit' }]);
   return k;
 }
 
@@ -239,26 +255,26 @@ function baueZufallsKarte(z, seed) {
     kbFrei(k, x, y, 200) && !adern.some((d) => (d.x - x) ** 2 + (d.y - y) ** 2 < 2200 * 2200) &&
     !adern.some((d) => (MAP - d.x - x) ** 2 + (MAP - d.y - y) ** 2 < 2200 * 2200) &&
     (x + y < MAP - 1500 || x + y > MAP + 1500); // nicht zu nah an der Mittellinie, sonst stoesst sie an ihr Spiegelbild
-  let fron = kbZufall(z, 3, 5);
-  for (let t = 0; t < 200 && fron > 0; t++) {
+  let masse = kbZufall(z, 3, 5);
+  for (let t = 0; t < 200 && masse > 0; t++) {
     const x = kbZufall(z, 1000, 19000);
     const y = kbZufall(z, 1000, 19000);
     if (!aderFrei(x, y)) continue;
-    adern.push({ x, y, kind: 'fron' });
-    fron--;
+    adern.push({ x, y, kind: 'masse' });
+    masse--;
   }
   const mitteFrei = mitte === 'ring' || mitte === 'offen';
-  if (mitteFrei) k.adern.push({ x: 10000, y: 10000, kind: 'goetterblut' });
-  let blut = mitteFrei ? kbZufall(z, 0, 1) : 1;
-  for (let t = 0; t < 200 && blut > 0; t++) {
+  if (mitteFrei) k.adern.push({ x: 10000, y: 10000, kind: 'resonit' });
+  let resonit = mitteFrei ? kbZufall(z, 0, 1) : 1;
+  for (let t = 0; t < 200 && resonit > 0; t++) {
     const x = kbZufall(z, 1500, 18500);
     const y = kbZufall(z, 1500, 18500);
     if (!aderFrei(x, y)) continue;
     // Goetterblut liegt nicht vor der eigenen Haustuer
     const dA = (x - BASIS[0].x) ** 2 + (y - BASIS[0].y) ** 2;
     if (dA < 9000 * 9000) continue;
-    adern.push({ x, y, kind: 'goetterblut' });
-    blut--;
+    adern.push({ x, y, kind: 'resonit' });
+    resonit--;
   }
   k.adern.push(...spiegelPaare(adern));
 

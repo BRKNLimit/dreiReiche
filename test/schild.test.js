@@ -16,35 +16,35 @@ const SCHILD = { kapazitaet: 300, radius: 800, laden: 5 };
 const TEST_EINHEITEN = {
   // Schuetze: trifft Boden und Luft, genau 20 Schaden je Schuss, schiesst im ersten Tick
   tfern: {
-    name: 'Testfern', desc: '', faction: 'gott', hp: 200, radius: 20, speed: 30, cost: { fron: 40 },
+    name: 'Testfern', desc: '', faction: 'gott', hp: 200, radius: 20, speed: 30, cost: { masse: 40 },
     buildTime: 50, kampf: 'fern', weapon: { range: 400, damage: 20, cooldown: 5, ziele: 'beide' },
   },
   // Flieger ohne Waffe
   tflug: {
-    name: 'Testflug', desc: '', faction: 'mensch', hp: 100, radius: 14, speed: 40, cost: { fron: 20 },
+    name: 'Testflug', desc: '', faction: 'mensch', hp: 100, radius: 14, speed: 40, cost: { masse: 20 },
     buildTime: 50, fliegt: true,
   },
 };
 const TEST_GEBAEUDE = {
   // Schildgenerator ohne Gegenwartsbedarf: laedt immer voll
   tschild: {
-    name: 'Testschild', desc: '', short: 'SCH', faction: 'mensch', hp: 1000, radius: 30, cost: { fron: 100 },
+    name: 'Testschild', desc: '', short: 'SCH', faction: 'mensch', hp: 1000, radius: 30, cost: { masse: 100 },
     buildTime: 50, schild: SCHILD,
   },
   // Schildgenerator mit geringem Bedarf, damit ihn eine Halle voll versorgt
   tschildgw: {
-    name: 'Testschild mit Gegenwart', desc: '', short: 'SCG', faction: 'mensch', hp: 1000, radius: 30, cost: { fron: 100 },
-    buildTime: 50, gegenwartIn: 1, schild: SCHILD,
+    name: 'Testschild mit Gegenwart', desc: '', short: 'SCG', faction: 'mensch', hp: 1000, radius: 30, cost: { masse: 100 },
+    buildTime: 50, energieIn: 1, schild: SCHILD,
   },
   // ... und einer mit hohem Bedarf: die Schmiede (40) deckt nur ein Hundertstel, er bleibt gedrosselt
   tschildviel: {
-    name: 'Testschild gierig', desc: '', short: 'SCV', faction: 'mensch', hp: 1000, radius: 30, cost: { fron: 100 },
-    buildTime: 50, gegenwartIn: 4000, schild: { kapazitaet: 100000, radius: 800, laden: 50 },
+    name: 'Testschild gierig', desc: '', short: 'SCV', faction: 'mensch', hp: 1000, radius: 30, cost: { masse: 100 },
+    buildTime: 50, energieIn: 4000, schild: { kapazitaet: 100000, radius: 800, laden: 50 },
   },
   // fuer die KI: kleiner Bedarf
   tschildki: {
-    name: 'Testschild KI', desc: '', short: 'SCK', faction: 'mensch', hp: 800, radius: 30, cost: { fron: 100 },
-    buildTime: 50, gegenwartIn: 2, schild: SCHILD,
+    name: 'Testschild KI', desc: '', short: 'SCK', faction: 'mensch', hp: 800, radius: 30, cost: { masse: 100 },
+    buildTime: 50, energieIn: 2, schild: SCHILD,
   },
 };
 

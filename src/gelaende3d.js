@@ -402,8 +402,8 @@ export function zeichneGelaende(world, now) {
 
   // 4. Adern: Fron und Goetterblut
   for (const d of (world.deposits || [])) {
-    const key = d.kind === 'goetterblut' ? 'blutAder' : 'fronAder';
-    const s = d.kind === 'goetterblut' ? 9 : 6;
+    const key = d.kind === 'resonit' ? 'resonitAder' : 'masseAder';
+    const s = d.kind === 'resonit' ? 9 : 6;
     instanz(key, d.x * DM, 0, d.y * DM, ((d.x + d.y) % 7) * 0.9, s, [1, 1, 1], 1, d.takenBy ? 0.55 : 1);
   }
 

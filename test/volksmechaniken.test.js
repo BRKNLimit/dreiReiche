@@ -13,9 +13,9 @@ import { zustandSichern, zustandLaden } from '../src/spielstand.js';
 import { einheitKarte, gebaeudeKarte, auswahlKopf } from '../src/ui-gemeinsam.js';
 import { neueEffekte, effekteAusEreignissen } from '../src/effekte.js';
 
-const EINHEIT = (zusatz) => ({ name: 'Test', desc: '', faction: 'mensch', hp: 200, radius: 20, speed: 40, cost: { fron: 40 }, buildTime: 50, ...zusatz });
+const EINHEIT = (zusatz) => ({ name: 'Test', desc: '', faction: 'mensch', hp: 200, radius: 20, speed: 40, cost: { masse: 40 }, buildTime: 50, ...zusatz });
 const SCHUETZE = (weapon) => EINHEIT({ kampf: 'fern', weapon: { range: 400, damage: 20, cooldown: 5, ziele: 'beide', ...weapon } });
-const GEBAEUDE = (zusatz) => ({ name: 'Testbau', desc: '', short: 'TST', faction: 'mensch', hp: 1000, radius: 30, cost: { fron: 100 }, buildTime: 50, ...zusatz });
+const GEBAEUDE = (zusatz) => ({ name: 'Testbau', desc: '', short: 'TST', faction: 'mensch', hp: 1000, radius: 30, cost: { masse: 100 }, buildTime: 50, ...zusatz });
 // Aura mit grossem Umkreis: Quelle und Empfaenger duerfen weit auseinander stehen
 const AURA = (art, wert, radius = 800) => EINHEIT({ aura: { art, wert, radius } });
 
@@ -50,12 +50,12 @@ const TEST_EINHEITEN = {
 const TEST_GEBAEUDE = {
   // regeneration: ohne Bedarf immer voll versorgt, mit Bedarf anteilig
   tregbau: GEBAEUDE({ regeneration: 60 }),
-  tregnetz: GEBAEUDE({ regeneration: 60, gegenwartIn: 128 }), // Halle + Schmiede liefern 64: halb versorgt
-  tschild: GEBAEUDE({ schild: { kapazitaet: 120, radius: 400, laden: 1 }, gegenwartIn: 1 }), // ohne Netz laedt er nicht
+  tregnetz: GEBAEUDE({ regeneration: 60, energieIn: 128 }), // Halle + Schmiede liefern 64: halb versorgt
+  tschild: GEBAEUDE({ schild: { kapazitaet: 120, radius: 400, laden: 1 }, energieIn: 1 }), // ohne Netz laedt er nicht
   // Auren von Gebaeuden: fertig und versorgt
   tauraschmiede: GEBAEUDE({ aura: { art: 'tempo', wert: 500, radius: 800 } }),
   taurabau: GEBAEUDE({ aura: { art: 'heilung', wert: 60, radius: 800 } }),
-  tauranetz: GEBAEUDE({ aura: { art: 'tempo', wert: 500, radius: 800 }, gegenwartIn: 128 }),
+  tauranetz: GEBAEUDE({ aura: { art: 'tempo', wert: 500, radius: 800 }, energieIn: 128 }),
   // Anker des Totenreichs (hier fuer Spieler 0 mit Volk 'tod'): jede 3. Seele steht auf
   tanker: GEBAEUDE({ faction: 'tod', anchor: true, radius: 48, auferstehen: { alle: 3, einheit: 'tskel', dauer: 100 } }),
   tanker_bleibt: GEBAEUDE({ faction: 'tod', anchor: true, radius: 48, auferstehen: { alle: 1, einheit: 'tskel', dauer: 0 } }),

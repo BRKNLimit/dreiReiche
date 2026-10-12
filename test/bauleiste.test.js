@@ -21,7 +21,7 @@ const OHNE_ROLLE = ['tbesonderes1', 'tbesonderes2'];
 const TEST_TYPEN = [...Object.values(TEST_ROLLEN), ...OHNE_ROLLE];
 
 for (const t of TEST_TYPEN) {
-  BUILDINGS[t] = { name: t, desc: '', short: 'TST', faction: 'mensch', hp: 100, radius: 20, cost: { fron: 10 }, buildTime: 50 };
+  BUILDINGS[t] = { name: t, desc: '', short: 'TST', faction: 'mensch', hp: 100, radius: 20, cost: { masse: 10 }, buildTime: 50 };
 }
 after(() => {
   for (const t of TEST_TYPEN) delete BUILDINGS[t];
@@ -137,7 +137,7 @@ test('Bauleiste: Reiter nur bei mehr als einer Gruppe, die aktive ist markiert, 
 test('BAU_GRUPPEN: jede Rolle der Basis steht in hoechstens einer Gruppe', () => {
   const alle = BAU_GRUPPEN.flatMap((g) => g.rollen);
   assert.equal(new Set(alle).size, alle.length);
-  for (const r of ['kraft', 'fron', 'blut', 'umwandler', 'anker', 'forschung', 'posten', 'fabrik', 'luftfabrik', 'werkstatt', 'turm', 'flak', 'zorn', 'wehr', 'schild', 'schlag', 'abwehr']) {
+  for (const r of ['kraft', 'masse', 'resonit', 'umwandler', 'anker', 'forschung', 'posten', 'fabrik', 'luftfabrik', 'werkstatt', 'turm', 'flak', 'zorn', 'wehr', 'schild', 'schlag', 'abwehr']) {
     assert.ok(alle.includes(r), `Rolle ${r} hat eine Gruppe`);
   }
 });

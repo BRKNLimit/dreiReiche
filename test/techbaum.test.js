@@ -11,16 +11,16 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createWorld, spawnUnit, spawnBuilding, step, hash, issue, bonus, waffenReichweite, reichweite, sichtweite, sichtGitter,
-  foerderungProMin, unterhaltProMin, computeRegions, distributeGegenwart,
+  foerderungProMin, unterhaltProMin, computeRegions, distributeEnergie,
 } from '../src/sim/sim.js';
 import { sichtQuellen } from '../src/sim/kunde.js';
 import { UNITS, BUILDINGS, SKILLS, RULES, AESTE } from '../src/sim/defs.js';
 import { zustandSichern, zustandLaden } from '../src/spielstand.js';
 import { skillWirkung, skillTiefe, skillStufen, skillBaumHtml, skillLinien, einheitKarte } from '../src/ui-gemeinsam.js';
 
-const EINHEIT = (zusatz) => ({ name: 'Test', desc: '', faction: 'mensch', hp: 300, radius: 20, speed: 40, cost: { fron: 40 }, buildTime: 50, ...zusatz });
+const EINHEIT = (zusatz) => ({ name: 'Test', desc: '', faction: 'mensch', hp: 300, radius: 20, speed: 40, cost: { masse: 40 }, buildTime: 50, ...zusatz });
 const SCHUETZE = (zusatz) => EINHEIT({ kampf: 'fern', weapon: { range: 400, damage: 20, cooldown: 5, ziele: 'beide' }, ...zusatz });
-const GEBAEUDE = (zusatz) => ({ name: 'Testbau', desc: '', short: 'TST', faction: 'mensch', hp: 1000, radius: 30, cost: { fron: 100 }, buildTime: 50, ...zusatz });
+const GEBAEUDE = (zusatz) => ({ name: 'Testbau', desc: '', short: 'TST', faction: 'mensch', hp: 1000, radius: 30, cost: { masse: 100 }, buildTime: 50, ...zusatz });
 
 const TEST_EINHEITEN = {
   ta: EINHEIT({}), // ohne alles, laeuft mit speed 40
@@ -35,9 +35,9 @@ const TEST_EINHEITEN = {
 const TEST_GEBAEUDE = {
   tturm: GEBAEUDE({ kampf: 'fern', weapon: { range: 400, damage: 20, cooldown: 5, ziele: 'beide' } }),
   tbau: GEBAEUDE({ hp: 1000 }),
-  tbaunetz: GEBAEUDE({ hp: 1000, gegenwartIn: 128 }), // Halle + Schmiede liefern 64: halb versorgt
-  tfoerder: GEBAEUDE({ fronOut: 600 }),
-  tfoerder2: GEBAEUDE({ fronOut: 600 }),
+  tbaunetz: GEBAEUDE({ hp: 1000, energieIn: 128 }), // Halle + Schmiede liefern 64: halb versorgt
+  tfoerder: GEBAEUDE({ masseOut: 600 }),
+  tfoerder2: GEBAEUDE({ masseOut: 600 }),
   tfabrik: GEBAEUDE({ buildList: ['ta', 'tb'] }),
   tsicht: GEBAEUDE({ sicht: 1000 }),
 };
@@ -392,7 +392,7 @@ test('Regeneration: Gebaeude nur versorgt (anteilig), eine Baustelle gar nicht',
   const halb = spawnBuilding(v, 0, 'tbaunetz', 3600, 3000, true);
   halb.hp = 500;
   computeRegions(v);
-  distributeGegenwart(v);
+  distributeEnergie(v);
   schritte(v, 200);
   assert.ok(halb.powered > 400 && halb.powered < 600, `halb versorgt (${halb.powered})`);
   assert.ok(halb.hp > 500 && halb.hp <= 520, `etwa halb so schnell (${halb.hp})`);
@@ -430,10 +430,10 @@ test('Unterhalt nur: Ersparnis nur fuer den genannten Typ', () => {
   const kosten = (typ) => {
     const w = bare();
     lerne(w, 0, 's_unterhalt_tun1');
-    w.players[0].fron = 10000;
+    w.players[0].masse = 10000;
     spawnUnit(w, 0, typ, 3000, 3000);
     schritte(w, 600);
-    return 10000 - w.players[0].fron;
+    return 10000 - w.players[0].masse;
   };
   assert.equal(kosten('tun1'), 30, '60 Fron/min, halbiert');
   assert.equal(kosten('tun2'), 60);
@@ -445,16 +445,16 @@ test('Unterhalt nur: Ersparnis nur fuer den genannten Typ', () => {
 });
 
 test('Foerderung nur: mehr Fron nur aus dem genannten Foerderbau', () => {
-  const fron = (typ) => {
+  const masse = (typ) => {
     const w = bare();
     lerne(w, 0, 's_foerder_tfoerder');
-    w.players[0].fron = 0;
+    w.players[0].masse = 0;
     spawnBuilding(w, 0, typ, 3000, 3000, true);
     schritte(w, 600);
-    return w.players[0].fron;
+    return w.players[0].masse;
   };
-  assert.equal(fron('tfoerder'), 900);
-  assert.equal(fron('tfoerder2'), 600);
+  assert.equal(masse('tfoerder'), 900);
+  assert.equal(masse('tfoerder2'), 600);
   const w = bare();
   lerne(w, 0, 's_foerder_tfoerder');
   spawnBuilding(w, 0, 'tfoerder', 3000, 3000, true);

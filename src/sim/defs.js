@@ -140,18 +140,42 @@ export const FELDER = {
     'name', 'desc', 'short', 'faction', 'hp', 'radius', 'sicht', 'cost', 'buildTime',
     'anchor', 'anchorMin', 'vital', 'needs', 'needsGrowth', 'clears',
     'gegenwartIn', 'gegenwartOut', 'prio', 'fronOut', 'blutOut', 'forschung',
-    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr',
+    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr', 'regeneration', 'aura', 'auferstehen',
   ],
   // hoechstens (M5): so viele Einheiten dieses Typs darf ein Spieler zugleich
   // haben -- lebende plus in Ausbildung. Ein produce darueber hinaus wird
   // abgelehnt (sim.js, anzahlVon). Fuer Prototypen; ohne Angabe keine Grenze.
-  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens'],
+  // regeneration (M3): LP pro Minute, die die Einheit bzw. das Gebaeude von
+  // selbst zurueckbekommt (Gebaeude nur versorgt, anteilig zu powered).
+  // aura (M3): wirkt auf eigene Einheiten im Umkreis, siehe FELDER.aura.
+  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
   // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
   // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,
   // eine mit 'boden' (Bomber) nie einen Flieger.
-  weapon: ['range', 'damage', 'cooldown', 'gebaeude', 'vorrang', 'ziele'],
+  weapon: ['range', 'damage', 'cooldown', 'gebaeude', 'vorrang', 'ziele', 'flaeche', 'verlangsamt'],
   weaponZiele: ['boden', 'luft', 'beide'],
+  // aura (M3): wirkt auf eigene Einheiten, deren Mitte im Umkreis liegt (Mitte zu
+  // Mitte, die Quelle eingeschlossen). Mehrere Auren derselben Art addieren sich
+  // nicht -- es zaehlt die staerkste. Gebaeude-Auren nur fertig und anteilig zu powered.
+  //   art     heilung (wert = LP pro Minute) | tempo | schaden | schutz (wert = Promille)
+  //   wert    Staerke, ganze Zahl
+  //   radius  Umkreis in dm
+  aura: ['art', 'wert', 'radius'],
+  auraArt: ['heilung', 'tempo', 'schaden', 'schutz'],
+  // weapon.flaeche (M3): ein Treffer trifft zusaetzlich jeden Feind im radius (dm)
+  // um das Ziel, den die Waffe erreicht, mit anteil Promille des Schadens (nach
+  // den Abzuegen des jeweiligen Ziels, durch dessen Schild).
+  flaeche: ['radius', 'anteil'],
+  // weapon.verlangsamt (M3): ein Treffer bremst das Ziel (nur Einheiten) dauer
+  // Ticks lang um wert Promille; ein neuer, mindestens gleich starker Treffer
+  // frischt auf, ein schwaecherer aendert nichts.
+  verlangsamt: ['dauer', 'wert'],
+  // auferstehen (M3): zaehlt dieses Gebaeude eine Seele (growth.perTod, Anker des
+  // Totenreichs), steht bei jeder alle-ten am Ort des Gefallenen eine einheit
+  // fuer den Besitzer auf -- herbeigerufen, kein Unterhalt, vergeht nach dauer
+  // Ticks (0 = bleibt). Aufgestandene zaehlen beim eigenen Tod nicht als Seele.
+  auferstehen: ['alle', 'einheit', 'dauer'],
   buff: ['zorn', 'wehr', 'radius'],
   // schild (M2): Schildkuppel eines Gebaeudes. Schaden an Eigenem im Umkreis
   // trifft zuerst den Schild (sim.js, combat), der sich mit Gegenwart auflaedt.

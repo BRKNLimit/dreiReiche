@@ -45,17 +45,14 @@ Verlangsamen. Erlaubt sind nur Felder aus `FELDER`; `npm test` prüft das.
   Dragline. Wo eine Bestückung im Kompendium wichtig ist, darf es zwei
   Varianten eines Rumpfs geben (z. B. Palisade mit Kanone, Palisade mit
   Haubitze).
-- **Rollen:** Bis Mechanik R0 da ist, muss jedes Volk alle Pflichtrollen
-  aus `ROLLEN` besetzen: Gebäude `anker`, `kraft`, `fron`, `blut`,
-  `fabrik`, `turm`, `zorn`, `wehr`, `forschung` und Einheiten `bauer`,
-  `leicht`, `fern`, `schwer`, `belagerung`. Für `zorn`, `wehr` und
-  `forschung` such Entsprechungen, die ins Kompendium passen:
-  - `zorn`: Befehlsstand mit Schadens-Aura
-  - `wehr`: Feldreparatur mit Heil-Aura
-  - `forschung`: Labor
-
-  Die Lücken des Kompendiums gelten trotzdem, z. B. hat der Kranor **keine**
-  Jäger und Bomber, also auch keine `luftjaeger`/`bomber`-Rolle.
+- **Rollen (R0 ist da):** Pflicht sind nur Gebäude `anker`, `kraft`,
+  `fron`, `blut`, `fabrik` und Einheiten `bauer`, `leicht`. Alles andere
+  ist frei — besetze es nur, wo das Kompendium es vorsieht (`turm`, `flak`,
+  `schild`, `luftfabrik`, `schlag`, `abwehr`, `werkstatt`, `prototyp` …).
+  Schreine (`zorn`, `wehr`) und `forschung` braucht Resonit nicht. Die
+  Lücken des Kompendiums gelten, z. B. hat der Kranor **keine** Jäger und
+  Bomber. Fehlen `fern` oder `schwer`, mischt die KI ihr Heer aus allem, was
+  die Fabrik ausbildet — halte die `buildList` also bewusst.
 - **Kommandant:** je Volk ein Kommandant (ACU-artig, baut). Dazu eine
   Domäne (`growth`), Werte nach dem Muster der Fantasy-Völker.
 - **Kein Tech-Baum:** `skills` darf leer sein (`{}`), `lernen: []`.

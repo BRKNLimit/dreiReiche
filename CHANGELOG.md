@@ -23,6 +23,11 @@ Tabellen in `docs/scope.md`.
   Kamerabeben nach Spielende, Skillbäume mit 22 Skills je Volk, Karten für
   3 und 4 Spieler. Messung: Menschen : Gott 44 : 26, Todesgott : Menschen
   30 : 42, Todesgott : Gott 36 : 34.
+- **R0 Rollen optional (Sonnet):** Pflicht sind nur noch Netzknoten,
+  Kraftwerk, Extraktor, Resonit-Förderung, Fabrik, Erbauer und eine leichte
+  Einheit; die KI spielt ohne Turm, Schreine, Forschung oder feste
+  Heeresmischung (dann aus dem, was die Fabrik ausbildet). Völker ohne Skills
+  oder Fähigkeiten zeigen weder Glühbirne noch T noch Q/W/E.
 - Behoben: Das Kamerabeben war seit Runde 30 ganz aus (Spielende wurde an
   `winner` erkannt, das während der Partie -1 ist).
 

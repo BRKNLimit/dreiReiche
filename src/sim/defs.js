@@ -241,7 +241,7 @@ export const ROLLEN = {
   // Einheit selbst (mit hoechstens).
   frei: {
     turm: 'gebaeude', zorn: 'gebaeude', wehr: 'gebaeude', forschung: 'gebaeude',
-    posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', schlag: 'gebaeude', abwehr: 'gebaeude', werkstatt: 'gebaeude',
+    posten: 'gebaeude', umwandler: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', schlag: 'gebaeude', abwehr: 'gebaeude', werkstatt: 'gebaeude',
     fern: 'einheit', schwer: 'einheit', belagerung: 'einheit',
     rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit', prototyp: 'einheit',
   },

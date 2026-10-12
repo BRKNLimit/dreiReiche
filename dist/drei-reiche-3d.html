@@ -201,6 +201,8 @@
   #hilfe dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
   #hilfe dt { color: var(--accent); white-space: nowrap; }
   #hilfe dd { margin: 0; color: var(--text); }
+  /* Volk ohne Skillbaum bzw. Faehigkeiten (R0): die Klassen setzt ui3d.js auf #hilfe */
+  #hilfe.ohne-skills .nur-skills, #hilfe.ohne-faehigkeiten .nur-faehigkeiten { display: none; }
   /* Siegbildschirm */
   #intro table.sieg { border-collapse: collapse; margin: 8px 0 12px; }
   #intro table.sieg td, #intro table.sieg th { padding: 3px 14px; text-align: right; font-weight: 500; }
@@ -318,14 +320,14 @@
   <dt>1–0</dt><dd>bauen (Erbauer gewählt, Gruppe leer) aus der gewählten Bau-Gruppe · mit Shift: weitere in die Reihe</dd>
   <dt>Tab, Umschalt+Tab</dt><dd>Erbauer gewählt: Bau-Gruppe wechseln (Wirtschaft, Militär, Besonderes), auch per Klick auf den Reiter</dd>
   <dt>Fabrik gewählt, Rechtsklick</dt><dd>Sammelpunkt für neue Einheiten</dd>
-  <dt>Q–R</dt><dd>Gebäude gewählt: ausbilden · Kommandant gewählt: Fähigkeiten</dd>
+  <dt>Q–R</dt><dd>Gebäude gewählt: ausbilden<span class="nur-faehigkeiten"> · Kommandant gewählt: Fähigkeiten</span></dd>
   <dt>F</dt><dd>Fernschlag-Gebäude gewählt und geladen: scharf stellen, dann Klick aufs Ziel (Shift: weiter feuern)</dd>
   <dt>Entf</dt><dd>Gebäude abreißen, Bauplan verwerfen</dd>
   <dt>K</dt><dd>Kommandant</dd>
   <dt>.</dt><dd>nächster untätiger Arbeiter</dd>
   <dt>F2</dt><dd>ganzes Heer wählen</dd>
   <dt>Rechtsklick Minikarte</dt><dd>Auswahl dorthin schicken</dd>
-  <dt>T</dt><dd>Skillbaum</dd>
+  <dt class="nur-skills">T</dt><dd class="nur-skills">Skillbaum</dd>
   <dt>Pfeiltasten, mittlere Taste, Mausrad</dt><dd>Kamera schieben, zoomen</dd>
   <dt>Leertaste, + −</dt><dd>Pause, Tempo</dd>
   <dt>F5, F9</dt><dd>Spielstand speichern, laden (beim Schließen speichert das Spiel von selbst)</dd>
@@ -343,7 +345,7 @@
 <div id="nogl"><p>Dieser Browser kann kein WebGL 2 — die 2D-Ansicht läuft trotzdem:
   <a class="btn" href="resonit.html">2D-Ansicht öffnen</a></p></div>
 <script>
-const SPIEL_STAND = '3964301633';
+const SPIEL_STAND = '51aad3de54';
 
 /* ---------------------------------- */
 
@@ -1675,7 +1677,8 @@ const SKILLS = {};
 const FAEHIGKEITEN = {};
 
 for (const v of VOELKER) {
-  FACTIONS[v.schluessel] = Object.assign(v.volk, { rollen: v.rollen, lernen: v.lernen });
+  // Ein Volk ohne freie Rollen, Skills oder Faehigkeiten darf die Felder weglassen (R0)
+  FACTIONS[v.schluessel] = Object.assign(v.volk, { rollen: v.rollen || {}, lernen: v.lernen || [], faehigkeiten: v.volk.faehigkeiten || [] });
   Object.assign(BUILDINGS, v.gebaeude);
   Object.assign(UNITS, v.einheiten);
   Object.assign(SKILLS, v.skills);
@@ -1764,14 +1767,20 @@ const FELDER = {
   faehigkeitArt: ['ruf', 'wehr', 'tempo', 'heilung', 'griff', 'rufen'],
 };
 
-// Die gemeinsame Basis: Rollen, die jedes Volk mit einem eigenen Gebaeude bzw.
-// einer eigenen Einheit besetzt (rollen in der Volksdatei). Die KI baut nach
+// Die gemeinsame Basis: Rollen (rollen in der Volksdatei). Die KI baut nach
 // Rollen; die Unterschiede der Voelker liegen darin, WIE sie eine Rolle fuellen,
 // und in allem, was keine Rolle ist (eigene Einheiten, Gebaeude, Skillbaum).
+// Pflicht (R0, "Keine Pendants"): nur was jede Partie braucht -- ein Netzknoten
+// (anker), Energie (kraft), Masse (fron), Resonit (blut), eine Fabrik, ein
+// Erbauer und eine Einheit fuers Heer. Alles andere ist frei: ein Volk darf es
+// haben, muss aber nicht -- die KI spielt ohne jede freie Rolle weiter.
 const ROLLEN = {
-  gebaeude: ['anker', 'kraft', 'fron', 'blut', 'fabrik', 'turm', 'zorn', 'wehr', 'forschung'],
-  einheit: ['bauer', 'leicht', 'fern', 'schwer', 'belagerung'],
-  // nicht jedes Volk hat sie (noch)
+  gebaeude: ['anker', 'kraft', 'fron', 'blut', 'fabrik'],
+  einheit: ['bauer', 'leicht'],
+  // Frei; die Art (Gebaeude/Einheit) wird geprueft.
+  // turm/zorn/wehr/forschung: Verteidigung, Schreine, Gebaeude fuer Skillpunkte
+  // fern/schwer/belagerung: Einheiten der Heeresmischung (fehlt fern oder
+  // schwer, mischt die KI das Heer aus dem, was die Fabriken ausbilden)
   // luftfabrik/flak (M1): Fabrik der Flieger, Abwehr nur gegen Flieger.
   // luftjaeger/bomber: Flieger gegen Flieger bzw. gegen Boden; rabe bleibt der
   // unbewaffnete Spaeher.
@@ -1780,7 +1789,9 @@ const ROLLEN = {
   // werkstatt/prototyp (M5): Gebaeude, das Prototypen ausbildet, und die
   // Einheit selbst (mit hoechstens).
   frei: {
-    posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', schlag: 'gebaeude', abwehr: 'gebaeude', werkstatt: 'gebaeude',
+    turm: 'gebaeude', zorn: 'gebaeude', wehr: 'gebaeude', forschung: 'gebaeude',
+    posten: 'gebaeude', umwandler: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', schlag: 'gebaeude', abwehr: 'gebaeude', werkstatt: 'gebaeude',
+    fern: 'einheit', schwer: 'einheit', belagerung: 'einheit',
     rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit', prototyp: 'einheit',
   },
 };
@@ -5044,6 +5055,37 @@ function baueZufallsKarte(z, seed) {
 // Reihenfolge der Ausbildung; "schwer" nur mit Goetterblut.
 const MISCHUNG = ['leicht', 'fern', 'leicht', 'fern', 'schwer'];
 
+/**
+ * Welche Kampfeinheit bildet eine Fabrik als Naechstes aus, wenn dem Volk fern
+ * oder schwer fehlt (R0) und es darum keine feste Mischung gibt? Aus allem, was
+ * die Fabrik ausbildet (liste): bewaffnet, kein Erbauer, kein Kommandant, nicht
+ * die Belagerungsrolle (die hat ihre eigene Regel), nicht gesperrt, nicht ueber
+ * hoechstens, und das Goetterblut (Resonit) reicht. Gemischt nach Kosten
+ * (Designzahl, ungemessen): jeder Typ soll etwa gleich viel Heereswert stellen,
+ * es kommt also der Typ, von dem (stehend, in Ausbildung, heute bestellt) am
+ * wenigsten Wert da ist; bei Gleichstand der billigere, dann der in der Liste
+ * zuerst. Teure Typen sind so seltener, billige zahlreicher -- ohne dass die
+ * KI wissen muss, was ein Typ "ist". Null, wenn nichts passt.
+ */
+function kampfWahl(world, player, plan, liste, frei, einheiten, bauten, heuteBestellt, blutRest) {
+  let best = null;
+  let bestWert = 0;
+  for (const t of liste) {
+    const d = UNITS[t];
+    if (!d || !d.weapon || d.worker || d.commander || t === plan.belagerung || !frei(t)) continue;
+    if ((d.cost.goetterblut || 0) > blutRest) continue;
+    if (d.hoechstens && anzahlVon(world, player, t) + heuteBestellt.filter((q) => q === t).length >= d.hoechstens) continue;
+    let da = einheiten.filter((u) => u.type === t).length + heuteBestellt.filter((q) => q === t).length;
+    for (const b of bauten) if (b.queue) da += b.queue.filter((q) => q === t).length;
+    const wertDa = da * d.cost.fron;
+    if (!best || wertDa < bestWert || (wertDa === bestWert && d.cost.fron < UNITS[best].cost.fron)) {
+      best = t;
+      bestWert = wertDa;
+    }
+  }
+  return best;
+}
+
 /** Heereswert in Fron -- Wellen und Leibwache zaehlen Wert, nicht Koepfe. */
 const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
 
@@ -5347,8 +5389,10 @@ function stepAI(ai, world) {
   // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
   // Verteidigung und Forschung: je eins frueh, je ein zweites ab Minute 12.
   // Der Turm kommt vor der Forschung -- er haelt allein eine fruehe Welle auf.
-  const turmZiel = minute >= Math.max(12, ai.stufe.turmAb) ? 2 : minute >= ai.stufe.turmAb ? 1 : 0;
-  const forschungZiel = minute >= 12 ? 2 : minute >= 4 ? 1 : 0;
+  // Ohne Turm bzw. Forschung als Rolle (R0) ist das Ziel null: das Heer verteidigt,
+  // und es gibt keine Skillpunkte-Gebaeude.
+  const turmZiel = !plan.turm ? 0 : minute >= Math.max(12, ai.stufe.turmAb) ? 2 : minute >= ai.stufe.turmAb ? 1 : 0;
+  const forschungZiel = !plan.forschung ? 0 : minute >= 12 ? 2 : minute >= 4 ? 1 : 0;
   const naechster =
     ader && zahl(plan.fron) < fronZiel
       ? plan.fron
@@ -5382,15 +5426,15 @@ function stepAI(ai, world) {
   if (minute >= 5 && zahl(plan.fabrik) > 0) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
-      if (zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
+      if (!typ || zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
       const platz = daheimFrei(world, kunde, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
   }
 
   // 3c. Verteidigung: ein Turm vor dem Hauptgebaeude zur Front hin.
-  const tb = BUILDINGS[plan.turm];
-  if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
+  const tb = plan.turm ? BUILDINGS[plan.turm] : null;
+  if (tb && zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
     const platz = daheimFrei(world, kunde, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
     if (platz && bau(plan.turm, ...platz)) return;
   }
@@ -5408,8 +5452,8 @@ function stepAI(ai, world) {
   }
 
   // 3d. Forschung beim Hauptgebaeude -- mehr Skillpunkte.
-  const fb = BUILDINGS[plan.forschung];
-  if (zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
+  const fb = plan.forschung ? BUILDINGS[plan.forschung] : null;
+  if (fb && zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
     const platz = daheimFrei(world, kunde, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
     if (platz && bau(plan.forschung, ...platz)) return;
   }
@@ -5565,7 +5609,12 @@ function stepAI(ai, world) {
   // ... und was ein eben befohlener Fernschlag kostet.
   let rest = fron - plaene.reduce((s, q) => s + kosten(q.type), 0) - schlagFron;
   let blutRest = p.goetterblut - schlagBlut;
-  const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
+  const blutSchwer = plan.schwer ? UNITS[plan.schwer].cost.goetterblut || 0 : 0;
+  // Fehlt dem Volk fern oder schwer (R0), gibt es keine feste Mischung: das Heer
+  // kommt aus dem, was die Fabrik ausbildet (kampfWahl). Heute gestellte
+  // Bestellungen zaehlen schon mit -- im selben Zug sieht die Warteschlange sie nicht.
+  const festeMischung = !!plan.fern && !!plan.schwer;
+  const heuteBestellt = [];
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
   // Raben: einer ab Minute 2, ein zweiter ab Minute 10 -- billig, und wer
   // faellt, wird ersetzt.
@@ -5625,25 +5674,30 @@ function stepAI(ai, world) {
       // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
       // Belagerung, solange der Gegner Tuerme hat: je Turm eine, hoechstens drei.
       const feindTuerme = kunde.gebaeude.filter((o) => bodenTurm(o.type)).length;
-      const belagerer = einheiten.filter((u) => u.type === plan.belagerung).length;
-      if (feindTuerme && belagerer < Math.min(3, feindTuerme) && frei(plan.belagerung) && liste.includes(plan.belagerung)) {
+      const belagerer = plan.belagerung ? einheiten.filter((u) => u.type === plan.belagerung).length : 0;
+      if (plan.belagerung && feindTuerme && belagerer < Math.min(3, feindTuerme) && frei(plan.belagerung) && liste.includes(plan.belagerung)) {
         unit = plan.belagerung;
       }
-      const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
-      const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
-      if (!unit && reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
-      for (let k = 0; !unit && k < MISCHUNG.length; k++) {
-        const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
-        if (rolle === 'schwer' && !schwerMoeglich) continue;
-        if (liste.includes(plan[rolle]) && frei(plan[rolle])) {
-          unit = plan[rolle];
-          ai.zug += k + 1;
+      if (festeMischung) {
+        const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
+        const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+        if (!unit && reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
+        for (let k = 0; !unit && k < MISCHUNG.length; k++) {
+          const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
+          if (rolle === 'schwer' && !schwerMoeglich) continue;
+          if (liste.includes(plan[rolle]) && frei(plan[rolle])) {
+            unit = plan[rolle];
+            ai.zug += k + 1;
+          }
         }
+      } else if (!unit) {
+        unit = kampfWahl(world, ai.player, plan, liste, frei, einheiten, bauten, heuteBestellt, blutRest);
       }
     }
     if (!unit || rest - UNITS[unit].cost.fron < (unit === plan.prototyp ? 0 : sparen)) continue;
     rest -= UNITS[unit].cost.fron;
     blutRest -= UNITS[unit].cost.goetterblut || 0;
+    heuteBestellt.push(unit);
     issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
   }
 
@@ -6980,6 +7034,24 @@ const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
 
+/**
+ * Hat das Volk einen Skillbaum? Ohne (R0: skills {}, oder RULES.skills aus)
+ * verschwinden Gluehbirne, Skillbaum-Taste T und alle Skill-Hinweise.
+ */
+function hatSkills(volk) {
+  return !!RULES.skills && Object.values(SKILLS).some((s) => s.faction === volk);
+}
+
+/** Hat das Volk Faehigkeiten des Kommandanten (Q/W/E-Leiste)? */
+function hatFaehigkeiten(volk) {
+  return ((FACTIONS[volk] && FACTIONS[volk].faehigkeiten) || []).length > 0;
+}
+
+/** CSS-Klassen fuer die Hilfe: ohne Skills bzw. Faehigkeiten blendet das Stylesheet die zugehoerigen Zeilen aus. */
+function rollenKlassen(volk) {
+  return (hatSkills(volk) ? '' : 'ohne-skills ') + (hatFaehigkeiten(volk) ? '' : 'ohne-faehigkeiten');
+}
+
 // ------------------------------------------------------------ Nebel des Krieges
 // Was man weiss, kommt aus src/sim/kunde.js -- dieselbe Sicht, mit der auch
 // die KI spielt. Hier nur die Darstellung: ein feines Sichtfeld mit weichem
@@ -7135,7 +7207,9 @@ function ressourcenHtml(world, player) {
   const eintrag = (icon, wert, titel, klasse = '') =>
     `<div class="ri" title="${titel}">${icon}<span class="${klasse}">${wert}</span></div>`;
   return (
-    eintrag(ICONS.skillpunkte, skillFrei(world, player), `Skillpunkte, die du ausgeben kannst (T) — nächster in ${naechsterPunkt(world, player)}`, skillFrei(world, player) > 0 ? 'frei' : '') +
+    (hatSkills(p.faction)
+      ? eintrag(ICONS.skillpunkte, skillFrei(world, player), `Skillpunkte, die du ausgeben kannst (T) — nächster in ${naechsterPunkt(world, player)}`, skillFrei(world, player) > 0 ? 'frei' : '')
+      : '') +
     eintrag(ICONS.gegenwart, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
     eintrag(ICONS.goetterblut, p.goetterblut, 'Götterblut') +
     eintrag(ICONS.fron, p.fron, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
@@ -7426,7 +7500,7 @@ function gruppenHtml(world, auswahl) {
   }
   return Object.keys(UNITS)
     .filter((t) => zahl[t])
-    .map((t) => `<button class="ikon" data-gruppe="${t}" title="${UNITS[t].name} — nur diese auswählen">${ICONS[t]}<span class="zahl">${zahl[t]}</span></button>`)
+    .map((t) => `<button class="ikon" data-gruppe="${t}" title="${UNITS[t].name} — nur diese auswählen">${ICONS[t] || ''}<span class="zahl">${zahl[t]}</span></button>`)
     .join('');
 }
 
@@ -7659,7 +7733,7 @@ function beobachterHtml(world) {
   };
   const kopf = z.map((s) => `<th style="color:${s.farbe}${s.aus ? ';text-decoration:line-through' : ''}">${s.name}</th>`).join('');
   return `<table class="beobachter"><tr><th></th>${kopf}</tr>
-    ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${zeile('Skills', 'skills')}</table>`;
+    ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${world.players.some((pl) => hatSkills(pl.faction)) ? zeile('Skills', 'skills') : ''}</table>`;
 }
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
@@ -7862,7 +7936,7 @@ function bauleisteHtml(world, player, gruppen, aktiv) {
       const zu = gesperrt(world, player, t);
       // Taste nur fuer die ersten zehn; weitere bleiben anklickbar
       const taste = i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span>${taste}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t] || ''}<span class="kosten">${BUILDINGS[t].cost.fron}</span>${taste}</button>`;
     })
     .join('');
   return reiter + knoepfe;
@@ -7887,7 +7961,7 @@ function ausbildungsleisteHtml(world, player, fabriken) {
       const zu = gesperrtSkill || voll;
       const zahlHtml = grenze ? `<span class="zahl">${da}/${grenze}</span>` : inQueue ? `<span class="zahl">${inQueue}</span>` : '';
       const grund = gesperrtSkill ? ' — gesperrt, Skillbaum (T)' : voll ? ` — schon ${da}/${grenze}, höchstens ${grenze} gleichzeitig` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u]}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u] || ''}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
     })
     .join('');
 }
@@ -7924,7 +7998,7 @@ function warnungenHtml(world, player) {
     schlafen[e.type] = (schlafen[e.type] || 0) + 1;
   }
   for (const [t, n] of Object.entries(schlafen)) {
-    out.push(`<div class="warn">${ICONS[t]}<span>${n}× ${BUILDINGS[t].name} ohne Gegenwart — schießt nicht</span></div>`);
+    out.push(`<div class="warn">${ICONS[t] || ''}<span>${n}× ${BUILDINGS[t].name} ohne Gegenwart — schießt nicht</span></div>`);
   }
   return out.join('');
 }
@@ -16519,6 +16593,7 @@ let placing = null;
 let bauGruppeSchl = 'wirtschaft'; // aktive Gruppe der Bauleiste (BAU_GRUPPEN in ui-gemeinsam.js)
 let angriff = false;
 let skillsOffen = false; // T: Skillbaum
+let hilfeKlassen = ''; // zuletzt gesetzte Klassen der Hilfe (ohne-skills, ohne-faehigkeiten)
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
 let schlagZielen = false; // Fernschlag scharf (Taste F): naechster Klick ist das Ziel
@@ -16820,7 +16895,7 @@ function infoKarte3() {
 
 /** Faehigkeit des Kommandanten ausloesen: ein Griff braucht ein Ziel, alles andere wirkt sofort. */
 function wirkeFaehigkeit3(id) {
-  if (!faehigkeitenVon(world, ME).includes(id) || faehigkeitWarten(world, ME, id)) return;
+  if (!id || !faehigkeitenVon(world, ME).includes(id) || faehigkeitWarten(world, ME, id)) return;
   if (FAEHIGKEITEN[id].art === 'griff') {
     zielen = id;
     placing = null;
@@ -16893,6 +16968,13 @@ function leisten3() {
 
 /** Skillbaum und Sperren neu zeichnen, sobald sich daran etwas aendert. */
 function skillPanel3() {
+  // Ohne Skills (R0) kein Skillbaum, und die Hilfe laesst T und die Faehigkeiten weg
+  if (!hatSkills(meFaction)) skillsOffen = false;
+  const klassen = rollenKlassen(meFaction);
+  if (klassen !== hilfeKlassen) {
+    hilfeKlassen = klassen;
+    document.getElementById('hilfe').className = klassen;
+  }
   const el = document.getElementById('skills');
   el.hidden = !skillsOffen;
   const sig = skillSignatur(world, ME) + (skillsOffen ? '|offen' : '');
@@ -17159,11 +17241,11 @@ addEventListener('keydown', (e) => {
     selPlan = null;
     document.getElementById('hilfe').hidden = true;
   }
-  if (e.key === 't') skillsOffen = !skillsOffen;
+  if (e.key === 't' && hatSkills(meFaction)) skillsOffen = !skillsOffen;
   // Kommandant gewaehlt: Q, W, E loesen seine Faehigkeiten aus.
   const kdtGewaehlt = kommandantVon(world, ME);
   const fi = 'qwe'.indexOf(e.key);
-  if (fi >= 0 && kdtGewaehlt && sel.includes(kdtGewaehlt.id)) {
+  if (fi >= 0 && kdtGewaehlt && sel.includes(kdtGewaehlt.id) && hatFaehigkeiten(meFaction)) {
     wirkeFaehigkeit3(FACTIONS[meFaction].faehigkeiten[fi]);
     return;
   }
@@ -18106,10 +18188,10 @@ function introHtml3() {
     — ohne Kosten, ohne Sicht. Gebaut und bezahlt wird, sobald ein Erbauer daneben steht; wer weggeht,
     baut nicht weiter. Mit <kbd>Shift</kbd> reiht man mehrere Pläne hintereinander.</p>
     <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
-    Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
+    ${Object.keys(FACTIONS).some(hatSkills) ? `Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
     Schreine, Verbesserungen und drei Fähigkeiten des Kommandanten frei — Kommandant wählen, dann
     <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,
-    sammelt ein wenig Erfahrung.</p>
+    sammelt ein wenig Erfahrung.` : ''}</p>
     </details>
     <p style="color:var(--dim)">Dieselbe Simulation wie die 2D-Ansicht — Spielstände, Kampagnen und Wiederholungen passen in beide.</p>
     <div class="stil">Gegner:

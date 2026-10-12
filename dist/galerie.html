@@ -1411,7 +1411,8 @@ const SKILLS = {};
 const FAEHIGKEITEN = {};
 
 for (const v of VOELKER) {
-  FACTIONS[v.schluessel] = Object.assign(v.volk, { rollen: v.rollen, lernen: v.lernen });
+  // Ein Volk ohne freie Rollen, Skills oder Faehigkeiten darf die Felder weglassen (R0)
+  FACTIONS[v.schluessel] = Object.assign(v.volk, { rollen: v.rollen || {}, lernen: v.lernen || [], faehigkeiten: v.volk.faehigkeiten || [] });
   Object.assign(BUILDINGS, v.gebaeude);
   Object.assign(UNITS, v.einheiten);
   Object.assign(SKILLS, v.skills);
@@ -1500,14 +1501,20 @@ const FELDER = {
   faehigkeitArt: ['ruf', 'wehr', 'tempo', 'heilung', 'griff', 'rufen'],
 };
 
-// Die gemeinsame Basis: Rollen, die jedes Volk mit einem eigenen Gebaeude bzw.
-// einer eigenen Einheit besetzt (rollen in der Volksdatei). Die KI baut nach
+// Die gemeinsame Basis: Rollen (rollen in der Volksdatei). Die KI baut nach
 // Rollen; die Unterschiede der Voelker liegen darin, WIE sie eine Rolle fuellen,
 // und in allem, was keine Rolle ist (eigene Einheiten, Gebaeude, Skillbaum).
+// Pflicht (R0, "Keine Pendants"): nur was jede Partie braucht -- ein Netzknoten
+// (anker), Energie (kraft), Masse (fron), Resonit (blut), eine Fabrik, ein
+// Erbauer und eine Einheit fuers Heer. Alles andere ist frei: ein Volk darf es
+// haben, muss aber nicht -- die KI spielt ohne jede freie Rolle weiter.
 const ROLLEN = {
-  gebaeude: ['anker', 'kraft', 'fron', 'blut', 'fabrik', 'turm', 'zorn', 'wehr', 'forschung'],
-  einheit: ['bauer', 'leicht', 'fern', 'schwer', 'belagerung'],
-  // nicht jedes Volk hat sie (noch)
+  gebaeude: ['anker', 'kraft', 'fron', 'blut', 'fabrik'],
+  einheit: ['bauer', 'leicht'],
+  // Frei; die Art (Gebaeude/Einheit) wird geprueft.
+  // turm/zorn/wehr/forschung: Verteidigung, Schreine, Gebaeude fuer Skillpunkte
+  // fern/schwer/belagerung: Einheiten der Heeresmischung (fehlt fern oder
+  // schwer, mischt die KI das Heer aus dem, was die Fabriken ausbilden)
   // luftfabrik/flak (M1): Fabrik der Flieger, Abwehr nur gegen Flieger.
   // luftjaeger/bomber: Flieger gegen Flieger bzw. gegen Boden; rabe bleibt der
   // unbewaffnete Spaeher.
@@ -1516,7 +1523,9 @@ const ROLLEN = {
   // werkstatt/prototyp (M5): Gebaeude, das Prototypen ausbildet, und die
   // Einheit selbst (mit hoechstens).
   frei: {
-    posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', schlag: 'gebaeude', abwehr: 'gebaeude', werkstatt: 'gebaeude',
+    turm: 'gebaeude', zorn: 'gebaeude', wehr: 'gebaeude', forschung: 'gebaeude',
+    posten: 'gebaeude', umwandler: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', schlag: 'gebaeude', abwehr: 'gebaeude', werkstatt: 'gebaeude',
+    fern: 'einheit', schwer: 'einheit', belagerung: 'einheit',
     rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit', prototyp: 'einheit',
   },
 };

@@ -16,6 +16,37 @@ import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
 // Reihenfolge der Ausbildung; "schwer" nur mit Goetterblut.
 const MISCHUNG = ['leicht', 'fern', 'leicht', 'fern', 'schwer'];
 
+/**
+ * Welche Kampfeinheit bildet eine Fabrik als Naechstes aus, wenn dem Volk fern
+ * oder schwer fehlt (R0) und es darum keine feste Mischung gibt? Aus allem, was
+ * die Fabrik ausbildet (liste): bewaffnet, kein Erbauer, kein Kommandant, nicht
+ * die Belagerungsrolle (die hat ihre eigene Regel), nicht gesperrt, nicht ueber
+ * hoechstens, und das Goetterblut (Resonit) reicht. Gemischt nach Kosten
+ * (Designzahl, ungemessen): jeder Typ soll etwa gleich viel Heereswert stellen,
+ * es kommt also der Typ, von dem (stehend, in Ausbildung, heute bestellt) am
+ * wenigsten Wert da ist; bei Gleichstand der billigere, dann der in der Liste
+ * zuerst. Teure Typen sind so seltener, billige zahlreicher -- ohne dass die
+ * KI wissen muss, was ein Typ "ist". Null, wenn nichts passt.
+ */
+function kampfWahl(world, player, plan, liste, frei, einheiten, bauten, heuteBestellt, blutRest) {
+  let best = null;
+  let bestWert = 0;
+  for (const t of liste) {
+    const d = UNITS[t];
+    if (!d || !d.weapon || d.worker || d.commander || t === plan.belagerung || !frei(t)) continue;
+    if ((d.cost.goetterblut || 0) > blutRest) continue;
+    if (d.hoechstens && anzahlVon(world, player, t) + heuteBestellt.filter((q) => q === t).length >= d.hoechstens) continue;
+    let da = einheiten.filter((u) => u.type === t).length + heuteBestellt.filter((q) => q === t).length;
+    for (const b of bauten) if (b.queue) da += b.queue.filter((q) => q === t).length;
+    const wertDa = da * d.cost.fron;
+    if (!best || wertDa < bestWert || (wertDa === bestWert && d.cost.fron < UNITS[best].cost.fron)) {
+      best = t;
+      bestWert = wertDa;
+    }
+  }
+  return best;
+}
+
 /** Heereswert in Fron -- Wellen und Leibwache zaehlen Wert, nicht Koepfe. */
 const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
 
@@ -321,8 +352,10 @@ export function stepAI(ai, world) {
   // 2. Quelle, wenn der naechste Verbraucher nicht gedeckt waere.
   // Verteidigung und Forschung: je eins frueh, je ein zweites ab Minute 12.
   // Der Turm kommt vor der Forschung -- er haelt allein eine fruehe Welle auf.
-  const turmZiel = minute >= Math.max(12, ai.stufe.turmAb) ? 2 : minute >= ai.stufe.turmAb ? 1 : 0;
-  const forschungZiel = minute >= 12 ? 2 : minute >= 4 ? 1 : 0;
+  // Ohne Turm bzw. Forschung als Rolle (R0) ist das Ziel null: das Heer verteidigt,
+  // und es gibt keine Skillpunkte-Gebaeude.
+  const turmZiel = !plan.turm ? 0 : minute >= Math.max(12, ai.stufe.turmAb) ? 2 : minute >= ai.stufe.turmAb ? 1 : 0;
+  const forschungZiel = !plan.forschung ? 0 : minute >= 12 ? 2 : minute >= 4 ? 1 : 0;
   const naechster =
     ader && zahl(plan.fron) < fronZiel
       ? plan.fron
@@ -356,15 +389,15 @@ export function stepAI(ai, world) {
   if (minute >= 5 && zahl(plan.fabrik) > 0) {
     for (const [rolle, grad] of [['zorn', 120], ['wehr', -120]]) {
       const typ = plan[rolle];
-      if (zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
+      if (!typ || zahl(typ) > 0 || !frei(typ) || fron < kosten(typ) || bilanz < BUILDINGS[typ].gegenwartIn) continue;
       const platz = daheimFrei(world, kunde, haupt, typ, 600, front + grad);
       if (platz && bau(typ, ...platz)) return;
     }
   }
 
   // 3c. Verteidigung: ein Turm vor dem Hauptgebaeude zur Front hin.
-  const tb = BUILDINGS[plan.turm];
-  if (zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
+  const tb = plan.turm ? BUILDINGS[plan.turm] : null;
+  if (tb && zahl(plan.turm) < turmZiel && fron >= tb.cost.fron && bilanz >= tb.gegenwartIn) {
     const platz = daheimFrei(world, kunde, haupt, plan.turm, 1600, front + (zahl(plan.turm) ? 30 : -30));
     if (platz && bau(plan.turm, ...platz)) return;
   }
@@ -382,8 +415,8 @@ export function stepAI(ai, world) {
   }
 
   // 3d. Forschung beim Hauptgebaeude -- mehr Skillpunkte.
-  const fb = BUILDINGS[plan.forschung];
-  if (zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
+  const fb = plan.forschung ? BUILDINGS[plan.forschung] : null;
+  if (fb && zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
     const platz = daheimFrei(world, kunde, haupt, plan.forschung, 800, front + 180 + zahl(plan.forschung) * 60);
     if (platz && bau(plan.forschung, ...platz)) return;
   }
@@ -539,7 +572,12 @@ export function stepAI(ai, world) {
   // ... und was ein eben befohlener Fernschlag kostet.
   let rest = fron - plaene.reduce((s, q) => s + kosten(q.type), 0) - schlagFron;
   let blutRest = p.goetterblut - schlagBlut;
-  const blutSchwer = UNITS[plan.schwer].cost.goetterblut || 0;
+  const blutSchwer = plan.schwer ? UNITS[plan.schwer].cost.goetterblut || 0 : 0;
+  // Fehlt dem Volk fern oder schwer (R0), gibt es keine feste Mischung: das Heer
+  // kommt aus dem, was die Fabrik ausbildet (kampfWahl). Heute gestellte
+  // Bestellungen zaehlen schon mit -- im selben Zug sieht die Warteschlange sie nicht.
+  const festeMischung = !!plan.fern && !!plan.schwer;
+  const heuteBestellt = [];
   const tiefe = fron > 900 ? 3 : fron > 400 ? 2 : 1;
   // Raben: einer ab Minute 2, ein zweiter ab Minute 10 -- billig, und wer
   // faellt, wird ersetzt.
@@ -599,25 +637,30 @@ export function stepAI(ai, world) {
       // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
       // Belagerung, solange der Gegner Tuerme hat: je Turm eine, hoechstens drei.
       const feindTuerme = kunde.gebaeude.filter((o) => bodenTurm(o.type)).length;
-      const belagerer = einheiten.filter((u) => u.type === plan.belagerung).length;
-      if (feindTuerme && belagerer < Math.min(3, feindTuerme) && frei(plan.belagerung) && liste.includes(plan.belagerung)) {
+      const belagerer = plan.belagerung ? einheiten.filter((u) => u.type === plan.belagerung).length : 0;
+      if (plan.belagerung && feindTuerme && belagerer < Math.min(3, feindTuerme) && frei(plan.belagerung) && liste.includes(plan.belagerung)) {
         unit = plan.belagerung;
       }
-      const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
-      const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
-      if (!unit && reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
-      for (let k = 0; !unit && k < MISCHUNG.length; k++) {
-        const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
-        if (rolle === 'schwer' && !schwerMoeglich) continue;
-        if (liste.includes(plan[rolle]) && frei(plan[rolle])) {
-          unit = plan[rolle];
-          ai.zug += k + 1;
+      if (festeMischung) {
+        const schwerMoeglich = blutRest >= blutSchwer && frei(plan.schwer);
+        const reichlich = schwerMoeglich && blutSchwer > 0 && blutRest >= 3 * blutSchwer;
+        if (!unit && reichlich && liste.includes(plan.schwer)) unit = plan.schwer;
+        for (let k = 0; !unit && k < MISCHUNG.length; k++) {
+          const rolle = MISCHUNG[(ai.zug + k) % MISCHUNG.length];
+          if (rolle === 'schwer' && !schwerMoeglich) continue;
+          if (liste.includes(plan[rolle]) && frei(plan[rolle])) {
+            unit = plan[rolle];
+            ai.zug += k + 1;
+          }
         }
+      } else if (!unit) {
+        unit = kampfWahl(world, ai.player, plan, liste, frei, einheiten, bauten, heuteBestellt, blutRest);
       }
     }
     if (!unit || rest - UNITS[unit].cost.fron < (unit === plan.prototyp ? 0 : sparen)) continue;
     rest -= UNITS[unit].cost.fron;
     blutRest -= UNITS[unit].cost.goetterblut || 0;
+    heuteBestellt.push(unit);
     issue(world, { type: 'produce', player: ai.player, id: f.id, unit });
   }
 

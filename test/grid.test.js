@@ -1321,20 +1321,20 @@ test('Reparatur: ohne Fron keine, und bei vollem Leben ist der Auftrag erledigt'
   assert.equal(k.auftrag, 0, 'Auftrag erledigt');
 });
 
-test('jedes Volk: jede Rolle der Basis tut, was sie soll (Hauptgebaeude, Anker, Verteidigung, Gegenwart, Foerderung, Fabrik, Schreine, Forschung)', () => {
+test('jedes Volk: jede Rolle, die es hat, tut, was sie soll (Pflicht: Hauptgebaeude, Anker, Gegenwart, Foerderung, Fabrik; frei: Verteidigung, Schreine, Forschung)', () => {
   for (const f of Object.keys(FACTIONS)) {
     const r = FACTIONS[f].rollen;
     const b = (rolle) => BUILDINGS[r[rolle]];
     assert.ok(BUILDINGS[FACTIONS[f].haupt].vital, f + ' Hauptgebaeude');
     assert.ok(b('anker').anchor && !b('anker').vital, f + ' Anker');
-    assert.ok(b('turm').weapon && b('turm').weapon.ziele !== 'luft', f + ' Verteidigung gegen Boden');
+    if (r.turm) assert.ok(b('turm').weapon && b('turm').weapon.ziele !== 'luft', f + ' Verteidigung gegen Boden');
     assert.ok(b('kraft').gegenwartOut, f + ' Gegenwart');
     assert.ok(b('fron').fronOut && b('fron').needs === 'fron', f + ' Fron');
     assert.ok(b('blut').blutOut && b('blut').needs === 'goetterblut', f + ' Goetterblut');
     assert.ok(b('fabrik').buildList && !b('fabrik').vital, f + ' Fabrik');
-    assert.ok(b('zorn').buff && b('zorn').buff.zorn, f + ' Zorn-Schrein');
-    assert.ok(b('wehr').buff && b('wehr').buff.wehr, f + ' Wehr-Schrein');
-    assert.ok(b('forschung').forschung, f + ' Forschung');
+    if (r.zorn) assert.ok(b('zorn').buff && b('zorn').buff.zorn, f + ' Zorn-Schrein');
+    if (r.wehr) assert.ok(b('wehr').buff && b('wehr').buff.wehr, f + ' Wehr-Schrein');
+    if (r.forschung) assert.ok(b('forschung').forschung, f + ' Forschung');
   }
 });
 

@@ -19,6 +19,7 @@ let gegnerVolk = 'auto'; // Volk des Gegners, im Startbildschirm waehlbar (auto:
 let karteSchluessel = vorgewaehlteKarte(); // Karte, im Startbildschirm waehlbar (oder vom Editor gewaehlt)
 let ME = 0; // eigener Sitzplatz -- online als Gast 1
 let skillsOffen = false; // T: Skillbaum
+let hilfeKlassen = ''; // zuletzt gesetzte Klassen der Hilfe (ohne-skills, ohne-faehigkeiten)
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
 let zielen = null; // Griff gewaehlt: naechster Klick ist das Ziel (Faehigkeit)
 let schlagZielen = false; // Fernschlag scharf (Taste F): naechster Klick ist das Ziel
@@ -396,11 +397,11 @@ addEventListener('keydown', (e) => {
     selPlan = null;
     document.getElementById('hilfe').hidden = true;
   }
-  if (e.key === 't') skillsOffen = !skillsOffen;
+  if (e.key === 't' && hatSkills(meFaction)) skillsOffen = !skillsOffen;
   // Kommandant gewaehlt: Q, W, E loesen seine Faehigkeiten aus.
   const kdtGewaehlt = kommandantVon(world, ME);
   const fi = 'qwe'.indexOf(e.key);
-  if (fi >= 0 && kdtGewaehlt && sel.includes(kdtGewaehlt.id)) {
+  if (fi >= 0 && kdtGewaehlt && sel.includes(kdtGewaehlt.id) && hatFaehigkeiten(meFaction)) {
     wirkeFaehigkeit(FACTIONS[meFaction].faehigkeiten[fi]);
     return;
   }
@@ -460,7 +461,7 @@ addEventListener('keydown', (e) => {
 
 /** Faehigkeit des Kommandanten ausloesen: ein Griff braucht ein Ziel, alles andere wirkt sofort. */
 function wirkeFaehigkeit(id) {
-  if (!faehigkeitenVon(world, ME).includes(id) || faehigkeitWarten(world, ME, id)) return;
+  if (!id || !faehigkeitenVon(world, ME).includes(id) || faehigkeitWarten(world, ME, id)) return;
   if (FAEHIGKEITEN[id].art === 'griff') {
     zielen = id;
     placing = null;
@@ -540,6 +541,13 @@ function leisten() {
 
 /** Skillbaum und Sperren neu zeichnen, sobald sich daran etwas aendert. */
 function skillPanel() {
+  // Ohne Skills (R0) kein Skillbaum, und die Hilfe laesst T und die Faehigkeiten weg
+  if (!hatSkills(meFaction)) skillsOffen = false;
+  const klassen = rollenKlassen(meFaction);
+  if (klassen !== hilfeKlassen) {
+    hilfeKlassen = klassen;
+    document.getElementById('hilfe').className = klassen;
+  }
   const el = document.getElementById('skills');
   el.hidden = !skillsOffen;
   const sig = skillSignatur(world, ME) + (skillsOffen ? '|offen' : '');
@@ -1650,10 +1658,10 @@ function introHtml() {
     immer er steht. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
     vorn kämpft, entscheidest du.</p>
     <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
-    Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
+    ${Object.keys(FACTIONS).some(hatSkills) ? `Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
     Schreine, Verbesserungen und drei Fähigkeiten des Kommandanten frei — Kommandant wählen, dann
     <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,
-    sammelt ein wenig Erfahrung.</p>
+    sammelt ein wenig Erfahrung.` : ''}</p>
     <p class="achten">Die Domäne ist das Werkzeug, nicht das Ziel: Wann fordert sie eine Entscheidung — und wann nervt sie?</p>
     </details>
     <div class="stil">Gegner:

@@ -38,6 +38,9 @@ export const CONFIGS = {
   'R1 ohne Wracks': { rules: { wrackAnteil: 0, wrackAnteilGebaeude: 0 } },
   'R1 Wracks 400': { rules: { wrackAnteil: 400, wrackAnteilGebaeude: 300 } },
   'R1 Wracks 1000': { rules: { wrackAnteil: 1000, wrackAnteilGebaeude: 700 } },
+  // Feuerleitnetz (R2): Waffen zielen nur auf Gesehenes. Ausgang hat es an; "ohne" ist wie vor R2.
+  'R2 ohne Feuerleitnetz': { rules: { feuerleitnetz: false } },
+  'R2 Feuerleitnetz': { rules: { feuerleitnetz: true } },
   'Gott start 850': { g: { start: 850 } },
   'Gott start 900': { g: { start: 900 } },
   'Gott start 925': { g: { start: 925 } },

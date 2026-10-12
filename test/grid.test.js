@@ -1244,6 +1244,8 @@ test('Belagerung: viel Schaden gegen Gebaeude, wenig gegen Einheiten, Gebaeude z
   wolf.arrived = false;
   wolf.tx = wolf.x;
   wolf.ty = wolf.y;
+  // Das Katapult reicht weiter, als es sieht (R2): ein Bauer, der nicht zuschlaegt, sieht fuer es
+  spawnUnit(w, 0, 'bauer', 5300, 5000).cooldown = 1e9;
   const [hpH, hpW] = [hain.hp, wolf.hp];
   step(w);
   assert.equal(hpH - hain.hp, UNITS.katapult.weapon.gebaeude, 'trifft den Hain, obwohl der Wolf naeher steht');

@@ -58,6 +58,8 @@ export function neueEffekte() {
     gefallen: [], // gerade gefallene Einheiten, sinken zu Boden: { id, type, player, x, y, t }
     truemmer: [], // Reste zerstoerter Gebaeude: { id, type, x, y, t }
     beben: 0,
+    ohneBeben: false, // Einstellung: kein Bildschirmwackeln
+    laut: 1, // Einstellung: Lautstaerke der Effekte (0..1)
     jetzt: 0,
     ton: null,
     stumm: leseStumm(),
@@ -238,7 +240,7 @@ export function blitzVon(fx, id) {
 
 /** Versatz des Bildes durch Beben, in Pixeln. */
 export function bebenVersatz(fx) {
-  if (fx.beben <= 0) return [0, 0];
+  if (fx.beben <= 0 || fx.ohneBeben) return [0, 0];
   return [(Math.random() - 0.5) * fx.beben, (Math.random() - 0.5) * fx.beben];
 }
 
@@ -355,7 +357,7 @@ export function tonAn(fx) {
   try {
     fx.ton = new AudioContext();
     fx.master = fx.ton.createGain();
-    fx.master.gain.value = 0.5;
+    fx.master.gain.value = 0.5 * fx.laut;
     fx.master.connect(fx.ton.destination);
   } catch {
     fx.ton = null;
@@ -370,6 +372,12 @@ function raum(fx, art, x, y, hoerer, laut) {
   if (f <= 0) return;
   const pan = Math.max(-1, Math.min(1, (x - hoerer.x) / (hoerer.weite * 0.6)));
   klang(fx, art, laut * f, pan);
+}
+
+/** Lautstaerke der Effekte (0..1), wirkt sofort. */
+export function effekteLautstaerke(fx, laut) {
+  fx.laut = laut;
+  if (fx.master) fx.master.gain.value = 0.5 * laut;
 }
 
 /** Kurzer Hinweiston, z. B. fuer einen Funkspruch in einer Mission. */

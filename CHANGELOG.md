@@ -26,6 +26,8 @@ Tabellen in `docs/scope.md`.
   Adern und beide Basen der gewählten Karte.
 - **Fotomodus in 3D** (P): blendet die ganze Oberfläche aus, die Kamera
   bleibt frei, ein Klick speichert das Bild als PNG.
+- **Einstellungen** im Menü (F10): Lautstärke von Effekten und Musik
+  getrennt, Bildschirmwackeln an/aus — gespeichert.
 - Endbildschirm: „Zufallskarte“ statt „zufall“.
 - **„✨ Neu in 0.37“** im Startbildschirm — einmal, bis man „Verstanden“
   klickt. Der Startbildschirm schneidet lange Inhalte oben nicht mehr ab.

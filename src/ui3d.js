@@ -70,6 +70,7 @@ const vorher = new Map(); // id -> [x, y] vor dem letzten Tick, fuer Interpolati
 const blick = new Map(); // id -> Blickrichtung in Bogenmass
 const musik = neueMusik(); // erzeugte Musik (src/musik.js), Taste N
 const fx = neueEffekte(); // Geschosse, Treffer, Klaenge (src/effekte.js)
+einstellungenAnwenden(einstellungenLesen(), fx, musik); // Lautstaerken, Wackeln (Menue, Einstellungen)
 // Was der Spieler sehen darf -- Eigenes immer, sonst was im Nebel sichtbar ist.
 const sichtbarFx = (e) => !nebel.an || e.player === ME || sieht(nebel, e.x, e.y);
 /** Hoerer an der Kamera; je weiter weg die Kamera, desto weiter hoert man. */
@@ -1794,6 +1795,15 @@ function menueZeigen() {
   knopf('menueLaden', () => {
     menueOffen = false;
     standLaden(schnellLaden());
+  });
+  knopf('menueEinstellungen', () => {
+    el.innerHTML = einstellungenHtml(einstellungenLesen());
+    einstellungenVerdrahten(fx, musik, () => {
+      menueOffen = false;
+      paused = pauseVorMenue;
+      el.style.display = 'none';
+      menueZeigen();
+    });
   });
   knopf('menueHilfe', () => {
     menueSchliessen();

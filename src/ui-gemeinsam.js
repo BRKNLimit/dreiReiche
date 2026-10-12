@@ -510,6 +510,57 @@ export function neuheitenGesehen() {
   }
 }
 
+// ------------------------------------------------------------ Einstellungen
+const EINSTELLUNGEN = 'dreiReiche.einstellungen';
+export function einstellungenLesen() {
+  const grund = { effekte: 100, musik: 100, beben: true };
+  try {
+    return { ...grund, ...JSON.parse(localStorage.getItem(EINSTELLUNGEN) || '{}') };
+  } catch {
+    return grund;
+  }
+}
+/** Einstellungen auf Effekte und Musik anwenden (und merken, wenn speichern). */
+export function einstellungenAnwenden(e, fx, musik, speichern = false) {
+  effekteLautstaerke(fx, e.effekte / 100);
+  musik.laut = e.musik / 100;
+  musik.ziel = -1; // neu einblenden
+  fx.ohneBeben = !e.beben;
+  if (!speichern) return;
+  try {
+    localStorage.setItem(EINSTELLUNGEN, JSON.stringify(e));
+  } catch {
+    /* nur fuer diese Sitzung */
+  }
+}
+export function einstellungenHtml(e) {
+  return `<div class="vorwort einstellungen"><div class="kapitel">Menü</div><h1>Einstellungen</h1>
+    <label>Effekte <input type="range" id="einstEffekte" min="0" max="100" value="${e.effekte}"> <span>${e.effekte} %</span></label>
+    <label>Musik <input type="range" id="einstMusik" min="0" max="100" value="${e.musik}"> <span>${e.musik} %</span></label>
+    <label><input type="checkbox" id="einstBeben"${e.beben ? ' checked' : ''}> Bildschirm wackelt bei schweren Treffern</label>
+    <p class="leise">M schaltet allen Ton aus, N nur die Musik.</p>
+    <div class="go"><button id="einstZurueck">Zurück</button></div></div>`;
+}
+/** Einstellungen im Overlay verdrahten; zurueck() wenn fertig. */
+export function einstellungenVerdrahten(fx, musik, zurueck) {
+  const e = einstellungenLesen();
+  const regler = (id, schluessel) => {
+    const r = document.getElementById(id);
+    r.oninput = () => {
+      e[schluessel] = Number(r.value);
+      r.nextElementSibling.textContent = r.value + ' %';
+      einstellungenAnwenden(e, fx, musik, true);
+    };
+  };
+  regler('einstEffekte', 'effekte');
+  regler('einstMusik', 'musik');
+  document.getElementById('einstBeben').onchange = (ev) => {
+    e.beben = ev.target.checked;
+    einstellungenAnwenden(e, fx, musik, true);
+  };
+  document.getElementById('einstZurueck').onclick = zurueck;
+}
+
 /** Pausenmenue (F10, Knopf unten rechts); laufend: Partie kann gespeichert und aufgegeben werden. */
 export function menueHtml(laufend, hatStand, speicherbar = true) {
   return `<div class="vorwort"><div class="kapitel">Pause</div><h1>Menü</h1>
@@ -518,6 +569,7 @@ export function menueHtml(laufend, hatStand, speicherbar = true) {
       ${laufend && speicherbar ? '<button id="menueSpeichern">Speichern (F5)</button>' : ''}
       ${hatStand ? '<button id="menueLaden">Letzten Spielstand laden (F9)</button>' : ''}
       <button id="menueHilfe">Steuerung (H)</button>
+      <button id="menueEinstellungen">Einstellungen</button>
       ${laufend ? '<button id="menueAufgeben">Aufgeben</button>' : ''}
       <button id="menueHaupt">Hauptmenü</button>
     </div></div>`;

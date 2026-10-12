@@ -113,6 +113,10 @@
   #fotoHinweis { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 30; padding: 6px 12px; border-radius: 4px; background: rgba(16, 18, 13, .7); color: var(--text); font-size: 12px; pointer-events: none; animation: fotoAus 4s forwards; }
   #fotoHinweis[hidden] { display: none; }
   @keyframes fotoAus { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+  #intro .einstellungen label { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
+  #intro .einstellungen input[type="range"] { flex: 1; accent-color: var(--accent); }
+  #intro .einstellungen span { min-width: 44px; text-align: right; color: var(--dim); }
+  #intro .einstellungen .leise { color: var(--dim); font-size: 12px; }
   #intro .bilanz { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
   #intro .bilanz b { color: var(--accent); margin-right: 4px; }
   #intro .bilanz span { color: var(--dim); font-size: 12px; margin-left: 6px; }

@@ -26,7 +26,7 @@ const MUSIK_STIMMUNG = {
 const musikHz = (midi) => 440 * 2 ** ((midi - 69) / 12);
 
 export function neueMusik() {
-  return { an: leseMusik(), bus: null, ziel: -1, naechster: 0, achtel: 0, stufe: 4, kampf: 0, volk: 'mensch' };
+  return { an: leseMusik(), laut: 1, bus: null, ziel: -1, naechster: 0, achtel: 0, stufe: 4, kampf: 0, volk: 'mensch' };
 }
 
 function leseMusik() {
@@ -61,7 +61,7 @@ export function musikFortschreiben(mu, fx, volk, dt) {
   if (!ton) return;
   if (!mu.bus) musikAufbauen(mu, ton);
   mu.kampf *= Math.exp(-dt / 12);
-  const ziel = mu.an && !fx.stumm ? MUSIK_LAUT : 0;
+  const ziel = mu.an && !fx.stumm ? MUSIK_LAUT * mu.laut : 0;
   if (ziel !== mu.ziel) {
     mu.bus.gain.setTargetAtTime(ziel, ton.currentTime, 0.6);
     mu.ziel = ziel;

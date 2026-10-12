@@ -8,8 +8,8 @@ nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Feld
 | Grundlage | Volksdateien, `FELDER`, `ROLLEN`, `test/daten.test.js` | nutzbar |
 | umwandler (Gegenwart → Fron) | `gegenwartIn` + `fronOut` ohne `needs` | nutzbar (reine Daten) |
 | posten (weite Sicht) | `sicht` | nutzbar (reine Daten) |
-| M1 Luftebene | `weapon.ziele`, Rollen `luftfabrik`, `flak`, `luftjaeger`, `bomber` | in Arbeit (Sonnet) |
-| M2 Schild | `schild` | geplant |
+| M1 Luftebene | `weapon.ziele` (`boden`/`luft`/`beide`), Flieger mit `weapon` kämpfen, Rollen `luftfabrik`, `flak` (Gebäude), `luftjaeger`, `bomber` (Einheiten) — die KI nutzt sie, wenn ein Volk sie hat | **nutzbar** (seit 12.10.) |
+| M2 Schild | `schild` | in Arbeit (Sonnet) |
 | M3 Volks-Mechaniken | `regeneration`, `aura`, `auferstehen`, `flaechenschaden`, `verlangsamt` | geplant |
 | M4 Fernschlag, Abwehr | `schlag`, `abwehr` | geplant |
 | M5 Prototypen | `hoechstens` | geplant |

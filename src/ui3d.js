@@ -1235,6 +1235,7 @@ function zeichneWirkungen() {
     octx.globalAlpha = 0.12 + 0.6 * Math.min(1, e.schildPunkte / s.kapazitaet);
     bodenKreis(e.x, e.y, s.radius);
   }
+  octx.globalAlpha = 1;
   wirkungen = wirkungen.filter((w) => w.bis >= world.tick);
   octx.lineWidth = 2.5;
   for (const w of wirkungen) {

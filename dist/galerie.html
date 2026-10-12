@@ -1251,7 +1251,7 @@ const FELDER = {
     'name', 'desc', 'short', 'faction', 'hp', 'radius', 'sicht', 'cost', 'buildTime',
     'anchor', 'anchorMin', 'vital', 'needs', 'needsGrowth', 'clears',
     'gegenwartIn', 'gegenwartOut', 'prio', 'fronOut', 'blutOut', 'forschung',
-    'buildList', 'buff', 'kampf', 'weapon',
+    'buildList', 'buff', 'kampf', 'weapon', 'schild',
   ],
   einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
@@ -1261,6 +1261,12 @@ const FELDER = {
   weapon: ['range', 'damage', 'cooldown', 'gebaeude', 'vorrang', 'ziele'],
   weaponZiele: ['boden', 'luft', 'beide'],
   buff: ['zorn', 'wehr', 'radius'],
+  // schild (M2): Schildkuppel eines Gebaeudes. Schaden an Eigenem im Umkreis
+  // trifft zuerst den Schild (sim.js, combat), der sich mit Gegenwart auflaedt.
+  //   kapazitaet  hoechste Schildpunkte (so viel Schaden faengt er ab)
+  //   radius      Umkreis in dm, Mitte zu Mitte
+  //   laden       Punkte pro Tick bei voller Versorgung (skaliert mit powered)
+  schild: ['kapazitaet', 'radius', 'laden'],
   build: ['power'],
   cost: ['fron', 'goetterblut'],
   skill: ['faction', 'ast', 'name', 'desc', 'kosten', 'braucht', 'frei', 'wirkung', 'faehigkeit'],
@@ -1280,7 +1286,8 @@ const ROLLEN = {
   // luftfabrik/flak (M1): Fabrik der Flieger, Abwehr nur gegen Flieger.
   // luftjaeger/bomber: Flieger gegen Flieger bzw. gegen Boden; rabe bleibt der
   // unbewaffnete Spaeher.
-  frei: { posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit' },
+  // schild (M2): Gebaeude mit Schildkuppel ueber Eigenem im Umkreis.
+  frei: { posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', schild: 'gebaeude', rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit' },
 };
 const START_FRON = 1100;
 

@@ -9,10 +9,10 @@ nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Feld
 | umwandler (Gegenwart → Fron) | `gegenwartIn` + `fronOut` ohne `needs` | nutzbar (reine Daten) |
 | posten (weite Sicht) | `sicht` | nutzbar (reine Daten) |
 | M1 Luftebene | `weapon.ziele` (`boden`/`luft`/`beide`), Flieger mit `weapon` kämpfen, Rollen `luftfabrik`, `flak` (Gebäude), `luftjaeger`, `bomber` (Einheiten) — die KI nutzt sie, wenn ein Volk sie hat | **nutzbar** (seit 12.10.) |
-| M2 Schild | `schild` | in Arbeit (Sonnet) |
+| M2 Schild | `schild: { kapazitaet, radius, laden }` (laden je Tick bei voller Versorgung, braucht `gegenwartIn`), Rolle `schild` (Gebäude) — die KI baut einen ab Minute 10 | **nutzbar** (seit 12.10.); ein Modell `schildkuppel` wäre schön (3D zeigt bisher einen Ring) |
 | M3 Volks-Mechaniken | `regeneration`, `aura`, `auferstehen`, `flaechenschaden`, `verlangsamt` | geplant |
-| M4 Fernschlag, Abwehr | `schlag`, `abwehr` | geplant |
-| M5 Prototypen | `hoechstens` | geplant |
+| M4 Fernschlag, Abwehr | `schlag`, `abwehr` | in Arbeit (Sonnet) |
+| M5 Prototypen | `hoechstens` | in Arbeit (Sonnet) |
 | M6 Tech-Baum | `wirkung.tempo/reichweite/sicht/baukraft/regeneration`, `nur` | geplant |
 | M7 KI | — | geplant |
 | M8 Oberfläche | — | geplant |

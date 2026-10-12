@@ -51,6 +51,9 @@ const TREFFER = {
   glut: { n: 12, farben: ['#ffb040', '#ff7020', '#ffe080'], tempo: 160, auf: 160, dauer: 0.8, groesse: 6, leuchtet: true, ring: 2 },
   wucht: { n: 14, farben: ['#8a7a5a', '#5a5040', '#b0a080'], tempo: 200, auf: 140, dauer: 0.9, groesse: 12, ring: 3 },
   stein: { n: 8, farben: ['#9a9a90', '#6a6a64'], tempo: 160, auf: 120, dauer: 0.7, groesse: 8 },
+  // Volks-Mechaniken (M3): Heilfunken steigen sanft auf, Erde bricht beim Aufstehen auf
+  heil: { n: 5, farben: ['#b8ffb0', '#7ae87a', '#ffffff'], tempo: 25, auf: 70, dauer: 1, groesse: 5, leuchtet: true },
+  erde: { n: 10, farben: ['#6a5a44', '#4a3e30', '#8a7a5a'], tempo: 90, auf: 150, dauer: 0.8, groesse: 9 },
 };
 
 // Wie lange Gefallene zu Boden sinken und Truemmer liegen bleiben (s)
@@ -187,6 +190,23 @@ export function effekteAusEreignissen(fx, world, ich, sichtbar, hoerer, imBild) 
         fx.ringe.push({ x: ev.ax, y: ev.ay, r: 350, t: 0, dauer: 0.6, farbe: '#9ae8ff' });
       }
       raum(fx, 'abfangen', ev.x, ev.y, hoerer, 0.9);
+    } else if (ev.t === 'geheilt') {
+      // Regeneration oder Heilaura: ein paar Funken, die aufsteigen -- die Simulation meldet sie nur etwa einmal je Sekunde.
+      if (!sichtbar(ev)) continue;
+      partikel(fx, 'heil', ev.x, ev.y, 0.6);
+    } else if (ev.t === 'flaeche') {
+      // Flaechentreffer: Druckring um das Ziel, so weit der Schaden reicht.
+      if (!sichtbar(ev)) continue;
+      partikel(fx, 'wucht', ev.x, ev.y, 0.5);
+      if (fx.ringe.length < 120) fx.ringe.push({ x: ev.x, y: ev.y, r: ev.radius, t: 0, dauer: 0.5, farbe: '#e0b060' });
+      raum(fx, 'stumpf', ev.x, ev.y, hoerer, 0.4);
+    } else if (ev.t === 'auferstanden') {
+      // Aufstehen aus dem Boden: Erde bricht auf, kalter Ring, dumpfer Ton.
+      if (!sichtbar(ev)) continue;
+      partikel(fx, 'erde', ev.x, ev.y, 1.2);
+      partikel(fx, 'magie', ev.x, ev.y, 0.6);
+      if (fx.ringe.length < 120) fx.ringe.push({ x: ev.x, y: ev.y, r: 220, t: 0, dauer: 0.8, farbe: '#9ae8ff' });
+      raum(fx, 'aufstehen', ev.x, ev.y, hoerer, 0.6);
     } else if (ev.t === 'built') {
       const b = byId(ev.id);
       if (b && b.player === ich) klang(fx, 'fertig', 0.5, 0);
@@ -538,6 +558,10 @@ const REZEPTE = {
     ton1(t, z, t0, 0.35, 'sine', 1400, 2400, 0.25);
     ton1(t, z, t0, 0.45, 'triangle', 900, 1800, 0.18, 0.06);
     rauschen(t, z, t0, 0.15, 'highpass', 4000, 1, 0.4);
+  },
+  aufstehen: (t, z, t0) => {
+    rauschen(t, z, t0, 0.4, 'lowpass', 260, 0.8, 0.8);
+    ton1(t, z, t0, 0.5, 'sine', 70, 140, 0.4);
   },
   fertig: (t, z, t0) => {
     ton1(t, z, t0, 0.25, 'sine', 660, 660, 0.25);

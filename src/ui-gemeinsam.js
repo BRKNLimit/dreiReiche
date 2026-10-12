@@ -5,7 +5,7 @@ import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PR
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
   gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon, zieleVon,
-  schlagBereit, anzahlVon,
+  schlagBereit, anzahlVon, auraAn,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
@@ -833,12 +833,42 @@ function karte(titel, desc, zeilen, sperre) {
 function waffeZeilen(d) {
   const w = d.weapon;
   const fern = d.kampf === 'fern';
-  return [
+  const z = [
     ['Kampf', fern ? 'Fernkampf' : 'Nahkampf'],
     ['Schaden', `${w.damage} je ${fern ? 'Schuss' : 'Schlag'}, ${((w.damage * 10) / w.cooldown).toFixed(1)} pro s`],
     ['Reichweite', fern ? meterText(w.range) : 'Berührung'],
     ['Trifft', { boden: 'Boden', luft: 'Luft', beide: 'Boden und Luft' }[zieleVon(d)]],
   ];
+  // Volks-Mechaniken (M3): Flaechentreffer und Verlangsamung
+  if (w.flaeche) z.push(['Fläche', `trifft auch im Umkreis ${meterText(w.flaeche.radius)} mit ${prozent(w.flaeche.anteil)}`]);
+  if (w.verlangsamt) z.push(['Bremst', `${sekunden(w.verlangsamt.dauer)} um ${prozent(w.verlangsamt.wert)}`]);
+  return z;
+}
+
+/** Aura als Text: "+20 % Tempo", "heilt 60 LP/min" ... fuer eigene Einheiten im Umkreis. */
+function auraText(a) {
+  const was = {
+    heilung: `heilt ${a.wert} LP/min`,
+    tempo: `+${prozent(a.wert)} Tempo`,
+    schaden: `+${prozent(a.wert)} Schaden`,
+    schutz: `−${prozent(a.wert)} genommener Schaden`,
+  }[a.art];
+  return `${was} in ${meterText(a.radius)}`;
+}
+
+/** Zeilen fuer regeneration und aura einer Einheit oder eines Gebaeudes (leer, wenn keins davon). */
+function volkZeilen(d, gebaeude) {
+  const z = [];
+  const versorgt = gebaeude ? ', nur versorgt' : '';
+  if (d.regeneration) z.push(['Regeneration', `heilt ${d.regeneration} LP/min${versorgt}`]);
+  if (d.aura) z.push(['Aura', `${auraText(d.aura)} für eigene Einheiten, die stärkste zählt${versorgt}`]);
+  return z;
+}
+
+/** Auferstehen eines Gebaeudes: jede alle-te Seele steht als Einheit wieder auf. */
+function auferstehenZeilen(a) {
+  const nr = a.alle === 1 ? 'Jede' : `Jede ${a.alle}.`;
+  return [['Auferstehen', `${nr} Seele steht als ${UNITS[a.einheit].name} auf${a.dauer ? `, vergeht nach ${sekunden(a.dauer)}` : ''}`]];
 }
 
 /** Schild eines Gebaeudes: Kapazitaet, Laden (je Sekunde, 10 Ticks) und Umkreis. */
@@ -904,6 +934,8 @@ export function gebaeudeKarte(world, player, typ) {
   if (d.schild) z.push(['Schild', schildText(d.schild)]);
   if (d.schlag) z.push(...schlagZeilen(d.schlag));
   if (d.abwehr) z.push(...abwehrZeilen(d.abwehr));
+  z.push(...volkZeilen(d, true));
+  if (d.auferstehen) z.push(...auferstehenZeilen(d.auferstehen));
   if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
   if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
   if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : UNITS[u].kampf ? 'nah' : 'Späher'})`).join(', ')]);
@@ -919,6 +951,7 @@ export function einheitKarte(world, player, typ) {
   z.push(['Leben', d.hp + ' LP']);
   if (d.hoechstens) z.push(['Begrenzt', `höchstens ${d.hoechstens} gleichzeitig (lebend und in Ausbildung)`]);
   if (d.weapon) z.push(...waffeZeilen(d));
+  z.push(...volkZeilen(d, false));
   z.push(['Tempo', tempo(d.speed)]);
   if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
   if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; Nahkämpfer und Bodenwaffen erreichen ihn nicht']);
@@ -1001,6 +1034,18 @@ export function auswahlKopf(world, e) {
   if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');
   if (e.kind === 'unit' && e.beschworen) teile.push(`vergeht in ${sekunden(e.vergehtBei - world.tick)}`);
   if (e.kind === 'unit' && e.gebundenBis > world.tick) teile.push('festgehalten');
+  if (e.kind === 'unit' && e.langsamBis > world.tick) teile.push(`verlangsamt −${prozent(e.langsamWert)} (noch ${sekunden(e.langsamBis - world.tick)})`);
+  // Regeneration, Auren (M3): was gerade auf die Einheit wirkt
+  if (def.regeneration && e.hp < e.maxHp) teile.push(`regeneriert ${def.regeneration} LP/min`);
+  if (e.kind === 'unit') {
+    const a = auraAn(world, e);
+    const aur = [];
+    if (a.heilung) aur.push(`heilt ${a.heilung} LP/min`);
+    if (a.tempo) aur.push(`Tempo +${prozent(a.tempo)}`);
+    if (a.schaden) aur.push(`Schaden +${prozent(a.schaden)}`);
+    if (a.schutz) aur.push(`Schutz −${prozent(a.schutz)}`);
+    if (aur.length) teile.push('Aura: ' + aur.join(', '));
+  }
   return `<b>${def.name}</b> — ${teile.join(' · ')}`;
 }
 

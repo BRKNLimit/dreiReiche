@@ -11,6 +11,35 @@ import { VOELKER, FACTIONS, BUILDINGS, UNITS, SKILLS, FAEHIGKEITEN, FELDER, ROLL
 function nurBekannte(wo, obj, erlaubt) {
   for (const k of Object.keys(obj)) assert.ok(erlaubt.includes(k), `${wo}: Feld „${k}“ kennt das Spiel nicht (FELDER in src/sim/defs.js)`);
 }
+/**
+ * Felder der Volks-Mechaniken (M3), fuer Gebaeude und Einheiten gleich: regeneration,
+ * aura, weapon.flaeche, weapon.verlangsamt -- und fuer Gebaeude auferstehen.
+ * Nullen oder Negatives taten nichts oder teilten durch null.
+ */
+function volksMechaniken(w, k, d) {
+  if (d.regeneration !== undefined) assert.ok(d.regeneration > 0, w(`${k}.regeneration: muss eine positive Zahl sein`));
+  if (d.aura) {
+    nurBekannte(w(`${k}.aura`), d.aura, FELDER.aura);
+    assert.ok(FELDER.auraArt.includes(d.aura.art), w(`${k}.aura.art: „${d.aura.art}“ ist keins von ${FELDER.auraArt}`));
+    assert.ok(d.aura.wert > 0 && d.aura.radius > 0, w(`${k}.aura: wert und radius müssen positive Zahlen sein`));
+  }
+  if (d.weapon?.flaeche) {
+    nurBekannte(w(`${k}.weapon.flaeche`), d.weapon.flaeche, FELDER.flaeche);
+    const f = d.weapon.flaeche;
+    assert.ok(f.radius > 0 && f.anteil > 0 && f.anteil <= 1000, w(`${k}.weapon.flaeche: radius > 0 und anteil 1..1000 Promille`));
+  }
+  if (d.weapon?.verlangsamt) {
+    nurBekannte(w(`${k}.weapon.verlangsamt`), d.weapon.verlangsamt, FELDER.verlangsamt);
+    const v = d.weapon.verlangsamt;
+    assert.ok(v.dauer > 0 && v.wert > 0 && v.wert <= 1000, w(`${k}.weapon.verlangsamt: dauer > 0 und wert 1..1000 Promille`));
+  }
+  if (d.auferstehen) {
+    nurBekannte(w(`${k}.auferstehen`), d.auferstehen, FELDER.auferstehen);
+    const a = d.auferstehen;
+    assert.ok(a.alle > 0 && a.dauer >= 0, w(`${k}.auferstehen: alle muss positiv, dauer darf 0 (bleibt) sein`));
+    assert.ok(UNITS[a.einheit]?.faction === d.faction, w(`${k}.auferstehen.einheit: „${a.einheit}“ ist keine eigene Einheit`));
+  }
+}
 /** Alle Zahlen (auch verschachtelt) ganz -- die Simulation rechnet nur mit Integern. */
 function ganzzahlig(wo, wert) {
   if (typeof wert === 'number') assert.ok(Number.isInteger(wert), `${wo}: ${wert} ist keine ganze Zahl`);
@@ -35,6 +64,7 @@ test('Daten: jedes Volk nur mit Feldern, die das Spiel kennt, und nur ganzen Zah
       }
       if (b.abwehr) for (const f of FELDER.abwehr) assert.ok(b.abwehr[f] > 0, w(`${k}.abwehr.${f}: muss eine positive Zahl sein`));
       if (b.weapon?.ziele) assert.ok(FELDER.weaponZiele.includes(b.weapon.ziele), w(`${k}.weapon.ziele: „${b.weapon.ziele}“ ist keins von ${FELDER.weaponZiele}`));
+      volksMechaniken(w, k, b);
       ganzzahlig(w(k), b);
     }
     for (const [k, u] of Object.entries(v.einheiten)) {
@@ -43,6 +73,7 @@ test('Daten: jedes Volk nur mit Feldern, die das Spiel kennt, und nur ganzen Zah
       if (u.weapon?.ziele) assert.ok(FELDER.weaponZiele.includes(u.weapon.ziele), w(`${k}.weapon.ziele: „${u.weapon.ziele}“ ist keins von ${FELDER.weaponZiele}`));
       // hoechstens 0 sperrte die Einheit fuer immer
       if (u.hoechstens !== undefined) assert.ok(u.hoechstens > 0, w(`${k}.hoechstens: muss eine positive Zahl sein`));
+      volksMechaniken(w, k, u);
       ganzzahlig(w(k), u);
     }
     for (const [k, s] of Object.entries(v.skills)) {
@@ -109,7 +140,12 @@ test('Daten: alle Verweise zeigen auf Eigenes, das es gibt', () => {
     }
     for (const [k, fh] of Object.entries(v.faehigkeiten)) if (fh.einheit) assert.ok(UNITS[fh.einheit], `Fähigkeit ${k}: Einheit ${fh.einheit}`);
     // Jede Einheit muss irgendwo entstehen koennen (Fabrik, Kommandant oder Faehigkeit)
-    const entsteht = new Set([vk.kommandant, ...Object.values(v.gebaeude).flatMap((b) => b.buildList || []), ...Object.values(v.faehigkeiten).map((x) => x.einheit)]);
+    const entsteht = new Set([
+      vk.kommandant,
+      ...Object.values(v.gebaeude).flatMap((b) => b.buildList || []),
+      ...Object.values(v.faehigkeiten).map((x) => x.einheit),
+      ...Object.values(v.gebaeude).map((b) => b.auferstehen?.einheit), // steht aus den Gefallenen auf (M3)
+    ]);
     for (const k of Object.keys(v.einheiten)) assert.ok(entsteht.has(k), `${f}: ${k} entsteht nirgends`);
   }
   assert.deepEqual(Object.keys(FACTIONS), VOELKER.map((v) => v.schluessel));

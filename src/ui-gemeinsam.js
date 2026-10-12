@@ -5,7 +5,7 @@ import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PR
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
   gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon, zieleVon,
-  schlagBereit, anzahlVon, auraAn, bonus, maxSpieler, startplatz,
+  schlagBereit, anzahlVon, auraAn, bonus, maxSpieler, startplatz, wrackVon, bergKraft,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { createAI } from './sim/ai.js';
@@ -498,8 +498,8 @@ export function routeVon(world, u) {
   const p = [[u.x, u.y, 'start']];
   if (u.auftrag) {
     for (const id of [u.auftrag, ...u.reihe]) {
-      const z = byId(world, id) || planVon(world, id);
-      if (z) p.push([z.x, z.y, 'bau']);
+      const z = byId(world, id) || planVon(world, id) || wrackVon(world, id);
+      if (z) p.push([z.x, z.y, z.kind === 'wrack' ? 'berge' : 'bau']);
     }
   } else if (!u.arrived) p.push([u.tx, u.ty, u.aggro || u.ziel ? 'angriff' : 'geh']);
   for (const [x, y, angriff] of u.wege) p.push([x, y, angriff ? 'angriff' : 'geh']);

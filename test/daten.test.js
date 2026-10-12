@@ -69,7 +69,9 @@ test('Daten: jedes Volk nur mit Feldern, die das Spiel kennt, und nur ganzen Zah
     }
     for (const [k, u] of Object.entries(v.einheiten)) {
       nurBekannte(w(k), u, FELDER.einheit);
-      for (const f of ['weapon', 'build', 'cost']) if (u[f]) nurBekannte(w(`${k}.${f}`), u[f], FELDER[f]);
+      for (const f of ['weapon', 'build', 'cost', 'bergung']) if (u[f]) nurBekannte(w(`${k}.${f}`), u[f], FELDER[f]);
+      // bergung (R1): ohne positive Kraft bergte die Einheit nie etwas
+      if (u.bergung) assert.ok(u.bergung.kraft > 0, w(`${k}.bergung.kraft: muss eine positive Zahl sein`));
       if (u.weapon?.ziele) assert.ok(FELDER.weaponZiele.includes(u.weapon.ziele), w(`${k}.weapon.ziele: „${u.weapon.ziele}“ ist keins von ${FELDER.weaponZiele}`));
       // hoechstens 0 sperrte die Einheit fuer immer
       if (u.hoechstens !== undefined) assert.ok(u.hoechstens > 0, w(`${k}.hoechstens: muss eine positive Zahl sein`));

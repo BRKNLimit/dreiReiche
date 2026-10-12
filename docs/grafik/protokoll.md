@@ -475,3 +475,44 @@ geprüft (Tests, Galerie, Spiel).
   - `npm run smoke`: Headless WebGL2, Canvas, 3D, Galerie und Editor fehlerfrei durchgelaufen.
   - Shader im echten Browser via Chrome/Edge DevTools Protocol (CDP) live auf `dist/drei-reiche-3d.html` und `dist/galerie.html` verifiziert: WebGL2-Kontext aktiv, `gl.getError() === 0`, keine Shader-Warnungen oder Konsolenfehler.
 
+### Runde 30: Kamera-Shake bei Spielende behoben & Skillbäume asymmetrisch ausgebaut
+
+- **Auftrag des Nutzers:**
+  1. "Entferne den Anhaltenden Kamera shake nach spiel ende"
+  2. "denk dir skills für den skilltree/techtree aus (aktuell zu klein simpel und zu ähnlich zwischen den fraktionen)"
+
+- **Was war schwach / Ursachen:**
+  1. **Anhaltender Kamera-Shake bei Spielende (`src/effekte.js`):**
+     Wenn eine Partie endete (`world.over === true` bzw. `world.winner !== null`), rief die Spielschleife in `src/ui3d.js` weiterhin `effekteFortschreiben(fx, dt = 0, world, hoerer)` mit `dt = 0` auf, damit die Spielwelt visuell anhält. Die Abklingformel `fx.beben = Math.max(0, fx.beben - dt * 30)` fror dadurch mit `dt = 0` auf dem letzten Bebenwert ein. Gleichzeitig lieferte `bebenVersatz(fx)` weiterhin in jedem Animationsframe `(Math.random() - 0.5) * fx.beben`, was zu endlosem Zittern der Kamera nach dem Sieg/Niederlage führte.
+  2. **Skilltree / Techtree zu klein, simpel und homogen:**
+     Bislang besaßen alle drei Reiche fast spiegelgleiche Skillbäume mit jeweils 14 identisch strukturierten Skills (+10 % Schaden, +10 % Schutz, +20 % Förderung, -25 % Unterhalt), sodass sich die Völker im Ausbau kaum voneinander unterschieden und nur wenig strategische Spezialisierung boten.
+
+- **Was wurde geändert:**
+  1. **Kamera-Shake-Fix (`src/effekte.js`):**
+     - `effekteFortschreiben(fx, dt, world, hoerer)`: Sobald `world.over` oder `world.winner !== null` ist, wird `fx.over = true` und `fx.beben = 0` gesetzt.
+     - `beben(fx, staerke, x, y, hoerer)`: Bei `if (fx.over) return;` werden keine neuen Erschütterungen nach Spielende registriert.
+     - `bebenVersatz(fx)`: Liefert bei `fx.over` sofort `[0, 0]`. Die Kamera steht nach Spielende absolut still und wackelfrei.
+  2. **Asymmetrischer Ausbau der Skillbäume (von 14 auf je 22 Skills):**
+     - **Menschen (`src/sim/voelker/mensch.js`):** Fokus auf Heeresdisziplin, Eisenrüstungen (`schutz`), Logistik (`unterhalt` & `foerderung`) sowie Befestigungskunst.
+       - *Einheiten-Ast:* `drill_schuetzen` (Schützendrill), `waffenmeister` (Waffenmeister: Präzision und gehärteter Stahl).
+       - *Gebäude-Ast:* `feldwerkstatt` (Feldwerkstatt: Belagerungsreparatur & Bautempo), `steinmetzkunst` (Steinmetzkunst), `wehrmauern` (Wehrzinnen), `festungsarchitektur` (Festungsarchitektur: massive Schutzmauern).
+       - *Verbesserungs-Ast:* `plattenschmiede` (Plattenschmiede: schwere Plattenharnische +15 % Schutz), `quartiermeister` (Heereslogistik: organisierte Trainzüge -15 % Unterhalt, +10 % Förderung), `veteranenheer` (Veteranenordnung: standfeste Veteranen +10 % Schaden, +10 % Schutz).
+       - *Kommandanten-Ast:* `koenigsbann` (Königsbann: königliche Präsenz stärkt Standfestigkeit und Kampfmoral).
+     - **Wald- und Wiesengott (`src/sim/voelker/gott.js`):** Fokus auf unbändige Brut- und Wachstumsrate (`ausbildung`), reißenden Raubtier-Burst (`schaden`) und überwuchernde Haine.
+       - *Einheiten-Ast:* `sporensaat` (Sporensaat: beschleunigtes Keimen), `reissklauen` (Reißkrallen: tiefe Fleischwunden +15 % Schaden).
+       - *Gebäude-Ast:* `wucherwurzeln` (Wucherwurzeln), `uralte_haine` (Uralte Haine), `lebensader` (Lebensader: uralte Myzel-Netzwerke nähren Bauten und Schreine).
+       - *Verbesserungs-Ast:* `schwarmbrut` (Schwarmbrut: massive Ausbildungsbeschleunigung +20 %), `tiefwaldschrecken` (Tiefwaldzorn: +15 % Raubtierschaden), `moosmantel` (Lebendiges Moos), `wildwuchs` (Urtümlicher Wildwuchs: gewaltige biologische Expansion +25 % Ausbildung, -15 % Unterhalt).
+       - *Kommandanten-Ast:* `weltenwurz` (Weltenwurz: urzeitliche Widerstandskraft).
+     - **Todesgott (`src/sim/voelker/tod.js`):** Fokus auf unendliche Erschöpfungskriege, kostenlose Armeen (`unterhalt` bis zu -57 % Reduktion), Gebeinhärtung (`schutz`) und Frost-Totenkulte.
+       - *Einheiten-Ast:* `knochenstaub` (Knochenasche), `grabesschlaeger` (Grabesschlächter: Obsidianklingen mit Grabfluch), `gebeinflut` (Gebeinflut: unaufhaltsames Auferstehen gefallener Krieger).
+       - *Gebäude-Ast:* `totengruft` (Totengrüfte: uralte Vorratskammern), `ossuarium_mauern` (Gebeinwälle), `nekropolenmacht` (Nekropolenmacht).
+       - *Verbesserungs-Ast:* `schattenpanzer` (Schattenpanzer: spektraler Schutz +15 %), `todesruhe` (Todesruhe: Seelen fordern keinen Sold -18 % Unterhalt), `leichenmarsch` (Ewiger Leichenmarsch: gewaltige endlose Horden ohne Unterhalt).
+       - *Kommandanten-Ast:* `seelenfresser` (Seelenfresser: Todesgott absorbiert Essenz gefallener Seelen).
+     - Alle neuen Skills nutzen ausschließlich die vordefinierten Felder gemäß `FELDER.skill` und `FELDER.wirkung` (`src/sim/defs.js`). Die KI-Lernreihenfolgen (`lernen`) wurden harmonisch um die neuen Knoten erweitert.
+
+- **Wie geprüft:**
+  - `npm test`: Alle 196 Tests fehlerfrei bestanden (einschließlich `daten.test.js`, `grid.test.js`, `grafik.test.js`).
+  - `npm run smoke`: Headless WebGL2, Canvas, 3D, Galerie und Editor ohne Warnungen oder Fehler durchgelaufen.
+  - `tools/sweep.mjs 12 30 Ausgang`: KI-Gefechte laufen stabil, deterministisch und bitgenau.
+
+

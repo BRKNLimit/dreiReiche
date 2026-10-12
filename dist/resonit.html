@@ -358,7 +358,7 @@
 </dl></div>
 </div>
 <script>
-const SPIEL_STAND = '7e208f7d1b';
+const SPIEL_STAND = 'b91ed7d7c7';
 
 /* ---------------------------------- */
 
@@ -400,8 +400,7 @@ const VOLK_MENSCH = {
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
   rollen: { anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne', zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten', bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult' },
-  // Reihenfolge, in der die KI den Skillbaum lernt
-  lernen: ['bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte', 'kapellenbau', 'belagerungsbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'ansturm'],
+  lernen: ['bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte', 'kapellenbau', 'drill_schuetzen', 'steinmetzkunst', 'soeldnervertraege', 'waffenmeister', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'belagerungsbau', 'plattenschmiede', 'wehrmauern', 'feldwerkstatt', 'ansturm', 'veteranenheer', 'festungsarchitektur', 'koenigsbann'],
   gebaeude: {
     halle: {
       name: 'Thingstätte',
@@ -664,18 +663,33 @@ const VOLK_MENSCH = {
     },
   },
   skills: {
-    belagerungsbau: {
-      faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
-      desc: 'Die Kaserne baut Ballisten — sie schießen weiter, als ein Turm reicht.',
-    },
+    // Ast: Einheiten
     bogenbau: {
       faction: 'mensch', ast: 'einheiten', name: 'Bogenbau', kosten: 1, frei: ['jaeger'],
       desc: 'Die Kaserne bildet Jäger aus — Fernkämpfer hinter der Linie.',
+    },
+    drill_schuetzen: {
+      faction: 'mensch', ast: 'einheiten', name: 'Schützendrill', kosten: 1, braucht: ['bogenbau'], wirkung: { ausbildung: 150 },
+      desc: 'Gleichmäßiges Bogenspannen und Pfeilgreifen: Jäger rücken schneller nach.',
     },
     soeldnervertraege: {
       faction: 'mensch', ast: 'einheiten', name: 'Söldnerverträge', kosten: 2, braucht: ['bogenbau'], frei: ['soeldner'],
       desc: 'Die Kaserne wirbt Söldner an — schwer gerüstet, bezahlt mit Götterblut.',
     },
+    waffenmeister: {
+      faction: 'mensch', ast: 'einheiten', name: 'Waffenmeister', kosten: 2, braucht: ['soeldnervertraege'], wirkung: { schaden: 120 },
+      desc: 'Gereckter Federstahl und geschmiedete Hellebardenblätter schlagen tiefere Wunden.',
+    },
+    belagerungsbau: {
+      faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
+      desc: 'Die Kaserne baut Ballisten — sie schießen weiter, als ein Turm reicht.',
+    },
+    feldwerkstatt: {
+      faction: 'mensch', ast: 'einheiten', name: 'Feldinstandsetzung', kosten: 2, braucht: ['belagerungsbau'], wirkung: { ausbildung: 150, schaden: 80 },
+      desc: 'Zimmermannstrupps warten Katapulte und Lafetten direkt an der Frontlinie.',
+    },
+
+    // Ast: Gebäude
     kriegsbanner: {
       faction: 'mensch', ast: 'gebaeude', name: 'Kriegsbanner', kosten: 1, frei: ['banner'],
       desc: 'Schrein des Zorns: Wer unter dem Banner kämpft, schlägt härter zu.',
@@ -684,6 +698,20 @@ const VOLK_MENSCH = {
       faction: 'mensch', ast: 'gebaeude', name: 'Kapellenbau', kosten: 1, frei: ['kapelle'],
       desc: 'Schrein der Wehr: Gebete schützen, wer in der Nähe kämpft.',
     },
+    steinmetzkunst: {
+      faction: 'mensch', ast: 'gebaeude', name: 'Steinmetzkunst', kosten: 1, braucht: ['fronvoegte'], wirkung: { foerderung: 120, schutz: 50 },
+      desc: 'Präzise behauener Quaderstein festigt Schächte, Sägewerke und Fundamente.',
+    },
+    wehrmauern: {
+      faction: 'mensch', ast: 'gebaeude', name: 'Wehrzinnen', kosten: 2, braucht: ['kapellenbau', 'steinmetzkunst'], wirkung: { schutz: 100 },
+      desc: 'Massive Zinnen und Brustwehren schützen Verteidiger und Wachtürme vor Treffern.',
+    },
+    festungsarchitektur: {
+      faction: 'mensch', ast: 'gebaeude', name: 'Festungsarchitektur', kosten: 2, braucht: ['wehrmauern'], wirkung: { foerderung: 150, schutz: 80 },
+      desc: 'Monumentale königliche Bauwerke: Höchste Standfestigkeit und geordnete Vorratshaltung.',
+    },
+
+    // Ast: Verbesserungen
     klingen: {
       faction: 'mensch', ast: 'verbesserung', name: 'Geschliffene Klingen', kosten: 1, wirkung: { schaden: 100 },
       desc: 'Bessere Waffen für alle.',
@@ -691,6 +719,10 @@ const VOLK_MENSCH = {
     kettenhemden: {
       faction: 'mensch', ast: 'verbesserung', name: 'Kettenhemden', kosten: 1, braucht: ['klingen'], wirkung: { schutz: 100 },
       desc: 'Bessere Rüstung für alle.',
+    },
+    plattenschmiede: {
+      faction: 'mensch', ast: 'verbesserung', name: 'Plattenschmiede', kosten: 2, braucht: ['kettenhemden'], wirkung: { schutz: 120 },
+      desc: 'Ausgetriebene Stahlbrustpanzer weisen Hiebe und Pfeile zuverlässig ab.',
     },
     fronvoegte: {
       faction: 'mensch', ast: 'verbesserung', name: 'Fronvögte', kosten: 1, wirkung: { foerderung: 200 },
@@ -704,6 +736,16 @@ const VOLK_MENSCH = {
       faction: 'mensch', ast: 'verbesserung', name: 'Sold und Ordnung', kosten: 2, braucht: ['drillmeister'], wirkung: { unterhalt: 250 },
       desc: 'Ein geordnetes Heer kostet weniger.',
     },
+    quartiermeister: {
+      faction: 'mensch', ast: 'verbesserung', name: 'Heereslogistik', kosten: 2, braucht: ['sold'], wirkung: { unterhalt: 150, foerderung: 100 },
+      desc: 'Geordnete Wagenzüge und Mehlmagazine entlasten die Truppenkasse nachhaltig.',
+    },
+    veteranenheer: {
+      faction: 'mensch', ast: 'verbesserung', name: 'Veteranenordnung', kosten: 3, braucht: ['plattenschmiede', 'sold'], wirkung: { schaden: 100, schutz: 100 },
+      desc: 'Kampferprobte Regimenter mit eiserner Standfestigkeit und Schlachtroutine.',
+    },
+
+    // Ast: Kommandant
     heldenmut: {
       faction: 'mensch', ast: 'kommandant', name: 'Heldenmut', kosten: 1, wirkung: { kdtSchutz: 200 },
       desc: 'Der Held hält mehr aus.',
@@ -719,6 +761,10 @@ const VOLK_MENSCH = {
     ansturm: {
       faction: 'mensch', ast: 'kommandant', name: 'Ansturm', kosten: 2, braucht: ['schlachtruf'], faehigkeit: 'ansturm',
       desc: 'Der Held stürmt voran, und alle folgen.',
+    },
+    koenigsbann: {
+      faction: 'mensch', ast: 'kommandant', name: 'Königsbann', kosten: 2, braucht: ['schildwall', 'ansturm'], wirkung: { kdtSchutz: 250, schaden: 60 },
+      desc: 'Die unerschütterliche Hoheit des Königs inspiriert die Garde und trotzt jedem Schrecken.',
     },
 
   },
@@ -754,8 +800,7 @@ const VOLK_GOTT = {
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
   rollen: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', posten: 'wipfelausguck', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
-  // Reihenfolge, in der die KI den Skillbaum lernt
-  lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf'],
+  lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'sporensaat', 'wucherwurzeln', 'reissklauen', 'borke', 'keimkraft', 'lebenssaft', 'wurzelbrecher', 'ents', 'genuegsamkeit', 'rudelruf', 'uralte_haine', 'tiefwaldschrecken', 'schwarmbrut', 'wildwuchs', 'lebensader', 'weltenwurz'],
   gebaeude: {
     herzbaum: {
       name: 'Herzbaum',
@@ -1012,18 +1057,33 @@ const VOLK_GOTT = {
     },
   },
   skills: {
-    wurzelbrecher: {
-      faction: 'gott', ast: 'einheiten', name: 'Wurzelbrecher wecken', kosten: 2, braucht: ['waldgeister'], frei: ['wurzelbrecher'],
-      desc: 'Das Dickicht weckt Wurzelbrecher — sie sprengen Mauern von innen.',
-    },
+    // Ast: Einheiten
     waldgeister: {
       faction: 'gott', ast: 'einheiten', name: 'Waldgeister rufen', kosten: 1, frei: ['waldgeist'],
       desc: 'Das Dickicht ruft Waldgeister — sie werfen Licht aus der Ferne.',
+    },
+    sporensaat: {
+      faction: 'gott', ast: 'einheiten', name: 'Sporensaat', kosten: 1, braucht: ['waldgeister'], wirkung: { ausbildung: 180 },
+      desc: 'Fruchtbare Waldsporen treiben im Dickicht: Waldgeister und Wölfe formieren sich schneller.',
+    },
+    wurzelbrecher: {
+      faction: 'gott', ast: 'einheiten', name: 'Wurzelbrecher wecken', kosten: 2, braucht: ['waldgeister'], frei: ['wurzelbrecher'],
+      desc: 'Das Dickicht weckt Wurzelbrecher — sie sprengen Mauern von innen.',
     },
     ents: {
       faction: 'gott', ast: 'einheiten', name: 'Ents erwecken', kosten: 2, braucht: ['waldgeister'], frei: ['ent'],
       desc: 'Das Dickicht erweckt Ents — uralt, gewaltig, genährt von Götterblut.',
     },
+    tiefwaldschrecken: {
+      faction: 'gott', ast: 'einheiten', name: 'Tiefwaldzorn', kosten: 2, braucht: ['ents', 'wurzelbrecher'], wirkung: { schaden: 140 },
+      desc: 'Uralte Bäume und Wurzelungetüme schlagen mit der Gewalt brechender Stämme zu.',
+    },
+    schwarmbrut: {
+      faction: 'gott', ast: 'einheiten', name: 'Schwarmbrut', kosten: 2, braucht: ['sporensaat'], wirkung: { ausbildung: 200, schaden: 60 },
+      desc: 'Nimmersatte Schwärme brechen aus dem Geäst hervor und überfluten die Lichtungen.',
+    },
+
+    // Ast: Gebäude
     dornen: {
       faction: 'gott', ast: 'gebaeude', name: 'Dornenschrein', kosten: 1, frei: ['dornenschrein'],
       desc: 'Schrein des Zorns: Dornen schärfen, wer in ihrer Nähe kämpft.',
@@ -1032,13 +1092,35 @@ const VOLK_GOTT = {
       faction: 'gott', ast: 'gebaeude', name: 'Steinkreis', kosten: 1, frei: ['steinkreis'],
       desc: 'Schrein der Wehr: Alte Steine halten Schaden fern.',
     },
+    wucherwurzeln: {
+      faction: 'gott', ast: 'gebaeude', name: 'Wucherwurzeln', kosten: 1, braucht: ['saftfluss'], wirkung: { foerderung: 140, ausbildung: 80 },
+      desc: 'Tief greifende Moosfasern und Wurzeln durchziehen den Boden und speisen Haine.',
+    },
+    uralte_haine: {
+      faction: 'gott', ast: 'gebaeude', name: 'Uralte Haine', kosten: 2, braucht: ['steine', 'wucherwurzeln'], wirkung: { schutz: 100 },
+      desc: 'Bemooste Megalithen und knorrige Eichenkronen schlucken feindliche Geschosse.',
+    },
+    lebensader: {
+      faction: 'gott', ast: 'gebaeude', name: 'Lebensader', kosten: 2, braucht: ['uralte_haine'], wirkung: { foerderung: 160, schutz: 80 },
+      desc: 'Das pulsierende Herz der Natur lässt Erde, Moos und Baumsaft unerschöpflich quellen.',
+    },
+
+    // Ast: Verbesserungen
     faenge: {
       faction: 'gott', ast: 'verbesserung', name: 'Scharfe Fänge', kosten: 1, wirkung: { schaden: 100 },
       desc: 'Krallen und Zähne für alle.',
     },
+    reissklauen: {
+      faction: 'gott', ast: 'verbesserung', name: 'Reißkrallen', kosten: 2, braucht: ['faenge'], wirkung: { schaden: 150 },
+      desc: 'Krumme, gehärtete Hornklauen zerfetzen Harnische und Schilde.',
+    },
     borke: {
       faction: 'gott', ast: 'verbesserung', name: 'Borkenhaut', kosten: 1, braucht: ['faenge'], wirkung: { schutz: 100 },
       desc: 'Rinde statt Haut für alle.',
+    },
+    moosmantel: {
+      faction: 'gott', ast: 'verbesserung', name: 'Lebendiges Moos', kosten: 2, braucht: ['borke'], wirkung: { schutz: 100, ausbildung: 100 },
+      desc: 'Dichte, feuchte Moospolster schließen Wunden im Kampf rasch wieder.',
     },
     saftfluss: {
       faction: 'gott', ast: 'verbesserung', name: 'Saftfluss', kosten: 1, wirkung: { foerderung: 200 },
@@ -1052,6 +1134,12 @@ const VOLK_GOTT = {
       faction: 'gott', ast: 'verbesserung', name: 'Genügsamkeit', kosten: 2, braucht: ['keimkraft'], wirkung: { unterhalt: 250 },
       desc: 'Die Geschöpfe des Waldes brauchen weniger.',
     },
+    wildwuchs: {
+      faction: 'gott', ast: 'verbesserung', name: 'Urtümlicher Wildwuchs', kosten: 3, braucht: ['reissklauen', 'keimkraft'], wirkung: { ausbildung: 220, schaden: 100 },
+      desc: 'Die wilde Wut des Waldes: Unfassbare Vermehrungsflut und raubtierhafte Wildheit.',
+    },
+
+    // Ast: Kommandant
     rinde: {
       faction: 'gott', ast: 'kommandant', name: 'Uralte Rinde', kosten: 1, wirkung: { kdtSchutz: 200 },
       desc: 'Der Waldgott hält mehr aus.',
@@ -1067,6 +1155,10 @@ const VOLK_GOTT = {
     rudelruf: {
       faction: 'gott', ast: 'kommandant', name: 'Rudelruf', kosten: 2, braucht: ['wurzelgriff'], faehigkeit: 'rudelruf',
       desc: 'Ein Heulen, und das Rudel kommt.',
+    },
+    weltenwurz: {
+      faction: 'gott', ast: 'kommandant', name: 'Weltenwurz', kosten: 2, braucht: ['lebenssaft', 'rudelruf'], wirkung: { kdtSchutz: 250, schaden: 80 },
+      desc: 'Die Wurzeln des Titanen greifen tief in das Weltenherz: Der Waldgott wird nahezu unbezwingbar.',
     },
   },
   faehigkeiten: {
@@ -1103,8 +1195,7 @@ const VOLK_TOD = {
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
   rollen: { anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe', zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv', posten: 'geisterturm', bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier' },
-  // Reihenfolge, in der die KI den Skillbaum lernt
-  lernen: ['klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte', 'beinhaus', 'titanenform', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'ewigerDienst', 'seelenrausch', 'knochensturm'],
+  lernen: ['klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte', 'beinhaus', 'knochenstaub', 'totengruft', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'seelenrausch', 'titanenform', 'ewigerDienst', 'schattenpanzer', 'knochensturm', 'grabesschlaeger', 'ossuarium_mauern', 'gebeinflut', 'todesruhe', 'leichenmarsch', 'nekropolenmacht', 'seelenfresser'],
   gebaeude: {
     nekropole: {
       name: 'Nekropole',
@@ -1351,18 +1442,33 @@ const VOLK_TOD = {
     },
   },
   skills: {
+    // Ast: Einheiten
     klageweiber: {
       faction: 'tod', ast: 'einheiten', name: 'Klageweiber wecken', kosten: 1, frei: ['klageweib'],
       desc: 'Die Katakomben rufen Klageweiber — ihre Schreie treffen aus der Ferne.',
+    },
+    knochenstaub: {
+      faction: 'tod', ast: 'einheiten', name: 'Knochenasche', kosten: 1, braucht: ['klageweiber'], wirkung: { ausbildung: 150 },
+      desc: 'Aus kalter Gräberasche formen sich die Geister der Klageweiber müheloser.',
     },
     grabwaechterweihe: {
       faction: 'tod', ast: 'einheiten', name: 'Grabwächter weihen', kosten: 2, braucht: ['klageweiber'], frei: ['grabwaechter'],
       desc: 'Die Katakomben erwecken Grabwächter aus Obsidian und Götterblut.',
     },
+    grabesschlaeger: {
+      faction: 'tod', ast: 'einheiten', name: 'Grabesschlächter', kosten: 2, braucht: ['grabwaechterweihe'], wirkung: { schaden: 130 },
+      desc: 'Obsidianklingen mit eisigem Grabfluch spalten Schilde und Knochen.',
+    },
     titanenform: {
       faction: 'tod', ast: 'einheiten', name: 'Knochentitan formen', kosten: 2, braucht: ['klageweiber'], frei: ['knochentitan'],
       desc: 'Ein Koloss aus Gebeinen bricht Mauern und Festungen.',
     },
+    gebeinflut: {
+      faction: 'tod', ast: 'einheiten', name: 'Gebeinflut', kosten: 2, braucht: ['knochenstaub', 'titanenform'], wirkung: { ausbildung: 180, schutz: 70 },
+      desc: 'Aus zerborstenen Festungen erstehen unzählige Knochenkrieger aufs Neue.',
+    },
+
+    // Ast: Gebäude
     pestweihe: {
       faction: 'tod', ast: 'gebaeude', name: 'Pestaltar', kosten: 1, frei: ['pestaltar'],
       desc: 'Schrein des Zorns: kalter Hauch schärft die Hiebe.',
@@ -1371,6 +1477,20 @@ const VOLK_TOD = {
       faction: 'tod', ast: 'gebaeude', name: 'Ossuarium', kosten: 1, frei: ['ossuarium'],
       desc: 'Schrein der Wehr: Knochenwände dämpfen Schaden.',
     },
+    totengruft: {
+      faction: 'tod', ast: 'gebaeude', name: 'Totengrüfte', kosten: 1, braucht: ['seelenernte'], wirkung: { foerderung: 120, unterhalt: 100 },
+      desc: 'Gewölbte Grüfte bergen uralte Vorräte und verringern den Fronaufwand.',
+    },
+    ossuarium_mauern: {
+      faction: 'tod', ast: 'gebaeude', name: 'Gebeinwälle', kosten: 2, braucht: ['beinhaus', 'totengruft'], wirkung: { schutz: 120 },
+      desc: 'Aufgetürmte Schädel und Rippenwände federn Einschläge finster ab.',
+    },
+    nekropolenmacht: {
+      faction: 'tod', ast: 'gebaeude', name: 'Nekropolenmacht', kosten: 2, braucht: ['ossuarium_mauern'], wirkung: { foerderung: 160, schutz: 80 },
+      desc: 'Die finstere Herrschaft der Nekropole entzieht dem Umland alle Lebensenergie.',
+    },
+
+    // Ast: Verbesserungen
     pestodem: {
       faction: 'tod', ast: 'verbesserung', name: 'Pestodem', kosten: 1, wirkung: { schaden: 100 },
       desc: 'Giftige Hiebe für alle.',
@@ -1378,6 +1498,10 @@ const VOLK_TOD = {
     knochenhaertung: {
       faction: 'tod', ast: 'verbesserung', name: 'Knochenhärtung', kosten: 1, braucht: ['pestodem'], wirkung: { schutz: 100 },
       desc: 'Versteinerte Gebeine für alle.',
+    },
+    schattenpanzer: {
+      faction: 'tod', ast: 'verbesserung', name: 'Schattenpanzer', kosten: 2, braucht: ['knochenhaertung'], wirkung: { schutz: 150 },
+      desc: 'Ätherische Kälte und verhärteter Knochen widerstehen stärkstem Waffenbeschuss.',
     },
     seelenernte: {
       faction: 'tod', ast: 'verbesserung', name: 'Seelenernte', kosten: 1, wirkung: { foerderung: 200 },
@@ -1391,6 +1515,16 @@ const VOLK_TOD = {
       faction: 'tod', ast: 'verbesserung', name: 'Ewiger Dienst', kosten: 2, braucht: ['grabeskuehle'], wirkung: { unterhalt: 250 },
       desc: 'Tote fordern wenig — der Unterhalt sinkt.',
     },
+    todesruhe: {
+      faction: 'tod', ast: 'verbesserung', name: 'Todesruhe', kosten: 2, braucht: ['ewigerDienst'], wirkung: { unterhalt: 180 },
+      desc: 'Kein Magen knurrt, kein Herz verlangt Sold: Das Totenheer marschiert fast kostenlos.',
+    },
+    leichenmarsch: {
+      faction: 'tod', ast: 'verbesserung', name: 'Ewiger Leichenmarsch', kosten: 3, braucht: ['todesruhe', 'schattenpanzer'], wirkung: { unterhalt: 200, schutz: 100 },
+      desc: 'Vollkommene Selbstgenügsamkeit der Untoten: Riesige Armeen ohne nennenswerten Unterhalt.',
+    },
+
+    // Ast: Kommandant
     nekromantie: {
       faction: 'tod', ast: 'kommandant', name: 'Nekromantische Aura', kosten: 1, wirkung: { kdtSchutz: 200 },
       desc: 'Der Todesgott hält mehr aus.',
@@ -1406,6 +1540,10 @@ const VOLK_TOD = {
     knochensturm: {
       faction: 'tod', ast: 'kommandant', name: 'Knochensturm', kosten: 2, braucht: ['grabeskaelte'], faehigkeit: 'knochensturm',
       desc: 'Skelettkrieger brechen aus der Erde und kämpfen eine Weile mit.',
+    },
+    seelenfresser: {
+      faction: 'tod', ast: 'kommandant', name: 'Seelenfresser', kosten: 2, braucht: ['seelenrausch', 'knochensturm'], wirkung: { kdtSchutz: 250, schaden: 80 },
+      desc: 'Der Todesgott labt sich am Hauch jedes Gefallenen und wird zur wandelnden Festung.',
     },
   },
   faehigkeiten: {
@@ -7289,12 +7427,19 @@ function partikel(fx, art, x, y, menge = 1, richtung = null) {
 
 /** Beben nach Staerke, schwaecher mit Abstand zur Bildmitte. */
 function beben(fx, staerke, x, y, hoerer) {
+  if (fx.over) return;
   const f = Math.max(0, 1 - Math.hypot(x - hoerer.x, y - hoerer.y) / hoerer.weite);
   fx.beben = Math.min(14, Math.max(fx.beben, staerke * f));
 }
 
 /** Zeit fortschreiben: Geschosse schlagen ein, Partikel fallen, Ringe weiten sich. */
 function effekteFortschreiben(fx, dt, world, hoerer) {
+  if (world && (world.over || world.winner !== null && world.winner !== undefined)) {
+    fx.over = true;
+    fx.beben = 0;
+  } else {
+    fx.over = false;
+  }
   fx.jetzt += dt * 1000;
   const lebt = [];
   for (const g of fx.geschosse) {
@@ -7326,7 +7471,7 @@ function effekteFortschreiben(fx, dt, world, hoerer) {
   fx.gefallen = fx.gefallen.filter((g) => (g.t += dt) < FALLEN);
   fx.truemmer = fx.truemmer.filter((g) => (g.t += dt) < TRUEMMER);
   if (fx.truemmer.length > 60) fx.truemmer.splice(0, fx.truemmer.length - 60);
-  fx.beben = Math.max(0, fx.beben - dt * 30);
+  fx.beben = fx.over ? 0 : Math.max(0, fx.beben - dt * 30);
 }
 
 /** Wie stark eine Entity gerade aufblitzt (0..1) -- kurz nach einem Treffer. */
@@ -7343,7 +7488,7 @@ function blitzVon(fx, id) {
 
 /** Versatz des Bildes durch Beben, in Pixeln. */
 function bebenVersatz(fx) {
-  if (fx.beben <= 0 || fx.ohneBeben) return [0, 0];
+  if (fx.over || fx.beben <= 0 || fx.ohneBeben) return [0, 0];
   return [(Math.random() - 0.5) * fx.beben, (Math.random() - 0.5) * fx.beben];
 }
 

@@ -201,12 +201,19 @@ function partikel(fx, art, x, y, menge = 1, richtung = null) {
 
 /** Beben nach Staerke, schwaecher mit Abstand zur Bildmitte. */
 function beben(fx, staerke, x, y, hoerer) {
+  if (fx.over) return;
   const f = Math.max(0, 1 - Math.hypot(x - hoerer.x, y - hoerer.y) / hoerer.weite);
   fx.beben = Math.min(14, Math.max(fx.beben, staerke * f));
 }
 
 /** Zeit fortschreiben: Geschosse schlagen ein, Partikel fallen, Ringe weiten sich. */
 export function effekteFortschreiben(fx, dt, world, hoerer) {
+  if (world && (world.over || world.winner !== null && world.winner !== undefined)) {
+    fx.over = true;
+    fx.beben = 0;
+  } else {
+    fx.over = false;
+  }
   fx.jetzt += dt * 1000;
   const lebt = [];
   for (const g of fx.geschosse) {
@@ -238,7 +245,7 @@ export function effekteFortschreiben(fx, dt, world, hoerer) {
   fx.gefallen = fx.gefallen.filter((g) => (g.t += dt) < FALLEN);
   fx.truemmer = fx.truemmer.filter((g) => (g.t += dt) < TRUEMMER);
   if (fx.truemmer.length > 60) fx.truemmer.splice(0, fx.truemmer.length - 60);
-  fx.beben = Math.max(0, fx.beben - dt * 30);
+  fx.beben = fx.over ? 0 : Math.max(0, fx.beben - dt * 30);
 }
 
 /** Wie stark eine Entity gerade aufblitzt (0..1) -- kurz nach einem Treffer. */
@@ -255,7 +262,7 @@ export function blitzVon(fx, id) {
 
 /** Versatz des Bildes durch Beben, in Pixeln. */
 export function bebenVersatz(fx) {
-  if (fx.beben <= 0 || fx.ohneBeben) return [0, 0];
+  if (fx.over || fx.beben <= 0 || fx.ohneBeben) return [0, 0];
   return [(Math.random() - 0.5) * fx.beben, (Math.random() - 0.5) * fx.beben];
 }
 

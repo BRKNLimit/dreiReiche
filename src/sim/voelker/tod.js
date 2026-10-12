@@ -24,8 +24,7 @@ export const VOLK_TOD = {
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
   rollen: { anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe', zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv', posten: 'geisterturm', bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier' },
-  // Reihenfolge, in der die KI den Skillbaum lernt
-  lernen: ['klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte', 'beinhaus', 'titanenform', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'ewigerDienst', 'seelenrausch', 'knochensturm'],
+  lernen: ['klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte', 'beinhaus', 'knochenstaub', 'totengruft', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'seelenrausch', 'titanenform', 'ewigerDienst', 'schattenpanzer', 'knochensturm', 'grabesschlaeger', 'ossuarium_mauern', 'gebeinflut', 'todesruhe', 'leichenmarsch', 'nekropolenmacht', 'seelenfresser'],
   gebaeude: {
     nekropole: {
       name: 'Nekropole',
@@ -272,18 +271,33 @@ export const VOLK_TOD = {
     },
   },
   skills: {
+    // Ast: Einheiten
     klageweiber: {
       faction: 'tod', ast: 'einheiten', name: 'Klageweiber wecken', kosten: 1, frei: ['klageweib'],
       desc: 'Die Katakomben rufen Klageweiber — ihre Schreie treffen aus der Ferne.',
+    },
+    knochenstaub: {
+      faction: 'tod', ast: 'einheiten', name: 'Knochenasche', kosten: 1, braucht: ['klageweiber'], wirkung: { ausbildung: 150 },
+      desc: 'Aus kalter Gräberasche formen sich die Geister der Klageweiber müheloser.',
     },
     grabwaechterweihe: {
       faction: 'tod', ast: 'einheiten', name: 'Grabwächter weihen', kosten: 2, braucht: ['klageweiber'], frei: ['grabwaechter'],
       desc: 'Die Katakomben erwecken Grabwächter aus Obsidian und Götterblut.',
     },
+    grabesschlaeger: {
+      faction: 'tod', ast: 'einheiten', name: 'Grabesschlächter', kosten: 2, braucht: ['grabwaechterweihe'], wirkung: { schaden: 130 },
+      desc: 'Obsidianklingen mit eisigem Grabfluch spalten Schilde und Knochen.',
+    },
     titanenform: {
       faction: 'tod', ast: 'einheiten', name: 'Knochentitan formen', kosten: 2, braucht: ['klageweiber'], frei: ['knochentitan'],
       desc: 'Ein Koloss aus Gebeinen bricht Mauern und Festungen.',
     },
+    gebeinflut: {
+      faction: 'tod', ast: 'einheiten', name: 'Gebeinflut', kosten: 2, braucht: ['knochenstaub', 'titanenform'], wirkung: { ausbildung: 180, schutz: 70 },
+      desc: 'Aus zerborstenen Festungen erstehen unzählige Knochenkrieger aufs Neue.',
+    },
+
+    // Ast: Gebäude
     pestweihe: {
       faction: 'tod', ast: 'gebaeude', name: 'Pestaltar', kosten: 1, frei: ['pestaltar'],
       desc: 'Schrein des Zorns: kalter Hauch schärft die Hiebe.',
@@ -292,6 +306,20 @@ export const VOLK_TOD = {
       faction: 'tod', ast: 'gebaeude', name: 'Ossuarium', kosten: 1, frei: ['ossuarium'],
       desc: 'Schrein der Wehr: Knochenwände dämpfen Schaden.',
     },
+    totengruft: {
+      faction: 'tod', ast: 'gebaeude', name: 'Totengrüfte', kosten: 1, braucht: ['seelenernte'], wirkung: { foerderung: 120, unterhalt: 100 },
+      desc: 'Gewölbte Grüfte bergen uralte Vorräte und verringern den Fronaufwand.',
+    },
+    ossuarium_mauern: {
+      faction: 'tod', ast: 'gebaeude', name: 'Gebeinwälle', kosten: 2, braucht: ['beinhaus', 'totengruft'], wirkung: { schutz: 120 },
+      desc: 'Aufgetürmte Schädel und Rippenwände federn Einschläge finster ab.',
+    },
+    nekropolenmacht: {
+      faction: 'tod', ast: 'gebaeude', name: 'Nekropolenmacht', kosten: 2, braucht: ['ossuarium_mauern'], wirkung: { foerderung: 160, schutz: 80 },
+      desc: 'Die finstere Herrschaft der Nekropole entzieht dem Umland alle Lebensenergie.',
+    },
+
+    // Ast: Verbesserungen
     pestodem: {
       faction: 'tod', ast: 'verbesserung', name: 'Pestodem', kosten: 1, wirkung: { schaden: 100 },
       desc: 'Giftige Hiebe für alle.',
@@ -299,6 +327,10 @@ export const VOLK_TOD = {
     knochenhaertung: {
       faction: 'tod', ast: 'verbesserung', name: 'Knochenhärtung', kosten: 1, braucht: ['pestodem'], wirkung: { schutz: 100 },
       desc: 'Versteinerte Gebeine für alle.',
+    },
+    schattenpanzer: {
+      faction: 'tod', ast: 'verbesserung', name: 'Schattenpanzer', kosten: 2, braucht: ['knochenhaertung'], wirkung: { schutz: 150 },
+      desc: 'Ätherische Kälte und verhärteter Knochen widerstehen stärkstem Waffenbeschuss.',
     },
     seelenernte: {
       faction: 'tod', ast: 'verbesserung', name: 'Seelenernte', kosten: 1, wirkung: { foerderung: 200 },
@@ -312,6 +344,16 @@ export const VOLK_TOD = {
       faction: 'tod', ast: 'verbesserung', name: 'Ewiger Dienst', kosten: 2, braucht: ['grabeskuehle'], wirkung: { unterhalt: 250 },
       desc: 'Tote fordern wenig — der Unterhalt sinkt.',
     },
+    todesruhe: {
+      faction: 'tod', ast: 'verbesserung', name: 'Todesruhe', kosten: 2, braucht: ['ewigerDienst'], wirkung: { unterhalt: 180 },
+      desc: 'Kein Magen knurrt, kein Herz verlangt Sold: Das Totenheer marschiert fast kostenlos.',
+    },
+    leichenmarsch: {
+      faction: 'tod', ast: 'verbesserung', name: 'Ewiger Leichenmarsch', kosten: 3, braucht: ['todesruhe', 'schattenpanzer'], wirkung: { unterhalt: 200, schutz: 100 },
+      desc: 'Vollkommene Selbstgenügsamkeit der Untoten: Riesige Armeen ohne nennenswerten Unterhalt.',
+    },
+
+    // Ast: Kommandant
     nekromantie: {
       faction: 'tod', ast: 'kommandant', name: 'Nekromantische Aura', kosten: 1, wirkung: { kdtSchutz: 200 },
       desc: 'Der Todesgott hält mehr aus.',
@@ -327,6 +369,10 @@ export const VOLK_TOD = {
     knochensturm: {
       faction: 'tod', ast: 'kommandant', name: 'Knochensturm', kosten: 2, braucht: ['grabeskaelte'], faehigkeit: 'knochensturm',
       desc: 'Skelettkrieger brechen aus der Erde und kämpfen eine Weile mit.',
+    },
+    seelenfresser: {
+      faction: 'tod', ast: 'kommandant', name: 'Seelenfresser', kosten: 2, braucht: ['seelenrausch', 'knochensturm'], wirkung: { kdtSchutz: 250, schaden: 80 },
+      desc: 'Der Todesgott labt sich am Hauch jedes Gefallenen und wird zur wandelnden Festung.',
     },
   },
   faehigkeiten: {

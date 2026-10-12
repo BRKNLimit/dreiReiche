@@ -104,6 +104,7 @@ export function createWorld(opts = {}) {
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
     schlaege: [], // Fernschlaege im Flug (M4): { von, player, x, y, landet, radius, schaden }
+    wracks: [], // Wracks (R1): { id, kind: 'wrack', typ, art, x, y, radius, masse, fein, voll } -- gehoeren niemandem
     baubeginnRunde: 0, // Vorrang beim gleichzeitigen Baubeginn, siehe erschaffen()
     hindernisse: opts.empty ? [] : daten.hindernisse, // Felsen, Seen, Fluss -- unveraenderlich
     cleared: [], // gerodete Flaechen: { x, y, r }
@@ -271,6 +272,32 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
 }
 
 /**
+ * Bergeauftrag (R1): Jede genannte eigene Einheit, die bergen kann (bergKraft),
+ * geht zum Wrack und birgt es -- wie beauftrage() mit dem Wrack als Ziel.
+ * Der Auftrag steht im selben Feld wie ein Bauauftrag (auftrag, reihe): eine
+ * Einheit tut eines nach dem anderen, Shift haengt an.
+ */
+function bergeAuftrag(world, player, ids, wrack, anhaengen = false) {
+  for (let k = 0; k < ids.length; k++) {
+    const e = byId(world, ids[k]);
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !bergKraft(UNITS[e.type])) continue;
+    if (anhaengen && e.auftrag) {
+      if (e.auftrag !== wrack.id && !e.reihe.includes(wrack.id)) e.reihe.push(wrack.id);
+      continue;
+    }
+    auftraegeAufgeben(world, e, wrack.id);
+    e.auftrag = wrack.id;
+    e.reihe = [];
+    e.wege = [];
+    e.ziel = 0;
+    e.tx = wrack.x;
+    e.ty = wrack.y;
+    e.arrived = false;
+    e.aggro = false;
+  }
+}
+
+/**
  * Neuer Befehl ohne Shift: Der Erbauer laesst Auftrag und Baureihe fallen.
  * Plaene, die danach niemand mehr bauen soll, verschwinden -- wie ein
  * abgebrochener Bauauftrag. Begonnene Baustellen bleiben stehen.
@@ -376,7 +403,7 @@ function naechsterAuftrag(world, u) {
   u.auftrag = 0;
   while (u.reihe.length) {
     const id = u.reihe.shift();
-    const z = byId(world, id) || planVon(world, id);
+    const z = byId(world, id) || planVon(world, id) || wrackVon(world, id);
     if (!z || z.dead || (z.kind === 'building' && z.done && z.hp >= z.maxHp)) continue;
     u.auftrag = id;
     u.tx = z.x;
@@ -514,6 +541,10 @@ function applyCommand(world, c) {
         ? plan.player === c.player
         : b && b.kind === 'building' && b.player === c.player && !b.dead && (!b.done || b.hp < b.maxHp);
       if (geht) beauftrage(world, c.player, c.ids, b, !!c.anhaengen);
+    } else if (c.type === 'bergen') {
+      // Ein Wrack bergen -- nur auf Befehl, nie von selbst.
+      const w = wrackVon(world, c.id);
+      if (w) bergeAuftrag(world, c.player, c.ids, w, !!c.anhaengen);
     } else if (c.type === 'planWeg') {
       const plan = planVon(world, c.id);
       if (plan && plan.player === c.player) planEntfernen(world, plan);
@@ -679,6 +710,7 @@ export function demolish(world, player, id) {
   pay(p, def.cost, e.done ? -500 : -750);
   for (let i = 0; i < e.queue.length; i++) pay(p, UNITS[e.queue[i]].cost, -1000);
   e.dead = true;
+  e.abgerissen = true; // abgerissen, nicht gefallen: kein Wrack
   world.events.push({ t: 'demolished', id: e.id, x: e.x, y: e.y, masse: p.masse - vorher });
   return true;
 }
@@ -1065,6 +1097,7 @@ export function step(world) {
   computeRegions(world);
   distributeEnergie(world);
   erschaffen(world);
+  bergen(world);
 
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
@@ -1484,6 +1517,7 @@ function erschaffen(world) {
     if (u.dead || u.kind !== 'unit' || !u.auftrag) continue;
     const b = UNITS[u.type].build;
     u.baut = 0;
+    if (wrackVon(world, u.auftrag)) continue; // Bergeauftrag, siehe bergen()
     if (b && planVon(world, u.auftrag)) continue; // unterwegs zum Plan oder wartet auf Fron
     const site = byId(world, u.auftrag);
     // Fertig gebaut und heil: Auftrag erledigt, weiter mit dem naechsten. Beschaedigt: reparieren.
@@ -1498,6 +1532,99 @@ function erschaffen(world) {
     site.hilfe += mehr ? b.power + (((b.power * mehr) / 1000) | 0) : b.power;
     u.baut = site.id;
   }
+}
+
+// ------------------------------------------------------------ Wracks und Bergung (R1)
+
+/** Das Wrack mit dieser id, sonst null. */
+export function wrackVon(world, id) {
+  const w = world.wracks;
+  for (let i = 0; i < w.length; i++) if (w[i].id === id) return w[i];
+  return null;
+}
+
+/**
+ * Bergekraft einer Einheitenart in Masse pro Minute; 0 = kann nicht bergen.
+ * Ein eigenes bergung-Feld gilt, sonst birgt ein Erbauer mit seiner Baukraft
+ * (RULES.bergungProBaukraft).
+ */
+export function bergKraft(def) {
+  if (def.bergung) return def.bergung.kraft;
+  return def.build ? ((def.build.power * RULES.bergungProBaukraft) / 1000) | 0 : 0;
+}
+
+/** Feinmass je Masse: Bergekraft (Masse pro Minute) ist genau die Feinmasse je Tick (600 Ticks je Minute). */
+export const WRACK_FEIN = 600;
+
+/**
+ * Hinterlaesst ein gefallenes Ding ein Wrack? Einheiten und fertige Gebaeude,
+ * die gefallen sind -- nicht vergangen, beschworen oder abgerissen --, mit
+ * einem Anteil ihrer Masse-Kosten. Ein Flieger ueber Fels oder Wasser laesst
+ * nichts liegen, was keiner erreichen koennte.
+ */
+function wrackHinterlassen(world, e) {
+  if (e.vergangen || e.beschworen || e.abgerissen) return;
+  const einheit = e.kind === 'unit';
+  if (!einheit && !e.done) return;
+  const def = einheit ? UNITS[e.type] : BUILDINGS[e.type];
+  const anteil = einheit ? RULES.wrackAnteil : RULES.wrackAnteilGebaeude;
+  const masse = (((def.cost.masse || 0) * anteil) / 1000) | 0;
+  if (masse <= 0) return;
+  if (einheit && def.fliegt && aufHindernis(world, e.x, e.y, 0)) return;
+  world.wracks.push({ id: world.nextId++, kind: 'wrack', typ: e.type, art: e.kind, x: e.x, y: e.y, radius: def.radius, masse, fein: masse * WRACK_FEIN, voll: masse });
+}
+
+/**
+ * Bergen: Jede Einheit mit einem Bergeauftrag, die nah genug am Wrack steht,
+ * nimmt ihm Masse ab und schreibt sie dem Spieler gut (ueber masseAcc, wie die
+ * Foerderung). Lagen vom Tickbeginn: Berger desselben Wracks teilen sich, was
+ * da ist -- reicht es in diesem Tick nicht fuer alle, anteilig nach Kraft, der
+ * Rest geht an den ersten in der Entity-Reihenfolge. Leere Wracks verschwinden.
+ */
+function bergen(world) {
+  if (!world.wracks.length) return;
+  const lauf = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const u = world.entities[i];
+    if (u.dead || u.kind !== 'unit' || !u.auftrag) continue;
+    const w = wrackVon(world, u.auftrag);
+    if (!w) continue;
+    const kraft = bergKraft(UNITS[u.type]);
+    const nah = w.radius + UNITS[u.type].radius + BAU_NAH;
+    if (!kraft || dist2(u.x, u.y, w.x, w.y) > nah * nah) continue;
+    u.birgt = w.id;
+    lauf.push([u, w, kraft]);
+  }
+  if (!lauf.length) return;
+  let leer = false;
+  for (let j = 0; j < world.wracks.length; j++) {
+    const w = world.wracks[j];
+    const grp = lauf.filter((l) => l[1] === w);
+    if (!grp.length) continue;
+    let summe = 0;
+    for (const l of grp) summe += l[2];
+    const nimmt = Math.min(summe, w.fein);
+    let verteilt = 0;
+    for (let k = 0; k < grp.length; k++) {
+      const anteil = nimmt === summe ? grp[k][2] : ((grp[k][2] * nimmt) / summe) | 0;
+      verteilt += anteil;
+      const pl = world.players[grp[k][0].player];
+      // Feinmass x 1000 = masseAcc (Masse pro Minute x Promille, siehe step)
+      pl.masseAcc = (pl.masseAcc || 0) + anteil * 1000;
+    }
+    // Rest der Teilung an den ersten Berger
+    if (verteilt < nimmt) {
+      const pl = world.players[grp[0][0].player];
+      pl.masseAcc = (pl.masseAcc || 0) + (nimmt - verteilt) * 1000;
+    }
+    w.fein -= nimmt;
+    w.masse = Math.ceil(w.fein / WRACK_FEIN);
+    if (w.fein <= 0) {
+      leer = true;
+      world.events.push({ t: 'geborgen', id: w.id, x: w.x, y: w.y });
+    }
+  }
+  if (leer) world.wracks = world.wracks.filter((w) => w.fein > 0);
 }
 
 /** Leben einer Baustelle beim Fortschritt progress: ein Zehntel bis voll. */
@@ -2054,6 +2181,7 @@ function cleanup(world) {
     for (let d = 0; d < world.deposits.length; d++) {
       if (world.deposits[d].takenBy === e.id) world.deposits[d].takenBy = 0;
     }
+    wrackHinterlassen(world, e);
     // Hauptgebaeude und Kommandant sind vital: Faellt einer, ist die Partie verloren.
     const vital = e.kind === 'building' ? BUILDINGS[e.type].vital : UNITS[e.type].commander;
     if (vital) ausscheiden(world, e.player);
@@ -2308,6 +2436,13 @@ export function hash(world) {
     mix(s.landet);
     mix(s.radius);
     mix(s.schaden);
+  }
+  // Wracks: nur, wenn welche liegen -- Partien ohne behalten ihre Pruefsumme.
+  for (const w of world.wracks) {
+    mix(w.id);
+    mix(w.x);
+    mix(w.y);
+    mix(w.fein);
   }
   mix(world.baubeginnRunde);
   mix(world.cleared.length);

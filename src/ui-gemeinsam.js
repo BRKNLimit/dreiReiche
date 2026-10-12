@@ -5,7 +5,7 @@ import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PR
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
   gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon, zieleVon,
-  schlagBereit, anzahlVon, auraAn, bonus, maxSpieler, startplatz,
+  schlagBereit, anzahlVon, auraAn, bonus, maxSpieler, startplatz, wrackVon, bergKraft,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { createAI } from './sim/ai.js';
@@ -498,8 +498,8 @@ export function routeVon(world, u) {
   const p = [[u.x, u.y, 'start']];
   if (u.auftrag) {
     for (const id of [u.auftrag, ...u.reihe]) {
-      const z = byId(world, id) || planVon(world, id);
-      if (z) p.push([z.x, z.y, 'bau']);
+      const z = byId(world, id) || planVon(world, id) || wrackVon(world, id);
+      if (z) p.push([z.x, z.y, z.kind === 'wrack' ? 'berge' : 'bau']);
     }
   } else if (!u.arrived) p.push([u.tx, u.ty, u.aggro || u.ziel ? 'angriff' : 'geh']);
   for (const [x, y, angriff] of u.wege) p.push([x, y, angriff ? 'angriff' : 'geh']);
@@ -537,9 +537,20 @@ export function mitmachen(world, ich, sel, freund, anhaengen) {
   let rest = ids;
   if (freund.auftrag) {
     const bauer = ids.filter((id) => UNITS[byId(world, id).type].build);
+    const berger = ids.filter((id) => bergKraft(UNITS[byId(world, id).type]) > 0);
     const auftraege = [freund.auftrag, ...freund.reihe];
-    if (bauer.length) auftraege.forEach((a, i) => issue(world, { type: 'bauen', player: ich, ids: bauer, id: a, anhaengen: anhaengen || i > 0 }));
-    rest = ids.filter((id) => !bauer.includes(id));
+    // Bauauftraege an die Erbauer, Bergeauftraege (Wracks) an alle, die bergen koennen
+    const aktiv = new Set(); // wer in diesem Aufruf schon einen Auftrag hat: die weiteren haengen an
+    for (const a of auftraege) {
+      const art = wrackVon(world, a) ? 'bergen' : 'bauen';
+      const wer = art === 'bergen' ? berger : bauer;
+      const neu = wer.filter((id) => !aktiv.has(id));
+      const alt = wer.filter((id) => aktiv.has(id));
+      if (neu.length) issue(world, { type: art, player: ich, ids: neu, id: a, anhaengen });
+      if (alt.length) issue(world, { type: art, player: ich, ids: alt, id: a, anhaengen: true });
+      for (const id of wer) aktiv.add(id);
+    }
+    rest = ids.filter((id) => !aktiv.has(id));
   }
   if (!rest.length) return;
   const punkte = routeVon(world, freund).slice(1);
@@ -548,6 +559,71 @@ export function mitmachen(world, ich, sel, freund, anhaengen) {
     issue(world, { type: art === 'angriff' ? 'attack' : 'move', player: ich, ids: rest, x, y, anhaengen: anhaengen || i > 0 });
   });
 }
+
+// ------------------------------------------------------------ Wracks und Bergung (R1)
+/**
+ * Die Wracks, die man sieht oder kennt: mit Nebel die der Kunde (zuletzt
+ * gesehen, mit der Masse von damals), ohne Nebel (Beobachter) alle.
+ */
+export function wracksSichtbar(nebel, world) {
+  return nebel.an ? nebel.kunde.wracks : world.wracks;
+}
+
+/** Sieht man dieses Wrack gerade? (Sonst ist es nur in Erinnerung.) */
+export function wrackJetzt(nebel, w) {
+  return !nebel.an || w.tick === nebel.kunde.tick;
+}
+
+/** Radius, mit dem ein Wrack gezeichnet wird (dm): waechst mit der Masse, wie die Einheit oder das Gebaeude, das es war, mindestens. */
+export function wrackGroesse(w) {
+  return Math.round(Math.max(30, Math.min(260, 18 + Math.sqrt(w.masse) * 7)));
+}
+
+/** Das naechste sichtbare oder bekannte Wrack an diesem Punkt (innerhalb seiner gezeichneten Groesse plus Toleranz), sonst null. */
+export function wrackBei(nebel, world, x, y, toleranz = 0) {
+  let beste = null;
+  let bestD = Infinity;
+  for (const w of wracksSichtbar(nebel, world)) {
+    const r = wrackGroesse(w) + toleranz;
+    const d = (w.x - x) ** 2 + (w.y - y) ** 2;
+    if (d <= r * r && d < bestD) {
+      beste = w;
+      bestD = d;
+    }
+  }
+  return beste;
+}
+
+/** Die ausgewaehlten eigenen Einheiten, die bergen koennen. */
+export function bergerVon(world, sel, ich) {
+  return sel.filter((id) => {
+    const e = byId(world, id);
+    return e && !e.dead && e.kind === 'unit' && e.player === ich && bergKraft(UNITS[e.type]) > 0;
+  });
+}
+
+/**
+ * Info-Karte eines Wracks: Masse, was es war, wie lange die Auswahl braucht
+ * (wenn sie bergen kann), sonst wie man es birgt. jetzt false: nur in Erinnerung.
+ */
+export function wrackKarte(world, w, berger, jetzt = true) {
+  const def = w.art === 'building' ? BUILDINGS[w.typ] : UNITS[w.typ];
+  let kraft = 0;
+  for (const id of berger) kraft += bergKraft(UNITS[byId(world, id).type]);
+  const zeilen = [['Masse', w.masse === w.voll ? `${w.masse}` : `${w.masse} von ${w.voll}`]];
+  if (kraft) zeilen.push(['Bergen', `${berger.length} Berger, ${sekunden(Math.ceil((w.masse * 600) / kraft))} (Rechtsklick, Shift hängt an)`]);
+  else zeilen.push(['Bergen', 'Erbauer wählen, Rechtsklick birgt es']);
+  if (!jetzt) zeilen.push(['Stand', 'zuletzt gesehen']);
+  return karte(`Wrack — ${w.masse} Masse`, `Überrest von ${def.name}. Wracks gehören niemandem: Wer birgt, bekommt die Masse.`, zeilen, '');
+}
+
+/** CSS-Mauszeiger fuer das Bergen: ein kleiner Haken mit Pfeil nach unten, als SVG. */
+export const BERGE_CURSOR =
+  'url("data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M16 3v14M9 11l7 8 7-8" fill="none" stroke="#111" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 3v14M9 11l7 8 7-8" fill="none" stroke="#9ad0b4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 27h22" stroke="#111" stroke-width="5" stroke-linecap="round"/><path d="M5 27h22" stroke="#9ad0b4" stroke-width="2.4" stroke-linecap="round"/></svg>'
+  ) +
+  '") 16 16, copy';
 
 // ------------------------------------------------------------ Voelker
 /** Kurzname eines Volks: Menschen, Gott, Todesgott. */
@@ -1238,6 +1314,7 @@ export function auswahlKopf(world, e) {
   if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');
   if (e.kind === 'unit' && e.beschworen) teile.push(`vergeht in ${sekunden(e.vergehtBei - world.tick)}`);
   if (e.kind === 'unit' && e.gebundenBis > world.tick) teile.push('festgehalten');
+  if (e.kind === 'unit' && e.auftrag && wrackVon(world, e.auftrag)) teile.push(e.birgt === e.auftrag ? 'birgt ein Wrack' : 'unterwegs zu einem Wrack');
   if (e.kind === 'unit' && e.langsamBis > world.tick) teile.push(`verlangsamt −${prozent(e.langsamWert)} (noch ${sekunden(e.langsamBis - world.tick)})`);
   // Regeneration, Auren (M3): was gerade auf die Einheit wirkt
   if (def.regeneration && e.hp < e.maxHp) teile.push(`regeneriert ${def.regeneration} LP/min`);

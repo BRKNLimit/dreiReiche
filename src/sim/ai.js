@@ -246,8 +246,15 @@ export function stepAI(ai, world) {
       const site = wenigsteHelfer(ziele, helfer, u);
       helfer[site.id] = (helfer[site.id] || 0) + 1;
       issue(world, { type: 'bauen', player: ai.player, ids: [u.id], id: site.id });
-    } else if (!u.auftrag && dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
-      issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
+    } else if (!u.auftrag) {
+      // Untaetig: erst ein Wrack in der eigenen Domaene bergen (R1), sonst heim.
+      const w = bergeZiel(world, ai.player, kunde, u, helfer, sicher);
+      if (w) {
+        helfer[w.id] = (helfer[w.id] || 0) + 1;
+        issue(world, { type: 'bergen', player: ai.player, ids: [u.id], id: w.id });
+      } else if (dist2(u.x, u.y, haupt.x, haupt.y) > 900 * 900 && (u.tx !== haupt.x || u.ty !== haupt.y)) {
+        issue(world, { type: 'move', player: ai.player, ids: [u.id], x: haupt.x, y: haupt.y });
+      }
     }
   }
 
@@ -1015,6 +1022,31 @@ function feindeBei(kunde, pt, r) {
     if (dist2(o.x, o.y, pt.x, pt.y) <= r * r) n++;
   }
   return n;
+}
+
+// Hoechstens so viele Arbeiter schickt die KI zugleich zu einem Wrack (R1).
+// Designzahl, ungemessen: mehr beschleunigen ein kleines Wrack kaum und fehlen
+// dann beim naechsten.
+const WRACK_HELFER = 2;
+
+/**
+ * Das naechste Wrack, das ein untaetiger Arbeiter bergen soll: eins, das die
+ * Kunde kennt, in der eigenen Domaene liegt, an dem Feinde nicht stehen und
+ * dem noch nicht genug Arbeiter zugeteilt sind. Bei Gleichstand das aeltere.
+ * Nur aus der Kunde -- ein ungesehenes Wrack gibt es fuer die KI nicht.
+ */
+function bergeZiel(world, player, kunde, u, helfer, sicher) {
+  let best = null;
+  let bestD = Infinity;
+  for (const w of kunde.wracks) {
+    if ((helfer[w.id] || 0) >= WRACK_HELFER || !inDomain(world, player, w.x, w.y) || !sicher(w, 1200)) continue;
+    const d = dist2(w.x, w.y, u.x, u.y);
+    if (d < bestD) {
+      bestD = d;
+      best = w;
+    }
+  }
+  return best;
 }
 
 /**

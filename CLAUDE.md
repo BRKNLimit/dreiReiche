@@ -84,7 +84,9 @@ System — siehe `docs/konzept.md`, Abschnitt "Wo Asymmetrie erlaubt ist".
 
 ## Bewusst weggelassen (v1)
 
-Höhen im Gelände, Bergung der Gefallenen. Siehe `docs/scope.md`.
+Höhen im Gelände. Siehe `docs/scope.md`. (Bergung der Gefallenen ist seit R1
+da: Wracks in `world.wracks`, Befehl `bergen`, Regeln `wrackAnteil`,
+`wrackAnteilGebaeude`, `bergungProBaukraft`; die Kunde merkt gesehene Wracks.)
 (Der Todesgott ist seit 0.38 als drittes Volk dabei, Netzwerk seit 0.35.)
 
 ## Nebel des Krieges

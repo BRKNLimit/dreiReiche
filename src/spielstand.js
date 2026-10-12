@@ -37,6 +37,7 @@ export function zustandLaden(z) {
   world.hindernisse = world.leer ? [] : world.karteDaten.hindernisse;
   delete world.leer;
   world.schlaege = world.schlaege || []; // Staende von vor dem Fernschlag (M4) kennen keine
+  world.wracks = world.wracks || []; // ... und die von vor den Wracks (R1)
   world.weg = wegGitter(world.hindernisse);
   const nachId = new Map(world.entities.map((e) => [e.id, e]));
   const zurueck = (x) => (typeof x === 'number' ? nachId.get(x) : x);

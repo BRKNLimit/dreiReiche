@@ -75,6 +75,7 @@ let wdhZeiger = 0;
 let verlauf = neuerVerlauf(); // fuer den Siegbildschirm
 let endeGezeigt = false;
 let hover = { x: 0, y: 0 }; // Boden unter der Maus, Dezimeter
+let hoverAuf = false; // die Maus ueber der Szene (nicht ueber einem Panel)
 let maus = { x: 0, y: 0 }; // Bildschirm, CSS-Pixel
 const tastenGehalten = new Set();
 const vorher = new Map(); // id -> [x, y] vor dem letzten Tick, fuer Interpolation
@@ -264,6 +265,15 @@ function befehl3(x, y, anhaengen = false) {
   // Rechtsklick auf eine eigene Einheit: ihrem Auftrag anschliessen
   const freund = eigeneEinheitBei(world, ME, x, y, 60, sel);
   if (freund) return mitmachen(world, ME, sel, freund, anhaengen);
+  // Rechtsklick auf ein Wrack: wer bergen kann, birgt es (nur auf Befehl); die anderen gehen hin
+  const wrack = wrackBei(nebel, world, x, y, 40);
+  const berger = wrack ? bergerVon(world, sel, ME) : [];
+  if (berger.length) {
+    issue(world, { type: 'bergen', player: ME, ids: berger, id: wrack.id, anhaengen });
+    const dazu = sel.filter((id) => !berger.includes(id));
+    if (dazu.length) issue(world, { type: 'move', player: ME, ids: dazu, x, y, anhaengen });
+    return;
+  }
   const site =
     world.entities.find(
       (b) =>
@@ -328,10 +338,14 @@ function renderBar() {
   }
 }
 
-/** Info-Karte: Gebaeude oder Einheit unter der Maus in der Leiste, sonst das, was gerade gesetzt wird. */
+/** Info-Karte: Gebaeude oder Einheit unter der Maus in der Leiste, sonst das, was gerade gesetzt wird, sonst das Wrack unter der Maus. */
 function infoKarte3() {
   const typ = karteTyp || placing;
-  const html = typ ? (UNITS[typ] ? einheitKarte(world, ME, typ) : gebaeudeKarte(world, ME, typ)) : '';
+  const berger = bergerVon(world, sel, ME);
+  const wrack = !typ && hoverAuf ? wrackBei(nebel, world, hover.x, hover.y, 40) : null;
+  // Bergungs-Cursor: ueber einem Wrack, wenn die Auswahl bergen kann
+  cv3.style.cursor = wrack && berger.length ? BERGE_CURSOR : '';
+  const html = typ ? (UNITS[typ] ? einheitKarte(world, ME, typ) : gebaeudeKarte(world, ME, typ)) : wrack ? wrackKarte(world, wrack, berger, wrackJetzt(nebel, wrack)) : '';
   if (html === karteHtml) return;
   karteHtml = html;
   const el = document.getElementById('karte');
@@ -523,6 +537,7 @@ cv3.addEventListener('mousedown', (e) => {
 addEventListener('mousemove', (e) => {
   const r = cv3.getBoundingClientRect();
   maus = { x: e.clientX - r.left, y: e.clientY - r.top };
+  hoverAuf = e.target === cv3;
   if (!drag) return;
   if (drag.pan) {
     // Verschieben in Blickrichtung: Bildschirm-Pixel -> Meter grob nach Zoom
@@ -1015,6 +1030,12 @@ function zeichne(now, dt) {
     const r = BUILDINGS[b.type].radius * DM * ZEIGE_GEBAEUDE;
     instanz(b.type, b.x * DM, 0, b.y * DM, (b.id % 4) * (Math.PI / 2) + 0.4, r, teamFarbe(b.player), 1, 0.6);
   }
+  // Wracks (R1): gehoeren niemandem, kein Teamanteil; was nur in Erinnerung ist, matt
+  if (MODELLE.wrack) {
+    for (const w of wracksSichtbar(nebel, world)) {
+      instanz('wrack', w.x * DM, 0, w.y * DM, (w.id % 8) * 0.8, wrackGroesse(w) * DM * 0.85, [0, 0, 0], 1, wrackJetzt(nebel, w) ? 1 : 0.6);
+    }
+  }
   for (const e of world.entities) {
     if (verborgen(e)) continue;
     const team = teamFarbe(e.player);
@@ -1253,10 +1274,10 @@ function zeichneSchuesse() {
     genutzt.add(k);
   }
   for (const k of genutzt) zeichneInstanzen(MODELLE[k]);
-  // Baulinien: Erbauer zu ihrer Baustelle
+  // Baulinien: Erbauer zu ihrer Baustelle, Berger zu ihrem Wrack
   for (const e of world.entities) {
-    if (e.kind !== 'unit' || !e.baut) continue;
-    const site = byId(world, e.baut);
+    if (e.kind !== 'unit') continue;
+    const site = e.baut ? byId(world, e.baut) : e.birgt && e.auftrag === e.birgt ? wrackVon(world, e.birgt) : null;
     if (!site) continue;
     const [ux, uy] = lage(e);
     const f = teamFarbe(e.player);
@@ -1316,7 +1337,7 @@ function zeichneWirkungen() {
     for (const [p, art, schluessel] of punkte.slice(1)) {
       if (punkteGemalt.has(schluessel)) continue;
       punkteGemalt.add(schluessel);
-      octx.fillStyle = art === 'angriff' ? '#e06a4a' : art === 'bau' ? '#d8b06a' : '#e8dcc0';
+      octx.fillStyle = art === 'angriff' ? '#e06a4a' : art === 'bau' ? '#d8b06a' : art === 'berge' ? '#9ad0b4' : '#e8dcc0';
       octx.beginPath();
       octx.arc(p[0], p[1], 4, 0, Math.PI * 2);
       octx.fill();
@@ -1581,6 +1602,8 @@ function zeichneMini() {
     mctx3.arc(h.x * s, h.y * s, h.r * s, 0, Math.PI * 2);
     mctx3.fill();
   }
+  mctx3.fillStyle = '#7a7466';
+  for (const w of wracksSichtbar(nebel, world)) mctx3.fillRect(w.x * s - 1, w.y * s - 1, 2, 2);
   for (let p = 0; p < world.players.length; p++) {
     mctx3.fillStyle = spielerFarbe(world, p);
     mctx3.globalAlpha = 0.18;

@@ -34,6 +34,10 @@ export const CONFIGS = {
   'Kdt 4000 HP': { units: { held: { hp: 4000 }, waldgott: { hp: 4000 } } },
   'Kdt langsam + 4000 HP': { units: { held: { speed: 16, hp: 4000 }, waldgott: { speed: 15, hp: 4000 } } },
   'ohne Kommandant': { rules: { kommandanten: false } },
+  // Wracks und Bergung (R1): ohne Wracks wie vor R1; sonst andere Anteile als im Ausgang
+  'R1 ohne Wracks': { rules: { wrackAnteil: 0, wrackAnteilGebaeude: 0 } },
+  'R1 Wracks 400': { rules: { wrackAnteil: 400, wrackAnteilGebaeude: 300 } },
+  'R1 Wracks 1000': { rules: { wrackAnteil: 1000, wrackAnteilGebaeude: 700 } },
   'Gott start 850': { g: { start: 850 } },
   'Gott start 900': { g: { start: 900 } },
   'Gott start 925': { g: { start: 925 } },

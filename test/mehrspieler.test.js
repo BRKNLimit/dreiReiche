@@ -537,6 +537,8 @@ test('Verlauf und Siegbildschirm: Zahlen und Diagramme je Spieler, Verfall zaehl
   const ais = kis(w, 8);
   let verfallen = 0;
   for (let t = 0; t < 9000 && !w.over; t++) {
+    // Spieler 3 scheidet nach 5 min aus (nicht mehr dem Verlauf der KI-Partie ueberlassen: seit den Wracks, R1, aendert sich der)
+    if (t === 3000) ausscheiden(w, 3);
     for (const a of ais) stepAI(a, w);
     step(w);
     for (const ev of w.events) if (ev.t === 'died' && ev.vergangen) verfallen++;

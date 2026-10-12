@@ -75,6 +75,7 @@ let drag = null;
 let placing = null;
 let bauGruppeSchl = 'wirtschaft'; // aktive Gruppe der Bauleiste (BAU_GRUPPEN in ui-gemeinsam.js)
 let hover = { x: 0, y: 0 };
+let hoverAuf = false; // die Maus ueber der Karte (nicht ueber einem Panel)
 let paused = false;
 let speed = 1;
 let acc = 0;
@@ -262,6 +263,7 @@ addEventListener('mousemove', (e) => {
   const mx = e.clientX - r.left;
   const my = e.clientY - r.top;
   hover = { x: s2wx(mx) | 0, y: s2wy(my) | 0 };
+  hoverAuf = e.target === cv;
   if (!drag) return;
   if (drag.pan) {
     cam.x = drag.cx - (mx - drag.sx) / cam.z;
@@ -647,6 +649,15 @@ function befehl(x, y, anhaengen = false) {
   // Rechtsklick auf eine eigene Einheit: ihrem Auftrag anschliessen
   const freund = eigeneEinheitBei(world, ME, x, y, Math.max(40, 10 / cam.z), sel);
   if (freund) return mitmachen(world, ME, sel, freund, anhaengen);
+  // Rechtsklick auf ein Wrack: wer bergen kann, birgt es (nur auf Befehl); die anderen gehen hin
+  const wrack = wrackBei(nebel, world, x, y, 6 / cam.z);
+  const berger = wrack ? bergerVon(world, sel, ME) : [];
+  if (berger.length) {
+    issue(world, { type: 'bergen', player: ME, ids: berger, id: wrack.id, anhaengen });
+    const dazu = sel.filter((id) => !berger.includes(id));
+    if (dazu.length) issue(world, { type: 'move', player: ME, ids: dazu, x, y, anhaengen });
+    return;
+  }
   const site =
     world.entities.find(
       (b) =>
@@ -780,6 +791,7 @@ function draw() {
   drawDomains();
   drawHindernisse();
   drawDeposits();
+  drawWracks();
   drawSchreine();
   drawEntities();
   drawSchilde();
@@ -814,10 +826,60 @@ function drawNebel() {
   nebelMalen(ctx, w2sx(0), w2sy(0), MAP * cam.z);
 }
 
-/** Info-Karte: Gebaeude oder Einheit unter der Maus in der Leiste, sonst das, was gerade gesetzt wird. */
+/** Wracks (R1): dunkle, zerklueftete Flecken, Groesse nach Masse; was nur in Erinnerung ist, matt. Ein Ring zeigt, wie viel noch da ist. */
+function drawWracks() {
+  const W = cv.clientWidth;
+  const H = cv.clientHeight;
+  for (const w of wracksSichtbar(nebel, world)) {
+    const x = w2sx(w.x);
+    const y = w2sy(w.y);
+    const r = Math.max(3, wrackGroesse(w) * cam.z);
+    if (x < -r || y < -r || x > W + r || y > H + r) continue;
+    ctx.globalAlpha = wrackJetzt(nebel, w) ? 0.95 : 0.45;
+    // Umriss mit acht Ecken, deren Abstand aus der id folgt -- jedes Wrack sieht anders aus, aber immer gleich
+    const dreh = (w.id % 7) * 0.3;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + dreh;
+      const k = 0.6 + ((w.id * 31 + i * 17) % 40) / 100;
+      const px = x + Math.cos(a) * r * k;
+      const py = y + Math.sin(a) * r * k;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#1a1916';
+    ctx.fill();
+    ctx.strokeStyle = '#4d483e';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    if (r > 7) {
+      ctx.strokeStyle = '#3a362f';
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.4, y - r * 0.1);
+      ctx.lineTo(x + r * 0.1, y + r * 0.35);
+      ctx.moveTo(x + r * 0.05, y - r * 0.4);
+      ctx.lineTo(x + r * 0.4, y - r * 0.05);
+      ctx.stroke();
+    }
+    if (w.masse < w.voll && r > 5) {
+      ctx.strokeStyle = '#9ad0b4';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 3, -Math.PI / 2, -Math.PI / 2 + (w.masse / w.voll) * Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Info-Karte: Gebaeude oder Einheit unter der Maus in der Leiste, sonst das, was gerade gesetzt wird, sonst das Wrack unter der Maus. */
 function infoKarte() {
   const typ = karteTyp || placing;
-  const html = typ ? (UNITS[typ] ? einheitKarte(world, ME, typ) : gebaeudeKarte(world, ME, typ)) : '';
+  const berger = bergerVon(world, sel, ME);
+  const wrack = !typ && hoverAuf ? wrackBei(nebel, world, hover.x, hover.y, 6 / cam.z) : null;
+  // Bergungs-Cursor: ueber einem Wrack, wenn die Auswahl bergen kann
+  cv.style.cursor = wrack && berger.length ? BERGE_CURSOR : '';
+  const html = typ ? (UNITS[typ] ? einheitKarte(world, ME, typ) : gebaeudeKarte(world, ME, typ)) : wrack ? wrackKarte(world, wrack, berger, wrackJetzt(nebel, wrack)) : '';
   if (html === karteHtml) return;
   karteHtml = html;
   const el = document.getElementById('karte');
@@ -841,7 +903,7 @@ function drawPlaene() {
   ctx.beginPath();
   for (const u of world.entities) {
     if (u.player !== ME || u.kind !== 'unit' || !u.auftrag) continue;
-    const q = planVon(world, u.auftrag);
+    const q = planVon(world, u.auftrag) || wrackVon(world, u.auftrag);
     if (!q) continue;
     ctx.moveTo(w2sx(u.x), w2sy(u.y));
     ctx.lineTo(w2sx(q.x), w2sy(q.y));
@@ -1217,7 +1279,7 @@ function drawSelection() {
       const schluessel = x + ',' + y;
       if (punkteGemalt.has(schluessel)) continue;
       punkteGemalt.add(schluessel);
-      ctx.fillStyle = art === 'angriff' ? '#e06a4a' : art === 'bau' ? '#d8b06a' : '#e8dcc0';
+      ctx.fillStyle = art === 'angriff' ? '#e06a4a' : art === 'bau' ? '#d8b06a' : art === 'berge' ? '#9ad0b4' : '#e8dcc0';
       ctx.beginPath();
       ctx.arc(w2sx(x), w2sy(y), 3.5, 0, Math.PI * 2);
       ctx.fill();
@@ -1410,7 +1472,7 @@ function kommandantZeile() {
   if (!k) return '';
   const pct = Math.round((100 * k.hp) / k.maxHp);
   const farbe = pct < 34 ? COL.bad : COL.text;
-  const baut = k.baut ? ' · baut' : '';
+  const baut = k.baut ? ' · baut' : k.auftrag && wrackVon(world, k.auftrag) ? ' · birgt' : '';
   return `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span style="color:${farbe}">${pct} %${baut}</span>`;
 }
 
@@ -1586,6 +1648,8 @@ function drawMini() {
     mctx.arc(h.x * s, h.y * s, h.r * s, 0, Math.PI * 2);
     mctx.fill();
   }
+  mctx.fillStyle = '#7a7466';
+  for (const w of wracksSichtbar(nebel, world)) mctx.fillRect(w.x * s - 1, w.y * s - 1, 2, 2);
   for (let p = 0; p < world.players.length; p++) {
     mctx.fillStyle = spielerFarbe(world, p);
     mctx.globalAlpha = 0.18;

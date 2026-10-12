@@ -56,6 +56,19 @@ export const RULES = {
   skills: true,
   skillStart: 1,
   skillTakt: 1200,
+
+  // Wracks und Bergung (R1): Was eine gefallene Einheit oder ein gefallenes
+  // fertiges Gebaeude liegen laesst, in Promille seiner Masse-Kosten.
+  // Vergangene (Beschworene, Verfall Ausgeschiedener) und abgerissene
+  // hinterlassen nichts. 0 = keine Wracks; die Partie ist dann bitgleich zu
+  // der ohne Wrack-Regel. Designzahlen, ungemessen.
+  wrackAnteil: 700,
+  wrackAnteilGebaeude: 500,
+  // Bergekraft eines Erbauers (UNITS[...].build), der kein eigenes bergung-
+  // Feld hat: Masse pro Minute je 1000 Promille Baukraft. Designzahl,
+  // ungemessen: ein Bauer (Baukraft 400) birgt 200 Masse je Minute, ein
+  // Extraktor der Menschen foerdert 360.
+  bergungProBaukraft: 500,
 };
 
 export const FACTIONS = {};
@@ -156,7 +169,11 @@ export const FELDER = {
   // regeneration (M3): LP pro Minute, die die Einheit bzw. das Gebaeude von
   // selbst zurueckbekommt (Gebaeude nur versorgt, anteilig zu powered).
   // aura (M3): wirkt auf eigene Einheiten im Umkreis, siehe FELDER.aura.
-  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura'],
+  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura', 'bergung'],
+  // bergung (R1): die Einheit birgt Wracks (Befehl 'bergen'); kraft ist die
+  // Masse pro Minute. Erbauer (build) bergen auch ohne dieses Feld, mit ihrer
+  // Baukraft umgerechnet (RULES.bergungProBaukraft). Geborgen wird nur auf Befehl.
+  bergung: ['kraft'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
   // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
   // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,

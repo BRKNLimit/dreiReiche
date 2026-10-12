@@ -19,6 +19,9 @@ const ctxStub = new Proxy(
     textAlign: '',
     fillStyle: '',
     strokeStyle: '',
+    // Farbverlaeufe (Wald und Wiesen der Karten Flusstal, Drei Reiche, Vierlande)
+    createRadialGradient: () => ({ addColorStop() {} }),
+    createLinearGradient: () => ({ addColorStop() {} }),
   },
   {
     get(t, k) {
@@ -133,7 +136,10 @@ try {
       `\n;globalThis.__t = { BUILDINGS, UNITS,
         get world() { return world; }, get ME() { return ME; },
         get sel() { return sel; }, set sel(v) { sel = v; }, get placing() { return placing; }, set placing(v) { placing = v; },
-        get gruppe() { return bauGruppeSchl; } };`
+        get gruppe() { return bauGruppeSchl; },
+        // Mehrspieler: neue Partie auf der gewaehlten Karte (ohne Startbildschirm), Tempo und Pause setzen
+        neuSpiel(f, zuschauen, karte, mehr) { karteSchluessel = karte; gegnerVolk = 'auto'; gegnerWahlMehr[0] = mehr[0]; gegnerWahlMehr[1] = mehr[1]; paused = false; speed = 8; neu(f, zuschauen); },
+        get ais() { return ais; }, get verlauf() { return verlauf; } };`
   )();
   // Startbildschirm: wie ein Klick auf "Als Menschen spielen".
   nodes.introMensch.onclick();
@@ -275,11 +281,65 @@ function missionSpielen() {
   if (!funk) throw new Error('kein Funkspruch in der Mission');
 }
 
+// Vier Spieler auf Vierlande (Mensch + drei KIs), dann dieselbe Karte nur mit Zuschauen und
+// drei Spieler auf Drei Reiche: Spielerleiste, Auswertung (I), Spielstand speichern und laden
+{
+  const T = globalThis.__t;
+  const pruefe = (bedingung, text) => {
+    if (!bedingung) errors.push(new Error('Smoke: ' + text));
+  };
+  const weiter = (n, dt = 100) => {
+    for (let i = 0; i < n && frameFn; i++) {
+      const f = frameFn;
+      frameFn = null;
+      clock += dt;
+      try {
+        f(clock);
+      } catch (e) {
+        errors.push(e);
+        break;
+      }
+    }
+  };
+  try {
+    nodes.intro.style.display = 'none';
+    T.neuSpiel('mensch', false, 'vierlande', ['auto', 'auto']);
+    pruefe(T.world.players.length === 4, `Vierlande mit ${T.world.players.length} Spielern`);
+    pruefe(T.ais.filter(Boolean).length === 3 && !T.ais[0], 'Vierlande: drei KIs, der Mensch auf Sitz 0');
+    weiter(300);
+    pruefe(nodes.hud.innerHTML.includes('spielerleiste'), 'Vierlande: keine Spielerleiste im HUD');
+    fire('keydown', { ...base, key: 'i' });
+    weiter(3);
+    pruefe(nodes.hud.innerHTML.includes('Auswertung') && nodes.hud.innerHTML.includes('Domäne'), 'Vierlande: keine Auswertung');
+    fire('keydown', { ...base, key: 'i' });
+    delete speicher['dreiReiche.spielstand'];
+    fire('keydown', { ...base, key: 'F5' });
+    pruefe(!!speicher['dreiReiche.spielstand'], 'Vierlande: F5 hat nichts gespeichert');
+    const tickVorher = T.world.tick;
+    fire('keydown', { ...base, key: 'F9' });
+    pruefe(T.world.players.length === 4 && T.ais.length === 4 && T.world.tick <= tickVorher, 'Vierlande: Laden stellt den Stand nicht her');
+    weiter(200);
+    // Zuschauen: vier KIs, Beobachter-Tafel mit vier Spalten
+    T.neuSpiel('mensch', true, 'vierlande', ['gott', 'tod']);
+    pruefe(T.ais.filter(Boolean).length === 4, 'Zuschauen auf Vierlande: nicht vier KIs');
+    weiter(200);
+    pruefe((nodes.hud.innerHTML.match(/<th/g) || []).length >= 5, 'Zuschauen auf Vierlande: Beobachter ohne vier Spalten');
+    // Drei Spieler, Gegner 3 abgewaehlt ('keiner'): dreiReiche fasst drei, vierlande dann nur drei
+    T.neuSpiel('gott', false, 'vierlande', ['auto', 'keiner']);
+    pruefe(T.world.players.length === 3, `Gegner 3 auf "keiner" ergibt ${T.world.players.length} Spieler`);
+    T.neuSpiel('tod', false, 'dreiReiche', ['auto', 'auto']);
+    pruefe(T.world.players.length === 3, `Drei Reiche mit ${T.world.players.length} Spielern`);
+    weiter(300);
+  } catch (e) {
+    errors.push(e);
+  }
+}
+
 if (errors.length) {
   console.log('FEHLER:');
   for (const e of errors.slice(0, 5)) console.log(' ', e.message, '\n   ', (e.stack || '').split('\n')[1]);
   process.exit(1);
 }
-console.log('Smoke-Test ok — 1000 Frames, Eingaben, Spielstand, Online-Dialog, Mission mit Welle — keine Ausnahmen.');
+console.log('Smoke-Test ok — 1000 Frames, Eingaben, Spielstand, Online-Dialog, Mission mit Welle, 3 und 4 Spieler — keine Ausnahmen.');
 console.log('Canvas-Aufrufe:', [...calls].sort().join(', '));
 console.log('HUD-Ausgabe vorhanden:', nodes.hud.innerHTML.length > 0);

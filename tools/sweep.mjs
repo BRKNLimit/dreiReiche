@@ -127,7 +127,9 @@ if (isMainThread) {
   const stile = process.argv[5] === 'stile';
   const stufen = process.argv[5] === 'stufen';
   const karte = (process.argv.find((a) => a.startsWith('karte=')) || 'karte=klassisch').slice(6);
-  const voelker = (process.argv.find((a) => a.startsWith('voelker=')) || 'voelker=mensch-gott').slice(8).split('-');
+  const spieler = Number((process.argv.find((a) => a.startsWith('spieler=')) || 'spieler=2').slice(8));
+  // Mit mehr als zwei Spielern spielt jeder gegen jeden; Voelker reihum, wenn weniger genannt sind als Spieler
+  const voelker = (process.argv.find((a) => a.startsWith('voelker=')) || (spieler > 2 ? 'voelker=mensch-gott-tod' : 'voelker=mensch-gott')).slice(8).split('-');
   const names = Object.keys(CONFIGS).filter((n) => n.includes(filter));
   const seeds = SEEDS.slice(0, nSeeds);
   const limit = Math.max(1, availableParallelism() - 1);
@@ -148,7 +150,7 @@ if (isMainThread) {
       const step = () => {
         if (next >= jobs.length) return resolve();
         const job = jobs[next++];
-        const w = new Worker(new URL(import.meta.url), { workerData: { ...job, maxMin, stile, stufen, karte, voelker } });
+        const w = new Worker(new URL(import.meta.url), { workerData: { ...job, maxMin, stile, stufen, karte, voelker, spieler } });
         (teile[job.name] = teile[job.name] || []).push({ ab: job.ab, r: null });
         const platz = teile[job.name][teile[job.name].length - 1];
         w.on('message', (r) => (platz.r = r));
@@ -166,6 +168,19 @@ if (isMainThread) {
     const fehler = liste.find((r) => r.error);
     if (fehler) {
       results[name] = fehler;
+      continue;
+    }
+    if (spieler > 2) {
+      const r = { mehr: true, siegeVolk: Array(spieler).fill(0), siegeSitz: Array(spieler).fill(0), n: 0, sum: 0, games: [] };
+      for (const t of liste) {
+        t.siegeVolk.forEach((v, i) => (r.siegeVolk[i] += v));
+        t.siegeSitz.forEach((v, i) => (r.siegeSitz[i] += v));
+        r.n += t.n;
+        r.sum += t.sum;
+        r.games.push(...t.games);
+      }
+      r.avg = r.n ? (r.sum / r.n).toFixed(1) : '—';
+      results[name] = r;
       continue;
     }
     const r = { m: 0, g: 0, seat0: 0, n: 0, sum: 0, games: [], blut: { a: [], b: [] }, paar: {} };
@@ -190,11 +205,19 @@ if (isMainThread) {
     results[name] = r;
   }
 
-  console.log(`${seeds.length} Seeds × 2 Sitzplätze, Abbruch nach ${maxMin} min${stile ? ', Stil-Paarungen reihum' : ''}, Karte ${karte}, ${voelker[0]} (M) gegen ${voelker[1]} (G)\n`);
+  if (spieler > 2) {
+    const liste = Array.from({ length: spieler }, (_, i) => voelker[i % voelker.length]);
+    console.log(`${seeds.length} Seeds × ${spieler} Drehungen, jeder gegen jeden, Abbruch nach ${maxMin} min${stile ? ', Stile reihum' : ''}, Karte ${karte}, Völker ${liste.map((v, i) => `V${i + 1}=${v}`).join(' ')}\n`);
+  } else console.log(`${seeds.length} Seeds × 2 Sitzplätze, Abbruch nach ${maxMin} min${stile ? ', Stil-Paarungen reihum' : ''}, Karte ${karte}, ${voelker[0]} (M) gegen ${voelker[1]} (G)\n`);
   for (const name of names) {
     const r = results[name];
     if (r.error) {
       console.log(name.padEnd(34), 'FEHLER', r.error);
+      continue;
+    }
+    if (r.mehr) {
+      console.log(name.padEnd(34), `Siege je Volk: ${r.siegeVolk.map((v, i) => `V${i + 1} ${v}`).join(' · ')}`, ` je Sitz: ${r.siegeSitz.map((v, i) => `${i}: ${v}`).join(' · ')}`, ` Ø ${r.avg} min`);
+      console.log(' '.repeat(35) + r.games.join(' '));
       continue;
     }
     console.log(
@@ -225,7 +248,7 @@ if (isMainThread) {
     }
   }
 } else {
-  const { name, seeds, ab, maxMin, stile, stufen, karte, voelker } = workerData;
+  const { name, seeds, ab, maxMin, stile, stufen, karte, voelker, spieler } = workerData;
   const [A, B] = voelker; // in der Ausgabe "M" und "G"
   const { createWorld, step } = await import('../src/sim/sim.js');
   const { zufallsKarte } = await import('../src/sim/kartenbau.js');
@@ -258,60 +281,104 @@ if (isMainThread) {
   mische(UNITS, c.units);
   mische(BUILDINGS, c.buildings);
 
-  const games = [];
-  let m = 0;
-  let g = 0;
-  let seat0 = 0;
-  let n = 0;
-  let sum = 0;
-  // Erste Minute mit Goetterblut je Fraktion, nur Partien, in denen es dazu kam.
-  const blut = { a: [], b: [] };
-  // Siege der Menschen je Paarung "menschStil/gottStil"
-  const paar = {};
-  for (let k = 0; k < seeds.length; k++) {
-    const seed = seeds[k];
-    // Mit "stile": Paarung reihum; der Stil gehoert zur Fraktion, nicht zum
-    // Sitzplatz, beide Sitzplaetze spielen dieselbe Paarung.
-    const i = ab + k;
-    const st = stile ? { [A]: stilNamen[i % 3], [B]: stilNamen[((i / 3) | 0) % 3] } : { [A]: 'standard', [B]: 'standard' };
-    for (const f of [
-      [A, B],
-      [B, A],
-    ]) {
-      // karte=zufall: jede Partie auf einer eigenen Zufallskarte (zur Seed-Zahl)
-      const w = karte === 'zufall' ? createWorld({ factions: f, seed, karte, karteDaten: zufallsKarte(seed) }) : createWorld({ factions: f, seed, karte });
-      // Mit "stufen": je Seed eine Paarung -- schwer gegen mittel, mittel gegen leicht --,
-      // die staerkere Stufe wechselt die Fraktion mit dem Sitzplatz.
-      const paarung = [['schwer', 'mittel'], ['mittel', 'leicht']][(ab + k) % 2];
-      const sf = f[0] === A ? 0 : 1; // Sitz von Volk A
-      const stufeVon = (p) => (!stufen ? 'mittel' : (p === sf) === ((ab + k) % 4 < 2) ? paarung[0] : paarung[1]);
-      const ais = [createAI(0, seed, st[f[0]], stufeVon(0)), createAI(1, seed + 1, st[f[1]], stufeVon(1))];
-      const erst = [-1, -1];
-      while (!w.over && w.tick < maxMin * 600) {
-        stepAI(ais[0], w);
-        stepAI(ais[1], w);
-        step(w);
-        for (let p = 0; p < 2; p++) if (erst[p] < 0 && w.players[p].goetterblut > 0) erst[p] = w.tick;
+  /**
+   * Jeder gegen jeden mit N Spielern (spieler=3 karte=dreiReiche): je Seed spielt
+   * jedes Volk der Liste auf jedem Sitz (N Partien, die Liste dreht sich), die Stile
+   * wechseln reihum. Ausgewertet wird, welcher Platz der Volksliste gewinnt (V1, V2 ...)
+   * und welcher Sitz.
+   */
+  async function mehrspieler() {
+    const liste = Array.from({ length: spieler }, (_, i) => voelker[i % voelker.length]);
+    const siegeVolk = Array(spieler).fill(0);
+    const siegeSitz = Array(spieler).fill(0);
+    let n = 0;
+    let sum = 0;
+    const games = [];
+    for (let k = 0; k < seeds.length; k++) {
+      const seed = seeds[k];
+      for (let dreh = 0; dreh < spieler; dreh++) {
+        const nr = Array.from({ length: spieler }, (_, i) => (i + dreh) % spieler); // Platz der Volksliste je Sitz
+        const f = nr.map((i) => liste[i]);
+        const w = createWorld({ factions: f, seed, karte });
+        const st = stile ? nr.map((_, i) => stilNamen[(ab + k + i) % 3]) : nr.map(() => 'standard');
+        const ais = f.map((_, i) => createAI(i, seed + i, st[i]));
+        while (!w.over && w.tick < maxMin * 600) {
+          for (const a of ais) stepAI(a, w);
+          step(w);
+        }
+        const min = Math.round(w.tick / 600);
+        if (!w.over || w.winner < 0) {
+          games.push('—' + min);
+          continue;
+        }
+        siegeVolk[nr[w.winner]]++;
+        siegeSitz[w.winner]++;
+        games.push(`V${nr[w.winner] + 1}s${w.winner}-${min}`);
+        n++;
+        sum += w.tick / 600;
       }
-      for (let p = 0; p < 2; p++) if (erst[p] >= 0) blut[p === sf ? 'a' : 'b'].push(erst[p] / 600);
-      const min = Math.round(w.tick / 600);
-      if (!w.over) {
-        games.push('—' + min);
-        continue;
-      }
-      const gewinnerA = w.winner === sf; // auch bei gleichem Volk auf beiden Seiten eindeutig
-      // Bei "stufen": paar zaehlt Siege der staerkeren Stufe je Paarung (Feld m).
-      const pk = stufen ? paarung.join(' > ') : st[A] + '/' + st[B];
-      paar[pk] = paar[pk] || { m: 0, n: 0 };
-      paar[pk].n++;
-      if (stufen ? stufeVon(w.winner) === paarung[0] : gewinnerA) paar[pk].m++;
-      games.push((gewinnerA ? 'M' : 'G') + min);
-      if (gewinnerA) m++;
-      else g++;
-      if (w.winner === 0) seat0++;
-      n++;
-      sum += w.tick / 600;
     }
+    return { mehr: true, siegeVolk, siegeSitz, n, sum, games };
   }
-  parentPort.postMessage({ m, g, seat0, n, sum, games, blut, paar });
+
+  if (spieler > 2) {
+    parentPort.postMessage(await mehrspieler());
+  } else {
+    const games = [];
+    let m = 0;
+    let g = 0;
+    let seat0 = 0;
+    let n = 0;
+    let sum = 0;
+    // Erste Minute mit Goetterblut je Fraktion, nur Partien, in denen es dazu kam.
+    const blut = { a: [], b: [] };
+    // Siege der Menschen je Paarung "menschStil/gottStil"
+    const paar = {};
+    for (let k = 0; k < seeds.length; k++) {
+      const seed = seeds[k];
+      // Mit "stile": Paarung reihum; der Stil gehoert zur Fraktion, nicht zum
+      // Sitzplatz, beide Sitzplaetze spielen dieselbe Paarung.
+      const i = ab + k;
+      const st = stile ? { [A]: stilNamen[i % 3], [B]: stilNamen[((i / 3) | 0) % 3] } : { [A]: 'standard', [B]: 'standard' };
+      for (const f of [
+        [A, B],
+        [B, A],
+      ]) {
+        // karte=zufall: jede Partie auf einer eigenen Zufallskarte (zur Seed-Zahl)
+        const w = karte === 'zufall' ? createWorld({ factions: f, seed, karte, karteDaten: zufallsKarte(seed) }) : createWorld({ factions: f, seed, karte });
+        // Mit "stufen": je Seed eine Paarung -- schwer gegen mittel, mittel gegen leicht --,
+        // die staerkere Stufe wechselt die Fraktion mit dem Sitzplatz.
+        const paarung = [['schwer', 'mittel'], ['mittel', 'leicht']][(ab + k) % 2];
+        const sf = f[0] === A ? 0 : 1; // Sitz von Volk A
+        const stufeVon = (p) => (!stufen ? 'mittel' : (p === sf) === ((ab + k) % 4 < 2) ? paarung[0] : paarung[1]);
+        const ais = [createAI(0, seed, st[f[0]], stufeVon(0)), createAI(1, seed + 1, st[f[1]], stufeVon(1))];
+        const erst = [-1, -1];
+        while (!w.over && w.tick < maxMin * 600) {
+          stepAI(ais[0], w);
+          stepAI(ais[1], w);
+          step(w);
+          for (let p = 0; p < 2; p++) if (erst[p] < 0 && w.players[p].goetterblut > 0) erst[p] = w.tick;
+        }
+        for (let p = 0; p < 2; p++) if (erst[p] >= 0) blut[p === sf ? 'a' : 'b'].push(erst[p] / 600);
+        const min = Math.round(w.tick / 600);
+        if (!w.over) {
+          games.push('—' + min);
+          continue;
+        }
+        const gewinnerA = w.winner === sf; // auch bei gleichem Volk auf beiden Seiten eindeutig
+        // Bei "stufen": paar zaehlt Siege der staerkeren Stufe je Paarung (Feld m).
+        const pk = stufen ? paarung.join(' > ') : st[A] + '/' + st[B];
+        paar[pk] = paar[pk] || { m: 0, n: 0 };
+        paar[pk].n++;
+        if (stufen ? stufeVon(w.winner) === paarung[0] : gewinnerA) paar[pk].m++;
+        games.push((gewinnerA ? 'M' : 'G') + min);
+        if (gewinnerA) m++;
+        else g++;
+        if (w.winner === 0) seat0++;
+        n++;
+        sum += w.tick / 600;
+      }
+    }
+    parentPort.postMessage({ m, g, seat0, n, sum, games, blut, paar });
+  }
 }

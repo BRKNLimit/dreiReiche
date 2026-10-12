@@ -160,6 +160,33 @@ export function effekteAusEreignissen(fx, world, ich, sichtbar, hoerer, imBild) 
       if (!sichtbar(ev)) continue;
       fx.blitze.set(ev.id, fx.jetzt);
       if (fx.ringe.length < 120) fx.ringe.push({ x: ev.x, y: ev.y, r: 160, t: 0, dauer: 0.3, farbe: '#7ab8ff' });
+    } else if (ev.t === 'schlagStart') {
+      // Fernschlag abgefeuert: Flammenstoss und Ring am Gebaeude (nur, wenn man es sieht), Alarm bei einem gegnerischen.
+      if (ev.player !== ich) klang(fx, 'warnung', 0.7, 0);
+      if (!sichtbar({ player: ev.player, x: ev.bx, y: ev.by })) continue;
+      partikel(fx, 'glut', ev.bx, ev.by, 3);
+      if (fx.ringe.length < 120) fx.ringe.push({ x: ev.bx, y: ev.by, r: 500, t: 0, dauer: 0.7, farbe: '#ff9a3a' });
+      beben(fx, 5, ev.bx, ev.by, hoerer);
+      raum(fx, 'schlagstart', ev.bx, ev.by, hoerer, 0.9);
+    } else if (ev.t === 'schlag') {
+      // Einschlag: fuer alle sichtbar -- Feuerball, Druckwellen, Truemmer, starkes Beben.
+      partikel(fx, 'glut', ev.x, ev.y, 7);
+      partikel(fx, 'wucht', ev.x, ev.y, 4);
+      if (fx.ringe.length < 120) {
+        fx.ringe.push({ x: ev.x, y: ev.y, r: ev.radius, t: 0, dauer: 1.1, farbe: '#ff7020' });
+        fx.ringe.push({ x: ev.x, y: ev.y, r: ev.radius * 0.6, t: 0, dauer: 0.7, farbe: '#ffe080' });
+        fx.ringe.push({ x: ev.x, y: ev.y, r: ev.radius * 1.4, t: 0, dauer: 1.5, farbe: '#c8b890' });
+      }
+      beben(fx, 14, ev.x, ev.y, hoerer);
+      raum(fx, 'schlageinschlag', ev.x, ev.y, hoerer, 1);
+    } else if (ev.t === 'abgefangen') {
+      // Abwehr hat einen Schlag abgefangen: Lichtblitz im Zielkreis, Ring an der Abwehr.
+      partikel(fx, 'magie', ev.x, ev.y, 4);
+      if (fx.ringe.length < 120) {
+        fx.ringe.push({ x: ev.x, y: ev.y, r: ev.radius, t: 0, dauer: 0.8, farbe: '#9ae8ff' });
+        fx.ringe.push({ x: ev.ax, y: ev.ay, r: 350, t: 0, dauer: 0.6, farbe: '#9ae8ff' });
+      }
+      raum(fx, 'abfangen', ev.x, ev.y, hoerer, 0.9);
     } else if (ev.t === 'built') {
       const b = byId(ev.id);
       if (b && b.player === ich) klang(fx, 'fertig', 0.5, 0);
@@ -496,6 +523,21 @@ const REZEPTE = {
   einsturz: (t, z, t0) => {
     rauschen(t, z, t0, 0.9, 'lowpass', 300, 0.7, 1);
     ton1(t, z, t0, 0.7, 'sine', 70, 25, 0.8);
+  },
+  // Fernschlag: Start mit steigendem Fauchen, Einschlag mit tiefem Donner, Abfangen mit hellem Klirren
+  schlagstart: (t, z, t0) => {
+    rauschen(t, z, t0, 0.8, 'bandpass', 700, 0.8, 0.8);
+    ton1(t, z, t0, 0.7, 'sawtooth', 70, 400, 0.25);
+  },
+  schlageinschlag: (t, z, t0) => {
+    rauschen(t, z, t0, 1.4, 'lowpass', 260, 0.7, 1);
+    ton1(t, z, t0, 1.1, 'sine', 80, 20, 1);
+    ton1(t, z, t0, 0.5, 'square', 55, 25, 0.35);
+  },
+  abfangen: (t, z, t0) => {
+    ton1(t, z, t0, 0.35, 'sine', 1400, 2400, 0.25);
+    ton1(t, z, t0, 0.45, 'triangle', 900, 1800, 0.18, 0.06);
+    rauschen(t, z, t0, 0.15, 'highpass', 4000, 1, 0.4);
   },
   fertig: (t, z, t0) => {
     ton1(t, z, t0, 0.25, 'sine', 660, 660, 0.25);

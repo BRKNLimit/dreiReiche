@@ -7,7 +7,7 @@
 
 const leinwand = document.getElementById('leinwand');
 const gl = leinwand.getContext('webgl2', { antialias: true, stencil: true });
-const TEAMFARBE = { mensch: HEX('#d8b06a'), gott: HEX('#8fb86a'), tod: HEX('#8b9bb4') };
+const TEAMFARBE = { mensch: HEX('#d8b06a'), gott: HEX('#8fb86a'), tod: HEX('#a9c4e0') };
 const WEISS = [1, 1, 1];
 let ansicht = 'waldgott';
 let gehenAktiv = false;
@@ -71,6 +71,17 @@ function eintraege() {
       { key: 'pestaltar', name: 'Pestaltar (Zorn-Schrein)' },
       { key: 'ossuarium', name: 'Ossuarium (Wehr-Schrein)' },
       { key: 'totenarchiv', name: 'Totenarchiv (Forschung)' },
+      { key: 'knochenhorst', name: 'Knochenhorst (Luftfabrik)' },
+      { key: 'seelenspeier', name: 'Seelenspeier (Flak)' },
+      { key: 'seelenkuppel', name: 'Seelenkuppel (Schild)' },
+      { key: 'entropieofen', name: 'Entropieofen (Umwandler)' },
+      { key: 'fossilienwerk', name: 'Fossilienwerk (Werkstatt)' },
+      { key: 'seuchenmoerser', name: 'Seuchenmörser (Fernschlag)' },
+      { key: 'schattenschirm', name: 'Schattenschirm (Abwehr)' },
+      { key: 'geisterturm', name: 'Geisterturm (Posten)' },
+      { key: 'schattenflieger', name: 'Schattenflieger (Luftjäger)' },
+      { key: 'pestschwinge', name: 'Pestschwinge (Bomber)' },
+      { key: 'knochendrache', name: 'Knochendrache (Prototyp)' },
     ];
     return TOD_LISTE.filter((e) => MODELLE[e.key]).map((e) => ({ ...e, team: TEAMFARBE.tod }));
   }
@@ -105,6 +116,9 @@ function eintraege() {
       { key: 'blutAder', name: 'Götterblutader' },
       { key: 'baum', name: 'Baum' },
       { key: 'fels', name: 'Felsformation' },
+      { key: 'schildkuppel', name: 'Schildkuppel (Effekt)' },
+      { key: 'fernschlag', name: 'Fernschlag (Geschoss)' },
+      { key: 'flak', name: 'Flak-Burst (Effekt)' },
     ];
     return EFFEKTE.filter((e) => MODELLE[e.key]).map((e) => ({ ...e, team: WEISS }));
   }

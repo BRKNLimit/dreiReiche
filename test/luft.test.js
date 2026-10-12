@@ -49,10 +49,14 @@ const TEST_GEBAEUDE = {
 
 Object.assign(UNITS, TEST_EINHEITEN);
 Object.assign(BUILDINGS, TEST_GEBAEUDE);
+// Die Tests setzen Rollen der Menschen auf Testtypen -- danach wieder wie vorher
+// (das Volk kann diese Rollen in seiner Datei wirklich haben)
+const ROLLEN_VORHER = { ...FACTIONS.mensch.rollen };
 after(() => {
   for (const k of Object.keys(TEST_EINHEITEN)) delete UNITS[k];
   for (const k of Object.keys(TEST_GEBAEUDE)) delete BUILDINGS[k];
-  for (const r of ['luftfabrik', 'flak', 'bomber', 'luftjaeger']) delete FACTIONS.mensch.rollen[r];
+  for (const r of Object.keys(FACTIONS.mensch.rollen)) delete FACTIONS.mensch.rollen[r];
+  Object.assign(FACTIONS.mensch.rollen, ROLLEN_VORHER);
 });
 
 function bare() {

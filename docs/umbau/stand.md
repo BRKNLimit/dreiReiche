@@ -16,3 +16,12 @@ nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Feld
 | M6 Tech-Baum | `wirkung.tempo/reichweite/sicht/baukraft/regeneration`, `nur` | geplant |
 | M7 KI | — | geplant |
 | M8 Oberfläche | — | geplant |
+
+## Messungen
+
+| Stand | Menschen : Gott | Todesgott : Menschen | Todesgott : Gott |
+| --- | --- | --- | --- |
+| 0.39 (vor dem Umbau) | 32 : 25 | 42 : 30 | 34 : 25 |
+| + Spähposten für Gott und Tod (Gemini, Runde 28) | 38 : 24 | 32 : 40 | 33 : 29 |
+
+KI gegen KI, 36 Seeds × 2 Sitzplätze, 45 min, Stil-Paarungen (`tools/sweep.mjs 36 45 Ausgang stile voelker=…`). Messungen mit weniger Partien (Gemini: 10 Seeds × 30 min) streuen zu stark für Aussagen — bitte immer diese Einstellung.

@@ -18,7 +18,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // Dateien mit eigenen Hilfsnamen, die sich mit anderen beissen wuerden: in eine
 // Funktion gekapselt, nur ihre Exporte werden sichtbar.
-const GEKAPSELT = ['erweiterungen/figuren2d.js'];
+const GEKAPSELT = []; // derzeit keine
 function kapseln(src) {
   const namen = [...src.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|class)\s+(\w+)/gm)].map((m) => m[1]);
   return `const { ${namen.join(', ')} } = (() => {\n${strip(src)}\nreturn { ${namen.join(', ')} };\n})();`;
@@ -34,7 +34,7 @@ function strip(src) {
 
 const SIM = ['src/sim/grund.js', 'src/sim/voelker/mensch.js', 'src/sim/voelker/gott.js', 'src/sim/voelker/tod.js', 'src/sim/defs.js', 'src/sim/weg.js', 'src/sim/sim.js', 'src/sim/kunde.js', 'src/sim/kartenbau.js', 'src/sim/ai.js'];
 const SEITEN = [
-  ['src/shell.html', [...SIM, 'src/icons.js', 'src/platzhalter.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/musik.js', 'src/aufnahme.js', 'src/kampagne.js', 'src/spielstand.js', 'src/netz.js', 'src/bilanz.js', 'src/gelaende2d.js', 'src/figuren2d.js', 'erweiterungen/figuren2d.js', 'src/ui.js'], 'dist/resonit.html'],
+  ['src/shell.html', [...SIM, 'src/icons.js', 'src/platzhalter.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/musik.js', 'src/aufnahme.js', 'src/kampagne.js', 'src/spielstand.js', 'src/netz.js', 'src/bilanz.js', 'src/gelaende2d.js', 'src/figuren2d.js', 'src/ui.js'], 'dist/resonit.html'],
   [
     'src/shell3d.html',
     [...SIM, 'src/icons.js', 'src/ui-gemeinsam.js', 'src/effekte.js', 'src/musik.js', 'src/aufnahme.js', 'src/kampagne.js', 'src/spielstand.js', 'src/netz.js', 'src/bilanz.js', 'src/render3d.js', 'src/modelle3d.js', 'src/platzhalter.js', 'src/gelaende3d.js', 'src/ui3d.js'],

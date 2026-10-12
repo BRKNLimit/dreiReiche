@@ -50,10 +50,13 @@ const TEST_GEBAEUDE = {
 
 Object.assign(UNITS, TEST_EINHEITEN);
 Object.assign(BUILDINGS, TEST_GEBAEUDE);
+// Die Tests setzen die Schild-Rolle der Menschen -- danach wieder wie vorher
+const ROLLEN_VORHER = { ...FACTIONS.mensch.rollen };
 after(() => {
   for (const k of Object.keys(TEST_EINHEITEN)) delete UNITS[k];
   for (const k of Object.keys(TEST_GEBAEUDE)) delete BUILDINGS[k];
-  delete FACTIONS.mensch.rollen.schild;
+  for (const r of Object.keys(FACTIONS.mensch.rollen)) delete FACTIONS.mensch.rollen[r];
+  Object.assign(FACTIONS.mensch.rollen, ROLLEN_VORHER);
 });
 
 function bare() {

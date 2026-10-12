@@ -1321,20 +1321,20 @@ test('Reparatur: ohne Fron keine, und bei vollem Leben ist der Auftrag erledigt'
   assert.equal(k.auftrag, 0, 'Auftrag erledigt');
 });
 
-test('jede Fraktion hat Hauptgebaeude, Anker, Verteidigung, Gegenwart, Fron, Goetterblut, Fabrik, zwei Schreine, Forschung', () => {
-  for (const f of ['mensch', 'gott']) {
-    const b = Object.values(BUILDINGS).filter((d) => d.faction === f);
-    const hat = (p) => b.filter(p).length;
-    assert.equal(hat((d) => d.vital), 1, f + ' Hauptgebaeude');
-    assert.equal(hat((d) => d.anchor && !d.vital), 1, f + ' Anker');
-    assert.equal(hat((d) => d.weapon), 1, f + ' Verteidigung');
-    assert.equal(hat((d) => d.gegenwartOut && !d.vital), 1, f + ' Gegenwart');
-    assert.equal(hat((d) => d.fronOut), 1, f + ' Fron');
-    assert.equal(hat((d) => d.blutOut), 1, f + ' Goetterblut');
-    assert.equal(hat((d) => d.buildList && !d.vital), 1, f + ' Fabrik');
-    assert.equal(hat((d) => d.buff && d.buff.zorn), 1, f + ' Zorn-Schrein');
-    assert.equal(hat((d) => d.buff && d.buff.wehr), 1, f + ' Wehr-Schrein');
-    assert.equal(hat((d) => d.forschung), 1, f + ' Forschung');
+test('jedes Volk: jede Rolle der Basis tut, was sie soll (Hauptgebaeude, Anker, Verteidigung, Gegenwart, Foerderung, Fabrik, Schreine, Forschung)', () => {
+  for (const f of Object.keys(FACTIONS)) {
+    const r = FACTIONS[f].rollen;
+    const b = (rolle) => BUILDINGS[r[rolle]];
+    assert.ok(BUILDINGS[FACTIONS[f].haupt].vital, f + ' Hauptgebaeude');
+    assert.ok(b('anker').anchor && !b('anker').vital, f + ' Anker');
+    assert.ok(b('turm').weapon && b('turm').weapon.ziele !== 'luft', f + ' Verteidigung gegen Boden');
+    assert.ok(b('kraft').gegenwartOut, f + ' Gegenwart');
+    assert.ok(b('fron').fronOut && b('fron').needs === 'fron', f + ' Fron');
+    assert.ok(b('blut').blutOut && b('blut').needs === 'goetterblut', f + ' Goetterblut');
+    assert.ok(b('fabrik').buildList && !b('fabrik').vital, f + ' Fabrik');
+    assert.ok(b('zorn').buff && b('zorn').buff.zorn, f + ' Zorn-Schrein');
+    assert.ok(b('wehr').buff && b('wehr').buff.wehr, f + ' Wehr-Schrein');
+    assert.ok(b('forschung').forschung, f + ' Forschung');
   }
 });
 

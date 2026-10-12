@@ -530,6 +530,309 @@ export function zeichneEinheit2d(ctx, e, def, x, y, r, farbe, zoom, zeit) {
       break;
     }
 
+
+    // ----------------------------------------------------------- Totenreich & Neue Einheiten
+    case 'todesgott': {
+      // Schattencape
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.ellipse(-r * 0.15, 0, r * 0.8, r * 0.9, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // Aschgraue Kapuze
+          ctx.fillStyle = '#334155';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 0.55, r * 0.65, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // Dunkles Antlitz & Glühende Zyan-Augen
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.ellipse(r * 0.15, 0, r * 0.3, r * 0.4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(r * 0.22, -r * 0.18, r * 0.12, r * 0.12);
+          ctx.fillRect(r * 0.22, r * 0.06, r * 0.12, r * 0.12);
+          // Seelensensen beidseitig
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = Math.max(1.2, r * 0.16);
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.6, r * 0.75); ctx.lineTo(r * 1.1, r * 0.75);
+          ctx.moveTo(-r * 0.6, -r * 0.75); ctx.lineTo(r * 1.1, -r * 0.75);
+          ctx.stroke();
+          // Zyan-Klingen
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = Math.max(1.5, r * 0.22);
+          ctx.beginPath();
+          ctx.arc(r * 1.0, r * 0.3, r * 0.45, 0, Math.PI * 0.7);
+          ctx.stroke();
+      break;
+    }
+
+    case 'totengraeber': {
+      ctx.fillStyle = '#334155';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 0.6, r * 0.8, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#64748b';
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+          ctx.fill();
+          // Schaufel
+          ctx.strokeStyle = '#78350f';
+          ctx.lineWidth = Math.max(1, r * 0.16);
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.7, -r * 0.6); ctx.lineTo(r * 0.9, -r * 0.6);
+          ctx.stroke();
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillRect(r * 0.7, -r * 0.8, r * 0.35, r * 0.4);
+          // Laterne
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(-r * 0.4, r * 0.5, r * 0.2, 0, Math.PI * 2);
+          ctx.fill();
+      break;
+    }
+
+    case 'skelettkrieger': {
+      ctx.fillStyle = '#e2e8f0';
+          ctx.beginPath();
+          ctx.ellipse(-r * 0.1, 0, r * 0.5, r * 0.75, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // Rippen
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.3, -r * 0.3); ctx.lineTo(r * 0.1, -r * 0.3);
+          ctx.moveTo(-r * 0.3, 0); ctx.lineTo(r * 0.1, 0);
+          ctx.moveTo(-r * 0.3, r * 0.3); ctx.lineTo(r * 0.1, r * 0.3);
+          ctx.stroke();
+          // Schädel
+          ctx.fillStyle = '#f8fafc';
+          ctx.beginPath();
+          ctx.arc(r * 0.2, 0, r * 0.35, 0, Math.PI * 2);
+          ctx.fill();
+          // Schwert
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = Math.max(1, r * 0.18);
+          ctx.beginPath();
+          ctx.moveTo(r * 0.1, r * 0.6); ctx.lineTo(r * 1.25, r * 0.6);
+          ctx.stroke();
+          // Schild mit Fraktionsfarbe
+          ctx.fillStyle = farbe;
+          ctx.fillRect(-r * 0.2, -r * 0.8, r * 0.4, r * 0.25);
+      break;
+    }
+
+    case 'aasgeier': {
+      ctx.fillStyle = '#1e293b';
+          ctx.beginPath();
+          ctx.moveTo(r * 0.9, 0);
+          ctx.lineTo(-r * 0.7, -r * 1.2);
+          ctx.lineTo(-r * 0.2, 0);
+          ctx.lineTo(-r * 0.7, r * 1.2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#e2e8f0';
+          ctx.beginPath();
+          ctx.arc(r * 0.5, 0, r * 0.28, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = farbe;
+          ctx.fillRect(-r * 0.4, -r * 0.1, r * 0.3, r * 0.2);
+      break;
+    }
+
+    case 'klageweib': {
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#bae6fd';
+          ctx.beginPath();
+          ctx.ellipse(-r * 0.1, 0, r * 0.5, r * 0.65, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(r * 0.2, 0, r * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(r * 0.25, 0, r * 0.12, 0, Math.PI * 2);
+          ctx.fill();
+      break;
+    }
+
+    case 'grabwaechter': {
+      ctx.fillStyle = '#090d16';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 0.75, r * 0.95, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = farbe;
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+          // Axt
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = Math.max(1.5, r * 0.22);
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.3, r * 0.75); ctx.lineTo(r * 1.3, r * 0.75);
+          ctx.stroke();
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(r * 0.9, r * 0.5, r * 0.4, r * 0.5);
+      break;
+    }
+
+    case 'knochentitan': {
+      ctx.fillStyle = '#475569';
+          ctx.beginPath();
+          ctx.ellipse(-r * 0.1, 0, r * 0.85, r * 0.95, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#cbd5e1';
+          ctx.beginPath();
+          ctx.arc(r * 0.2, 0, r * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+          // Hörner
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.moveTo(r * 0.5, -r * 0.7); ctx.lineTo(r * 1.3, -r * 0.85); ctx.lineTo(r * 0.7, -r * 0.3); ctx.closePath(); ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(r * 0.5, r * 0.7); ctx.lineTo(r * 1.3, r * 0.85); ctx.lineTo(r * 0.7, r * 0.3); ctx.closePath(); ctx.fill();
+      break;
+    }
+
+    case 'fluggleiter': {
+      // Rumpf & Tragflächen
+          ctx.fillStyle = farbe;
+          ctx.beginPath();
+          ctx.moveTo(r * 1.1, 0);
+          ctx.lineTo(-r * 0.3, -r * 1.1);
+          ctx.lineTo(-r * 0.8, -r * 1.1);
+          ctx.lineTo(-r * 0.3, 0);
+          ctx.lineTo(-r * 0.8, r * 1.1);
+          ctx.lineTo(-r * 0.3, r * 1.1);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#78350f';
+          ctx.fillRect(-r * 0.7, -r * 0.15, r * 1.4, r * 0.3);
+          ctx.fillStyle = '#94a3b8';
+          ctx.beginPath(); ctx.arc(r * 0.8, 0, r * 0.15, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'brandballon': {
+      ctx.fillStyle = farbe;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 0.9, r * 0.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#78350f';
+          ctx.fillRect(-r * 0.4, -r * 0.25, r * 0.8, r * 0.5);
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.2, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'dampfkoloss': {
+      ctx.fillStyle = '#243b53';
+          ctx.fillRect(-r * 0.8, -r * 0.7, r * 1.6, r * 1.4);
+          ctx.strokeStyle = farbe;
+          ctx.lineWidth = Math.max(1.5, r * 0.15);
+          ctx.strokeRect(-r * 0.8, -r * 0.7, r * 1.6, r * 1.4);
+          // Kanonenrohre
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillRect(r * 0.6, -r * 0.4, r * 0.6, r * 0.2);
+          ctx.fillRect(r * 0.6, r * 0.2, r * 0.6, r * 0.2);
+          ctx.fillStyle = '#f97316';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'hornissenschwarm': {
+      for (const [dx, dy] of [[r * 0.3, 0], [-r * 0.3, -r * 0.4], [-r * 0.3, r * 0.4]]) {
+            ctx.fillStyle = '#eab308';
+            ctx.beginPath(); ctx.ellipse(dx, dy, r * 0.35, r * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#15803d';
+            ctx.fillRect(dx - r * 0.1, dy - r * 0.2, r * 0.2, r * 0.4);
+          }
+      break;
+    }
+
+    case 'walddrache': {
+      ctx.fillStyle = '#15803d';
+          ctx.beginPath();
+          ctx.moveTo(r * 1.0, 0);
+          ctx.lineTo(-r * 0.2, -r * 1.2);
+          ctx.lineTo(-r * 0.8, 0);
+          ctx.lineTo(-r * 0.2, r * 1.2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = farbe;
+          ctx.beginPath(); ctx.arc(r * 0.3, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#84cc16';
+          ctx.beginPath(); ctx.arc(r * 0.7, 0, r * 0.15, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'weltenbaum_ent': {
+      ctx.fillStyle = '#5c4028';
+          ctx.beginPath(); ctx.ellipse(0, 0, r * 0.85, r * 0.95, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#15803d';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = farbe;
+          ctx.beginPath(); ctx.arc(r * 0.4, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fef08a';
+          ctx.fillRect(r * 0.5, -r * 0.15, r * 0.12, r * 0.12);
+          ctx.fillRect(r * 0.5, r * 0.03, r * 0.12, r * 0.12);
+      break;
+    }
+
+    case 'schattenflieger': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.moveTo(r * 1.0, 0);
+          ctx.lineTo(-r * 0.4, -r * 1.15);
+          ctx.lineTo(-r * 0.7, -r * 0.7);
+          ctx.lineTo(-r * 0.3, 0);
+          ctx.lineTo(-r * 0.7, r * 0.7);
+          ctx.lineTo(-r * 0.4, r * 1.15);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(r * 0.4, 0, r * 0.2, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'pestschwinge': {
+      ctx.fillStyle = '#1e293b';
+          ctx.beginPath();
+          ctx.moveTo(r * 0.9, 0);
+          ctx.lineTo(-r * 0.3, -r * 1.2);
+          ctx.lineTo(-r * 0.7, 0);
+          ctx.lineTo(-r * 0.3, r * 1.2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#334155';
+          ctx.beginPath(); ctx.ellipse(-r * 0.1, 0, r * 0.45, r * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath(); ctx.arc(-r * 0.1, 0, r * 0.25, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'knochendrache': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.moveTo(r * 1.2, 0);
+          ctx.lineTo(-r * 0.2, -r * 1.3);
+          ctx.lineTo(-r * 0.8, -r * 0.6);
+          ctx.lineTo(-r * 0.5, 0);
+          ctx.lineTo(-r * 0.8, r * 0.6);
+          ctx.lineTo(-r * 0.2, r * 1.3);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = Math.max(1.2, r * 0.12);
+          ctx.stroke();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
     default: {
       ctx.fillStyle = farbe;
       ctx.beginPath();
@@ -906,6 +1209,353 @@ export function zeichneGebaeude2d(ctx, e, def, x, y, r, farbe, zoom, zeit) {
       ctx.beginPath();
       ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2);
       ctx.fill();
+      break;
+    }
+
+
+    // ----------------------------------------------------------- Totenreich & Neue Gebäude
+    case 'nekropole': {
+      ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-r * 0.9, -r * 0.9, r * 1.8, r * 1.8);
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = Math.max(1.5, r * 0.1);
+          ctx.strokeRect(-r * 0.9, -r * 0.9, r * 1.8, r * 1.8);
+          ctx.fillStyle = '#1e293b';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'grabhuegel': {
+      ctx.fillStyle = '#1e293b';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = Math.max(1.2, r * 0.12);
+          ctx.stroke();
+          ctx.fillStyle = '#475569';
+          ctx.fillRect(-r * 0.25, -r * 0.35, r * 0.5, r * 0.7);
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(-r * 0.08, -r * 0.2, r * 0.16, r * 0.4);
+      break;
+    }
+
+    case 'knochenturm': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = Math.max(1.2, r * 0.15);
+          ctx.stroke();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'seelenbrunnen': {
+      ctx.fillStyle = '#1e293b';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#0284c7';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#bae6fd';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'knochenmuehle': {
+      ctx.fillStyle = '#1e293b';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = Math.max(1.5, r * 0.15);
+          const rot = (zeit || 0) * 0.0015;
+          for (let i = 0; i < 4; i++) {
+            const a = rot + (i * Math.PI) / 2;
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r * 0.75, Math.sin(a) * r * 0.75); ctx.stroke();
+          }
+      break;
+    }
+
+    case 'fleischwurz': {
+      ctx.fillStyle = '#450a0a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#dc2626';
+          ctx.lineWidth = Math.max(1.5, r * 0.18);
+          for (let i = 0; i < 5; i++) {
+            const a = (i * Math.PI * 2) / 5;
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r * 0.95, Math.sin(a) * r * 0.95); ctx.stroke();
+          }
+      break;
+    }
+
+    case 'katakombe': {
+      ctx.fillStyle = '#090d16';
+          ctx.fillRect(-r * 0.8, -r * 0.8, r * 1.6, r * 1.6);
+          ctx.strokeStyle = '#64748b';
+          ctx.lineWidth = Math.max(1.2, r * 0.12);
+          ctx.strokeRect(-r * 0.8, -r * 0.8, r * 1.6, r * 1.6);
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(-r * 0.45, -r * 0.45, r * 0.9, r * 0.9);
+      break;
+    }
+
+    case 'pestaltar': {
+      ctx.fillStyle = '#1e293b';
+          ctx.fillRect(-r * 0.75, -r * 0.5, r * 1.5, r * 1.0);
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'ossuarium': {
+      ctx.fillStyle = '#334155';
+          ctx.fillRect(-r * 0.85, -r * 0.85, r * 1.7, r * 1.7);
+          ctx.fillStyle = '#e2e8f0';
+          for (let dx = -0.5; dx <= 0.5; dx += 0.5) {
+            for (let dy = -0.5; dy <= 0.5; dy += 0.5) {
+              ctx.beginPath(); ctx.arc(dx * r, dy * r, r * 0.16, 0, Math.PI * 2); ctx.fill();
+            }
+          }
+      break;
+    }
+
+    case 'totenarchiv': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(-r * 0.4, -r * 0.25, r * 0.8, r * 0.5);
+      break;
+    }
+
+    case 'ballonhalle': {
+      ctx.fillStyle = '#243b53';
+          ctx.fillRect(-r * 0.9, -r * 0.75, r * 1.8, r * 1.5);
+          ctx.strokeStyle = farbe;
+          ctx.lineWidth = Math.max(1.5, r * 0.12);
+          ctx.strokeRect(-r * 0.9, -r * 0.75, r * 1.8, r * 1.5);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-r * 0.5, r * 0.2, r * 1.0, r * 0.55);
+      break;
+    }
+
+    case 'flakbatterie': {
+      ctx.fillStyle = '#334155';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = farbe;
+          ctx.lineWidth = Math.max(1.2, r * 0.12);
+          ctx.stroke();
+          // 4 Rohre
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = Math.max(1.5, r * 0.18);
+          for (const a of [-0.6, -0.2, 0.2, 0.6]) {
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(a) * r * 0.9, -Math.cos(a) * r * 0.9); ctx.stroke();
+          }
+      break;
+    }
+
+    case 'schildturm': {
+      ctx.fillStyle = '#243b53';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 2]);
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+      break;
+    }
+
+    case 'aetherwandler': {
+      ctx.fillStyle = '#243b53';
+          ctx.fillRect(-r * 0.8, -r * 0.8, r * 1.6, r * 1.6);
+          ctx.fillStyle = '#0284c7';
+          ctx.beginPath(); ctx.arc(-r * 0.3, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#1fd35a';
+          ctx.beginPath(); ctx.arc(r * 0.3, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'grossgiesserei': {
+      ctx.fillStyle = '#1e293b';
+          ctx.fillRect(-r * 0.95, -r * 0.8, r * 1.9, r * 1.6);
+          ctx.fillStyle = '#f97316';
+          ctx.fillRect(-r * 0.4, -r * 0.3, r * 0.8, r * 0.6);
+          ctx.strokeStyle = farbe;
+          ctx.lineWidth = Math.max(1.2, r * 0.1);
+          ctx.strokeRect(-r * 0.95, -r * 0.8, r * 1.9, r * 1.6);
+      break;
+    }
+
+    case 'belagerungsmoerser': {
+      ctx.fillStyle = '#243b53';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-r * 0.25, -r * 0.85, r * 0.5, r * 1.1);
+          ctx.strokeStyle = farbe;
+          ctx.lineWidth = Math.max(1.2, r * 0.12);
+          ctx.stroke();
+      break;
+    }
+
+    case 'abfangposten': {
+      ctx.fillStyle = '#243b53';
+          ctx.fillRect(-r * 0.8, -r * 0.8, r * 1.6, r * 1.6);
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'wipfelhorst': {
+      ctx.fillStyle = '#15803d';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#5c4028';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = farbe;
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'sporenwerfer': {
+      ctx.fillStyle = '#14532d';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.fill();
+          for (let i = 0; i < 3; i++) {
+            const a = (i * Math.PI * 2) / 3;
+            ctx.fillStyle = '#a3e635';
+            ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5, r * 0.2, 0, Math.PI * 2); ctx.fill();
+          }
+      break;
+    }
+
+    case 'hainschild': {
+      ctx.fillStyle = '#15803d';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#84cc16';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#a3e635';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 2]);
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+      break;
+    }
+
+    case 'bluetenkelch': {
+      ctx.fillStyle = '#15803d';
+          for (let i = 0; i < 6; i++) {
+            const a = (i * Math.PI * 2) / 6;
+            ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, r * 0.35, 0, Math.PI * 2); ctx.fill();
+          }
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'lebensschmiede': {
+      ctx.fillStyle = '#5c4028';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'zornwurzel': {
+      ctx.fillStyle = '#3f2e1a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'himmelsdorn': {
+      ctx.fillStyle = '#14532d';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#a3e635';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'wipfelausguck': {
+      ctx.fillStyle = '#78350f';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'knochenhorst': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = Math.max(1.2, r * 0.12);
+          ctx.stroke();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'seelenspeier': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.fill();
+          for (let i = 0; i < 3; i++) {
+            const a = (i * Math.PI * 2) / 3;
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.45, Math.sin(a) * r * 0.45, r * 0.18, 0, Math.PI * 2); ctx.fill();
+          }
+      break;
+    }
+
+    case 'seelenkuppel': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 2]);
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+      break;
+    }
+
+    case 'entropieofen': {
+      ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-r * 0.8, -r * 0.8, r * 1.6, r * 1.6);
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(-r * 0.35, -r * 0.35, r * 0.7, r * 0.7);
+      break;
+    }
+
+    case 'fossilienwerk': {
+      ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-r * 0.9, -r * 0.85, r * 1.8, r * 1.7);
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = Math.max(1.2, r * 0.12);
+          ctx.strokeRect(-r * 0.9, -r * 0.85, r * 1.8, r * 1.7);
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'seuchenmoerser': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'schattenschirm': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.2, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+
+    case 'geisterturm': {
+      ctx.fillStyle = '#0f172a';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
       break;
     }
 

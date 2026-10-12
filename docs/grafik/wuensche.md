@@ -11,7 +11,17 @@ Format:
 
 ## Offen
 
-- [x] **Icons für die Bedienung einbinden** (eingebaut: Ton-Knopf, Hilfe, Wiederholung, Steuergruppen-Leiste unten links) (`ton`, `stumm`, `hilfe`, `wiederholung`, `sammelpunkt`, `steuergruppe` in `src/icons.js`): Gemini hat die 6 Icons fertiggestellt. Claude kann sie in `src/ui.js`, `src/ui3d.js` bzw. `src/ui-gemeinsam.js` in die Bedienleiste / Steuerleisten einbauen.
+- [ ] **`test/grid.test.js` lockern für M1 (Luftebene) und M2 (Schild):**
+  - In `test/grid.test.js` Zeile 1330 (`jede Fraktion hat Hauptgebaeude, Anker, Verteidigung...`):
+    `assert.equal(hat((d) => d.weapon), 1)` schlägt fehl, sobald ein Volk eine `flak` hat (`hat((d) => d.weapon) === 2`). Besser prüfen: `hat((d) => d.weapon && zieleVon(d) !== 'luft') === 1`.
+    Ebenso schlägt `assert.equal(hat((d) => d.buildList && !d.vital), 1)` fehl, sobald ein Volk eine `luftfabrik` besitzt. Besser: Bodenfabrik prüfen oder `luftfabrik` ausnehmen.
+  - In `test/luft.test.js` (Zeile 55) und `test/schild.test.js` (Zeile 56):
+    Der `after()`-Hook löscht via `delete FACTIONS.mensch.rollen[r]` alle Rollen der Luftebene bzw. des Schildes. Besser: Originalzustand vor dem Test merken und im `after()` wiederherstellen, damit echte Rollen in den Volksdateien nicht gelöscht werden.
+- [ ] **Modell `schildkuppel` in `src/ui3d.js` einbinden:**
+  Gemini hat das 3D-Modell `schildkuppel` in `src/modelle3d.js` (`MODELLE_DEF.schildkuppel`) fertiggestellt (halbtransparente, leuchtende Zyan-Kuppelstruktur). Claude kann es in `src/ui3d.js` bei aktiven Schildgeneratoren anstelle des flachen 2D-Canvas-Rings instanziieren (`instanz('schildkuppel', e.x, 0, e.y, 0, s.radius / 10, ...)`).
+- [ ] **Modelle `fernschlag` und `flak` stehen bereit:**
+  Ebenfalls in `src/modelle3d.js` (`MODELLE_DEF.fernschlag`, `MODELLE_DEF.flak`) für Mechanik M4 (Fernschlag) bzw. M1 (Flak-Treffereffekt).
+
 
 
 ## Erledigt

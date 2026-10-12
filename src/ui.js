@@ -993,9 +993,7 @@ function drawEntities() {
       const def = BUILDINGS[e.type];
       const r = Math.max(4, def.radius * cam.z);
       // Figur aus src/figuren2d.js (Gemini), sonst ein Quadrat
-      // Totenreich: Geminis Figuren aus erweiterungen/figuren2d.js (src/figuren2d.js malt sonst seine Ersatzform)
-      const figurTod = def.faction === 'tod' && zeichneErweiterungGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now());
-      if (!figurTod && !zeichneGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
+      if (!zeichneGebaeude2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
         ctx.fillStyle = e.done ? '#1d2118' : '#171a13';
         ctx.strokeStyle = col;
         ctx.lineWidth = def.vital ? 2.5 : 1.5;
@@ -1059,8 +1057,7 @@ function drawEntities() {
         }
       }
       // Figur aus src/figuren2d.js (Gemini), sonst die einfache Form
-      const figurTod = def.faction === 'tod' && zeichneErweiterungEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now());
-      if (!figurTod && !zeichneEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
+      if (!zeichneEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
         ctx.fillStyle = col;
         ctx.beginPath();
         if (def.commander) ctx.arc(x, y, r, 0, Math.PI * 2);

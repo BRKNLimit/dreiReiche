@@ -80,6 +80,10 @@ export const BUILDINGS = {};
 // weapon.gebaeude: Schaden gegen Gebaeude, wenn er vom Schaden gegen
 // Einheiten abweicht (Belagerung); weapon.vorrang 'gebaeude': greift
 // Gebaeude in Reichweite zuerst an.
+// weapon.ziele: 'boden' | 'luft' | 'beide' -- was die Waffe trifft (Gebaeude
+// zaehlen als Boden, fliegt: true als Luft); ohne Angabe nach kampf.
+// fliegt: ueber Fels, Wasser und Mauern; mit weapon kaempft ein Flieger wie
+// jede andere Einheit, ohne bleibt er Spaeher.
 export const UNITS = {};
 
 // ------------------------------------------------------------- Skillbaum
@@ -139,7 +143,12 @@ export const FELDER = {
     'buildList', 'buff', 'kampf', 'weapon',
   ],
   einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt'],
-  weapon: ['range', 'damage', 'cooldown', 'gebaeude', 'vorrang'],
+  // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
+  // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
+  // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,
+  // eine mit 'boden' (Bomber) nie einen Flieger.
+  weapon: ['range', 'damage', 'cooldown', 'gebaeude', 'vorrang', 'ziele'],
+  weaponZiele: ['boden', 'luft', 'beide'],
   buff: ['zorn', 'wehr', 'radius'],
   build: ['power'],
   cost: ['fron', 'goetterblut'],
@@ -157,7 +166,10 @@ export const ROLLEN = {
   gebaeude: ['anker', 'kraft', 'fron', 'blut', 'fabrik', 'turm', 'zorn', 'wehr', 'forschung'],
   einheit: ['bauer', 'leicht', 'fern', 'schwer', 'belagerung'],
   // nicht jedes Volk hat sie (noch)
-  frei: { posten: 'gebaeude', rabe: 'einheit' },
+  // luftfabrik/flak (M1): Fabrik der Flieger, Abwehr nur gegen Flieger.
+  // luftjaeger/bomber: Flieger gegen Flieger bzw. gegen Boden; rabe bleibt der
+  // unbewaffnete Spaeher.
+  frei: { posten: 'gebaeude', luftfabrik: 'gebaeude', flak: 'gebaeude', rabe: 'einheit', luftjaeger: 'einheit', bomber: 'einheit' },
 };
 
 export const START_FRON = 1100;

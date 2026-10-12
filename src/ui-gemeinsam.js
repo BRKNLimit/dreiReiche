@@ -4,7 +4,7 @@
 import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PRIO_NAMES } from './sim/defs.js';
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
-  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon,
+  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon, zieleVon,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
@@ -810,6 +810,7 @@ function waffeZeilen(d) {
     ['Kampf', fern ? 'Fernkampf' : 'Nahkampf'],
     ['Schaden', `${w.damage} je ${fern ? 'Schuss' : 'Schlag'}, ${((w.damage * 10) / w.cooldown).toFixed(1)} pro s`],
     ['Reichweite', fern ? meterText(w.range) : 'Berührung'],
+    ['Trifft', { boden: 'Boden', luft: 'Luft', beide: 'Boden und Luft' }[zieleVon(d)]],
   ];
 }
 
@@ -858,7 +859,7 @@ export function einheitKarte(world, player, typ) {
   if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
   if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
-  if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; nur Fernkampf trifft']);
+  if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; Nahkämpfer und Bodenwaffen erreichen ihn nicht']);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }

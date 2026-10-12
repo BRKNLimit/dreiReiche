@@ -7,6 +7,7 @@
 import {
   issue, dist2, isqrt, isCleared, anchorRadius, ankerGegenwart, inDomain, rng, cosDeg, sinDeg,
   unterhaltProMin, foerderungProMin, aufHindernis, gesperrt, kannLernen, faehigkeitenVon, faehigkeitWarten,
+  erreicht, zieleVon,
 } from './sim.js';
 import { neueKunde, aufklaeren, vermutetesHaupt, bekanntBei } from './kunde.js';
 import { BUILDINGS, UNITS, FACTIONS, MAP, FAEHIGKEITEN } from './defs.js';
@@ -17,6 +18,15 @@ const MISCHUNG = ['leicht', 'fern', 'leicht', 'fern', 'schwer'];
 
 /** Heereswert in Fron -- Wellen und Leibwache zaehlen Wert, nicht Koepfe. */
 const wert = (units) => units.reduce((s, u) => s + UNITS[u.type].cost.fron, 0);
+
+/** Schiesst das Gebaeude auf Bodenziele? Eine Flak deckt kein Gebaeude und haelt keine Bodenwelle auf. */
+const bodenTurm = (typ) => !!BUILDINGS[typ].weapon && zieleVon(BUILDINGS[typ]) !== 'luft';
+
+/** Kann die Einheit Gebaeude angreifen? Reine Luftjaeger koennen es nicht -- sie ziehen nicht mit Wellen. */
+const trifftBoden = (u) => zieleVon(UNITS[u.type]) !== 'luft';
+
+/** Ein bewaffneter Flieger (ein Spaeher hat keine Waffe). */
+const kampfFlieger = (typ) => !!UNITS[typ].fliegt && !!UNITS[typ].weapon;
 
 /**
  * Spielstile, fraktionsneutral. Messungen mit nur einem Stil messen vor
@@ -110,7 +120,12 @@ export function stepAI(ai, world) {
   // Arbeiter bauen, Kaempfer kaempfen -- Wellen, Wache und Abwehr ohne Arbeiter.
   const arbeiter = einheiten.filter((u) => UNITS[u.type].worker);
   const kaempfer = einheiten.filter((u) => !UNITS[u.type].worker && u !== kdt && UNITS[u.type].weapon);
-  const raben = einheiten.filter((u) => UNITS[u.type].fliegt);
+  // Spaeher: Flieger ohne Waffe. Bewaffnete Flieger sind Kaempfer wie alle.
+  const raben = einheiten.filter((u) => UNITS[u.type].fliegt && !UNITS[u.type].weapon);
+  // Bewaffnete gegnerische Flieger, die die Kunde kennt (gesehen enthaelt auch
+  // die, die man gerade sieht)
+  const feindFlieger = kunde.gesehen.filter((o) => kampfFlieger(o.type)).length;
+  const feindLuft = kunde.gesehen.filter((o) => UNITS[o.type].fliegt).length;
   const zahl = (t) => bauten.filter((b) => b.type === t).length;
   const kosten = (t) => BUILDINGS[t].cost.fron;
   const fron = p.fron;
@@ -280,6 +295,18 @@ export function stepAI(ai, world) {
     if (platz && bau(plan.turm, ...platz)) return;
   }
 
+  // 3c2. Flak (hat das Volk eine): sobald die Kunde gegnerische Flieger kennt,
+  //      eine beim Hauptgebaeude, zwei bei mehreren bewaffneten Fliegern.
+  //      Vorher waere sie totes Geld -- sie trifft nichts am Boden.
+  if (plan.flak && frei(plan.flak) && feindLuft) {
+    const flakZiel = feindFlieger >= 3 ? 2 : 1;
+    const fk = BUILDINGS[plan.flak];
+    if (zahl(plan.flak) < flakZiel && fron >= fk.cost.fron && bilanz >= (fk.gegenwartIn || 0)) {
+      const platz = daheimFrei(world, kunde, haupt, plan.flak, 1000, front + 150 + zahl(plan.flak) * 120);
+      if (platz && bau(plan.flak, ...platz)) return;
+    }
+  }
+
   // 3d. Forschung beim Hauptgebaeude -- mehr Skillpunkte.
   const fb = BUILDINGS[plan.forschung];
   if (zahl(plan.forschung) < forschungZiel && fron >= fb.cost.fron && bilanz >= fb.gegenwartIn) {
@@ -296,6 +323,17 @@ export function stepAI(ai, world) {
     if (zahl(plan.posten) < postenZiel && fron >= kosten(plan.posten)) {
       const platz = postenPlatz(world, kunde, haupt, ziel, gebaeude, plan.posten);
       if (platz && bau(plan.posten, platz.x, platz.y)) return;
+    }
+  }
+
+  // 3f. Luftfabrik (hat das Volk eine): eine ab dem mittleren Spiel, wenn die
+  //     Wirtschaft steht -- Flieger kosten wie das Heer am Boden Fron und
+  //     Unterhalt und sollen die Bodenfabriken nicht ersetzen.
+  if (plan.luftfabrik && frei(plan.luftfabrik) && wirtschaftSteht && minute >= 7) {
+    const lf = BUILDINGS[plan.luftfabrik];
+    if (zahl(plan.luftfabrik) < 1 && fron >= lf.cost.fron && bilanz >= (lf.gegenwartIn || 0)) {
+      const platz = daheimFrei(world, kunde, haupt, plan.luftfabrik, 900, front + 270);
+      if (platz && bau(plan.luftfabrik, ...platz)) return;
     }
   }
 
@@ -410,18 +448,35 @@ export function stepAI(ai, world) {
   const arbeiterZiel = Math.ceil(zielKraft / UNITS[plan.bauer].build.power);
   let arbeiterBestellt = arbeiter.length;
   for (const b of bauten) arbeiterBestellt += b.queue ? b.queue.filter((u) => u === plan.bauer).length : 0;
+  // Wert der Flieger (stehende und bestellte) und des Bodenheeres, fuer die Luftfabrik
+  let fliegerWert = wert(kaempfer.filter((u) => kampfFlieger(u.type)));
+  for (const b of bauten) for (const q of b.queue || []) if (kampfFlieger(q)) fliegerWert += UNITS[q].cost.fron;
+  const bodenWert = wert(kaempfer) - wert(kaempfer.filter((u) => kampfFlieger(u.type)));
   for (const f of bauten) {
     if (!f.done || !BUILDINGS[f.type].buildList || f.queue.length >= tiefe) continue;
     const liste = BUILDINGS[f.type].buildList;
     let unit = null;
-    if (arbeiterBestellt < arbeiterZiel && liste.includes(plan.bauer)) {
+    if (plan.luftfabrik && f.type === plan.luftfabrik) {
+      // Flieger: Bomber gegen alles am Boden; Luftjaeger erst, wenn der Gegner
+      // bewaffnete Flieger hat, dann im Wechsel mit den Bombern. Der Flieger-
+      // Anteil bleibt unter dem Wert des Bodenheeres (plus ein Grundstock),
+      // damit die Luftfabrik die Bodenfabriken nicht ausblutet.
+      const moeglich = (rolle) => (plan[rolle] && liste.includes(plan[rolle]) && frei(plan[rolle]) ? plan[rolle] : null);
+      const bomber = moeglich('bomber');
+      const jaeger = feindFlieger ? moeglich('luftjaeger') : null;
+      const anzahl = (t) => einheiten.filter((u) => u.type === t).length + bauten.reduce((s, b) => s + (b.queue ? b.queue.filter((q) => q === t).length : 0), 0);
+      if (fliegerWert <= bodenWert + 300) {
+        unit = jaeger && (!bomber || anzahl(jaeger) <= anzahl(bomber)) ? jaeger : bomber;
+        if (unit) fliegerWert += UNITS[unit].cost.fron;
+      }
+    } else if (arbeiterBestellt < arbeiterZiel && liste.includes(plan.bauer)) {
       unit = plan.bauer;
       arbeiterBestellt++;
     } else {
       // Schwer, sobald Goetterblut reicht -- reichlich Blut heisst nur noch schwer.
       // Sonst die naechste Rolle der Mischung, die diese Fabrik bauen kann.
       // Belagerung, solange der Gegner Tuerme hat: je Turm eine, hoechstens drei.
-      const feindTuerme = kunde.gebaeude.filter((o) => BUILDINGS[o.type].weapon).length;
+      const feindTuerme = kunde.gebaeude.filter((o) => bodenTurm(o.type)).length;
       const belagerer = einheiten.filter((u) => u.type === plan.belagerung).length;
       if (feindTuerme && belagerer < Math.min(3, feindTuerme) && frei(plan.belagerung) && liste.includes(plan.belagerung)) {
         unit = plan.belagerung;
@@ -486,7 +541,7 @@ export function stepAI(ai, world) {
   //    die nicht gerade mit einer Welle unterwegs sind. Der Kommandant
   //    kaempft nur auf eigenem Boden mit.
   // Verteidigt wird, was steht -- ein Plan ist noch nichts.
-  const bedrohung = naechsterEindringling(world, kunde, gebaeude);
+  const bedrohung = naechsterEindringling(world, kunde, gebaeude, (o) => !kampfFlieger(o.type) || kaempfer.some((u) => erreicht(u, o)));
   if (bedrohung) {
     const imHinterland = (pt) => dist2(pt.x, pt.y, haupt.x, haupt.y) <= HINTEN * HINTEN;
     const kdtHilft =
@@ -494,9 +549,12 @@ export function stepAI(ai, world) {
       !rueckzug &&
       inDomain(world, ai.player, bedrohung.x, bedrohung.y) &&
       (ai.stil.kdtVorn || imHinterland(bedrohung));
+    // Nur wer die Bedrohung trifft, geht hin. Ausnahme wie bisher: ein
+    // Spaeher ohne Waffe zieht alle an (Altverhalten der Referenzpartien).
+    const spaeher = UNITS[bedrohung.type].fliegt && !UNITS[bedrohung.type].weapon;
     const ids = kaempfer
       .concat(kdtHilft ? [kdt] : [])
-      .filter((u) => !ai.unterwegs.includes(u.id))
+      .filter((u) => !ai.unterwegs.includes(u.id) && (spaeher || erreicht(u, bedrohung)))
       .map((u) => u.id);
     if (ids.length) issue(world, { type: 'attack', player: ai.player, ids, x: bedrohung.x, y: bedrohung.y });
   }
@@ -507,7 +565,7 @@ export function stepAI(ai, world) {
   ai.unterwegs = ai.unterwegs.filter((id) => einheiten.some((u) => u.id === id));
   // Leibwache: Wer seinen Kommandanten verliert, verliert die Partie. Die ihm
   // naechsten Einheiten bleiben bei ihm, nur der Rest geht mit Wellen.
-  const daheimAlle = kaempfer.filter((u) => !ai.unterwegs.includes(u.id));
+  const daheimAlle = kaempfer.filter((u) => !ai.unterwegs.includes(u.id) && trifftBoden(u));
   const nachNaehe = kdt
     ? daheimAlle
         .slice()
@@ -726,7 +784,7 @@ const TURM_WERT = 600;
  */
 function heimHeer(kunde, haupt, gegner) {
   let summe = 0;
-  for (const b of kunde.gebaeude) if (b.done && b.powered && BUILDINGS[b.type].weapon) summe += TURM_WERT;
+  for (const b of kunde.gebaeude) if (b.done && b.powered && bodenTurm(b.type)) summe += TURM_WERT;
   for (const o of kunde.gesehen) {
     const d = UNITS[o.type];
     if (d.worker || !d.weapon || dist2(o.x, o.y, gegner.x, gegner.y) >= dist2(o.x, o.y, haupt.x, haupt.y)) continue;
@@ -833,7 +891,7 @@ function postenPlatz(world, kunde, haupt, richtung, gebaeude, typ) {
 function unterTurm(kunde, x, y, rand) {
   return kunde.gebaeude.some((t) => {
     const w = BUILDINGS[t.type].weapon;
-    if (!w) return false;
+    if (!bodenTurm(t.type)) return false;
     const r = w.range + BUILDINGS[t.type].radius + rand;
     return dist2(x, y, t.x, t.y) <= r * r;
   });
@@ -857,14 +915,17 @@ function vordersterAnker(world, bauten, ziel) {
 /**
  * Gesehene feindliche Einheit, die einem eigenen Gebaeude am naechsten
  * gekommen ist -- oder die irgendwo in der eigenen Domaene steht. Eine grosse
- * Domaene ist damit auch ein grosses Gebiet, das verteidigt wird.
+ * Domaene ist damit auch ein grosses Gebiet, das verteidigt wird. Nur, was
+ * die eigenen Kaempfer ueberhaupt treffen koennen (abwehrbar) -- einem Flieger,
+ * den kein eigener Kaempfer erreicht, laeuft niemand hinterher.
  */
-function naechsterEindringling(world, kunde, bauten) {
+function naechsterEindringling(world, kunde, bauten, abwehrbar) {
   const nah = 3000 * 3000;
   let best = null;
   let bestD = nah;
   let drin = null;
   for (const o of kunde.einheiten) {
+    if (!abwehrbar(o)) continue;
     if (!drin && inDomain(world, kunde.player, o.x, o.y)) drin = o;
     for (const b of bauten) {
       const dd = dist2(o.x, o.y, b.x, b.y);
@@ -919,7 +980,7 @@ function angriffsziel(kunde, von) {
     const d = BUILDINGS[e.type];
     if (!d.fronOut && !d.blutOut) continue;
     const gedeckt = kunde.gebaeude.some(
-      (t) => t.done && BUILDINGS[t.type].weapon && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
+      (t) => t.done && bodenTurm(t.type) && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
     );
     const rang = (gedeckt ? 2 : 0) + (d.blutOut ? 0 : 1);
     const dd = dist2(e.x, e.y, von.x, von.y);

@@ -1583,10 +1583,23 @@ function combat(world) {
   }
 }
 
-/** Kann e o ueberhaupt treffen? Fliegende Einheiten erreichen nur Fernkaempfer und Tuerme. */
-function erreicht(e, o) {
-  if (o.kind !== 'unit' || !UNITS[o.type].fliegt) return true;
-  return (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).kampf === 'fern';
+/**
+ * Was die Waffe einer Definition trifft: 'boden', 'luft' oder 'beide'. Ohne
+ * weapon.ziele wie bisher -- Nahkampf nur Boden, Fernkampf beides.
+ */
+export function zieleVon(def) {
+  return def.weapon.ziele || (def.kampf === 'fern' ? 'beide' : 'boden');
+}
+
+/**
+ * Kann e o ueberhaupt treffen? Fliegende Einheiten sind Luftziele, alles
+ * andere (auch Gebaeude) Bodenziele; weapon.ziele sagt, was e davon trifft.
+ * Jede Zielwahl (Verfolgen, Kampf, gezielter Angriff, die KI) fragt hier --
+ * sonst bleibt jemand an einem Feind haengen, den er nie treffen kann.
+ */
+export function erreicht(e, o) {
+  const z = zieleVon(e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]);
+  return o.kind === 'unit' && UNITS[o.type].fliegt ? z !== 'boden' : z !== 'luft';
 }
 
 /** Groesse einer Einheit oder eines Gebaeudes, Dezimeter. */

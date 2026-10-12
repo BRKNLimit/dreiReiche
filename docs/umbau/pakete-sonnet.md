@@ -359,3 +359,55 @@ jagt.
 7. **Tests:** Turm schießt nicht ins Ungesehene, schießt, sobald ein Späher
    das Ziel sieht; Schalter aus = bitgleich; Spielstand mitten im Gefecht
    bitgenau; 3–4 Spieler: Sicht je Spieler getrennt.
+
+## R3 Chassis und Module (Resonit, Kompendium „Chassis + Module“)
+
+Kein Tech-Baum: Ein Volk hat wenige Rümpfe, die es die ganze Partie über
+gibt; man bestückt sie anders. Vorschlag des Datenmodells in
+`docs/resonit/datenmodell-gemini.md` (Ideen, nicht verbindlich).
+
+**Grundidee — Variante = abgeleiteter Typ:** Eine Einheit mit Modulen ist
+ein eigener Eintrag in `UNITS`, abgeleitet aus Rumpf + Modulen, z. B.
+`palisade|kanone90|gatling`. Der Rest der Simulation liest wie heute
+`UNITS[e.type]` und merkt nichts von Modulen. Varianten werden
+deterministisch erzeugt (Schlüssel aus Rumpf und Modulen in fester
+Reihenfolge, reine Funktion), beim Laden der Daten für alle
+Standardbestückungen und zur Laufzeit bei einer Umrüstung.
+
+1. **Daten (neu in `FELDER`, Volksdateien):**
+   - Rumpf = Einheit mit `slots: ['gross', 'klein', …]` und
+     `bestueckung: [modul, …]` (Standard, eine je Slot oder leer).
+   - `module: { id: { name, desc, groesse: 'klein'|'gross', cost,
+     buildTime, … } }` je Volk. Ein Modul trägt Felder, die es heute an
+     Einheiten gibt: `weapon`, `sicht`, `schild`?, `bergung`, `build`,
+     `regeneration`, `aura`, dazu `hp` (+), `speed` (± Promille).
+   - Regeln der Ableitung (dokumentieren, testen): Kosten und Bauzeit =
+     Rumpf + Module; `hp` addiert; `sicht` = Maximum; **eine** Waffe: die
+     des ersten Waffenmoduls (Slots in Reihenfolge) — zweite Waffen sind
+     nicht Teil von R3; übrige Felder vom Modul, wenn der Rumpf sie nicht hat.
+2. **Hash, Spielstand, Netz:** Varianten müssen über Spielstand/Laden und
+   Wiederholung gleich herauskommen (der Schlüssel reicht, um sie neu zu
+   bauen). Wo Typen auf Nummern abgebildet werden (Hash, `SKILL_NR` o. ä.),
+   Varianten stabil behandeln.
+3. **Fabrik:** bildet Rümpfe mit Standardbestückung aus (`buildList` nennt
+   Rümpfe). Befehl `produce` darf eine Bestückung mitgeben (für KI und
+   spätere Oberfläche), geprüft gegen Slots und eigenes Volk.
+4. **Werkstatt (Umrüsten):** Befehl `umruesten { id, slot, modul }`. Die
+   Einheit muss bei einem eigenen fertigen Gebäude mit dem neuen Feld
+   `umruesten: true` (Rolle `werkstatt` hat es typischerweise) stehen bzw.
+   hingehen. Kosten: volle Kosten des neuen Moduls (das alte ist verloren
+   — Designzahl, kennzeichnen), Zeit: `buildTime` des Moduls, in der die
+   Einheit steht und nicht kämpft. LP behalten ihr Verhältnis.
+5. **Oberfläche (2D, 3D):** Auswahlkarte/Infokarte zeigt Rumpf + Module;
+   bei gewählter Einheit neben einer Werkstatt eine Leiste „Umrüsten“
+   (Slot wählen, Modul wählen — Kosten und Zeit sichtbar). Kodex: Rümpfe
+   und Module. Modelle: der Rumpf-Schlüssel ohne Module (Gemini liefert
+   Rumpfmodelle; Module später als Anbauteile — Wunsch eintragen).
+6. **KI:** baut Standardbestückungen (nichts Eigenes); Umrüsten der KI
+   kommt mit R6.
+7. **Bitgleich:** Kein Fantasy-Volk hat Module → `node tools/referenz.mjs`
+   unverändert.
+8. **Tests** mit einem Testvolk zur Laufzeit (Rumpf mit 2 Slots, 3–4
+   Module): Ableitung (Kosten, LP, Sicht, Waffe), Produktion mit und ohne
+   Bestückung, Umrüsten (Kosten, Dauer, ungültige Befehle abgelehnt),
+   Spielstand mitten im Umrüsten bitgenau, Hash stabil, Datenprüfung.

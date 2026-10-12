@@ -1,11 +1,14 @@
-# Die drei Reiche — Regeln für Gemini (Grafik)
+# Die drei Reiche — Regeln für Gemini (Grafik und Inhalte)
 
 Du arbeitest an einem RTS-Prototyp im Browser: Menschen gegen den Wald- und
 Wiesengott, WebGL 2 ohne Bibliothek, alles läuft offline aus einer HTML-Datei.
-**Du bist für die Grafik zuständig.** Parallel arbeitet Claude (ein anderer
-KI-Agent) an Spiellogik, KI und Bedienung — in anderen Dateien. Den
-aktuellen Auftrag findest du in **`docs/grafik/auftrag-3.md`** (erledigt:
-`auftrag.md`, `auftrag-2.md`).
+**Du bist für Grafik und Inhalte zuständig** (60 % des Umbaus der Völker).
+Claude (Technik, Prüfung, Merges) und ein Sonnet-Agent (Mechaniken) arbeiten
+parallel in anderen Dateien. Den aktuellen Auftrag findest du in
+**`docs/umbau/auftrag-gemini.md`**, den Rahmen in `docs/umbau/konzept.md`,
+was schon nutzbar ist in `docs/umbau/stand.md` (erledigt:
+`docs/grafik/auftrag*.md`). Drei Völker: Menschen, Wald- und Wiesengott,
+Todesgott.
 
 **Lies diese Datei zu Beginn jeder Sitzung neu** — nach
 `git fetch && git merge origin/main`. Sie ändert sich zwischen den Runden.
@@ -49,8 +52,11 @@ Kein `npm install` nötig, keine Abhängigkeiten.
 | `src/galerie.js`, `src/galerie.html` | Die Galerie |
 | `docs/grafik/` | Dein Protokoll, deine Wünsche an Claude, Stil-Notizen |
 | `docs/bilder/` | Bilder (Screenshots, Vorlagen) |
+| `src/sim/voelker/*.js` | **Inhalte** der drei Völker (Gebäude, Einheiten, Skills, Rollen) — nur mit Feldern aus `FELDER` und nur, was `docs/umbau/stand.md` freigibt |
+| `docs/umbau/entwurf-*.md` | Deine Inhaltsentwürfe je Volk |
+| `erweiterungen/` | Dein Todesgott-Entwurf (Archiv) |
 
-**Nicht anfassen:** `src/sim/**` (deterministische Simulation), `src/ui.js`,
+**Nicht anfassen:** `src/sim/**` außer `src/sim/voelker/` (deterministische Simulation), `src/ui.js`,
 `src/ui3d.js`, `src/ui-gemeinsam.js`, `src/shell*.html`, `test/grid.test.js`,
 `tools/**`, `package.json`, `CLAUDE.md`, `README.md`, `CHANGELOG.md`.
 Brauchst du dort etwas (neuer Uniform, neuer Aufruf, andere Daten), trag es
@@ -122,10 +128,13 @@ sichtbare Kante darf nicht mehr als etwa 10 % vom Kreis abweichen.
    das Warum.
 7. Trag jede Arbeitsrunde in `docs/grafik/protokoll.md` ein: was, warum,
    wie geprüft.
-8. **Nur Grafik, kein Spieldesign.** Keine neuen Völker, Einheiten, Werte
-   oder Regeln, auch nicht als Entwurf auf `gemini/grafik` — das
-   entscheiden der Nutzer und Claude. Ideen gern als kurze Notiz in
-   `wuensche.md`.
+8. **Inhalte ja, Regeln nein.** Einheiten, Gebäude, Werte und Skill-Bäume
+   entwirfst und pflegst du im Rahmen von `docs/umbau/konzept.md` —
+   aber nur mit Feldern aus `FELDER` (`src/sim/defs.js`, geprüft von
+   `test/daten.test.js`). Neue Mechaniken (neue Felder, neue Regeln)
+   erfindest du nicht: als Wunsch in `docs/grafik/wuensche.md`. Werte
+   änderst du nur mit Messung (`tools/sweep.mjs … voelker=a-b`, alle
+   Paarungen 45–55 %) im Protokoll. Keine neuen Völker.
 9. **Shader im echten Browser prüfen:** Die Smoke-Tests haben kein echtes
    WebGL. Nach Änderungen an Shadern `dist/drei-reiche-3d.html` einmal im
    Browser öffnen und die Konsole auf Fehler ansehen.

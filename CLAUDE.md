@@ -98,7 +98,7 @@ Ort.
 Gemini arbeitet parallel auf dem Branch `gemini/grafik` an der Grafik — Regeln
 und Auftrag in `GEMINI.md` und `docs/grafik/`. **Diese Dateien gehören Gemini
 und werden hier nicht geändert:** `src/modelle3d.js`, `src/render3d.js`,
-`src/gelaende3d.js`, `src/gelaende2d.js`, `src/icons.js`, `src/figuren2d.js`, `erweiterungen/`, `src/galerie.js`,
+`src/gelaende3d.js`, `src/gelaende2d.js`, `src/icons.js`, `src/figuren2d.js`, `erweiterungen/`, `src/sim/voelker/` (Inhalte, seit dem Umbau), `src/galerie.js`,
 `src/galerie.html`. Ihre Schnittstellen stehen in `GEMINI.md`; Wünsche von
 Gemini an diese Seite stehen in `docs/grafik/wuensche.md`. Den Branch nach
 Prüfung (Tests, Smoke, Diff lesen) nach `main` mergen.

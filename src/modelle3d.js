@@ -3383,15 +3383,20 @@ MODELLE_DEF.wasser = wasserModell();
 // ERWEITERUNGEN: TODESGOTT (TOTENREICH) & ELITE-EINHEITEN
 // =============================================================================
 
+
+const EXP_KNOCHEN_WEISS = '#f8fafc';
+const EXP_KNOCHEN_HELL = '#f1f5f9';
 const EXP_KNOCHEN = '#e2e8f0';
 const EXP_KNOCHEN_D = '#94a3b8';
 const EXP_SCHATTEN = '#090d16';
-const EXP_SCHATTEN2 = '#161f30';
+const EXP_SCHATTEN2 = '#1e293b';
 const EXP_ASCHE = '#334155';
 const EXP_ASCHE2 = '#475569';
 const EXP_ZYAN = '#38bdf8';
 const EXP_ZYAN_HELL = '#bae6fd';
-const EXP_OBSIDIAN = '#111827';
+const EXP_ZYAN_WEISS = '#f0f9ff';
+const EXP_SEELEN_BLAU = '#a9c4e0';
+const EXP_OBSIDIAN = '#020617';
 const EXP_ROT = '#dc2626';
 const EXP_ROT_D = '#7f1d1d';
 const EXP_STAHL = '#94a3b8';
@@ -3402,363 +3407,1201 @@ const EXP_WALDGRUEN = '#15803d';
 const EXP_MOOS = '#166534';
 const EXP_BLATT = '#86efac';
 
-/** Todesgott: Uralter Avatar der Entropie mit Schattencape, Hörnerkrone und Seelensensen */
 function todesgottModell() {
   const t = [];
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    t.push(['z', [0.35, 0.5, 0.45, 5], [Math.cos(a) * 0.4, 0.22, Math.sin(a) * 0.4], EXP_SCHATTEN, 0.1]);
+  // Zerfaserter Schattensaum unten (Wurzeln der Entropie)
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const r = 0.45 + (i % 3) * 0.05;
+    t.push(['z', [0.25, 0.45, 0.5, 5], [Math.cos(a) * r, 0.25, Math.sin(a) * r], EXP_SCHATTEN, 0.1]);
   }
-  t.push(['z', [0.28, 0.48, 1.4, 8], [0, 0.9, 0], EXP_SCHATTEN, 0.15]);
-  t.push(['z', [0.42, 0.28, 0.35, 7], [0, 1.55, 0], EXP_ASCHE, 0.2]);
+  // Schattengewand: fließender Körper
+  t.push(['z', [0.35, 0.55, 1.3, 8], [0, 0.85, 0], EXP_SCHATTEN, 0.15]);
+  t.push(['z', [0.48, 0.35, 0.45, 7], [0, 1.55, 0], EXP_SCHATTEN2, 0.35]);
+  // Mantelsaum & Schulterüberwurf in Fraktionsfarbe
+  t.push(['z', [0.52, 0.42, 0.2, 8], [0, 1.6, 0], EXP_SEELEN_BLAU, 0.5]);
 
-  for (let r = 0; r < 4; r++) {
-    const y = 1.1 + r * 0.12;
-    t.push(['q', [0.32 - r * 0.02, 0.04, 0.28], [0, y, 0.12], EXP_KNOCHEN, 0.1]);
+  // Rippenkäfig aus weißem Knochen mit pulsierendem Seelenfeuer-Kern
+  for (let r = 0; r < 5; r++) {
+    const y = 1.1 + r * 0.1;
+    const b = 0.36 - r * 0.02;
+    t.push(['q', [b, 0.045, 0.3], [0, y, 0.12], EXP_KNOCHEN_WEISS, 0.1]);
   }
-  t.push(['z', [0.06, 0.06, 0.7, 5], [0, 1.25, -0.1], EXP_KNOCHEN_D]);
+  // Rückgrat
+  t.push(['z', [0.07, 0.07, 0.75, 5], [0, 1.3, -0.1], EXP_KNOCHEN_D]);
+  // Glühender Seelenfeuer-Kern im Brustkorb
+  t.push(['k', [0.15, 6], [0, 1.3, 0.08], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.08, 5], [0, 1.3, 0.08], EXP_ZYAN_WEISS, GLUEHT]);
 
-  t.push(['k', [0.24, 7], [0, 1.82, 0.05], EXP_SCHATTEN]);
-  t.push(['k', [0.18, 6], [0, 1.82, 0.12], EXP_KNOCHEN]);
-  t.push(['k', [0.035, 4], [-0.07, 1.84, 0.26], EXP_ZYAN_HELL, GLUEHT]);
-  t.push(['k', [0.035, 4], [0.07, 1.84, 0.26], EXP_ZYAN_HELL, GLUEHT]);
+  // Schädel & Kapuze
+  t.push(['k', [0.26, 7], [0, 1.88, 0.04], EXP_SCHATTEN]);
+  t.push(['k', [0.2, 6], [0, 1.88, 0.12], EXP_KNOCHEN_HELL]);
+  // Stechende Zyan-Augen
+  t.push(['k', [0.04, 4], [-0.07, 1.9, 0.27], EXP_ZYAN_WEISS, GLUEHT]);
+  t.push(['k', [0.04, 4], [0.07, 1.9, 0.27], EXP_ZYAN_WEISS, GLUEHT]);
 
+  // Gewaltiges, verzweigtes Knochengeweih / Hörnerkrone
   for (const s of [1, -1]) {
-    t.push(stab([s * 0.12, 1.95, 0.05], [s * 0.32, 2.3, -0.05], 0.05, EXP_KNOCHEN, 0, 5, 0.5));
-    t.push(stab([s * 0.32, 2.3, -0.05], [s * 0.42, 2.55, 0.1], 0.03, EXP_KNOCHEN, 0, 4, 0.2));
+    t.push(stab([s * 0.12, 2.02, 0.05], [s * 0.35, 2.45, -0.05], 0.06, EXP_KNOCHEN_WEISS, 0, 5, 0.6));
+    t.push(stab([s * 0.35, 2.45, -0.05], [s * 0.48, 2.78, 0.1], 0.04, EXP_KNOCHEN_WEISS, 0, 4, 0.3));
+    t.push(stab([s * 0.35, 2.45, -0.05], [s * 0.2, 2.65, 0.18], 0.035, EXP_KNOCHEN_HELL, 0, 4, 0.3));
+    t.push(stab([s * 0.48, 2.78, 0.1], [s * 0.58, 2.95, 0.05], 0.025, EXP_ZYAN, GLUEHT, 4, 0.2));
   }
 
+  // Skelettierte Arme & majestätische Seelensensen
   for (const s of [1, -1]) {
-    t.push(stab([s * 0.35, 1.55, 0], [s * 0.55, 1.15, 0.15], 0.06, EXP_KNOCHEN, 0, 5));
-    t.push(stab([s * 0.55, 1.15, 0.15], [s * 0.45, 0.75, 0.45], 0.05, EXP_KNOCHEN, 0, 5));
-    t.push(stab([s * 0.45, 0.2, 0.3], [s * 0.45, 2.1, 0.6], 0.035, EXP_OBSIDIAN, 0, 4));
-    t.push(stab([s * 0.45, 2.05, 0.6], [s * 0.1, 2.25, 1.05], [0.02, 0.18], EXP_ZYAN, GLUEHT));
-    t.push(stab([s * 0.1, 2.25, 1.05], [s * 0.0, 1.95, 1.25], [0.015, 0.12], EXP_ZYAN_HELL, GLUEHT));
+    t.push(stab([s * 0.38, 1.6, 0], [s * 0.58, 1.2, 0.15], 0.065, EXP_KNOCHEN_HELL, 0, 5));
+    t.push(stab([s * 0.58, 1.2, 0.15], [s * 0.46, 0.8, 0.45], 0.055, EXP_KNOCHEN_WEISS, 0, 5));
+    // Schulterplatten
+    t.push(['k', [0.12, 5], [s * 0.38, 1.65, 0], EXP_SEELEN_BLAU, 0.45]);
+    // Sensen-Schaft
+    t.push(stab([s * 0.46, 0.15, 0.25], [s * 0.46, 2.25, 0.65], 0.04, EXP_OBSIDIAN, 0, 5));
+    // Sensen-Klinge (geschwungen, glühende Schneide)
+    t.push(stab([s * 0.46, 2.2, 0.65], [s * 0.12, 2.45, 1.15], [0.03, 0.2], EXP_KNOCHEN_WEISS, 0));
+    t.push(stab([s * 0.12, 2.45, 1.15], [s * 0.0, 2.1, 1.38], [0.02, 0.15], EXP_ZYAN, GLUEHT));
+    t.push(stab([s * 0.0, 2.1, 1.38], [s * -0.08, 1.85, 1.45], [0.015, 0.1], EXP_ZYAN_WEISS, GLUEHT));
   }
   return t;
 }
 
-/** Totengräber: Buckliger Diener mit Schaufel und Seelenlaterne */
 function totengraeberModell() {
   const t = [];
+  // Beine mit Stiefeln und Wickeln
   for (const s of [1, -1]) {
-    t.push(stab([s * 0.12, 0.8, 0], [s * 0.14, 0.4, 0.02], 0.1, EXP_ASCHE, 0.1, 5));
-    t.push(stab([s * 0.14, 0.4, 0.02], [s * 0.15, 0.08, 0], 0.09, EXP_SCHATTEN, 0, 5));
-    t.push(['q', [0.12, 0.09, 0.22], [s * 0.15, 0.05, 0.06], '#1c1917']);
+    t.push(stab([s * 0.14, 0.85, 0], [s * 0.15, 0.45, 0.03], 0.11, EXP_ASCHE, 0.2, 6));
+    t.push(['k', [0.065, 5], [s * 0.15, 0.45, 0.08], EXP_SCHATTEN]);
+    t.push(stab([s * 0.15, 0.45, 0.03], [s * 0.15, 0.1, 0], 0.1, EXP_SCHATTEN2, 0.35, 6));
+    t.push(['q', [0.12, 0.08, 0.24], [s * 0.15, 0.05, 0.06], '#090d16']);
   }
-  t.push(['k', [0.32, 6], [0, 1.1, -0.08], EXP_ASCHE]);
-  t.push(['z', [0.26, 0.32, 0.6, 6], [0, 0.95, 0], EXP_SCHATTEN2, 0.15]);
+  // Buckliger Torso & schwere Kutte
+  t.push(['k', [0.34, 6], [0, 1.15, -0.06], EXP_ASCHE]);
+  t.push(['z', [0.28, 0.35, 0.65, 6], [0, 0.98, 0], EXP_SCHATTEN, 0.2]);
+  // Kuttenkragen / Überwurf mit Totenreich-Farbe
+  t.push(['z', [0.38, 0.3, 0.28, 6], [0, 1.35, 0.02], EXP_SEELEN_BLAU, 0.45]);
+  // Rückgrat-Vertebrae (bleiche Knochen aus zerrissener Kutte)
+  for (let b = 0; b < 4; b++) {
+    t.push(['k', [0.045, 4], [0, 1.05 + b * 0.09, -0.22], EXP_KNOCHEN_WEISS]);
+  }
+  // Kopf & Kapuze
+  t.push(['k', [0.2, 6], [0, 1.42, 0.16], EXP_SCHATTEN]);
+  t.push(['k', [0.14, 5], [0, 1.38, 0.26], EXP_KNOCHEN_HELL]);
+  t.push(['k', [0.03, 3], [-0.05, 1.4, 0.36], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.03, 3], [0.05, 1.4, 0.36], EXP_ZYAN, GLUEHT]);
 
-  t.push(['k', [0.18, 6], [0, 1.35, 0.18], EXP_ASCHE]);
-  t.push(['k', [0.12, 5], [0, 1.32, 0.26], EXP_KNOCHEN_D]);
+  // Rechter Arm mit Schaufel
+  t.push(stab([0.3, 1.3, 0], [0.42, 0.95, 0.2], 0.07, EXP_ASCHE, 0, 5));
+  t.push(stab([0.42, 0.95, 0.2], [0.35, 0.65, 0.45], 0.06, EXP_KNOCHEN_HELL, 0, 5));
+  // Schaufel: Holzstiel mit Eisenbeschlag und breiter Spatenklinge
+  t.push(stab([0.35, 0.12, 0.3], [0.35, 1.7, 0.6], 0.032, EXP_HOLZ_D, 0, 4));
+  t.push(['q', [0.24, 0.34, 0.03], [0.35, 0.18, 0.3], EXP_STAHL_HELL, 0.15, [0.32, 0, 0]]);
 
-  t.push(stab([0.28, 1.25, 0], [0.38, 0.9, 0.2], 0.065, EXP_ASCHE, 0, 5));
-  t.push(stab([0.38, 0.9, 0.2], [0.32, 0.6, 0.4], 0.055, EXP_KNOCHEN, 0, 5));
-  t.push(stab([0.32, 0.1, 0.25], [0.32, 1.6, 0.55], 0.03, HOLZ, 0, 4));
-  t.push(['q', [0.24, 0.3, 0.02], [0.32, 0.15, 0.25], EXP_STAHL, 0, [0.3, 0, 0]]);
-
-  t.push(stab([-0.28, 1.25, 0], [-0.38, 0.95, 0.15], 0.065, EXP_ASCHE, 0, 5));
-  t.push(stab([-0.38, 0.95, 0.15], [-0.35, 0.65, 0.3], 0.055, EXP_KNOCHEN, 0, 5));
-  t.push(stab([-0.35, 0.65, 0.3], [-0.35, 0.45, 0.3], 0.015, '#1e293b', 0, 3));
-  t.push(['q', [0.14, 0.2, 0.14], [-0.35, 0.35, 0.3], EXP_SCHATTEN, 0]);
-  t.push(['k', [0.06, 5], [-0.35, 0.35, 0.3], EXP_ZYAN_HELL, GLUEHT]);
+  // Linker Arm mit Seelenlaterne am Haken
+  t.push(stab([-0.3, 1.3, 0], [-0.42, 1.0, 0.15], 0.07, EXP_ASCHE, 0, 5));
+  t.push(stab([-0.42, 1.0, 0.15], [-0.38, 0.72, 0.35], 0.06, EXP_KNOCHEN_HELL, 0, 5));
+  // Kette & Laterne
+  t.push(stab([-0.38, 0.72, 0.35], [-0.38, 0.48, 0.35], 0.018, '#475569', 0, 3));
+  t.push(['z', [0.1, 0.13, 0.22, 6], [-0.38, 0.36, 0.35], EXP_SCHATTEN, 0.2]);
+  t.push(['k', [0.07, 5], [-0.38, 0.36, 0.35], EXP_ZYAN_WEISS, GLUEHT]);
+  t.push(['z', [0.04, 0.11, 0.1, 6], [-0.38, 0.48, 0.35], EXP_KNOCHEN_WEISS]);
   return t;
 }
 
-/** Skelettkrieger: Vollständiges Knochengerüst mit Krummschwert und Buckler */
 function skelettkriegerModell() {
   const t = [];
+  // Beine: Oberschenkel, Kniegelenke, Schienbeine, Fußknochen
   for (const s of [1, -1]) {
-    t.push(stab([s * 0.12, 0.85, 0], [s * 0.12, 0.45, 0.02], 0.05, EXP_KNOCHEN, 0, 5));
-    t.push(['k', [0.04, 4], [s * 0.12, 0.45, 0.02], EXP_KNOCHEN_D]);
-    t.push(stab([s * 0.12, 0.45, 0.02], [s * 0.12, 0.08, 0], 0.045, EXP_KNOCHEN, 0, 5));
-    t.push(['q', [0.08, 0.04, 0.18], [s * 0.12, 0.03, 0.06], EXP_KNOCHEN]);
+    t.push(stab([s * 0.13, 0.88, 0], [s * 0.13, 0.46, 0.02], 0.05, EXP_KNOCHEN_WEISS, 0, 5));
+    t.push(['k', [0.045, 4], [s * 0.13, 0.46, 0.03], EXP_KNOCHEN_D]);
+    t.push(stab([s * 0.13, 0.46, 0.02], [s * 0.13, 0.09, 0], 0.045, EXP_KNOCHEN_WEISS, 0, 5));
+    t.push(['q', [0.08, 0.04, 0.18], [s * 0.13, 0.04, 0.06], EXP_KNOCHEN_HELL]);
   }
-  t.push(['q', [0.3, 0.12, 0.18], [0, 0.9, 0], EXP_KNOCHEN]);
-  t.push(stab([0, 0.95, 0], [0, 1.45, 0.02], 0.06, EXP_KNOCHEN, 0, 5));
-  for (let i = 0; i < 4; i++) {
-    const y = 1.1 + i * 0.08;
-    t.push(['z', [0.18 - i * 0.01, 0.18 - i * 0.01, 0.04, 6], [0, y, 0.03], EXP_KNOCHEN, 0.05]);
+  // Becken
+  t.push(['q', [0.32, 0.12, 0.2], [0, 0.92, 0], EXP_KNOCHEN_HELL]);
+  // Wirbelsäule
+  t.push(stab([0, 0.95, 0], [0, 1.48, 0.02], 0.065, EXP_KNOCHEN_D, 0, 5));
+  // 5 Rippenpaare
+  for (let i = 0; i < 5; i++) {
+    const y = 1.08 + i * 0.08;
+    const r = 0.2 - i * 0.015;
+    t.push(['z', [r, r, 0.04, 6], [0, y, 0.03], EXP_KNOCHEN_WEISS, 0.05]);
   }
-  t.push(['k', [0.16, 6], [0, 1.62, 0.05], EXP_KNOCHEN]);
-  t.push(['q', [0.11, 0.09, 0.12], [0, 1.51, 0.12], EXP_KNOCHEN]);
-  t.push(['k', [0.03, 4], [-0.05, 1.63, 0.18], EXP_SCHATTEN]);
-  t.push(['k', [0.03, 4], [0.05, 1.63, 0.18], EXP_SCHATTEN]);
+  // Zerrissener Brustwappen-Überwurf in Fraktionsfarbe
+  t.push(['q', [0.18, 0.35, 0.24], [0, 1.25, 0.02], EXP_SEELEN_BLAU, 0.6]);
 
-  t.push(stab([0.22, 1.4, 0], [0.38, 1.05, 0.1], 0.04, EXP_KNOCHEN, 0, 5));
-  t.push(stab([0.38, 1.05, 0.1], [0.45, 0.75, 0.35], 0.035, EXP_KNOCHEN, 0, 5));
-  t.push(stab([0.45, 0.75, 0.35], [0.5, 0.6, 0.85], [0.03, 0.12], EXP_STAHL, 0));
-  t.push(stab([0.5, 0.6, 0.85], [0.55, 0.85, 1.25], [0.025, 0.1], EXP_STAHL_HELL, 0.1));
+  // Schädel
+  t.push(['k', [0.16, 6], [0, 1.66, 0.05], EXP_KNOCHEN_WEISS]);
+  t.push(['q', [0.12, 0.1, 0.13], [0, 1.54, 0.12], EXP_KNOCHEN_HELL]);
+  t.push(['k', [0.032, 4], [-0.05, 1.67, 0.18], EXP_SCHATTEN]);
+  t.push(['k', [0.032, 4], [0.05, 1.67, 0.18], EXP_SCHATTEN]);
+  t.push(['k', [0.015, 3], [-0.05, 1.67, 0.19], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.015, 3], [0.05, 1.67, 0.19], EXP_ZYAN, GLUEHT]);
 
-  t.push(stab([-0.22, 1.4, 0], [-0.35, 1.1, 0.1], 0.04, EXP_KNOCHEN, 0, 5));
-  t.push(stab([-0.35, 1.1, 0.1], [-0.3, 0.85, 0.3], 0.035, EXP_KNOCHEN, 0, 5));
-  t.push(['s', [0.26, 7], [-0.35, 0.85, 0.35], EXP_ASCHE2, 0.2, [0, 0.4, 0]]);
-  t.push(['k', [0.07, 4], [-0.35, 0.85, 0.37], EXP_KNOCHEN]);
+  // Rechter Arm mit Krummschwert
+  t.push(stab([0.24, 1.44, 0], [0.4, 1.08, 0.1], 0.04, EXP_KNOCHEN_WEISS, 0, 5));
+  t.push(stab([0.4, 1.08, 0.1], [0.46, 0.78, 0.36], 0.038, EXP_KNOCHEN_WEISS, 0, 5));
+  // Krummschwert mit breiter Klinge
+  t.push(stab([0.46, 0.78, 0.36], [0.52, 0.62, 0.9], [0.03, 0.14], EXP_STAHL, 0));
+  t.push(stab([0.52, 0.62, 0.9], [0.58, 0.92, 1.35], [0.025, 0.12], EXP_STAHL_HELL, 0.15));
+
+  // Linker Arm mit Buckler-Schild
+  t.push(stab([-0.24, 1.44, 0], [-0.38, 1.12, 0.1], 0.04, EXP_KNOCHEN_WEISS, 0, 5));
+  t.push(stab([-0.38, 1.12, 0.1], [-0.32, 0.88, 0.32], 0.038, EXP_KNOCHEN_WEISS, 0, 5));
+  // Knochenschild mit Fraktionsakzent
+  t.push(['s', [0.28, 8], [-0.38, 0.88, 0.36], EXP_SEELEN_BLAU, 0.5, [0, 0.4, 0]]);
+  t.push(['k', [0.09, 5], [-0.38, 0.88, 0.38], EXP_KNOCHEN_WEISS]);
   return t;
 }
 
-/** Aasgeier: Fliegender Todesvogel mit zerrupften Schwingen und nacktem Hals */
 function aasgeierModell() {
   const t = [];
-  t.push(['z', [0.12, 0.22, 0.55, 6], [0, 0.9, 0], EXP_SCHATTEN, 0.1, [0.3, 0, 0]]);
-  t.push(stab([0, 0.95, 0.2], [0, 1.18, 0.45], 0.06, EXP_KNOCHEN_D, 0, 5));
-  t.push(['k', [0.1, 5], [0, 1.22, 0.48], EXP_KNOCHEN]);
-  t.push(stab([0, 1.2, 0.52], [0, 1.1, 0.72], 0.045, '#475569', 0, 4, 0.2));
-  t.push(['k', [0.02, 3], [-0.05, 1.23, 0.52], EXP_ZYAN_HELL, GLUEHT]);
-  t.push(['k', [0.02, 3], [0.05, 1.23, 0.52], EXP_ZYAN_HELL, GLUEHT]);
+  // Rumpf (zerrupfter Geierkörper)
+  t.push(['z', [0.14, 0.24, 0.65, 6], [0, 0.92, 0], EXP_SCHATTEN, 0.15, [0.35, 0, 0]]);
+  // Knorpeliger Hals & Geierkopf
+  t.push(stab([0, 0.96, 0.22], [0, 1.22, 0.48], 0.065, EXP_KNOCHEN_HELL, 0, 5));
+  t.push(['k', [0.11, 5], [0, 1.25, 0.52], EXP_KNOCHEN_WEISS]);
+  t.push(stab([0, 1.23, 0.56], [0, 1.12, 0.78], 0.05, EXP_ASCHE2, 0, 4, 0.25));
+  t.push(['k', [0.025, 3], [-0.05, 1.26, 0.55], EXP_ZYAN_WEISS, GLUEHT]);
+  t.push(['k', [0.025, 3], [0.05, 1.26, 0.55], EXP_ZYAN_WEISS, GLUEHT]);
 
+  // Schwingen mit segmentierten Federkielen und Team-Spitzen
   for (const s of [1, -1]) {
-    t.push(['q', [0.45, 0.04, 0.35], [s * 0.32, 0.95, 0.05], EXP_SCHATTEN2, 0.1, [0, 0, s * 0.15]]);
-    t.push(['q', [0.55, 0.03, 0.28], [s * 0.75, 1.05, -0.05], EXP_SCHATTEN, 0.1, [0, 0, s * 0.25]]);
-    for (let f = 0; f < 4; f++) {
-      t.push(['z', [0.03, 0, 0.3, 3], [s * (0.95 + f * 0.08), 1.1, -0.15 + f * 0.08], EXP_ASCHE, 0, [0.4, 0, s * 0.4]]);
+    t.push(['q', [0.5, 0.045, 0.38], [s * 0.35, 0.98, 0.05], EXP_SCHATTEN2, 0.2, [0, 0, s * 0.18]]);
+    t.push(['q', [0.6, 0.035, 0.3], [s * 0.82, 1.08, -0.05], EXP_SCHATTEN, 0.3, [0, 0, s * 0.28]]);
+    // Ausgefranste Knochen-Schwungfedern
+    for (let f = 0; f < 5; f++) {
+      const col = f === 0 ? EXP_SEELEN_BLAU : EXP_KNOCHEN_HELL;
+      t.push(['z', [0.035, 0, 0.35, 3], [s * (1.0 + f * 0.09), 1.12, -0.16 + f * 0.09], col, 0.3, [0.4, 0, s * 0.42]]);
     }
   }
-  t.push(['q', [0.25, 0.03, 0.35], [0, 0.8, -0.35], EXP_SCHATTEN, 0, [-0.2, 0, 0]]);
+  // Stoßfedern hinten
+  t.push(['q', [0.28, 0.03, 0.38], [0, 0.82, -0.38], EXP_SCHATTEN, 0, [-0.22, 0, 0]]);
+  // Krallenfänge
+  for (const s of [1, -1]) {
+    t.push(stab([s * 0.1, 0.8, -0.05], [s * 0.12, 0.65, 0.1], 0.035, EXP_KNOCHEN_WEISS, 0, 4));
+  }
   return t;
 }
 
-/** Klageweib: Schwebende spektrale Geistergestalt aus wirbelndem Zyannebel */
 function klageweibModell() {
   const t = [];
-  for (let i = 0; i < 6; i++) {
-    const y = 0.2 + i * 0.18;
-    const r = 0.35 - i * 0.03;
-    t.push(['z', [r * 0.8, r, 0.2, 6], [0, y, 0], EXP_ZYAN, GLUEHT]);
+  // Aufsteigende, wirbelnde Seelennebel-Ringe
+  for (let i = 0; i < 7; i++) {
+    const y = 0.15 + i * 0.18;
+    const r = 0.38 - i * 0.03;
+    const farb = i % 2 === 0 ? EXP_ZYAN : EXP_SEELEN_BLAU;
+    t.push(['z', [r * 0.75, r, 0.22, 6], [0, y, 0], farb, GLUEHT]);
   }
-  t.push(['z', [0.18, 0.24, 0.6, 6], [0, 1.1, 0], EXP_ZYAN_HELL, GLUEHT]);
-  t.push(['z', [0.28, 0.38, 0.7, 5], [0, 0.9, -0.15], EXP_SCHATTEN2, 0.2, [0.3, 0, 0]]);
+  // Spektraler Körper / Schwebende Gestalt
+  t.push(['z', [0.2, 0.26, 0.65, 6], [0, 1.15, 0], EXP_ZYAN_HELL, GLUEHT]);
+  t.push(['z', [0.32, 0.42, 0.75, 5], [0, 0.95, -0.16], EXP_SCHATTEN2, 0.35, [0.32, 0, 0]]);
+  // Geisterschleier in Totenreich-Farbe
+  t.push(['z', [0.28, 0.2, 0.4, 6], [0, 1.45, -0.06], EXP_SEELEN_BLAU, 0.55]);
 
-  t.push(['k', [0.16, 6], [0, 1.5, 0.05], EXP_KNOCHEN]);
-  t.push(['z', [0.2, 0.15, 0.3, 5], [0, 1.55, -0.05], EXP_ASCHE, 0.1]);
-  t.push(['k', [0.06, 5], [0, 1.44, 0.16], EXP_SCHATTEN]);
-  t.push(['k', [0.03, 4], [0, 1.44, 0.14], EXP_ZYAN, GLUEHT]);
-  t.push(['k', [0.03, 3], [-0.06, 1.52, 0.16], EXP_ZYAN_HELL, GLUEHT]);
-  t.push(['k', [0.03, 3], [0.06, 1.52, 0.16], EXP_ZYAN_HELL, GLUEHT]);
+  // Schreiender Geisterschädel
+  t.push(['k', [0.18, 6], [0, 1.55, 0.06], EXP_KNOCHEN_WEISS]);
+  // Offener Mund (Klagegesang)
+  t.push(['k', [0.065, 5], [0, 1.48, 0.18], EXP_SCHATTEN]);
+  t.push(['k', [0.035, 4], [0, 1.48, 0.16], EXP_ZYAN_WEISS, GLUEHT]);
+  // Glühende Augenhöhlen
+  t.push(['k', [0.035, 3], [-0.06, 1.58, 0.18], EXP_ZYAN_WEISS, GLUEHT]);
+  t.push(['k', [0.035, 3], [0.06, 1.58, 0.18], EXP_ZYAN_WEISS, GLUEHT]);
 
+  // Wehende Geisterarme
   for (const s of [1, -1]) {
-    t.push(stab([s * 0.22, 1.35, 0], [s * 0.28, 1.3, 0.45], 0.045, EXP_ZYAN_HELL, GLUEHT));
-    t.push(stab([s * 0.28, 1.3, 0.45], [s * 0.25, 1.25, 0.85], 0.035, EXP_ZYAN, GLUEHT));
+    t.push(stab([s * 0.24, 1.4, 0], [s * 0.32, 1.35, 0.48], 0.05, EXP_ZYAN_HELL, GLUEHT));
+    t.push(stab([s * 0.32, 1.35, 0.48], [s * 0.28, 1.3, 0.9], 0.04, EXP_ZYAN, GLUEHT));
+    // Klauenspitzen
+    for (let k = 0; k < 3; k++) {
+      t.push(stab([s * 0.28, 1.3, 0.9], [s * (0.28 + (k - 1) * 0.06), 1.28, 1.05], 0.02, EXP_ZYAN_WEISS, GLUEHT));
+    }
   }
   return t;
 }
 
-/** Grabwächter: Schwer gepanzerter Hüne aus Obsidian und blutgeätztem Stahl */
 function grabwaechterModell() {
   const t = [];
+  // Beine: Kolossale obsidianverstärkte Beinpanzerung
   for (const s of [1, -1]) {
-    t.push(stab([s * 0.2, 0.9, 0], [s * 0.2, 0.45, 0.02], 0.16, EXP_OBSIDIAN, 0.1, 6));
-    t.push(['k', [0.11, 5], [s * 0.2, 0.45, 0.08], EXP_STAHL]);
-    t.push(stab([s * 0.2, 0.45, 0.02], [s * 0.2, 0.1, 0], 0.15, EXP_OBSIDIAN, 0, 6));
-    t.push(['q', [0.22, 0.14, 0.34], [s * 0.2, 0.07, 0.1], '#0f172a']);
+    t.push(stab([s * 0.22, 0.95, 0], [s * 0.22, 0.48, 0.02], 0.18, EXP_OBSIDIAN, 0.1, 6));
+    t.push(['k', [0.12, 5], [s * 0.22, 0.48, 0.09], EXP_SEELEN_BLAU, 0.4]);
+    t.push(stab([s * 0.22, 0.48, 0.02], [s * 0.22, 0.1, 0], 0.16, EXP_OBSIDIAN, 0.1, 6));
+    t.push(['q', [0.24, 0.15, 0.36], [s * 0.22, 0.08, 0.1], '#0f172a']);
   }
-  t.push(['q', [0.65, 0.7, 0.45], [0, 1.2, 0], EXP_OBSIDIAN, 0.1]);
-  t.push(['q', [0.35, 0.06, 0.02], [0, 1.3, 0.24], EXP_ROT, GLUEHT]);
-  t.push(['q', [0.06, 0.4, 0.02], [0, 1.25, 0.24], EXP_ROT, GLUEHT]);
+  // Breiter Torso: Plattenharnisch aus Obsidian & weißem Knochen
+  t.push(['q', [0.72, 0.75, 0.48], [0, 1.25, 0], EXP_OBSIDIAN, 0.15]);
+  t.push(['q', [0.55, 0.6, 0.08], [0, 1.28, 0.22], EXP_SEELEN_BLAU, 0.5]);
+  // Gravierte Blut- und Seelenrunen auf der Brust
+  t.push(['q', [0.38, 0.07, 0.02], [0, 1.36, 0.27], EXP_ROT, GLUEHT]);
+  t.push(['q', [0.07, 0.42, 0.02], [0, 1.3, 0.27], EXP_ROT, GLUEHT]);
 
+  // Gewaltige Knochenschulter-Panzer (Spiked Pauldrons)
   for (const s of [1, -1]) {
-    t.push(['k', [0.24, 6], [s * 0.48, 1.5, 0], EXP_OBSIDIAN]);
-    t.push(stab([s * 0.48, 1.55, 0], [s * 0.72, 1.85, 0], 0.07, EXP_KNOCHEN, 0, 4, 0.3));
+    t.push(['k', [0.26, 6], [s * 0.52, 1.58, 0], EXP_OBSIDIAN]);
+    t.push(stab([s * 0.52, 1.62, 0], [s * 0.8, 1.95, 0], 0.08, EXP_KNOCHEN_WEISS, 0, 5, 0.25));
+    t.push(['z', [0.04, 0.12, 0.25, 4], [s * 0.52, 1.8, 0], EXP_SEELEN_BLAU, 0.45]);
   }
 
-  t.push(['q', [0.32, 0.36, 0.34], [0, 1.7, 0.05], EXP_OBSIDIAN]);
-  t.push(['q', [0.22, 0.05, 0.04], [0, 1.68, 0.23], EXP_ZYAN_HELL, GLUEHT]);
+  // Gehörnter Schreckenshelm
+  t.push(['q', [0.36, 0.38, 0.36], [0, 1.78, 0.05], EXP_OBSIDIAN]);
+  t.push(['q', [0.24, 0.06, 0.04], [0, 1.76, 0.24], EXP_ZYAN_WEISS, GLUEHT]);
   for (const s of [1, -1]) {
-    t.push(stab([s * 0.16, 1.85, 0], [s * 0.38, 2.15, -0.1], 0.06, EXP_KNOCHEN, 0, 5, 0.4));
+    t.push(stab([s * 0.18, 1.95, 0], [s * 0.42, 2.28, -0.1], 0.07, EXP_KNOCHEN_WEISS, 0, 5, 0.35));
   }
 
-  t.push(stab([0.45, 0.2, 0.1], [0.45, 2.2, 0.5], 0.05, EXP_HOLZ_D, 0, 5));
-  t.push(['q', [0.04, 0.65, 0.4], [0.45, 1.9, 0.7], EXP_STAHL, 0.1]);
-  t.push(['q', [0.04, 0.35, 0.25], [0.45, 1.9, 0.25], EXP_STAHL_HELL, 0.1]);
+  // Gewaltige Zweihand-Henkersaxt mit doppelter Mondsichel
+  t.push(stab([0.48, 0.2, 0.1], [0.48, 2.3, 0.55], 0.055, EXP_HOLZ_D, 0, 5));
+  t.push(['q', [0.05, 0.72, 0.45], [0.48, 1.95, 0.75], EXP_STAHL, 0.1]);
+  t.push(['q', [0.05, 0.4, 0.3], [0.48, 1.95, 0.28], EXP_KNOCHEN_WEISS, 0.1]);
+  t.push(['q', [0.06, 0.7, 0.08], [0.48, 1.95, 0.98], EXP_ZYAN, GLUEHT]);
   return t;
 }
 
-/** Knochentitan: Gigantischer vierbeiniger Koloss aus verdichteten Schädeln und Rammspornen */
 function knochentitanModell() {
   const t = [];
+  // 4 massive Gliedmaßen-Säulen
+  for (const sx of [1, -1]) {
+    for (const sz of [1, -1]) {
+      const x = sx * 0.58;
+      const z = sz * 0.64;
+      t.push(stab([x, 1.15, z], [x, 0.55, z], 0.26, EXP_KNOCHEN_WEISS, 0, 6));
+      t.push(['k', [0.18, 5], [x, 0.55, z], EXP_SEELEN_BLAU, 0.4]);
+      t.push(stab([x, 0.55, z], [x, 0.12, z], 0.24, EXP_KNOCHEN_HELL, 0, 6));
+      t.push(['q', [0.34, 0.16, 0.38], [x, 0.08, z], EXP_SCHATTEN]);
+    }
+  }
+  // Massiver Knochenchassis-Rumpf
+  t.push(['q', [1.25, 0.8, 1.55], [0, 1.3, 0], EXP_ASCHE, 0.15]);
+  t.push(['z', [0.6, 0.75, 0.9, 6], [0, 1.62, 0], EXP_KNOCHEN_WEISS, 0.15, [Math.PI / 2, 0, 0]]);
+  // Sichtbare Knochenrippen an den Flanken
+  for (let r = 0; r < 4; r++) {
+    const z = -0.4 + r * 0.28;
+    for (const s of [1, -1]) {
+      t.push(['z', [0.08, 0.1, 0.5, 4], [s * 0.68, 1.35, z], EXP_KNOCHEN_WEISS, 0, [0, 0, s * 0.3]]);
+    }
+  }
+
+  // Kolossaler Mammut-/Drachenschädel vorn
+  t.push(['k', [0.52, 7], [0, 1.4, 1.0], EXP_KNOCHEN_WEISS]);
+  t.push(['q', [0.38, 0.35, 0.5], [0, 1.25, 1.35], EXP_KNOCHEN_HELL]);
+  // Gewaltige gebogene Stoßzähne / Hörner
+  for (const s of [1, -1]) {
+    t.push(stab([s * 0.38, 1.5, 1.15], [s * 0.72, 1.7, 1.85], 0.17, EXP_KNOCHEN_WEISS, 0, 5, 0.25));
+    t.push(stab([s * 0.25, 1.2, 1.4], [s * 0.35, 0.75, 1.9], 0.12, EXP_KNOCHEN_HELL, 0, 5, 0.2));
+  }
+  // Glühender Seelenofen im Rumpf
+  t.push(['k', [0.28, 6], [0, 1.25, 0.2], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.15, 5], [0, 1.25, 0.2], EXP_ZYAN_WEISS, GLUEHT]);
+  // Befestigter Gefechtsaufbau auf dem Rücken
+  t.push(['q', [0.9, 0.3, 0.9], [0, 1.85, -0.1], EXP_OBSIDIAN, 0.1]);
+  t.push(['q', [0.75, 0.15, 0.75], [0, 1.95, -0.1], EXP_SEELEN_BLAU, 0.5]);
+  for (const sx of [1, -1]) {
+    for (const sz of [1, -1]) {
+      t.push(['k', [0.09, 4], [sx * 0.4, 2.05, -0.1 + sz * 0.4], EXP_ZYAN, GLUEHT]);
+    }
+  }
+  return t;
+}
+
+function nekropoleModell() {
+  const t = [];
+  // Gestuftes Obsidianfundament mit Seelenkanälen
+  t.push(['q', [2.1, 0.2, 2.1], [0, 0.1, 0], EXP_SCHATTEN]);
+  t.push(['q', [1.9, 0.2, 1.9], [0, 0.3, 0], EXP_ASCHE]);
+  t.push(['q', [1.7, 0.2, 1.7], [0, 0.5, 0], EXP_SCHATTEN2]);
+  t.push(['q', [1.4, 1.15, 1.4], [0, 1.18, 0], EXP_OBSIDIAN, 0.15]);
+
+  // Kolonnade aus 8 fein gestalteten Knochensäulen
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const x = Math.cos(a) * 0.88;
+    const z = Math.sin(a) * 0.88;
+    t.push(['z', [0.09, 0.11, 1.25, 6], [x, 1.22, z], EXP_KNOCHEN_WEISS, 0.05]);
+    t.push(['k', [0.12, 5], [x, 0.65, z], EXP_SEELEN_BLAU, 0.4]);
+  }
+  // Kuppelbau
+  t.push(['z', [0.7, 0.8, 0.32, 8], [0, 1.9, 0], EXP_ASCHE, 0.1]);
+  t.push(['k', [0.48, 7], [0, 2.2, 0], EXP_KNOCHEN_WEISS]);
+  // Schwebender Seelenfeuer-Monolith / Leuchtfeuer an der Spitze
+  t.push(['k', [0.26, 6], [0, 2.8, 0], EXP_ZYAN_HELL, GLUEHT]);
+  t.push(['z', [0.06, 0.2, 0.55, 5], [0, 3.0, 0], EXP_ZYAN_WEISS, GLUEHT]);
+
+  // 4 Eck-Obelisken
+  for (const sx of [1, -1]) {
+    for (const sz of [1, -1]) {
+      t.push(stab([sx * 0.85, 0.5, sz * 0.85], [sx * 0.85, 1.6, sz * 0.85], 0.1, EXP_KNOCHEN_HELL, 0, 5, 0.4));
+      t.push(['k', [0.07, 4], [sx * 0.85, 1.65, sz * 0.85], EXP_ZYAN, GLUEHT]);
+    }
+  }
+  return t;
+}
+
+function grabhuegelModell() {
+  const t = [];
+  t.push(['z', [0.85, 1.15, 0.48, 8], [0, 0.24, 0], EXP_SCHATTEN, 0.15]);
+  t.push(['k', [0.8, 7], [0, 0.38, 0], EXP_ASCHE]);
+
+  // Kreis aus 6 massiven Megalithen mit Runen
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const x = Math.cos(a) * 0.98;
+    const z = Math.sin(a) * 0.98;
+    t.push(['q', [0.22, 0.6, 0.2], [x, 0.38, z], EXP_OBSIDIAN, 0, [0, a, 0.12]]);
+    t.push(['k', [0.09, 4], [x * 0.88, 0.18, z * 0.88], EXP_KNOCHEN_WEISS]);
+    t.push(['k', [0.04, 3], [x, 0.55, z], EXP_ZYAN, GLUEHT]);
+  }
+  // Zentraler Seelenmonolith
+  t.push(['q', [0.3, 1.15, 0.26], [0, 0.9, 0], EXP_OBSIDIAN, 0.15]);
+  t.push(['q', [0.12, 0.7, 0.05], [0, 0.95, 0.14], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.14, 5], [0, 1.5, 0], EXP_ZYAN_HELL, GLUEHT]);
+  // Schwebende Knochenkrone
+  for (let k = 0; k < 4; k++) {
+    const ka = (k / 4) * Math.PI * 2;
+    t.push(['z', [0.04, 0.02, 0.25, 4], [Math.cos(ka) * 0.25, 1.6, Math.sin(ka) * 0.25], EXP_KNOCHEN_WEISS, 0]);
+  }
+  return t;
+}
+
+function knochenturmModell() {
+  const t = [];
+  t.push(['z', [0.7, 0.9, 0.42, 7], [0, 0.21, 0], EXP_SCHATTEN]);
+  // Spiralförmig verdrehte Wirbelsäulen-Struktur
+  for (let s = 0; s < 6; s++) {
+    const y = 0.52 + s * 0.38;
+    const r = 0.48 - s * 0.038;
+    const rot = s * 0.25;
+    t.push(['z', [r * 0.9, r, 0.36, 6], [0, y, 0], EXP_KNOCHEN_WEISS, 0.05, [0, rot, 0]]);
+    t.push(['k', [0.06, 4], [Math.cos(rot) * r, y, Math.sin(rot) * r], EXP_SEELEN_BLAU, 0.4]);
+  }
+  // Wehrplattform
+  t.push(['z', [0.6, 0.44, 0.2, 7], [0, 2.75, 0], EXP_ASCHE, 0.15]);
+  for (let z = 0; z < 6; z++) {
+    const a = (z / 6) * Math.PI * 2;
+    t.push(['q', [0.14, 0.28, 0.09], [Math.cos(a) * 0.56, 2.92, Math.sin(a) * 0.56], EXP_KNOCHEN_HELL]);
+  }
+  // Speerschleuder / Seelenballiste
+  t.push(stab([0, 2.8, 0], [0, 3.25, 0.45], 0.09, EXP_OBSIDIAN, 0, 4));
+  t.push(['z', [0.05, 0.14, 0.5, 5], [0, 3.25, 0.45], EXP_ZYAN_HELL, GLUEHT, [0.42, 0, 0]]);
+  return t;
+}
+
+function seelenbrunnenModell() {
+  const t = [];
+  t.push(['z', [1.0, 1.12, 0.48, 8], [0, 0.24, 0], EXP_SCHATTEN]);
+  t.push(['s', [0.9, 8], [0, 0.46, 0], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.35, 6], [0, 0.38, 0], EXP_ZYAN_WEISS, GLUEHT]);
+  // 4 geschwungene Knochenspeier
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    const x = Math.cos(a) * 0.9;
+    const z = Math.sin(a) * 0.9;
+    t.push(stab([x, 0.42, z], [x * 0.45, 1.3, z * 0.45], 0.11, EXP_KNOCHEN_WEISS, 0, 5));
+    t.push(['k', [0.1, 4], [x, 0.45, z], EXP_SEELEN_BLAU, 0.5]);
+  }
+  // Schwebender Hauptseelenkristall
+  t.push(['k', [0.26, 6], [0, 1.05, 0], EXP_ZYAN_HELL, GLUEHT]);
+  t.push(['z', [0.05, 0.18, 0.45, 5], [0, 1.25, 0], EXP_ZYAN_WEISS, GLUEHT]);
+  return t;
+}
+
+function knochenmuehleModell() {
+  const t = [];
+  t.push(['q', [1.45, 0.38, 1.45], [0, 0.19, 0], EXP_SCHATTEN]);
+  t.push(['z', [0.7, 0.38, 0.65, 7], [0, 0.7, 0], EXP_ASCHE, 0.15]);
+  // Zwei gegenläufige Mahlräder aus Stachelknochen
+  for (const s of [1, -1]) {
+    t.push(['z', [0.48, 0.48, 0.2, 8], [s * 0.42, 0.8, 0], EXP_KNOCHEN_WEISS, 0.05, [0, 0, Math.PI / 2]]);
+    t.push(['k', [0.14, 5], [s * 0.42, 0.8, 0], EXP_SEELEN_BLAU, 0.45]);
+    // Mahlstacheln
+    for (let m = 0; m < 6; m++) {
+      const ma = (m / 6) * Math.PI * 2;
+      t.push(['z', [0.03, 0.05, 0.16, 4], [s * 0.42, 0.8 + Math.cos(ma) * 0.5, Math.sin(ma) * 0.5], EXP_KNOCHEN_HELL]);
+    }
+  }
+  // Schütte & Seelenabzug
+  t.push(['q', [0.44, 0.22, 0.65], [0, 0.38, 0.7], EXP_KNOCHEN_D, 0, [0.32, 0, 0]]);
+  t.push(['k', [0.12, 5], [0, 0.8, 0], EXP_ZYAN, GLUEHT]);
+  return t;
+}
+
+function fleischwurzModell() {
+  const t = [];
+  t.push(['z', [0.9, 1.15, 0.32, 7], [0, 0.16, 0], EXP_SCHATTEN]);
+  t.push(['k', [0.6, 6], [0, 0.48, 0], EXP_ROT_D, 0.15]);
+  // 6 kriechende Blutranken
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    t.push(stab([Math.cos(a) * 0.38, 0.42, Math.sin(a) * 0.38], [Math.cos(a) * 0.68, 1.18, Math.sin(a) * 0.68], 0.13, EXP_ROT, GLUEHT, 5, 0.5));
+    t.push(['k', [0.08, 4], [Math.cos(a) * 0.7, 0.15, Math.sin(a) * 0.7], EXP_KNOCHEN_WEISS]);
+  }
+  // Pulsierende Herzkammer
+  t.push(['z', [0.3, 0.16, 0.65, 6], [0, 1.02, 0], EXP_ROT, GLUEHT]);
+  t.push(['k', [0.2, 5], [0, 1.38, 0], '#ff4d4d', GLUEHT]);
+  return t;
+}
+
+function katakombeModell() {
+  const t = [];
+  t.push(['q', [1.8, 0.32, 1.8], [0, 0.16, 0], EXP_SCHATTEN]);
+  // Mausoleumspylonen links und rechts
+  t.push(['q', [0.38, 1.3, 1.5], [-0.7, 0.85, 0], EXP_OBSIDIAN, 0.15]);
+  t.push(['q', [0.38, 1.3, 1.5], [0.7, 0.85, 0], EXP_OBSIDIAN, 0.15]);
+  t.push(['q', [1.5, 1.3, 0.38], [0, 0.85, -0.7], EXP_OBSIDIAN, 0.15]);
+  t.push(['q', [1.8, 0.28, 1.8], [0, 1.6, 0], EXP_ASCHE]);
+
+  // Monumentales Knochentor / Architrav
+  t.push(['q', [0.14, 0.55, 0.14], [0, 1.95, 0], EXP_KNOCHEN_WEISS]);
+  t.push(['q', [0.4, 0.14, 0.14], [0, 2.05, 0], EXP_KNOCHEN_WEISS]);
+  // Treppenabstieg in die Finsternis
+  t.push(['q', [0.85, 0.05, 0.95], [0, 0.32, 0.12], '#000000']);
+  // Wächter-Seelenfackeln
+  t.push(['k', [0.09, 4], [-0.6, 1.15, 0.7], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.09, 4], [0.6, 1.15, 0.7], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.05, 3], [-0.6, 1.15, 0.7], EXP_ZYAN_WEISS, GLUEHT]);
+  t.push(['k', [0.05, 3], [0.6, 1.15, 0.7], EXP_ZYAN_WEISS, GLUEHT]);
+  return t;
+}
+
+function pestaltarModell() {
+  const t = [];
+  t.push(['q', [1.35, 0.22, 1.35], [0, 0.11, 0], EXP_SCHATTEN]);
+  t.push(['q', [1.05, 0.32, 1.05], [0, 0.38, 0], EXP_OBSIDIAN]);
+  t.push(['q', [1.15, 0.16, 0.75], [0, 0.6, 0], EXP_ASCHE, 0.15]);
+  // 4 Opferschalen-Ecksäulen
+  for (const sx of [1, -1]) {
+    for (const sz of [1, -1]) {
+      t.push(['z', [0.13, 0.09, 0.28, 5], [sx * 0.48, 0.75, sz * 0.28], EXP_KNOCHEN_WEISS]);
+      t.push(['k', [0.08, 4], [sx * 0.48, 0.92, sz * 0.28], EXP_ZYAN, GLUEHT]);
+    }
+  }
+  // Zentraler Schädelkessel
+  t.push(['k', [0.18, 5], [0, 0.8, 0], EXP_KNOCHEN_WEISS]);
+  t.push(['k', [0.1, 4], [0, 0.9, 0], EXP_ZYAN_WEISS, GLUEHT]);
+  return t;
+}
+
+function ossuariumModell() {
+  const t = [];
+  t.push(['q', [1.45, 0.28, 1.45], [0, 0.14, 0], EXP_SCHATTEN]);
+  // 4 tragende Bündelpfeiler aus Knochen
+  for (const sx of [1, -1]) {
+    for (const sz of [1, -1]) {
+      t.push(['z', [0.2, 0.24, 1.2, 6], [sx * 0.52, 0.8, sz * 0.52], EXP_KNOCHEN_WEISS, 0.05]);
+      t.push(['k', [0.1, 4], [sx * 0.52, 0.8, sz * 0.52], EXP_SEELEN_BLAU, 0.4]);
+    }
+  }
+  // Schädelwände
+  t.push(['q', [0.85, 0.85, 0.16], [0, 0.75, -0.52], EXP_KNOCHEN_D, 0.15]);
+  t.push(['q', [0.16, 0.85, 0.85], [-0.52, 0.75, 0], EXP_KNOCHEN_D, 0.15]);
+  t.push(['q', [0.16, 0.85, 0.85], [0.52, 0.75, 0], EXP_KNOCHEN_D, 0.15]);
+  // Gewölbedach & Schrein-Kuppel
+  t.push(['z', [0.7, 0.8, 0.38, 7], [0, 1.55, 0], EXP_ASCHE, 0.15]);
+  t.push(['k', [0.38, 6], [0, 1.78, 0], EXP_KNOCHEN_WEISS]);
+  t.push(['k', [0.15, 5], [0, 2.15, 0], EXP_ZYAN_HELL, GLUEHT]);
+  return t;
+}
+
+function totenarchivModell() {
+  const t = [];
+  t.push(['z', [0.9, 1.0, 0.32, 8], [0, 0.16, 0], EXP_SCHATTEN]);
+  // 6 Arkadenpfeiler
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    t.push(['z', [0.09, 0.11, 1.3, 5], [Math.cos(a) * 0.8, 0.9, Math.sin(a) * 0.8], EXP_OBSIDIAN]);
+    t.push(['k', [0.09, 4], [Math.cos(a) * 0.8, 1.55, Math.sin(a) * 0.8], EXP_SEELEN_BLAU, 0.5]);
+  }
+  // Kuppel & Archivgewölbe
+  t.push(['z', [0.22, 0.9, 0.55, 8], [0, 1.75, 0], EXP_ASCHE, 0.15]);
+  // Schwebender Foliant (Buch der Toten)
+  t.push(['z', [0.16, 0.24, 0.75, 6], [0, 0.52, 0], EXP_OBSIDIAN]);
+  t.push(['q', [0.38, 0.06, 0.28], [0, 0.95, 0], EXP_KNOCHEN_WEISS, 0, [0.32, 0, 0]]);
+  t.push(['k', [0.1, 4], [0, 1.12, 0], EXP_ZYAN_WEISS, GLUEHT]);
+  return t;
+}
+
+function ballonhalleModell() {
+  const t = [];
+  // Steinfundament
+  t.push(['q', [2.5, 0.25, 2.7], [0, 0.12, 0], STEIN]);
+  // Stahl-/Holzfachwerk-Halle
+  t.push(['q', [2.2, 1.3, 2.4], [0, 0.8, 0], '#3b2414', 0.1]);
+  // Gewölbtes Tonnendach aus wetterfestem Tuch & Spanten
+  t.push(['z', [0.95, 1.25, 2.4, 8], [0, 1.55, 0], '#d8b06a', 0.5, [Math.PI / 2, 0, 0]]);
+  // Großes Hallentor vorn
+  t.push(['q', [1.5, 1.1, 0.08], [0, 0.65, 1.22], '#1e293b']);
+  // Verankerungsmast / Mooring-Turm auf dem Dach
+  t.push(stab([0, 1.7, -0.6], [0, 2.65, -0.6], 0.08, EISEN, 0, 4));
+  t.push(['k', [0.12, 5], [0, 2.65, -0.6], GOLD, GLUEHT]);
+  // Wimpel
+  t.push(['q', [0.03, 0.2, 0.45], [0, 2.5, -0.4], '#d8b06a', 0.6]);
+  // Schornstein
+  t.push(['z', [0.12, 0.14, 0.9, 5], [0.85, 1.8, -0.7], EISEN]);
+  return t;
+}
+
+function flakbatterieModell() {
+  const t = [];
+  // Achteckige Beton-/Stahl-Bunkereinheit
+  t.push(['z', [1.05, 1.15, 0.45, 8], [0, 0.22, 0], STEIN]);
+  t.push(['z', [0.85, 0.95, 0.25, 8], [0, 0.55, 0], '#243b53', 0.3]);
+  // Drehkranz
+  t.push(['z', [0.65, 0.65, 0.18, 8], [0, 0.72, 0], EISEN]);
+  // Geschützschild
+  t.push(['q', [0.85, 0.55, 0.55], [0, 1.05, -0.05], '#334155', 0.25]);
+  t.push(['q', [0.55, 0.25, 0.04], [0, 1.15, 0.24], '#d8b06a', 0.6]);
+  // 4 hochgerichtete Flak-Kanonen (45 Grad Neigung)
+  for (const sx of [-0.22, -0.07, 0.07, 0.22]) {
+    t.push(stab([sx, 1.05, 0.1], [sx, 1.95, 0.85], 0.045, EISEN, 0, 4));
+    t.push(['z', [0.065, 0.045, 0.18, 4], [sx, 1.95, 0.85], '#1e293b', 0, [0.7, 0, 0]]);
+  }
+  return t;
+}
+
+function schildturmModell() {
+  const t = [];
+  // Sockel
+  t.push(['z', [0.95, 1.1, 0.35, 7], [0, 0.17, 0], STEIN]);
+  // Resonatorturm mit Isolatoren
+  t.push(['z', [0.45, 0.6, 1.4, 6], [0, 1.0, 0], '#243b53', 0.25]);
+  for (let i = 0; i < 4; i++) {
+    const y = 0.55 + i * 0.3;
+    t.push(['z', [0.58, 0.52, 0.1, 6], [0, y, 0], '#b45309', 0]); // Kupferringe
+  }
+  // 3 Konduktorpylonen
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2;
+    t.push(stab([Math.cos(a) * 0.65, 0.35, Math.sin(a) * 0.65], [Math.cos(a) * 0.35, 1.85, Math.sin(a) * 0.35], 0.08, EISEN, 0, 4));
+  }
+  // Schwebende Schildkugel
+  t.push(['k', [0.32, 7], [0, 2.15, 0], '#38bdf8', GLUEHT]);
+  t.push(['k', [0.18, 5], [0, 2.15, 0], '#ffffff', GLUEHT]);
+  t.push(['s', [0.45, 8], [0, 2.15, 0], '#d8b06a', 0.6]);
+  return t;
+}
+
+function aetherwandlerModell() {
+  const t = [];
+  t.push(['q', [1.8, 0.3, 1.8], [0, 0.15, 0], STEIN]);
+  // Dampfkessel & Destillationskolben
+  t.push(['z', [0.45, 0.45, 0.9, 7], [-0.4, 0.72, -0.3], '#78350f']);
+  t.push(['k', [0.42, 6], [0.4, 0.75, -0.2], '#38bdf8', GLUEHT]);
+  t.push(['z', [0.35, 0.4, 0.8, 6], [0, 0.68, 0.45], EISEN]);
+  // Rohre und Ventile
+  t.push(stab([-0.4, 1.1, -0.3], [0.4, 1.1, -0.2], 0.06, '#b45309', 0, 4));
+  t.push(stab([0.4, 1.1, -0.2], [0, 1.0, 0.45], 0.06, '#b45309', 0, 4));
+  // Fron-Kondensatortrichter
+  t.push(['z', [0.32, 0.1, 0.5, 6], [0, 1.35, 0.45], '#1fd35a', 0.5]);
+  t.push(['k', [0.14, 5], [0, 1.65, 0.45], '#c9ffe0', GLUEHT]);
+  return t;
+}
+
+function grossgiessereiModell() {
+  const t = [];
+  t.push(['q', [2.6, 0.3, 2.4], [0, 0.15, 0], STEIN]);
+  // Industrie-Hallenkorpus mit Stahlsäulen
+  t.push(['q', [2.2, 1.4, 2.0], [0, 0.95, 0], '#1e293b', 0.15]);
+  // Doppelschornsteine
+  t.push(['z', [0.18, 0.24, 1.4, 6], [-0.75, 1.8, -0.5], '#334155']);
+  t.push(['z', [0.18, 0.24, 1.4, 6], [-0.35, 1.8, -0.5], '#334155']);
+  // Glühende Schmelzwanne
+  t.push(['q', [1.1, 0.4, 0.8], [0.35, 0.5, 0.3], '#475569']);
+  t.push(['q', [0.95, 0.05, 0.65], [0.35, 0.72, 0.3], '#f97316', GLUEHT]);
+  // Portalkran auf dem Dach
+  t.push(stab([-0.9, 1.65, 0.8], [0.9, 1.65, 0.8], 0.08, '#d8b06a', 0.6));
+  t.push(stab([0, 1.65, 0.8], [0, 1.15, 0.8], 0.05, EISEN));
+  return t;
+}
+
+function belagerungsmoerserModell() {
+  const t = [];
+  // Massiver Drehkranzsockel
+  t.push(['z', [1.25, 1.35, 0.4, 8], [0, 0.2, 0], STEIN]);
+  t.push(['z', [0.95, 1.05, 0.25, 8], [0, 0.48, 0], '#243b53', 0.25]);
+  // Lafettenwangen
+  for (const s of [1, -1]) {
+    t.push(['q', [0.22, 0.9, 1.1], [s * 0.45, 0.95, -0.05], EISEN, 0.2]);
+  }
+  // Gewaltiges Mörserrohr (steiler Winkel 60 Grad)
+  t.push(stab([0, 0.8, -0.3], [0, 1.9, 0.5], 0.35, '#1e293b', 0.1, 6));
+  t.push(['z', [0.38, 0.34, 0.3, 6], [0, 1.95, 0.54], '#d8b06a', 0.6, [0.85, 0, 0]]);
+  // Granatenkran
+  t.push(stab([0.7, 0.5, -0.4], [0.7, 1.6, -0.4], 0.06, EISEN));
+  t.push(stab([0.7, 1.6, -0.4], [0.25, 1.6, -0.2], 0.05, EISEN));
+  return t;
+}
+
+function abfangpostenModell() {
+  const t = [];
+  t.push(['q', [1.7, 0.35, 1.7], [0, 0.17, 0], STEIN]);
+  t.push(['q', [1.3, 0.55, 1.3], [0, 0.55, 0], '#243b53', 0.3]);
+  // 4 Raketensilos (schräg angestellt)
+  for (const sx of [-0.28, 0.28]) {
+    for (const sz of [-0.28, 0.28]) {
+      t.push(stab([sx, 0.8, sz], [sx * 1.3, 1.6, sz * 1.3], 0.12, EISEN, 0, 4));
+      t.push(['k', [0.08, 4], [sx * 1.35, 1.65, sz * 1.35], '#ef4444', GLUEHT]);
+    }
+  }
+  // Radarschirm
+  t.push(stab([0, 0.8, 0], [0, 1.85, 0], 0.05, EISEN));
+  t.push(['s', [0.35, 7], [0, 1.85, 0], '#d8b06a', 0.55, [0.4, 0, 0]]);
+  return t;
+}
+
+function fluggleiterModell() {
+  const t = [];
+  // Schlanker Holz-/Stahlrumpf
+  t.push(stab([0, 0.8, -0.9], [0, 0.8, 0.9], [0.18, 0.2], '#3b2414', 0.2));
+  // Motorhaube & Propeller vorn
+  t.push(['k', [0.14, 5], [0, 0.8, 0.95], EISEN]);
+  t.push(['q', [0.55, 0.06, 0.02], [0, 0.8, 1.0], '#d8b06a', 0.5]);
+  // Doppelflügel (Tragflächen in Fraktionsgold)
+  t.push(['q', [2.2, 0.035, 0.42], [0, 0.95, 0.2], '#d8b06a', 0.65]);
+  t.push(['q', [1.8, 0.035, 0.38], [0, 0.68, 0.18], '#d8b06a', 0.65]);
+  // Flügelstreben
+  for (const s of [0.75, -0.75]) {
+    t.push(stab([s, 0.68, 0.2], [s, 0.95, 0.2], 0.03, EISEN));
+  }
+  // Leitwerk hinten
+  t.push(['q', [0.75, 0.03, 0.24], [0, 0.85, -0.85], '#d8b06a', 0.6]);
+  t.push(['q', [0.03, 0.32, 0.24], [0, 0.98, -0.85], '#d8b06a', 0.6]);
+  // Zwillings-MGs
+  for (const s of [0.1, -0.1]) {
+    t.push(stab([s, 0.92, 0.3], [s, 0.92, 0.85], 0.025, EISEN));
+  }
+  return t;
+}
+
+function brandballonModell() {
+  const t = [];
+  // Großer Zigarren-Gasballon
+  t.push(['z', [0.55, 0.65, 1.8, 8], [0, 1.45, 0], '#d8b06a', 0.6, [Math.PI / 2, 0, 0]]);
+  t.push(['k', [0.55, 7], [0, 1.45, 0.9], '#f5dfa8']);
+  t.push(['k', [0.45, 6], [0, 1.45, -0.9], '#f5dfa8']);
+  // Rumpfgondel unten
+  t.push(['q', [0.35, 0.28, 1.1], [0, 0.72, 0], '#243b53', 0.3]);
+  // Aufhängeseile
+  for (const sz of [-0.4, 0, 0.4]) {
+    for (const sx of [-0.22, 0.22]) {
+      t.push(stab([sx, 0.85, sz], [sx * 1.6, 1.15, sz], 0.02, '#1e293b'));
+    }
+  }
+  // Brandbomben im Bombenschacht
+  for (let b = 0; b < 3; b++) {
+    t.push(['k', [0.09, 4], [0, 0.55, -0.3 + b * 0.3], '#ef4444', GLUEHT]);
+  }
+  // Motoren & Heckpropeller
+  for (const s of [1, -1]) {
+    t.push(['k', [0.11, 4], [s * 0.3, 0.75, -0.55], EISEN]);
+    t.push(['q', [0.3, 0.04, 0.02], [s * 0.3, 0.75, -0.62], GOLD]);
+  }
+  return t;
+}
+
+function dampfkolossModell() {
+  const t = [];
+  // 2 kolossale Bipedal-Beine mit Hydraulik
+  for (const s of [1, -1]) {
+    t.push(stab([s * 0.45, 1.4, 0], [s * 0.5, 0.75, 0.15], 0.2, '#1e293b', 0.2, 6));
+    t.push(['k', [0.15, 5], [s * 0.5, 0.75, 0.15], EISEN]);
+    t.push(stab([s * 0.5, 0.75, 0.15], [s * 0.45, 0.18, 0], 0.18, '#243b53', 0.3, 6));
+    t.push(['q', [0.35, 0.16, 0.55], [s * 0.45, 0.08, 0.1], '#0f172a']);
+  }
+  // Massiver Panzerkorpus / Dampfkessel-Chassis
+  t.push(['q', [1.2, 0.9, 1.1], [0, 1.8, 0], '#243b53', 0.4]);
+  t.push(['z', [0.45, 0.45, 0.85, 7], [0, 1.85, -0.15], '#78350f', 0, [Math.PI / 2, 0, 0]]);
+  // Feuerbüchse vorn (glühendes Rostgitter)
+  t.push(['q', [0.55, 0.35, 0.06], [0, 1.65, 0.56], '#f97316', GLUEHT]);
+  // Doppelte Dampfschlote auf den Schultern
+  for (const s of [1, -1]) {
+    t.push(['z', [0.12, 0.16, 0.8, 5], [s * 0.42, 2.5, -0.3], EISEN]);
+    t.push(['k', [0.08, 4], [s * 0.42, 2.9, -0.3], '#f97316', GLUEHT]);
+  }
+  // Rechter Arm: Zwillings-Schwerbelagerungskanone
+  t.push(stab([0.7, 1.9, 0], [0.95, 1.5, 0.3], 0.14, EISEN));
+  for (const sy of [-0.08, 0.08]) {
+    t.push(stab([0.95, 1.5 + sy, 0.3], [1.0, 1.5 + sy, 1.6], 0.08, '#1e293b', 0.1, 5));
+    t.push(['z', [0.1, 0.08, 0.15, 4], [1.0, 1.5 + sy, 1.6], '#d8b06a', 0.6, [1.57, 0, 0]]);
+  }
+  // Linker Arm: Gewaltige hydraulische Ramme / Brechfaust
+  t.push(stab([-0.7, 1.9, 0], [-0.95, 1.5, 0.25], 0.14, EISEN));
+  t.push(['q', [0.35, 0.45, 0.65], [-0.95, 1.35, 0.75], '#334155', 0.3]);
+  t.push(['q', [0.25, 0.3, 0.3], [-0.95, 1.35, 1.15], '#d8b06a', 0.7]);
+  return t;
+}
+
+function wipfelhorstModell() {
+  const t = [];
+  // Uralter Baumstumpf / verzweigte Starkäste
+  t.push(stab([0, 0, 0], [0, 1.4, 0], 0.45, HOLZ, 0, 7, 0.7));
+  for (let b = 0; b < 4; b++) {
+    const a = (b / 4) * Math.PI * 2;
+    t.push(stab([0, 1.2, 0], [Math.cos(a) * 0.95, 1.8, Math.sin(a) * 0.95], 0.22, HOLZ, 0, 5, 0.6));
+    t.push(['z', [0.35, 0.45, 0.25, 6], [Math.cos(a) * 0.95, 1.85, Math.sin(a) * 0.95], LAUB, 0.2]);
+  }
+  // Große geflochtene Horste / Wipfelplattform
+  t.push(['z', [1.2, 0.9, 0.45, 8], [0, 1.7, 0], '#5c4028']);
+  t.push(['k', [0.45, 6], [0, 1.9, 0], '#8fb86a', 0.55]); // Moosbett
+  // Landungs-Astgabeln & Bernstein-Leuchtperlen
+  for (let p = 0; p < 4; p++) {
+    const pa = (p / 4) * Math.PI * 2 + 0.4;
+    t.push(stab([Math.cos(pa) * 0.8, 1.7, Math.sin(pa) * 0.8], [Math.cos(pa) * 1.35, 2.15, Math.sin(pa) * 1.35], 0.1, HOLZ, 0, 4));
+    t.push(['k', [0.08, 4], [Math.cos(pa) * 1.35, 2.2, Math.sin(pa) * 1.35], GOLD, GLUEHT]);
+  }
+  return t;
+}
+
+function sporenwerferModell() {
+  const t = [];
+  // Fette fleischige Pflanzenbasis
+  t.push(['z', [0.85, 1.15, 0.4, 7], [0, 0.2, 0], '#166534', 0.2]);
+  t.push(['k', [0.75, 6], [0, 0.45, 0], '#15803d', 0.3]);
+  // 3 steil nach oben gerichtete Sporen-Abschussrohre (Krugpflanzen-Schlünde)
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const x = Math.cos(a) * 0.35;
+    const z = Math.sin(a) * 0.35;
+    t.push(stab([x, 0.5, z], [x * 1.8, 1.85, z * 1.8], 0.24, '#14532d', 0, 6, 0.8));
+    // Glühender Schlund / Sporenmund
+    t.push(['z', [0.26, 0.22, 0.18, 6], [x * 1.8, 1.88, z * 1.8], '#8fb86a', 0.65]);
+    t.push(['k', [0.14, 5], [x * 1.8, 1.9, z * 1.8], '#a3e635', GLUEHT]);
+  }
+  return t;
+}
+
+function hainschildModell() {
+  const t = [];
+  t.push(['z', [1.05, 1.25, 0.3, 8], [0, 0.15, 0], '#15803d']);
+  // 4 sich nach innen neigende Seelenbäume
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    const x0 = Math.cos(a) * 0.9;
+    const z0 = Math.sin(a) * 0.9;
+    const x1 = Math.cos(a) * 0.3;
+    const z1 = Math.sin(a) * 0.3;
+    t.push(stab([x0, 0.2, z0], [x1, 2.1, z1], 0.16, '#78350f', 0, 5, 0.5));
+    t.push(['k', [0.25, 5], [x1, 2.15, z1], LAUB, 0.3]);
+  }
+  // Schwebender Lebensbernstein im Zentrum
+  t.push(['k', [0.38, 7], [0, 1.25, 0], '#84cc16', GLUEHT]);
+  t.push(['k', [0.2, 5], [0, 1.25, 0], '#fef08a', GLUEHT]);
+  t.push(['s', [0.55, 8], [0, 1.25, 0], '#8fb86a', 0.6]);
+  return t;
+}
+
+function bluetenkelchModell() {
+  const t = [];
+  t.push(['z', [0.8, 1.05, 0.35, 7], [0, 0.17, 0], '#166534']);
+  // Geschwungene Riesenblütenblätter
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const x = Math.cos(a) * 0.65;
+    const z = Math.sin(a) * 0.65;
+    t.push(stab([0, 0.3, 0], [x, 0.9, z], 0.22, '#8fb86a', 0.6, 5, 0.7));
+    t.push(stab([x, 0.9, z], [x * 1.35, 1.5, z * 1.35], 0.18, '#f472b6', 0.2, 5, 0.3));
+  }
+  // Nektarbecken & leuchtende Pollenstempel
+  t.push(['s', [0.65, 7], [0, 0.75, 0], '#1fd35a', 0.5]);
+  for (let k = 0; k < 3; k++) {
+    const ka = (k / 3) * Math.PI * 2 + 0.5;
+    t.push(stab([0, 0.75, 0], [Math.cos(ka) * 0.25, 1.45, Math.sin(ka) * 0.25], 0.04, '#fef08a', GLUEHT));
+    t.push(['k', [0.08, 4], [Math.cos(ka) * 0.25, 1.5, Math.sin(ka) * 0.25], GOLD, GLUEHT]);
+  }
+  return t;
+}
+
+function lebensschmiedeModell() {
+  const t = [];
+  t.push(['z', [1.1, 1.35, 0.35, 8], [0, 0.17, 0], '#14532d']);
+  // Gewaltige hohle Wurzelkathedrale
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const x = Math.cos(a) * 0.95;
+    const z = Math.sin(a) * 0.95;
+    t.push(stab([x, 0.2, z], [x * 0.65, 1.9, z * 0.65], 0.25, HOLZ, 0, 5, 0.5));
+    t.push(['k', [0.22, 5], [x * 0.65, 1.95, z * 0.65], LAUB, 0.3]);
+  }
+  // Kochender Urschlamm / Urharz-Pool
+  t.push(['s', [0.8, 8], [0, 0.45, 0], '#4ade80', GLUEHT]);
+  t.push(['k', [0.28, 6], [0, 0.65, 0], '#22c55e', GLUEHT]);
+  t.push(['k', [0.14, 5], [0, 0.75, 0], '#bbf7d0', GLUEHT]);
+  return t;
+}
+
+function zornwurzelModell() {
+  const t = [];
+  t.push(['z', [1.15, 1.45, 0.38, 8], [0, 0.19, 0], '#1c1917']);
+  // Aus dem Boden brechende Urwurzeln
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const x = Math.cos(a) * 0.8;
+    const z = Math.sin(a) * 0.8;
+    t.push(stab([x * 1.3, 0.1, z * 1.3], [x * 0.5, 1.1, z * 0.5], 0.2, HOLZ, 0, 5, 0.4));
+  }
+  // Gewaltige aufbäumende Geysir-Wurzelknolle
+  t.push(['z', [0.45, 0.75, 1.6, 7], [0, 0.95, 0], '#5c4028', 0.2]);
+  t.push(stab([0, 1.5, 0], [0, 2.7, 0.45], 0.35, '#854d0e', 0.2, 5, 0.25));
+  // Glühender Riss im Holz (seismische Energie)
+  t.push(['q', [0.12, 1.1, 0.05], [0, 1.8, 0.55], '#facc15', GLUEHT]);
+  t.push(['k', [0.22, 5], [0, 2.75, 0.48], '#ef4444', GLUEHT]);
+  return t;
+}
+
+function himmelsdornModell() {
+  const t = [];
+  t.push(['z', [0.85, 1.05, 0.35, 7], [0, 0.17, 0], '#15803d']);
+  // Hochgewachsene spiralförmige Dornensäule (y bis 3.0)
+  for (let s = 0; s < 7; s++) {
+    const y = 0.45 + s * 0.38;
+    const r = 0.42 - s * 0.045;
+    const rot = s * 0.35;
+    t.push(['z', [r * 0.85, r, 0.38, 5], [0, y, 0], HOLZ, 0.1, [0, rot, 0]]);
+    // Auskragende Himmelsdornen
+    t.push(stab([0, y, 0], [Math.cos(rot) * 0.9, y + 0.25, Math.sin(rot) * 0.9], 0.07, '#8fb86a', 0.6, 4, 0.15));
+  }
+  t.push(['k', [0.14, 5], [0, 3.1, 0], '#a3e635', GLUEHT]);
+  return t;
+}
+
+function wipfelausguckModell() {
+  const t = [];
+  // Hoher Mammutbaum-Stamm
+  t.push(stab([0, 0, 0], [0, 2.6, 0], 0.38, '#78350f', 0, 6, 0.55));
+  // Wendeltreppen-Absätze
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    t.push(['q', [0.25, 0.06, 0.25], [Math.cos(a) * 0.38, 0.5 + i * 0.45, Math.sin(a) * 0.38], '#a16207']);
+  }
+  // Aussichtskrone / Nest
+  t.push(['z', [0.75, 0.5, 0.4, 7], [0, 2.7, 0], '#5c4028', 0.2]);
+  t.push(['k', [0.65, 6], [0, 3.2, 0], LAUB, 0.35]);
+  // Glühende Irrlichter / Weitsicht-Glühwürmchen
+  for (let f = 0; f < 4; f++) {
+    const fa = (f / 4) * Math.PI * 2;
+    t.push(['k', [0.08, 4], [Math.cos(fa) * 0.75, 2.9, Math.sin(fa) * 0.75], '#fef08a', GLUEHT]);
+  }
+  return t;
+}
+
+function hornissenschwarmModell() {
+  const t = [];
+  // 3 gepanzerte Riesenhornissen im Formationsflug
+  const offset = [[0, 0.9, 0.3], [-0.45, 0.75, -0.25], [0.45, 0.8, -0.25]];
+  for (const [ox, oy, oz] of offset) {
+    // Chitin-Körper & Kopf
+    t.push(['k', [0.11, 5], [ox, oy, oz + 0.22], '#1e293b']);
+    t.push(['k', [0.035, 3], [ox - 0.05, oy + 0.03, oz + 0.3], '#facc15', GLUEHT]);
+    t.push(['k', [0.035, 3], [ox + 0.05, oy + 0.03, oz + 0.3], '#facc15', GLUEHT]);
+    // Gestreifter Chitin-Hinterleib
+    t.push(['z', [0.06, 0.13, 0.35, 5], [ox, oy - 0.04, oz - 0.12], '#eab308', 0.5, [0.45, 0, 0]]);
+    // Giftstachel
+    t.push(stab([ox, oy - 0.08, oz - 0.28], [ox, oy - 0.12, oz - 0.45], 0.025, '#0f172a', 0, 3, 0.1));
+    // Flügelpaar (schwirrend)
+    for (const s of [1, -1]) {
+      t.push(['q', [0.38, 0.015, 0.14], [ox + s * 0.24, oy + 0.08, oz + 0.05], '#8fb86a', 0.65, [0, 0, s * 0.25]]);
+    }
+  }
+  return t;
+}
+
+function walddracheModell() {
+  const t = [];
+  // Geschwungener Schlangenleib
+  t.push(stab([0, 0.8, -0.9], [0, 0.85, 0.2], 0.2, '#15803d', 0.25, 6));
+  t.push(stab([0, 0.85, 0.2], [0, 1.25, 0.95], 0.16, '#16a34a', 0.4, 5));
+  // Drachenkopf mit Hörnern
+  t.push(['k', [0.18, 6], [0, 1.3, 1.1], '#15803d']);
+  t.push(stab([0, 1.25, 1.15], [0, 1.15, 1.45], 0.11, '#166534', 0, 4, 0.4));
+  // Glühende Augen & Ätzharz-Schlund
+  t.push(['k', [0.035, 3], [-0.07, 1.35, 1.18], '#fde047', GLUEHT]);
+  t.push(['k', [0.035, 3], [0.07, 1.35, 1.18], '#fde047', GLUEHT]);
+  t.push(['k', [0.08, 4], [0, 1.12, 1.28], '#84cc16', GLUEHT]);
+  // 4 gefiederte Laub-Schwingen
+  for (const s of [1, -1]) {
+    t.push(['q', [0.75, 0.03, 0.45], [s * 0.55, 0.95, 0.1], '#8fb86a', 0.7, [0, 0, s * 0.2]]);
+    t.push(['q', [0.65, 0.025, 0.35], [s * 1.15, 1.1, 0.0], '#16a34a', 0.5, [0, 0, s * 0.35]]);
+  }
+  // Schwanzquaste
+  t.push(['q', [0.35, 0.02, 0.4], [0, 0.75, -1.15], '#8fb86a', 0.6]);
+  return t;
+}
+
+function weltenbaum_entModell() {
+  const t = [];
+  // 4 monumentale Baumstamm-Beine
   for (const sx of [1, -1]) {
     for (const sz of [1, -1]) {
       const x = sx * 0.55;
-      const z = sz * 0.6;
-      t.push(stab([x, 1.1, z], [x, 0.5, z], 0.24, EXP_KNOCHEN, 0, 6));
-      t.push(['k', [0.16, 5], [x, 0.5, z], EXP_KNOCHEN_D]);
-      t.push(stab([x, 0.5, z], [x, 0.1, z], 0.22, EXP_KNOCHEN, 0, 6));
-      t.push(['q', [0.32, 0.14, 0.36], [x, 0.07, z], EXP_SCHATTEN]);
+      const z = sz * 0.55;
+      t.push(stab([x, 1.25, z], [x, 0.1, z], 0.26, HOLZ, 0, 6, 0.7));
+      t.push(['k', [0.16, 5], [x, 0.6, z], '#15803d', 0.2]);
+      t.push(['q', [0.38, 0.12, 0.42], [x, 0.06, z], '#3f2e1a']);
     }
   }
-  t.push(['q', [1.2, 0.75, 1.5], [0, 1.25, 0], EXP_ASCHE, 0.1]);
-  t.push(['z', [0.55, 0.7, 0.8, 6], [0, 1.55, 0], EXP_KNOCHEN, 0.15, [Math.PI / 2, 0, 0]]);
-
-  t.push(['k', [0.48, 7], [0, 1.35, 0.95], EXP_KNOCHEN]);
+  // Gewaltiger urzeitlicher Holzkörper
+  t.push(['q', [1.35, 0.95, 1.45], [0, 1.45, 0], '#5c4028', 0.2]);
+  // Lebendiger Hain auf dem Rücken
+  t.push(['z', [0.85, 0.95, 0.4, 7], [0, 2.05, 0], LAUB, 0.4]);
+  t.push(['k', [0.75, 7], [0, 2.35, 0], '#15803d', 0.35]);
+  // Steinkreis-Megalithen auf den Schultern
+  for (let m = 0; m < 5; m++) {
+    const ma = (m / 5) * Math.PI * 2;
+    t.push(['q', [0.16, 0.45, 0.14], [Math.cos(ma) * 0.72, 2.25, Math.sin(ma) * 0.72], STEIN]);
+  }
+  // Kopf mit Rindenbart und Wurzelkrone
+  t.push(['k', [0.32, 6], [0, 1.5, 0.95], HOLZ]);
+  t.push(['k', [0.06, 4], [-0.1, 1.55, 1.22], GOLD, GLUEHT]);
+  t.push(['k', [0.06, 4], [0.1, 1.55, 1.22], GOLD, GLUEHT]);
+  t.push(stab([0, 1.35, 0.95], [0, 0.75, 1.15], 0.16, '#3f2e1a', 0, 4, 0.2));
+  // 2 kolossale Starkast-Arme
   for (const s of [1, -1]) {
-    t.push(stab([s * 0.35, 1.45, 1.1], [s * 0.65, 1.6, 1.75], 0.16, EXP_SCHATTEN, 0, 5, 0.3));
+    t.push(stab([s * 0.75, 1.65, 0.2], [s * 1.15, 1.15, 0.6], 0.2, HOLZ, 0, 5, 0.7));
+    t.push(stab([s * 1.15, 1.15, 0.6], [s * 1.1, 0.45, 1.05], 0.17, '#5c4028', 0, 5, 0.6));
+    t.push(['k', [0.2, 5], [s * 1.1, 0.4, 1.1], '#8fb86a', 0.6]);
   }
-  t.push(['k', [0.24, 6], [0, 1.2, 0.2], EXP_ZYAN, GLUEHT]);
   return t;
 }
 
-/** Nekropole: Hauptgebäude - Gewaltiges Mausoleum mit Säulengang und Seelenfeuerkuppel */
-function nekropoleModell() {
+function knochenhorstModell() {
   const t = [];
-  t.push(['q', [2.0, 0.2, 2.0], [0, 0.1, 0], EXP_SCHATTEN]);
-  t.push(['q', [1.8, 0.2, 1.8], [0, 0.3, 0], EXP_ASCHE]);
-  t.push(['q', [1.6, 0.2, 1.6], [0, 0.5, 0], EXP_SCHATTEN2]);
-  t.push(['q', [1.3, 1.1, 1.3], [0, 1.15, 0], EXP_OBSIDIAN, 0.1]);
-
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    const x = Math.cos(a) * 0.82;
-    const z = Math.sin(a) * 0.82;
-    t.push(['z', [0.08, 0.1, 1.2, 5], [x, 1.2, z], EXP_KNOCHEN, 0.05]);
-  }
-  t.push(['z', [0.65, 0.75, 0.3, 8], [0, 1.85, 0], EXP_ASCHE, 0.1]);
-  t.push(['k', [0.45, 7], [0, 2.15, 0], EXP_KNOCHEN]);
-  t.push(['k', [0.22, 6], [0, 2.7, 0], EXP_ZYAN_HELL, GLUEHT]);
-  t.push(['z', [0.05, 0.18, 0.5, 5], [0, 2.9, 0], EXP_ZYAN, GLUEHT]);
-  return t;
-}
-
-/** Grabhügel: Anker - Steinkreis um einen Erdhügel mit leuchtendem Monolithen */
-function grabhuegelModell() {
-  const t = [];
-  t.push(['z', [0.8, 1.1, 0.45, 8], [0, 0.22, 0], EXP_SCHATTEN, 0.1]);
-  t.push(['k', [0.75, 7], [0, 0.35, 0], EXP_ASCHE]);
-
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const x = Math.cos(a) * 0.95;
-    const z = Math.sin(a) * 0.95;
-    t.push(['q', [0.2, 0.55, 0.18], [x, 0.35, z], EXP_OBSIDIAN, 0, [0, a, 0.1]]);
-    t.push(['k', [0.08, 4], [x * 0.85, 0.15, z * 0.85], EXP_KNOCHEN]);
-  }
-  t.push(['q', [0.28, 1.1, 0.24], [0, 0.85, 0], EXP_OBSIDIAN, 0.1]);
-  t.push(['q', [0.1, 0.65, 0.04], [0, 0.9, 0.13], EXP_ZYAN, GLUEHT]);
-  t.push(['k', [0.12, 5], [0, 1.45, 0], EXP_ZYAN_HELL, GLUEHT]);
-  return t;
-}
-
-/** Knochenturm: Verteidigung - Turm aus Wirbelsäule und Speerschleuder */
-function knochenturmModell() {
-  const t = [];
-  t.push(['z', [0.65, 0.85, 0.4, 7], [0, 0.2, 0], EXP_SCHATTEN]);
-  for (let s = 0; s < 5; s++) {
-    const y = 0.5 + s * 0.38;
-    const r = 0.45 - s * 0.04;
-    t.push(['z', [r * 0.9, r, 0.36, 6], [0, y, 0], EXP_KNOCHEN, 0.05]);
-  }
-  t.push(['z', [0.55, 0.4, 0.18, 7], [0, 2.45, 0], EXP_ASCHE, 0.1]);
-  for (let z = 0; z < 5; z++) {
-    const a = (z / 5) * Math.PI * 2;
-    t.push(['q', [0.12, 0.25, 0.08], [Math.cos(a) * 0.52, 2.62, Math.sin(a) * 0.52], EXP_KNOCHEN]);
-  }
-  t.push(stab([0, 2.5, 0], [0, 2.9, 0.4], 0.08, EXP_OBSIDIAN, 0, 4));
-  t.push(['z', [0.04, 0.12, 0.45, 5], [0, 2.9, 0.4], EXP_ZYAN_HELL, GLUEHT, [0.4, 0, 0]]);
-  return t;
-}
-
-/** Seelenbrunnen: Gegenwart - Becken mit wirbelndem Zyan-Wasser */
-function seelenbrunnenModell() {
-  const t = [];
-  t.push(['z', [0.95, 1.05, 0.45, 8], [0, 0.22, 0], EXP_SCHATTEN]);
-  t.push(['s', [0.85, 8], [0, 0.42, 0], EXP_ZYAN, GLUEHT]);
+  t.push(['z', [0.95, 1.25, 0.4, 7], [0, 0.2, 0], EXP_SCHATTEN]);
+  // Zerklüftete Knochenklippen & Skelettsäulen
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2;
-    const x = Math.cos(a) * 0.85;
-    const z = Math.sin(a) * 0.85;
-    t.push(stab([x, 0.4, z], [x * 0.5, 1.2, z * 0.5], 0.1, EXP_KNOCHEN, 0, 5));
+    t.push(stab([Math.cos(a) * 0.75, 0.35, Math.sin(a) * 0.75], [Math.cos(a) * 0.95, 1.85, Math.sin(a) * 0.95], 0.18, EXP_KNOCHEN_WEISS, 0, 5, 0.4));
+    t.push(['k', [0.09, 4], [Math.cos(a) * 0.95, 1.9, Math.sin(a) * 0.95], EXP_ZYAN, GLUEHT]);
   }
-  t.push(['k', [0.24, 6], [0, 0.9, 0], EXP_ZYAN_HELL, GLUEHT]);
-  return t;
-}
-
-/** Knochenmühle: Fron-Förderer - Zermahlende Knochenräder */
-function knochenmuehleModell() {
-  const t = [];
-  t.push(['q', [1.4, 0.35, 1.4], [0, 0.17, 0], EXP_SCHATTEN]);
-  t.push(['z', [0.65, 0.35, 0.6, 7], [0, 0.65, 0], EXP_ASCHE, 0.1]);
-  for (const s of [1, -1]) {
-    t.push(['z', [0.45, 0.45, 0.18, 8], [s * 0.4, 0.75, 0], EXP_KNOCHEN, 0.05, [0, 0, Math.PI / 2]]);
-    t.push(['k', [0.12, 5], [s * 0.4, 0.75, 0], EXP_OBSIDIAN]);
+  // Geier-Horst aus gekrümmten Rippen
+  t.push(['z', [1.1, 0.85, 0.45, 8], [0, 1.65, 0], EXP_SCHATTEN2, 0.2]);
+  for (let r = 0; r < 6; r++) {
+    const ra = (r / 6) * Math.PI * 2;
+    t.push(stab([Math.cos(ra) * 0.8, 1.6, Math.sin(ra) * 0.8], [Math.cos(ra) * 1.15, 2.1, Math.sin(ra) * 1.15], 0.08, EXP_KNOCHEN_HELL, 0, 4, 0.2));
   }
-  t.push(['q', [0.4, 0.2, 0.6], [0, 0.35, 0.65], EXP_KNOCHEN_D, 0, [0.3, 0, 0]]);
+  t.push(['k', [0.25, 5], [0, 1.7, 0], EXP_SEELEN_BLAU, 0.55]);
   return t;
 }
 
-/** Fleischwurz: Götterblut-Förderer - Pulsierende chthonische Blutwurzel */
-function fleischwurzModell() {
+function seelenspeierModell() {
   const t = [];
-  t.push(['z', [0.85, 1.1, 0.3, 7], [0, 0.15, 0], EXP_SCHATTEN]);
-  t.push(['k', [0.55, 6], [0, 0.45, 0], EXP_ROT_D, 0.1]);
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2;
-    t.push(stab([Math.cos(a) * 0.35, 0.4, Math.sin(a) * 0.35], [Math.cos(a) * 0.6, 1.1, Math.sin(a) * 0.6], 0.12, EXP_ROT, GLUEHT, 5, 0.5));
+  t.push(['z', [0.9, 1.1, 0.4, 8], [0, 0.2, 0], EXP_SCHATTEN]);
+  t.push(['z', [0.65, 0.75, 0.3, 8], [0, 0.52, 0], EXP_OBSIDIAN]);
+  // 3 aufgerichtete Drachenschädel als Flak-Schlünde
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const x = Math.cos(a) * 0.32;
+    const z = Math.sin(a) * 0.32;
+    t.push(stab([x, 0.6, z], [x * 1.9, 1.85, z * 1.9], 0.16, EXP_KNOCHEN_WEISS, 0, 5, 0.7));
+    t.push(['k', [0.15, 5], [x * 1.9, 1.9, z * 1.9], EXP_KNOCHEN_WEISS]);
+    t.push(['k', [0.09, 4], [x * 1.9, 1.98, z * 1.9], EXP_ZYAN_WEISS, GLUEHT]);
   }
-  t.push(['z', [0.28, 0.15, 0.6, 6], [0, 0.95, 0], EXP_ROT, GLUEHT]);
-  t.push(['k', [0.18, 5], [0, 1.3, 0], '#ff4d4d', GLUEHT]);
   return t;
 }
 
-/** Katakombe: Fabrik - Kryptaportal mit absteigenden Stufen */
-function katakombeModell() {
+function seelenkuppelModell() {
   const t = [];
-  t.push(['q', [1.7, 0.3, 1.7], [0, 0.15, 0], EXP_SCHATTEN]);
-  t.push(['q', [0.35, 1.2, 1.4], [-0.65, 0.8, 0], EXP_OBSIDIAN, 0.1]);
-  t.push(['q', [0.35, 1.2, 1.4], [0.65, 0.8, 0], EXP_OBSIDIAN, 0.1]);
-  t.push(['q', [1.4, 1.2, 0.35], [0, 0.8, -0.65], EXP_OBSIDIAN, 0.1]);
-  t.push(['q', [1.7, 0.25, 1.7], [0, 1.5, 0], EXP_ASCHE]);
-  t.push(['q', [0.12, 0.5, 0.12], [0, 1.85, 0], EXP_KNOCHEN]);
-  t.push(['q', [0.35, 0.12, 0.12], [0, 1.95, 0], EXP_KNOCHEN]);
-  t.push(['q', [0.8, 0.05, 0.9], [0, 0.3, 0.1], '#000000']);
-  t.push(['k', [0.08, 4], [-0.55, 1.1, 0.65], EXP_ZYAN, GLUEHT]);
-  t.push(['k', [0.08, 4], [0.55, 1.1, 0.65], EXP_ZYAN, GLUEHT]);
-  return t;
-}
-
-/** Pestaltar: Zorn-Schrein - Opferplatte mit aufsteigenden Giftdämpfen */
-function pestaltarModell() {
-  const t = [];
-  t.push(['q', [1.3, 0.2, 1.3], [0, 0.1, 0], EXP_SCHATTEN]);
-  t.push(['q', [1.0, 0.3, 1.0], [0, 0.35, 0], EXP_OBSIDIAN]);
-  t.push(['q', [1.1, 0.15, 0.7], [0, 0.55, 0], EXP_ASCHE, 0.1]);
-  for (const sx of [1, -1]) {
-    for (const sz of [1, -1]) {
-      t.push(['z', [0.12, 0.08, 0.25, 5], [sx * 0.45, 0.7, sz * 0.25], EXP_KNOCHEN]);
-      t.push(['k', [0.07, 4], [sx * 0.45, 0.85, sz * 0.25], EXP_ZYAN, GLUEHT]);
-    }
-  }
-  t.push(['k', [0.16, 5], [0, 0.75, 0], EXP_KNOCHEN]);
-  return t;
-}
-
-/** Ossuarium: Wehr-Schrein - Kapelle aus dichten Schädel- und Knochenwänden */
-function ossuariumModell() {
-  const t = [];
-  t.push(['q', [1.4, 0.25, 1.4], [0, 0.12, 0], EXP_SCHATTEN]);
-  for (const sx of [1, -1]) {
-    for (const sz of [1, -1]) {
-      t.push(['z', [0.18, 0.22, 1.1, 6], [sx * 0.5, 0.75, sz * 0.5], EXP_KNOCHEN, 0.05]);
-    }
-  }
-  t.push(['q', [0.8, 0.8, 0.15], [0, 0.7, -0.5], EXP_KNOCHEN_D, 0.1]);
-  t.push(['q', [0.15, 0.8, 0.8], [-0.5, 0.7, 0], EXP_KNOCHEN_D, 0.1]);
-  t.push(['q', [0.15, 0.8, 0.8], [0.5, 0.7, 0], EXP_KNOCHEN_D, 0.1]);
-  t.push(['z', [0.65, 0.75, 0.35, 7], [0, 1.45, 0], EXP_ASCHE, 0.1]);
-  t.push(['k', [0.35, 6], [0, 1.65, 0], EXP_KNOCHEN]);
-  return t;
-}
-
-/** Totenarchiv: Forschung - Oktogonales Skriptorium mit schwebendem Buch der Toten */
-function totenarchivModell() {
-  const t = [];
-  t.push(['z', [0.85, 0.95, 0.3, 8], [0, 0.15, 0], EXP_SCHATTEN]);
+  t.push(['z', [1.0, 1.2, 0.3, 8], [0, 0.15, 0], EXP_SCHATTEN]);
+  // 6 hochgewölbte Knochenrippen bilden die Kuppelstruktur
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
-    t.push(['z', [0.08, 0.1, 1.2, 5], [Math.cos(a) * 0.75, 0.85, Math.sin(a) * 0.75], EXP_OBSIDIAN]);
+    const x0 = Math.cos(a) * 0.85;
+    const z0 = Math.sin(a) * 0.85;
+    const x1 = Math.cos(a) * 0.25;
+    const z1 = Math.sin(a) * 0.25;
+    t.push(stab([x0, 0.2, z0], [x1, 2.05, z1], 0.12, EXP_KNOCHEN_WEISS, 0, 5, 0.4));
   }
-  t.push(['z', [0.2, 0.85, 0.5, 8], [0, 1.65, 0], EXP_ASCHE, 0.1]);
-  t.push(['z', [0.15, 0.22, 0.7, 6], [0, 0.5, 0], EXP_OBSIDIAN]);
-  t.push(['q', [0.35, 0.05, 0.25], [0, 0.9, 0], EXP_KNOCHEN, 0, [0.3, 0, 0]]);
-  t.push(['k', [0.08, 4], [0, 1.05, 0], EXP_ZYAN_HELL, GLUEHT]);
+  // Schwebender Seelenfeuer-Wirbel
+  t.push(['k', [0.38, 7], [0, 1.15, 0], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.18, 5], [0, 1.15, 0], EXP_ZYAN_WEISS, GLUEHT]);
+  t.push(['s', [0.55, 8], [0, 1.15, 0], EXP_SEELEN_BLAU, 0.65]);
+  return t;
+}
+
+function entropieofenModell() {
+  const t = [];
+  t.push(['q', [1.8, 0.3, 1.8], [0, 0.15, 0], EXP_SCHATTEN]);
+  // Schwerer Eisen- & Knochenofen
+  t.push(['q', [1.3, 1.0, 1.3], [0, 0.75, 0], EXP_OBSIDIAN, 0.15]);
+  // Ofengitter mit blauem Frostfeuer
+  t.push(['q', [0.65, 0.45, 0.05], [0, 0.65, 0.66], EXP_ZYAN_WEISS, GLUEHT]);
+  // Knochenschornstein mit Kältedampf
+  t.push(['z', [0.22, 0.28, 0.85, 6], [0, 1.6, 0], EXP_KNOCHEN_WEISS]);
+  t.push(['k', [0.18, 5], [0, 2.05, 0], EXP_ZYAN, GLUEHT]);
+  return t;
+}
+
+function fossilienwerkModell() {
+  const t = [];
+  t.push(['q', [2.5, 0.25, 2.5], [0, 0.12, 0], EXP_SCHATTEN]);
+  // Ausgrabungsgrube & Knochengerüst
+  t.push(['q', [2.1, 1.1, 2.1], [0, 0.75, 0], EXP_ASCHE, 0.15]);
+  // Gigantisches Dinogerüst / Drachenrippen-Montage
+  for (let r = 0; r < 5; r++) {
+    const z = -0.7 + r * 0.35;
+    for (const s of [1, -1]) {
+      t.push(stab([s * 0.8, 0.7, z], [s * 0.2, 1.8, z], 0.1, EXP_KNOCHEN_WEISS, 0, 4, 0.5));
+    }
+  }
+  // Seelenfeuer-Esse
+  t.push(['k', [0.22, 5], [0, 0.8, 0], EXP_ZYAN, GLUEHT]);
+  return t;
+}
+
+function seuchenmoerserModell() {
+  const t = [];
+  // Sockel
+  t.push(['z', [1.2, 1.35, 0.35, 8], [0, 0.18, 0], EXP_SCHATTEN]);
+  // Knochenlafette
+  for (const s of [1, -1]) {
+    t.push(['q', [0.24, 0.85, 1.1], [s * 0.48, 0.9, -0.05], EXP_OBSIDIAN, 0.15]);
+  }
+  // Gewaltiger Schädelmörser (Rohr aus einem Drachenschädel)
+  t.push(stab([0, 0.75, -0.3], [0, 1.85, 0.5], 0.36, EXP_KNOCHEN_WEISS, 0, 6, 0.75));
+  t.push(['k', [0.38, 6], [0, 1.9, 0.55], EXP_KNOCHEN_HELL]);
+  // Mündung mit grün-zyanem Seuchendampf
+  t.push(['k', [0.18, 5], [0, 1.95, 0.65], '#10b981', GLUEHT]);
+  return t;
+}
+
+function schattenschirmModell() {
+  const t = [];
+  t.push(['z', [0.85, 1.05, 0.35, 7], [0, 0.17, 0], EXP_SCHATTEN]);
+  // Obsidian-Nadel
+  t.push(stab([0, 0.3, 0], [0, 2.2, 0], 0.22, EXP_OBSIDIAN, 0, 5, 0.3));
+  // Schwebendes Schattenschild-Auge
+  t.push(['k', [0.3, 6], [0, 2.3, 0], EXP_SCHATTEN]);
+  t.push(['k', [0.15, 5], [0, 2.3, 0.15], EXP_ZYAN_WEISS, GLUEHT]);
+  t.push(['s', [0.45, 8], [0, 2.3, 0], EXP_SEELEN_BLAU, 0.6]);
+  return t;
+}
+
+function geisterturmModell() {
+  const t = [];
+  // Schlanker Knochenspähturm
+  t.push(['z', [0.75, 0.95, 0.35, 7], [0, 0.17, 0], EXP_SCHATTEN]);
+  t.push(stab([0, 0.35, 0], [0, 2.8, 0], 0.28, EXP_KNOCHEN_WEISS, 0, 6, 0.45));
+  // Ausguckplattform mit Knochenbalustrade
+  t.push(['z', [0.65, 0.4, 0.25, 7], [0, 2.85, 0], EXP_ASCHE]);
+  // Gewaltiges loderndes Seelenauge
+  t.push(['k', [0.26, 6], [0, 3.2, 0], EXP_ZYAN_HELL, GLUEHT]);
+  t.push(['k', [0.14, 5], [0, 3.2, 0], EXP_ZYAN_WEISS, GLUEHT]);
+  return t;
+}
+
+function schattenfliegerModell() {
+  const t = [];
+  // Schlanker Knochenleib
+  t.push(stab([0, 0.8, -0.75], [0, 0.85, 0.4], 0.12, EXP_KNOCHEN_WEISS, 0, 5));
+  // Schädelschnauze
+  t.push(['k', [0.11, 5], [0, 0.85, 0.48], EXP_KNOCHEN_WEISS]);
+  t.push(['k', [0.025, 3], [-0.05, 0.88, 0.52], EXP_ZYAN_WEISS, GLUEHT]);
+  t.push(['k', [0.025, 3], [0.05, 0.88, 0.52], EXP_ZYAN_WEISS, GLUEHT]);
+  // Pfeilförmige Fledermausschwingen aus Knochen & Schatten
+  for (const s of [1, -1]) {
+    t.push(stab([0, 0.85, 0.2], [s * 0.95, 0.95, 0.05], 0.06, EXP_KNOCHEN_WEISS, 0, 4));
+    t.push(stab([s * 0.95, 0.95, 0.05], [s * 1.35, 1.05, -0.4], 0.04, EXP_KNOCHEN_HELL, 0, 3));
+    t.push(['q', [0.85, 0.02, 0.45], [s * 0.65, 0.9, -0.15], EXP_SEELEN_BLAU, 0.65, [0, 0, s * 0.18]]);
+  }
+  return t;
+}
+
+function pestschwingeModell() {
+  const t = [];
+  // Aufgedunsener Seuchenleib
+  t.push(['k', [0.35, 6], [0, 0.85, 0], '#334155']);
+  t.push(['z', [0.18, 0.32, 0.7, 6], [0, 0.85, -0.35], EXP_SCHATTEN, 0.2]);
+  // Skelettkopf
+  t.push(['k', [0.16, 5], [0, 0.95, 0.45], EXP_KNOCHEN_WEISS]);
+  t.push(['k', [0.04, 3], [-0.06, 0.98, 0.55], '#10b981', GLUEHT]);
+  t.push(['k', [0.04, 3], [0.06, 0.98, 0.55], '#10b981', GLUEHT]);
+  // Breite Schwingen
+  for (const s of [1, -1]) {
+    t.push(['q', [0.75, 0.03, 0.5], [s * 0.6, 0.95, 0.05], EXP_SCHATTEN2, 0.25, [0, 0, s * 0.15]]);
+    t.push(['q', [0.65, 0.025, 0.4], [s * 1.2, 1.05, -0.1], EXP_SEELEN_BLAU, 0.6, [0, 0, s * 0.3]]);
+  }
+  // Schleppende Pestilenzbomben
+  for (let b = 0; b < 2; b++) {
+    t.push(['k', [0.11, 4], [(b - 0.5) * 0.22, 0.55, 0], '#10b981', GLUEHT]);
+  }
+  return t;
+}
+
+function knochendracheModell() {
+  const t = [];
+  // Drachenwirbelsäule & Rumpf
+  t.push(stab([0, 0.9, -1.1], [0, 1.1, 0.2], 0.22, EXP_KNOCHEN_WEISS, 0, 6));
+  t.push(stab([0, 1.1, 0.2], [0, 1.7, 0.9], 0.18, EXP_KNOCHEN_WEISS, 0, 5));
+  // 6 mächtige Rippenpaare
+  for (let r = 0; r < 5; r++) {
+    const z = -0.5 + r * 0.25;
+    for (const s of [1, -1]) {
+      t.push(stab([0, 1.05, z], [s * 0.65, 0.7, z], 0.07, EXP_KNOCHEN_WEISS));
+    }
+  }
+  // Seelenfeuer-Herz
+  t.push(['k', [0.28, 6], [0, 1.05, 0.0], EXP_ZYAN, GLUEHT]);
+  t.push(['k', [0.15, 5], [0, 1.05, 0.0], EXP_ZYAN_WEISS, GLUEHT]);
+
+  // Gehörnter Drachenschädel
+  t.push(['k', [0.3, 6], [0, 1.8, 1.1], EXP_KNOCHEN_WEISS]);
+  t.push(stab([0, 1.75, 1.2], [0, 1.6, 1.65], 0.16, EXP_KNOCHEN_HELL, 0, 4, 0.4));
+  t.push(['k', [0.05, 3], [-0.1, 1.85, 1.25], EXP_ZYAN_WEISS, GLUEHT]);
+  t.push(['k', [0.05, 3], [0.1, 1.85, 1.25], EXP_ZYAN_WEISS, GLUEHT]);
+  // 4 geschwungene Drachenhörner
+  for (const s of [1, -1]) {
+    t.push(stab([s * 0.15, 1.95, 1.05], [s * 0.45, 2.35, 0.75], 0.08, EXP_KNOCHEN_WEISS, 0, 4, 0.25));
+  }
+
+  // Gigantische Fledermaus-/Drachenschwingen
+  for (const s of [1, -1]) {
+    t.push(stab([0, 1.2, 0.1], [s * 1.1, 1.9, 0.3], 0.14, EXP_KNOCHEN_WEISS, 0, 5, 0.7));
+    t.push(stab([s * 1.1, 1.9, 0.3], [s * 1.9, 2.2, -0.2], 0.1, EXP_KNOCHEN_WEISS, 0, 4, 0.4));
+    // Flügelfinger
+    for (let f = 0; f < 3; f++) {
+      t.push(stab([s * 1.1, 1.9, 0.3], [s * (1.2 + f * 0.35), 0.9 - f * 0.15, -0.4 - f * 0.25], 0.05, EXP_KNOCHEN_HELL, 0, 3, 0.3));
+    }
+    // Zerschlissene Flügelmembran in Fraktionsblau
+    t.push(['q', [0.85, 0.03, 0.75], [s * 1.0, 1.5, -0.1], EXP_SEELEN_BLAU, 0.65, [0, 0, s * 0.25]]);
+  }
+  // Stachelschwanz
+  t.push(stab([0, 0.9, -1.1], [0, 0.6, -1.8], 0.12, EXP_KNOCHEN_WEISS, 0, 4, 0.3));
+  t.push(['q', [0.35, 0.03, 0.3], [0, 0.6, -1.85], EXP_ZYAN, GLUEHT]);
+  return t;
+}
+
+function schildkuppelModell() {
+  const t = [];
+  // Kuppelstruktur: 3 konzentrische Zylinder- und Scheibenringe für Schirm
+  t.push(['z', [0.95, 1.0, 0.45, 8], [0, 0.22, 0], '#38bdf8', GLUEHT]);
+  t.push(['z', [0.75, 0.95, 0.4, 8], [0, 0.58, 0], '#38bdf8', GLUEHT]);
+  t.push(['z', [0.35, 0.75, 0.3, 8], [0, 0.85, 0], '#bae6fd', GLUEHT]);
+  t.push(['s', [0.38, 8], [0, 1.0, 0], '#ffffff', GLUEHT]);
+  return t;
+}
+
+function fernschlagModell() {
+  const t = [];
+  // Rakete / überschwere Granate mit Heckleitwerk
+  t.push(stab([0, 0, -0.8], [0, 0, 0.7], 0.18, EISEN, 0, 6));
+  t.push(['z', [0.02, 0.18, 0.45, 6], [0, 0, 0.9], '#ef4444', GLUEHT, [Math.PI / 2, 0, 0]]);
+  // 4 Stabilisierungsflossen hinten
+  for (const s of [1, -1]) {
+    t.push(['q', [0.55, 0.02, 0.3], [0, 0, -0.75], '#334155']);
+    t.push(['q', [0.02, 0.55, 0.3], [0, 0, -0.75], '#334155']);
+  }
+  // Triebwerksflamme
+  t.push(['k', [0.12, 5], [0, 0, -0.9], '#f97316', GLUEHT]);
+  t.push(['k', [0.07, 4], [0, 0, -1.05], '#fef08a', GLUEHT]);
+  return t;
+}
+
+function flakModell() {
+  const t = [];
+  // Explosions-Splitterwolke
+  t.push(['k', [0.22, 6], [0, 0, 0], '#fef08a', GLUEHT]);
+  t.push(['k', [0.12, 5], [0, 0, 0], '#ffffff', GLUEHT]);
+  // 6 spießartige Explosionsstrahlen
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    t.push(stab([0, 0, 0], [Math.cos(a) * 0.65, Math.sin(a) * 0.45, 0], 0.04, '#ef4444', GLUEHT, 4, 0.1));
+  }
   return t;
 }
 
@@ -3964,6 +4807,49 @@ MODELLE_DEF.moosbaer = moosbaerModell();
 MODELLE_DEF.fluesterer = fluestererModell();
 MODELLE_DEF.kronenhirsch = kronenhirschModell();
 MODELLE_DEF.dornenhydra = dornenhydraModell();
+// Neue Rollen: Menschen
+MODELLE_DEF.ballonhalle = ballonhalleModell();
+MODELLE_DEF.flakbatterie = flakbatterieModell();
+MODELLE_DEF.schildturm = schildturmModell();
+MODELLE_DEF.aetherwandler = aetherwandlerModell();
+MODELLE_DEF.grossgiesserei = grossgiessereiModell();
+MODELLE_DEF.belagerungsmoerser = belagerungsmoerserModell();
+MODELLE_DEF.abfangposten = abfangpostenModell();
+MODELLE_DEF.fluggleiter = fluggleiterModell();
+MODELLE_DEF.brandballon = brandballonModell();
+MODELLE_DEF.dampfkoloss = dampfkolossModell();
+
+// Neue Rollen: Wald- und Wiesengott
+MODELLE_DEF.wipfelhorst = wipfelhorstModell();
+MODELLE_DEF.sporenwerfer = sporenwerferModell();
+MODELLE_DEF.hainschild = hainschildModell();
+MODELLE_DEF.bluetenkelch = bluetenkelchModell();
+MODELLE_DEF.lebensschmiede = lebensschmiedeModell();
+MODELLE_DEF.zornwurzel = zornwurzelModell();
+MODELLE_DEF.himmelsdorn = himmelsdornModell();
+MODELLE_DEF.wipfelausguck = wipfelausguckModell();
+MODELLE_DEF.hornissenschwarm = hornissenschwarmModell();
+MODELLE_DEF.walddrache = walddracheModell();
+MODELLE_DEF.weltenbaum_ent = weltenbaum_entModell();
+
+// Neue Rollen: Totenreich
+MODELLE_DEF.knochenhorst = knochenhorstModell();
+MODELLE_DEF.seelenspeier = seelenspeierModell();
+MODELLE_DEF.seelenkuppel = seelenkuppelModell();
+MODELLE_DEF.entropieofen = entropieofenModell();
+MODELLE_DEF.fossilienwerk = fossilienwerkModell();
+MODELLE_DEF.seuchenmoerser = seuchenmoerserModell();
+MODELLE_DEF.schattenschirm = schattenschirmModell();
+MODELLE_DEF.geisterturm = geisterturmModell();
+MODELLE_DEF.schattenflieger = schattenfliegerModell();
+MODELLE_DEF.pestschwinge = pestschwingeModell();
+MODELLE_DEF.knochendrache = knochendracheModell();
+
+// Effekte
+MODELLE_DEF.schildkuppel = schildkuppelModell();
+MODELLE_DEF.fernschlag = fernschlagModell();
+MODELLE_DEF.flak = flakModell();
+
 
 
 

@@ -393,3 +393,40 @@ geprüft (Tests, Galerie, Spiel).
   - `node erweiterungen/test_erweiterungen.js`: 4/4 Tests grün.
   - `npm test`: 137/137 Tests grün.
   - `npm run smoke`: Headless WebGL2, Canvas, Galerie (78 Icons, alle Ansichten) und Editor fehlerfrei bestanden.
+### Runde 26: Umbau der Völker — Paket G1 (High-Res 3D-Modelle, Icons, 2D-Figuren)
+- **Auftrag (Paket G1 aus `docs/umbau/auftrag-gemini.md`):**
+  - Totenreich-Modelle auf vollwertiges G.2-Niveau heben (heller, klarer lesbar auf dunklem Grund, Fraktionsfarbe `#a9c4e0`, gebleichte Knochen `#f8fafc`, leuchtendes Zyan-Seelenfeuer `#38bdf8`).
+  - Neue Basis-Rollen für alle 3 Völker modellieren (Gebäude: `luftfabrik`, `flak`, `schild`, `umwandler`, `werkstatt`, `schlag`, `abwehr`, `posten`; Einheiten: `luftjaeger`, `bomber`, `prototyp`; Effekte: `schildkuppel`, `fernschlag`, `flak`).
+  - Alle zugehörigen handgefertigten SVG-Icons (`viewBox="0 0 24 24"`) und 2D-Canvas-Figuren erstellen.
+- **Was wurde geändert:**
+  - **Totenreich G.2 Upgrade (`src/modelle3d.js`):**
+    - Alle 17 Totenreich-Modelle (Todesgott, Totengräber, Skelettkrieger, Aasgeier, Klageweib, Grabwächter, Knochentitan, Nekropole, Grabhügel, Knochenturm, Seelenbrunnen, Knochenmühle, Fleischwurz, Katakombe, Pestaltar, Ossuarium, Totenarchiv) wurden komplett neu und plastisch modelliert. Schwebendes Seelenfeuer, anatomisch artikulierte Knochenglieder, leuchtende Schädelaugen und eisige Akzente. Alle Modelle liegen bei 456–2.604 Ecken (weit unter den Limits von 6.000 / 9.000).
+  - **32 neue Rollen-Modelle & 3 Effekte (`src/modelle3d.js`):**
+    - **Menschen:** `ballonhalle`, `flakbatterie`, `schildturm`, `aetherwandler`, `grossgiesserei`, `belagerungsmoerser`, `abfangposten`, `fluggleiter`, `brandballon`, `dampfkoloss`.
+    - **Waldgott:** `wipfelhorst`, `sporenwerfer`, `hainschild`, `bluetenkelch`, `lebensschmiede`, `zornwurzel`, `himmelsdorn`, `wipfelausguck`, `hornissenschwarm`, `walddrache`, `weltenbaum_ent`.
+    - **Totenreich:** `knochenhorst`, `seelenspeier`, `seelenkuppel`, `entropieofen`, `fossilienwerk`, `seuchenmoerser`, `schattenschirm`, `geisterturm`, `schattenflieger`, `pestschwinge`, `knochendrache`.
+    - **Effekte:** `schildkuppel` (durchscheinende Kuppelkalotte mit pulsierendem Gitter), `fernschlag` (monumentales Artillerie-/Mörsergeschoss mit Flammenspur), `flak` (berstende Schrapnell-Splitterwolke).
+  - **Icons (`src/icons.js`):**
+    - 35 neue SVG-Icons erstellt; Standardisierung der Kommandantenfähigkeiten (`grabeskaelte`, `seelenrausch` mit Rückwärtskompatibilität).
+  - **2D-Figuren (`src/figuren2d.js`):**
+    - Alle 17 Totenreich-Figuren aus `erweiterungen/figuren2d.js` übernommen und aufbereitet; für alle 32 neuen Einheiten und Gebäude saubere Top-Down-Zeichenroutinen mit Fraktionsfarben implementiert.
+  - **Galerie (`src/galerie.js`):**
+    - Fraktionsfarbe des Totenreichs auf `#a9c4e0` harmonisiert; neue Totenreich-Modelle in `TOD_LISTE` und Effekte in `EFFEKTE` aufgenommen.
+- **Wie geprüft:**
+  - `npm test`: 168/168 Tests bestanden (100 % grün).
+  - `npm run smoke`: Headless WebGL2, Canvas, Galerie (115 Icons) und Karteneditor fehlerfrei durchgelaufen.
+
+### Runde 27: Umbau der Völker — Paket G2 (Inhaltsentwürfe für alle 3 Völker)
+- **Auftrag (Paket G2 aus `docs/umbau/auftrag-gemini.md`):**
+  - Je Volk ein detaillierter Inhaltsentwurf (`docs/umbau/entwurf-mensch.md`, `…-gott.md`, `…-tod.md`).
+  - Detaillierte Spezifikation aller Rollen der gemeinsamen Basis (Werte, Zweck, HP, Kosten, Bewaffnung) im Vergleich zu vorhandenen Einheiten.
+  - Ausarbeitung des volkseigenen Wesenszugs, Spielgefühls und Prototyps.
+  - Vollständiger 28-Knoten-Technologiebaum je Volk über 4 Äste (Einheiten, Gebäude, Verbesserungen, Kommandant) mit Kosten, Voraussetzungen und Freischaltungen/Wirkungen.
+  - Strikte Regelprüfung: Jedes Attribut und jede Mechanik ist ausnahmslos mit `[da]` (in `FELDER` vorhanden) oder `[Mx]` (geplante Mechanik aus `konzept.md`) gekennzeichnet. Keine unautorisierten Felder.
+- **Was wurde geschaffen:**
+  - **`docs/umbau/entwurf-mensch.md`:** Fokus auf Technologie, Befestigung, Belagerungsmörser und den Dampfkoloss-Prototyp. Feste Domänengrenzen (`growth: start 2600, max 2600, perTick 0`). 28 Tech-Knoten strukturiert.
+  - **`docs/umbau/entwurf-gott.md`:** Fokus auf Natur, lebendige Haine, Schwärme und den Weltenbaum-Ent. Kontinuierlich wurzelnde Domäne (`growth: start 2000, max 6000, perTick 2`). 28 Tech-Knoten strukturiert.
+  - **`docs/umbau/entwurf-tod.md`:** Fokus auf Nekromantie, Knochenbauwerke, Auszehrung und den fliegenden Knochendrachen. Schlachtfeldbasiertes Domänenwachstum (`growth: start 1400, max 5000, perTod 180`). 28 Tech-Knoten strukturiert.
+- **Wie geprüft:**
+  - Manuelle und schematische Prüfung gegen `src/sim/defs.js` (`FELDER`) und `docs/umbau/konzept.md`.
+  - Alle 84 Tech-Knoten (3 × 28) besitzen valide Abhängigkeitsketten und strikte `[da]`/`[Mx]`-Auszeichnungen.

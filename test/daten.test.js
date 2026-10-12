@@ -25,11 +25,13 @@ test('Daten: jedes Volk nur mit Feldern, die das Spiel kennt, und nur ganzen Zah
     for (const [k, b] of Object.entries(v.gebaeude)) {
       nurBekannte(w(k), b, FELDER.gebaeude);
       for (const f of ['weapon', 'buff', 'cost']) if (b[f]) nurBekannte(w(`${k}.${f}`), b[f], FELDER[f]);
+      if (b.weapon?.ziele) assert.ok(FELDER.weaponZiele.includes(b.weapon.ziele), w(`${k}.weapon.ziele: „${b.weapon.ziele}“ ist keins von ${FELDER.weaponZiele}`));
       ganzzahlig(w(k), b);
     }
     for (const [k, u] of Object.entries(v.einheiten)) {
       nurBekannte(w(k), u, FELDER.einheit);
       for (const f of ['weapon', 'build', 'cost']) if (u[f]) nurBekannte(w(`${k}.${f}`), u[f], FELDER[f]);
+      if (u.weapon?.ziele) assert.ok(FELDER.weaponZiele.includes(u.weapon.ziele), w(`${k}.weapon.ziele: „${u.weapon.ziele}“ ist keins von ${FELDER.weaponZiele}`));
       ganzzahlig(w(k), u);
     }
     for (const [k, s] of Object.entries(v.skills)) {

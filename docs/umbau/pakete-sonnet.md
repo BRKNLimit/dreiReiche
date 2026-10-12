@@ -136,6 +136,52 @@ KI weiter alle Kämpfer an (Altverhalten, Prüfsummen). Nicht jetzt ändern.
    Info-Karte nennt „höchstens n gleichzeitig“.
 5. Tests: Grenze bei lebenden und bestellten; nach dem Tod wieder frei.
 
-## M3 Volks-Mechaniken · M6 Tech-Baum · M8 Oberfläche · M7 KI
+## M4, M5 — abgenommen und gemergt (12.10.)
+
+## M3 Volks-Mechaniken
+
+Sie machen die Völker verschieden (Konzept Abschnitt 3). Jede ist ein Feld,
+in Isolation getestet; ohne Inhalte bleibt die Referenz bitgleich (Zustand
+nur einmischen, wo das Feld existiert).
+
+1. **`regeneration`** (Einheit und Gebäude): LP pro Minute, ganzzahlig über
+   einen Tausendstel-Rest wie beim Schild (`regRest`). Nur lebend, fertig,
+   unter `maxHp`. Gebäude regenerieren nur versorgt (anteilig `powered`).
+2. **`aura: { art, wert, radius }`** (Einheit und Gebäude): wirkt auf eigene
+   Einheiten im Umkreis (Mitte zu Mitte), die Quelle eingeschlossen.
+   `art`: `heilung` (LP pro Minute), `tempo`, `schaden`, `schutz` (Promille).
+   Mehrere Auren derselben Art addieren sich **nicht** — es zählt die
+   stärkste. Gebäude-Auren nur fertig und anteilig versorgt. Füge sie dort
+   ein, wo Schlachtruf, Schildwall, Ansturm und die Schreine heute wirken
+   (Schaden, Schutz, Tempo), damit alles an einer Stelle verrechnet wird.
+3. **`weapon.flaeche: { radius, anteil }`**: Ein Treffer trifft zusätzlich
+   jeden Feind im `radius` um das Ziel, den die Waffe erreicht (`erreicht`),
+   mit `anteil` Promille des Schadens (nach den Abzügen des jeweiligen
+   Ziels, durch dessen Schild).
+4. **`weapon.verlangsamt: { dauer, wert }`**: Ein Treffer bremst das Ziel
+   (nur Einheiten) `dauer` Ticks lang um `wert` Promille; ein neuer Treffer
+   frischt auf, stärker gewinnt. Wirkt mit Tempo-Auren und Ansturm zusammen
+   (verrechnen, nicht unter 20 % Tempo fallen lassen — kennzeichnen).
+5. **`auferstehen: { alle, einheit, dauer }`** (Gebäude, gedacht für Anker
+   des Totenreichs): Zählt dieses Gebäude eine Seele (`seelen`, perTod,
+   `seelenZaehlen`), steht bei jeder `alle`-ten am Ort des Gefallenen eine
+   `einheit` für den Besitzer auf — herbeigerufen (kein Unterhalt,
+   `beschworen`), vergeht nach `dauer` Ticks (0 = bleibt). Aufgestandene
+   zählen beim eigenen Tod nicht als Seele (sonst eine Endlosschleife).
+   Ereignis `{ t: 'auferstanden', … }`.
+6. `FELDER`: `einheit` und `gebaeude` um `regeneration`, `aura`;
+   `gebaeude` um `auferstehen`; `weapon` um `flaeche`, `verlangsamt`; dazu
+   `FELDER.aura`, `FELDER.auraArt`, `FELDER.flaeche`, `FELDER.verlangsamt`,
+   `FELDER.auferstehen`; `test/daten.test.js` prüft sie.
+7. Oberfläche: Info-Karten nennen alles („heilt 60 LP/min“, „Aura: +20 %
+   Tempo in 80 m“, „trifft auch im Umkreis 30 m mit 40 %“, „bremst 3 s um
+   30 %“, „jede 4. Seele steht als Skelettkrieger auf“); verlangsamte
+   Einheiten im `auswahlKopf`; Effekte in `src/effekte.js` (Heilfunken,
+   Aufstehen aus dem Boden, Flächentreffer).
+8. KI: braucht nichts Eigenes — die Felder wirken von selbst.
+9. Tests je Mechanik (`test/volksmechaniken.test.js`) inkl. Spielstand und
+   Determinismus; Referenz bitgleich.
+
+## M6 Tech-Baum · M8 Oberfläche · M7 KI
 
 Genaue Aufträge folgen nach Abnahme von M1/M2 (Konzept Abschnitt 2).

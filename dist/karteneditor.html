@@ -103,7 +103,7 @@
   </div>
 </div>
 <script>
-const SPIEL_STAND = '226616b602';
+const SPIEL_STAND = '7903555817';
 
 /* ---------------------------------- */
 
@@ -1311,6 +1311,143 @@ const VOELKER = [VOLK_MENSCH, VOLK_GOTT, VOLK_TOD];
 
 /* ---------------------------------- */
 
+// Ruempfe und Module (R3): reine Funktionen, die aus einem Rumpf und seinen
+// Modulen eine Einheit ableiten. Keine Imports und keine Zustandsfelder -- die
+// Tabellen (MODULE, UNITS) bekommen die Funktionen als Parameter, damit defs.js
+// sie beim Laden der Daten aufrufen kann, ohne dass die Dateien einander
+// brauchen. Die Regeln der Ableitung stehen bei FELDER.modul in defs.js.
+//
+// Schluessel einer Variante:
+//   Standardbestueckung   der Schluessel des Rumpfs, z. B. 'palisade'
+//   andere Bestueckung    'palisade|haubitze|gatling' -- je Steckplatz in der
+//                         Reihenfolge von `slots` ein Modul, '-' fuer leer
+// Der Rumpf-Schluessel steht immer vor dem ersten '|' (3D-Modell, Icon und
+// 2D-Figur kommen vom Rumpf).
+
+const ruempfeHat = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+
+/** Tiefe Kopie reiner Daten (Zahlen, Texte, Listen, Objekte). */
+function ruempfeKopie(x) {
+  return JSON.parse(JSON.stringify(x));
+}
+
+/** Die Standardbestueckung eines Rumpfs als Liste: je Steckplatz ein Modul oder '' (leer). */
+function ruempfeStandard(huelle) {
+  return huelle.slots.map((_, i) => (huelle.bestueckung && huelle.bestueckung[i]) || '');
+}
+
+/**
+ * Passt diese Bestueckung auf den Rumpf? Leerer Text, wenn ja, sonst der Grund.
+ * Je Steckplatz ein Modul der Groesse des Steckplatzes (oder '' fuer leer), vom
+ * selben Volk wie der Rumpf, und wenn das Modul `nur` kennt, muss der Rumpf dazugehoeren.
+ */
+function ruempfeFehler(huelleKey, huelle, liste, module) {
+  const slots = huelle.slots;
+  if (!Array.isArray(slots) || !slots.length) return 'der Rumpf hat keine Steckplätze (slots)';
+  if (!Array.isArray(liste) || liste.length !== slots.length) return `die Bestückung braucht genau ${slots.length} Einträge`;
+  for (let i = 0; i < slots.length; i++) {
+    const id = liste[i];
+    if (id === '') continue;
+    if (typeof id !== 'string' || !ruempfeHat(module, id)) return `Modul „${id}“ gibt es nicht`;
+    const m = module[id];
+    if (m.groesse !== slots[i]) return `Modul „${id}“ ist ${m.groesse}, Steckplatz ${i + 1} ist ${slots[i]}`;
+    if (m.faction !== huelle.faction) return `Modul „${id}“ gehört einem anderen Volk`;
+    if (m.nur && !m.nur.includes(huelleKey)) return `Modul „${id}“ passt nicht auf diesen Rumpf (nur: ${m.nur.join(', ')})`;
+  }
+  return '';
+}
+
+/** Schluessel der Variante: der des Rumpfs bei Standardbestueckung, sonst Rumpf und Module mit '|'. */
+function ruempfeSchluessel(huelleKey, huelle, liste) {
+  const std = ruempfeStandard(huelle);
+  if (liste.every((id, i) => id === std[i])) return huelleKey;
+  return [huelleKey, ...liste.map((id) => id || '-')].join('|');
+}
+
+/** Schluessel in Rumpf und Liste zerlegen; null, wenn er nicht die Form `rumpf|modul|...` hat. */
+function ruempfeTeile(key) {
+  if (typeof key !== 'string' || key.indexOf('|') < 0) return null;
+  const teile = key.split('|');
+  return { huelle: teile[0], liste: teile.slice(1).map((t) => (t === '-' ? '' : t)) };
+}
+
+/**
+ * Leitet die Einheit aus Rumpf und Modulen ab (die Bestueckung muss passen,
+ * siehe ruempfeFehler). Das Ergebnis ist ein neues Objekt, die Daten bleiben
+ * unveraendert. Regeln: FELDER.modul in defs.js.
+ *
+ * Zusaetzlich traegt die Einheit: `rumpf` (Schluessel des Rumpfs), `slots` und
+ * `bestueckung` (je Steckplatz das Modul, '' = leer).
+ */
+function ruempfeAbleiten(huelleKey, huelle, liste, module) {
+  const d = ruempfeKopie(huelle);
+  d.rumpf = huelleKey;
+  d.bestueckung = liste.slice();
+  const ms = liste.map((id) => (id ? module[id] : null));
+
+  // Summen: Kosten, Bauzeit, Leben, Unterhalt, Regeneration; Maximum: Sicht
+  let masse = huelle.cost.masse || 0;
+  let resonit = huelle.cost.resonit || 0;
+  let bauzeit = huelle.buildTime || 0;
+  let hp = huelle.hp;
+  let unterhalt = huelle.unterhalt || 0;
+  let regeneration = huelle.regeneration || 0;
+  let tempo = 0; // Promille, siehe unten
+  let sicht = huelle.sicht || 0;
+  for (let i = 0; i < ms.length; i++) {
+    const m = ms[i];
+    if (!m) continue;
+    if (m.cost) {
+      masse += m.cost.masse || 0;
+      resonit += m.cost.resonit || 0;
+    }
+    bauzeit += m.buildTime || 0;
+    hp += m.hp || 0;
+    unterhalt += m.unterhalt || 0;
+    regeneration += m.regeneration || 0;
+    tempo += m.speed || 0;
+    if ((m.sicht || 0) > sicht) sicht = m.sicht;
+  }
+  d.cost = huelle.cost.resonit !== undefined || resonit ? { masse, resonit } : { masse };
+  d.buildTime = bauzeit;
+  d.hp = Math.max(1, hp);
+  if (unterhalt) d.unterhalt = unterhalt;
+  if (regeneration) d.regeneration = regeneration;
+  if (sicht) d.sicht = sicht;
+  // Tempo: die Module verschieben es in Promille des Rumpftempos, nie unter 10 %, nie unter 1
+  d.speed = Math.max(1, ((huelle.speed * Math.max(100, 1000 + tempo)) / 1000) | 0);
+
+  // Die erste Waffe in Steckplatz-Reihenfolge; ohne Waffenmodul bleibt die des Rumpfs (falls er eine hat)
+  for (let i = 0; i < ms.length; i++) {
+    const m = ms[i];
+    if (!m || !m.weapon) continue;
+    d.weapon = ruempfeKopie(m.weapon);
+    if (m.kampf) d.kampf = m.kampf;
+    break;
+  }
+  // Alles andere (bergung, build, worker, aura): vom ersten Modul, das es hat, wenn der Rumpf es nicht hat
+  for (const f of ['bergung', 'build', 'worker', 'aura']) {
+    if (d[f] !== undefined) continue;
+    for (let i = 0; i < ms.length; i++) {
+      if (ms[i] && ms[i][f] !== undefined) {
+        d[f] = ruempfeKopie(ms[i][f]);
+        break;
+      }
+    }
+  }
+
+  // Name: der Rumpf; bei anderer Bestueckung dazu die Module
+  const std = ruempfeStandard(huelle);
+  if (!liste.every((id, i) => id === std[i])) {
+    const namen = ms.filter(Boolean).map((m) => m.name);
+    d.name = `${huelle.name} (${namen.length ? namen.join(', ') : 'unbestückt'})`;
+  }
+  return d;
+}
+
+
+/* ---------------------------------- */
+
 // Datenschicht. Keine Logik hier drin.
 // Alle Werte Integer. Entfernungen in Dezimetern, Zeiten in Ticks (10 Hz),
 // Gegenwart pro Tick, Foerderung (masseOut, resonitOut) pro Minute.
@@ -1387,6 +1524,14 @@ const RULES = {
   // eine Waffe weiter als die Sicht, braucht sie einen Spaeher. false = wie
   // vor R2 (bitgleich).
   feuerleitnetz: true,
+
+  // Umruesten (R3): Wie viel der Kosten des alten Moduls zurueckkommt, wenn ein
+  // Steckplatz ein neues bekommt, in Promille. 0 = das alte ist verloren (das neue
+  // kostet voll). Designzahl, ungemessen.
+  umruestErstattung: 0,
+  // Wie nah an der Werkstatt eine Einheit stehen muss, um umgeruestet zu werden:
+  // Abstand von Rand zu Rand, in dm. Designzahl, ungemessen (15 m).
+  umruestReichweite: 150,
 };
 const FACTIONS = {};
 
@@ -1411,6 +1556,14 @@ const BUILDINGS = {};
 // fliegt: ueber Fels, Wasser und Mauern; mit weapon kaempft ein Flieger wie
 // jede andere Einheit, ohne bleibt er Spaeher.
 const UNITS = {};
+
+// Module (R3): je Volk `module: { id: { ... } }` in der Volksdatei, hier alle
+// zusammen (jedes mit `faction`). Welche Felder ein Modul hat und wie aus Rumpf
+// und Modulen eine Einheit wird, steht bei FELDER.modul weiter unten.
+const MODULE = {};
+// Rohdaten der Ruempfe (Einheiten mit `slots`): UNITS[rumpf] ist die daraus
+// abgeleitete Einheit mit Standardbestueckung, hier steht der nackte Rumpf.
+const RUEMPFE = {};
 
 // ------------------------------------------------------------- Skillbaum
 // Je Fraktion ein Baum mit vier Aesten. Ein Skill kostet Punkte, braucht
@@ -1456,6 +1609,8 @@ const SKILLS = {};
 // abklingen: Ticks bis zum naechsten Einsatz.
 const FAEHIGKEITEN = {};
 
+const hatEigen = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+
 for (const v of VOELKER) {
   // Ein Volk ohne freie Rollen, Skills oder Faehigkeiten darf die Felder weglassen (R0)
   FACTIONS[v.schluessel] = Object.assign(v.volk, { rollen: v.rollen || {}, lernen: v.lernen || [], faehigkeiten: v.volk.faehigkeiten || [] });
@@ -1463,6 +1618,71 @@ for (const v of VOELKER) {
   Object.assign(UNITS, v.einheiten);
   Object.assign(SKILLS, v.skills);
   Object.assign(FAEHIGKEITEN, v.faehigkeiten);
+  // Module (R3): optional; jedes Modul gehoert dem Volk, in dessen Datei es steht
+  for (const id of Object.keys(v.module || {})) MODULE[id] = { ...v.module[id], faction: v.schluessel };
+}
+// Ruempfe (R3): jede Einheit mit slots wird zur Einheit mit ihrer Standardbestueckung
+for (const k of Object.keys(UNITS)) if (UNITS[k].slots) huelleAnlegen(k);
+
+/**
+ * Macht aus einer Einheit mit `slots` einen Rumpf: Die Rohdaten kommen nach
+ * RUEMPFE[k], UNITS[k] wird die Einheit mit Standardbestueckung (Schluessel des
+ * Rumpfs). Passt die Standardbestueckung nicht (Modul fehlt, falsche Groesse ...),
+ * bleibt UNITS[k] unveraendert und false kommt zurueck -- test/daten.test.js
+ * meldet den Grund. Die Tests legen so auch Ruempfe zur Laufzeit an.
+ */
+function huelleAnlegen(k) {
+  const roh = RUEMPFE[k] || UNITS[k];
+  if (ruempfeFehler(k, roh, ruempfeStandard(roh), MODULE)) return false;
+  RUEMPFE[k] = roh;
+  UNITS[k] = ruempfeAbleiten(k, roh, ruempfeStandard(roh), MODULE);
+  return true;
+}
+
+/**
+ * Die Einheit zu einem Schluessel (UNITS[key]); gibt es sie noch nicht und
+ * beschreibt der Schluessel eine gueltige Variante (`rumpf|modul|...`, nicht die
+ * Standardbestueckung, sie hat den Schluessel des Rumpfs), wird sie jetzt
+ * abgeleitet und eingetragen -- eine reine Funktion des Schluessels, in jedem Lauf
+ * und auf jedem Rechner gleich. Null bei allem anderen.
+ */
+function variante(key) {
+  if (typeof key !== 'string') return null;
+  if (hatEigen(UNITS, key)) return UNITS[key];
+  const t = ruempfeTeile(key);
+  if (!t || !hatEigen(RUEMPFE, t.huelle)) return null;
+  const roh = RUEMPFE[t.huelle];
+  if (ruempfeFehler(t.huelle, roh, t.liste, MODULE) || ruempfeSchluessel(t.huelle, roh, t.liste) !== key) return null;
+  UNITS[key] = ruempfeAbleiten(t.huelle, roh, t.liste, MODULE);
+  return UNITS[key];
+}
+
+/**
+ * Schluessel der Einheit, die ein Rumpf mit dieser Bestueckung ergibt (eine
+ * Liste mit einem Modul oder '' je Steckplatz); legt die Variante an. Null, wenn
+ * es der Rumpf nicht gibt oder die Bestueckung nicht passt.
+ */
+function bestueckungTyp(huelle, liste) {
+  if (typeof huelle !== 'string' || !hatEigen(RUEMPFE, huelle)) return null;
+  const roh = RUEMPFE[huelle];
+  if (ruempfeFehler(huelle, roh, liste, MODULE)) return null;
+  const key = ruempfeSchluessel(huelle, roh, liste);
+  return variante(key) ? key : null;
+}
+
+/** Der Rumpf einer Einheitenart (Schluessel); eine Einheit ohne Steckplaetze ist ihr eigener Rumpf. */
+function rumpfVon(typ) {
+  const d = UNITS[typ];
+  return (d && d.rumpf) || typ;
+}
+
+/**
+ * Legt alle Varianten an, die in einem Text (JSON eines Spielstands) als Typ
+ * vorkommen -- ein geladener Stand kennt Einheiten, die erst im Spiel
+ * umgeruestet wurden.
+ */
+function variantenAusText(text) {
+  for (const m of text.matchAll(/"([A-Za-z0-9_]+(?:\|[A-Za-z0-9_-]*)+)"/g)) variante(m[1]);
 }
 
 // ------------------------------------------------------------- Felder und Rollen
@@ -1477,19 +1697,62 @@ const FELDER = {
     'name', 'desc', 'short', 'faction', 'hp', 'radius', 'sicht', 'cost', 'buildTime',
     'anchor', 'anchorMin', 'vital', 'needs', 'needsGrowth', 'clears',
     'energieIn', 'energieOut', 'prio', 'masseOut', 'resonitOut', 'forschung',
-    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr', 'regeneration', 'aura', 'auferstehen',
+    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr', 'regeneration', 'aura', 'auferstehen', 'umruesten',
   ],
+  // ---- Ruempfe und Module (R3) ----------------------------------------------
+  // Ein RUMPF ist eine Einheit mit `slots`: eine Liste der Steckplatzgroessen,
+  // z. B. slots: ['gross', 'klein'] ('klein' | 'gross', siehe FELDER.groesse). Dazu
+  // `bestueckung`: die Standardbestueckung, je Steckplatz ein Modul-Id oder '' (leer);
+  // fehlt sie, ist der Rumpf nackt. Die Werte des Rumpfs (hp, cost, buildTime, speed ...)
+  // gelten fuer den NACKTEN Rumpf, die Module kommen dazu.
+  // Ein MODUL steht in der Volksdatei unter `module: { id: { ... } }` (neben gebaeude,
+  // einheiten ...) und hat die Felder FELDER.modul. Module-Ids sind ueber alle Voelker
+  // eindeutig und duerfen weder Einheit noch Gebaeude heissen.
+  //
+  // ABLEITUNG (ruempfeAbleiten in src/sim/ruempfe.js; gilt fuer jede Bestueckung):
+  //   cost, buildTime  Summe aus Rumpf und allen Modulen (cost je Ressource)
+  //   hp               Summe (Module addieren; Rumpf plus Module mindestens 1)
+  //   unterhalt        Summe
+  //   regeneration     Summe (LP pro Minute)
+  //   sicht            das Maximum aus Rumpf (ohne Angabe 900) und Modulen
+  //   speed            Rumpftempo mal (1000 + Summe der Modul-speed) / 1000; speed
+  //                    der Module ist also PROMILLE (-100 = 10 % langsamer), nie unter 10 %
+  //   weapon, kampf    die EINE Waffe: die des ersten Waffenmoduls in Steckplatz-
+  //                    Reihenfolge (samt dessen kampf); ohne Waffenmodul die des Rumpfs.
+  //                    Zweite Waffen gibt es nicht.
+  //   bergung, build, worker, aura   vom ersten Modul, das es hat, wenn der Rumpf es nicht hat
+  //   alles andere (radius, fliegt, commander, hoechstens, name, desc ...)  vom Rumpf
+  //   name             bei Standardbestueckung der Rumpfname, sonst "Rumpf (Modul, Modul)"
+  // Die abgeleitete Einheit traegt ausserdem `rumpf` (Schluessel des Rumpfs), `slots`
+  // und `bestueckung`. Sie steht in UNITS unter diesem SCHLUESSEL:
+  //   Standardbestueckung   der Rumpf-Schluessel, z. B. 'palisade'
+  //   andere Bestueckung    'palisade|haubitze|gatling' (je Steckplatz ein Modul, '-' = leer)
+  // Fabriken nennen in `buildList` den Rumpf-Schluessel und bilden die Standardbestueckung
+  // aus; produce darf eine andere mitgeben. Modelle, Icons und 2D-Figuren kommen vom RUMPF.
+  // Umruesten: das Gebaeude braucht `umruesten: true` (typisch die Werkstatt).
   // hoechstens (M5): so viele Einheiten dieses Typs darf ein Spieler zugleich
   // haben -- lebende plus in Ausbildung. Ein produce darueber hinaus wird
   // abgelehnt (sim.js, anzahlVon). Fuer Prototypen; ohne Angabe keine Grenze.
   // regeneration (M3): LP pro Minute, die die Einheit bzw. das Gebaeude von
   // selbst zurueckbekommt (Gebaeude nur versorgt, anteilig zu powered).
   // aura (M3): wirkt auf eigene Einheiten im Umkreis, siehe FELDER.aura.
-  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura', 'bergung'],
+  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura', 'bergung', 'slots', 'bestueckung'],
   // bergung (R1): die Einheit birgt Wracks (Befehl 'bergen'); kraft ist die
   // Masse pro Minute. Erbauer (build) bergen auch ohne dieses Feld, mit ihrer
   // Baukraft umgerechnet (RULES.bergungProBaukraft). Geborgen wird nur auf Befehl.
   bergung: ['kraft'],
+  // modul (R3): Felder eines Moduls. Alle ausser name, groesse und cost sind optional.
+  //   name, desc   Anzeige
+  //   groesse      'klein' | 'gross' -- passt nur in einen Steckplatz dieser Groesse
+  //   cost         wie bei Einheiten, buildTime Ticks (Umruesten: so lange steht die Einheit)
+  //   nur          Liste von Rumpf-Schluesseln, auf die das Modul passt (ohne: auf alle des Volks)
+  //   weapon, kampf    Waffe wie bei Einheiten (ein Waffenmodul braucht beides)
+  //   sicht, bergung, build, worker, regeneration, aura, unterhalt   wie bei Einheiten
+  //   hp           LP, die das Modul zum Rumpf addiert (darf negativ sein)
+  //   speed        PROMILLE Tempoaenderung des Rumpfs (-100 = 10 % langsamer)
+  //   faction      setzt das Spiel selbst (das Volk, in dessen Datei das Modul steht)
+  modul: ['name', 'desc', 'groesse', 'cost', 'buildTime', 'nur', 'kampf', 'weapon', 'sicht', 'bergung', 'build', 'worker', 'regeneration', 'aura', 'unterhalt', 'hp', 'speed', 'faction'],
+  groesse: ['klein', 'gross'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
   // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
   // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,
@@ -1855,7 +2118,7 @@ function buildingsOf(f) {
   return Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].faction === f);
 }
 function unitsOf(f) {
-  return Object.keys(UNITS).filter((k) => UNITS[k].faction === f);
+  return Object.keys(UNITS).filter((k) => UNITS[k].faction === f && k.indexOf('|') < 0);
 }
 
 
@@ -2348,7 +2611,7 @@ function spawnKommandant(world, player) {
 function beauftrage(world, player, ids, site, anhaengen = false) {
   for (let k = 0; k < ids.length; k++) {
     const e = byId(world, ids[k]);
-    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !UNITS[e.type].build) continue;
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !UNITS[e.type].build || !befehlFrei(e)) continue;
     // Shift: hinten anhaengen, wenn der Erbauer schon etwas zu tun hat.
     if (anhaengen && e.auftrag) {
       if (e.auftrag !== site.id && !e.reihe.includes(site.id)) e.reihe.push(site.id);
@@ -2375,7 +2638,7 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
 function bergeAuftrag(world, player, ids, wrack, anhaengen = false) {
   for (let k = 0; k < ids.length; k++) {
     const e = byId(world, ids[k]);
-    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !bergKraft(UNITS[e.type])) continue;
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !bergKraft(UNITS[e.type]) || !befehlFrei(e)) continue;
     if (anhaengen && e.auftrag) {
       if (e.auftrag !== wrack.id && !e.reihe.includes(wrack.id)) e.reihe.push(wrack.id);
       continue;
@@ -2574,7 +2837,7 @@ function applyCommand(world, c) {
     if (c.type === 'move' || c.type === 'attack') {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
-        if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
+        if (e && e.kind === 'unit' && e.player === c.player && !e.dead && befehlFrei(e)) {
           // Shift: hinten anhaengen, solange die Einheit unterwegs ist oder noch baut --
           // die Wegpunkte kommen nach den Bauauftraegen dran
           if (c.anhaengen && (e.auftrag || !e.arrived || e.wege.length)) {
@@ -2598,7 +2861,7 @@ function applyCommand(world, c) {
       if (t && !t.dead && t.player !== c.player) {
         for (let k = 0; k < c.ids.length; k++) {
           const e = byId(world, c.ids[k]);
-          if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || !UNITS[e.type].weapon || !erreicht(e, t)) continue;
+          if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || !UNITS[e.type].weapon || !erreicht(e, t) || !befehlFrei(e)) continue;
           e.ziel = t.id;
           e.tx = e.befX = t.x;
           e.ty = e.befY = t.y;
@@ -2612,7 +2875,7 @@ function applyCommand(world, c) {
       // Stehen bleiben: kein Ziel, kein Auftrag, keine Wege.
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
-        if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player) continue;
+        if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || !befehlFrei(e)) continue;
         e.tx = e.befX = e.x;
         e.ty = e.befY = e.y;
         e.arrived = true;
@@ -2663,16 +2926,22 @@ function applyCommand(world, c) {
       const e = byId(world, c.id);
       if (e && e.player === c.player && e.done && !e.dead) {
         const def = BUILDINGS[e.type];
-        if (def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit) && !vollBesetzt(world, c.player, c.unit)) {
+        // R3: mit `bestueckung` (je Steckplatz ein Modul oder '') wird die Variante des Rumpfs ausgebildet,
+        // sonst die Standardbestueckung; typ ist der Schluessel der Einheit, die in die Schlange kommt
+        let typ = c.unit;
+        if (c.bestueckung !== undefined && def.buildList && def.buildList.includes(c.unit)) typ = bestueckungTyp(c.unit, c.bestueckung);
+        if (typ && def.buildList && def.buildList.includes(c.unit) && e.queue.length < 8 && !gesperrt(world, c.player, c.unit) && !vollBesetzt(world, c.player, typ)) {
           const p = world.players[c.player];
-          if (canAfford(p, UNITS[c.unit].cost)) {
-            pay(p, UNITS[c.unit].cost, 1000);
-            e.queue.push(c.unit);
+          if (canAfford(p, UNITS[typ].cost)) {
+            pay(p, UNITS[typ].cost, 1000);
+            e.queue.push(typ);
           }
         }
       }
     } else if (c.type === 'schlag') {
       schlagAbfeuern(world, c.player, c.id, c.x | 0, c.y | 0);
+    } else if (c.type === 'umruesten') {
+      umruestBefehl(world, c);
     }
   }
 }
@@ -2684,13 +2953,14 @@ function applyCommand(world, c) {
  */
 function anzahlVon(world, player, typ) {
   let n = 0;
+  const rumpf = UNITS[typ].rumpf || typ; // R3: Varianten eines Rumpfs zaehlen zusammen
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.player !== player) continue;
     if (e.kind === 'unit') {
-      if (e.type === typ) n++;
+      if (e.type === typ || UNITS[e.type].rumpf === rumpf) n++;
     } else if (e.kind === 'building') {
-      for (let k = 0; k < e.queue.length; k++) if (e.queue[k] === typ) n++;
+      for (let k = 0; k < e.queue.length; k++) if (e.queue[k] === typ || UNITS[e.queue[k]].rumpf === rumpf) n++;
     }
   }
   return n;
@@ -2970,10 +3240,16 @@ function bonus(world, player, art, typ, typ2) {
     const sk = SKILLS[g[i]];
     const w = sk.wirkung;
     if (!w || !w[art]) continue;
-    if (sk.nur && !(sk.nur.includes(typ) || (typ2 !== undefined && sk.nur.includes(typ2)))) continue;
+    if (sk.nur && !(sk.nur.includes(typ) || (typ2 !== undefined && sk.nur.includes(typ2)) || nurRumpf(sk.nur, typ) || (typ2 !== undefined && nurRumpf(sk.nur, typ2)))) continue;
     s += w[art];
   }
   return s;
+}
+
+/** R3: Gilt eine nur-Liste fuer den Rumpf dieser Einheitenart (eine Variante zaehlt als ihr Rumpf)? */
+function nurRumpf(nur, typ) {
+  const u = typ !== undefined && UNITS[typ];
+  return !!u && !!u.rumpf && u.rumpf !== typ && nur.includes(u.rumpf);
 }
 
 /** Reichweite der Waffe von e (dm, Rand zu Rand): die der Definition plus die Wirkung 'reichweite' aus dem Skillbaum. */
@@ -3230,6 +3506,7 @@ function step(world) {
   distributeEnergie(world);
   erschaffen(world);
   bergen(world);
+  umruestenTick(world);
 
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
@@ -3671,6 +3948,125 @@ function erschaffen(world) {
   }
 }
 
+// ------------------------------------------------------------ Umruesten (R3)
+
+/**
+ * Darf die Einheit einen neuen Befehl annehmen? Mitten im Umruesten nicht: sie
+ * steht in der Werkstatt, bis sie fertig ist. Auf dem Weg dorthin (noch nichts
+ * bezahlt) gibt ein neuer Befehl den Umbau auf.
+ */
+function befehlFrei(e) {
+  if (!e.umruest) return true;
+  if (e.umruest.bis) return false;
+  delete e.umruest;
+  return true;
+}
+
+/** Die naechste eigene fertige Werkstatt (umruesten: true) zur Einheit; wunsch ist eine bevorzugte Id. Gleichstand: kleinste Id. */
+function werkstattFuer(world, e, wunsch) {
+  let best = null;
+  let bestD = Infinity;
+  for (let i = 0; i < world.entities.length; i++) {
+    const b = world.entities[i];
+    if (b.dead || b.kind !== 'building' || !b.done || b.player !== e.player || !BUILDINGS[b.type].umruesten) continue;
+    if (wunsch !== undefined && b.id === wunsch) return b;
+    const d = dist2(e.x, e.y, b.x, b.y);
+    if (d < bestD) {
+      bestD = d;
+      best = b;
+    }
+  }
+  return best;
+}
+
+/** Wie nah die Einheit an der Werkstatt stehen muss (Mitte zu Mitte): beide Raender plus RULES.umruestReichweite. */
+function umruestNah(e, werk) {
+  return BUILDINGS[werk.type].radius + UNITS[e.type].radius + RULES.umruestReichweite;
+}
+
+/**
+ * Befehl 'umruesten' { id, slot, modul, werkstatt? }: Die Einheit bekommt in diesen
+ * Steckplatz das Modul. Sie geht zur Werkstatt (der naechsten, oder der genannten)
+ * und steht dort die buildTime des Moduls; bezahlt wird, wenn die Arbeit beginnt.
+ * Abgelehnt wird alles, was nicht passt: fremde oder tote Einheit, Einheit ohne
+ * Steckplaetze, falscher Steckplatz, unbekanntes Modul oder falsche Groesse, schon
+ * dasselbe Modul, nicht bezahlbar, keine Werkstatt, schon mitten im Umruesten.
+ */
+function umruestBefehl(world, c) {
+  const e = byId(world, c.id);
+  if (!e || e.dead || e.kind !== 'unit' || e.player !== c.player || (e.umruest && e.umruest.bis)) return;
+  const def = UNITS[e.type];
+  if (!def.rumpf) return;
+  if (!Number.isInteger(c.slot) || c.slot < 0 || c.slot >= def.slots.length) return;
+  if (typeof c.modul !== 'string' || !Object.prototype.hasOwnProperty.call(MODULE, c.modul) || def.bestueckung[c.slot] === c.modul) return;
+  const liste = def.bestueckung.slice();
+  liste[c.slot] = c.modul;
+  const nach = bestueckungTyp(def.rumpf, liste);
+  if (!nach || !canAfford(world.players[e.player], MODULE[c.modul].cost)) return;
+  const werk = werkstattFuer(world, e, Number.isInteger(c.werkstatt) ? c.werkstatt : undefined);
+  if (!werk) return;
+  auftraegeAufgeben(world, e);
+  e.umruest = { slot: c.slot, modul: c.modul, werk: werk.id, bis: 0, nach }; // bis 0: noch unterwegs
+  e.wege = [];
+  e.ziel = 0;
+  e.aggro = false;
+  e.tx = e.befX = werk.x;
+  e.ty = e.befY = werk.y;
+  e.arrived = false;
+}
+
+/**
+ * Umruesten, einmal je Tick: Wer bei seiner Werkstatt angekommen ist, bezahlt das
+ * neue Modul (abzueglich RULES.umruestErstattung vom alten) und steht von da an
+ * buildTime Ticks (mindestens einen) still und kaempft nicht. Danach ist die
+ * Einheit die Variante mit dem neuen Modul; ihre LP behalten ihr Verhaeltnis.
+ * Fehlt unterwegs die Werkstatt oder das Geld, endet der Auftrag ohne Kosten. Eine
+ * begonnene Arbeit laeuft auch weiter, wenn die Werkstatt inzwischen faellt.
+ */
+function umruestenTick(world) {
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.kind !== 'unit' || !e.umruest) continue;
+    const u = e.umruest;
+    if (!u.bis) {
+      const werk = byId(world, u.werk);
+      if (!werk || werk.dead || !werk.done) {
+        delete e.umruest;
+        world.events.push({ t: 'umruestAbbruch', id: e.id, player: e.player, grund: 'werkstatt' });
+        continue;
+      }
+      const nah = umruestNah(e, werk);
+      if (dist2(e.x, e.y, werk.x, werk.y) > nah * nah) continue;
+      const p = world.players[e.player];
+      const m = MODULE[u.modul];
+      if (!canAfford(p, m.cost)) {
+        delete e.umruest;
+        world.events.push({ t: 'umruestAbbruch', id: e.id, player: e.player, grund: 'masse' });
+        continue;
+      }
+      pay(p, m.cost, 1000);
+      const alt = UNITS[e.type].bestueckung[u.slot];
+      if (alt && RULES.umruestErstattung) pay(p, MODULE[alt].cost, -RULES.umruestErstattung);
+      u.bis = world.tick + Math.max(1, m.buildTime);
+      e.tx = e.befX = e.x;
+      e.ty = e.befY = e.y;
+      e.arrived = true;
+      e.aggro = false;
+      e.ziel = 0;
+      world.events.push({ t: 'umruestStart', id: e.id, player: e.player, x: e.x, y: e.y, bis: u.bis });
+      continue;
+    }
+    if (world.tick < u.bis) continue;
+    const neu = UNITS[u.nach];
+    e.hp = e.hp >= e.maxHp ? neu.hp : Math.max(1, Math.floor((e.hp * neu.hp) / e.maxHp));
+    e.maxHp = neu.hp;
+    e.type = u.nach;
+    e.cooldown = 0;
+    delete e.umruest;
+    world.events.push({ t: 'umgeruestet', id: e.id, player: e.player, x: e.x, y: e.y, typ: e.type });
+  }
+}
+
 // ------------------------------------------------------------ Wracks und Bergung (R1)
 
 /** Das Wrack mit dieser id, sonst null. */
@@ -3939,6 +4335,7 @@ function moveUnits(world, auren, sicht) {
   for (let i = 0; i < us.length; i++) {
     const e = us[i];
     if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
+    if (e.umruest && e.umruest.bis) continue; // steht in der Werkstatt und wird umgeruestet
     let speed = UNITS[e.type].speed;
     // Tempo in Promille ueber/unter dem Grundtempo: Skillbaum (Wirkung 'tempo'),
     // Ansturm und Tempo-Aura (die staerkste) schneller, ein Treffer mit
@@ -4128,6 +4525,7 @@ function combat(world, auren, sicht) {
     const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
     if (!def.weapon) continue;
     if (e.kind === 'building' && !e.done) continue;
+    if (e.umruest && e.umruest.bis) continue; // Umruesten: die Einheit kaempft nicht
     if (e.cooldown > 0) {
       e.cooldown--;
       continue;
@@ -4490,6 +4888,16 @@ function gridReport(world, player) {
 // Feste Nummer je Skill fuer den Hash.
 const SKILL_NR = {};
 Object.keys(SKILLS).forEach((id, i) => (SKILL_NR[id] = i + 1));
+
+/** Zahl aus einem Text (FNV-1a), fuer Schluessel von Varianten im Hash. */
+function textHash(t) {
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) {
+    h ^= t.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h | 0;
+}
 function hash(world) {
   let h = 2166136261;
   const mix = (v) => {
@@ -4530,6 +4938,14 @@ function hash(world) {
         mix(e.langsamWert);
       }
       if (e.regRest) mix(e.regRest);
+      // R3: Varianten (Schluessel mit '|') und ein laufendes Umruesten
+      if (e.type.indexOf('|') >= 0) mix(textHash(e.type));
+      if (e.umruest) {
+        mix(e.umruest.slot);
+        mix(e.umruest.werk);
+        mix(e.umruest.bis);
+        mix(textHash(e.umruest.nach));
+      }
     } else {
       mix(e.doneAt);
       mix(e.progress);
@@ -4538,6 +4954,7 @@ function hash(world) {
       mix(e.sammelX);
       mix(e.sammelY);
       mix(e.queue.length);
+      for (let k = 0; k < e.queue.length; k++) if (e.queue[k].indexOf('|') >= 0) mix(textHash(e.queue[k]));
       mix(e.powered);
       mix(e.seelen || 0);
       // Nur Schildgebaeude: Partien ohne Schild behalten ihre Pruefsumme.
@@ -7085,6 +7502,8 @@ const ICONS = {
 
 
 
+/** Icon eines Typs; eine Variante (R3) zeigt das Icon ihres Rumpfs. */
+const symbol = (typ) => ICONS[typ] || ICONS[rumpfVon(typ)] || '';
 const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
@@ -7555,7 +7974,7 @@ function gruppenHtml(world, auswahl) {
   }
   return Object.keys(UNITS)
     .filter((t) => zahl[t])
-    .map((t) => `<button class="ikon" data-gruppe="${t}" title="${UNITS[t].name} — nur diese auswählen">${ICONS[t] || ''}<span class="zahl">${zahl[t]}</span></button>`)
+    .map((t) => `<button class="ikon" data-gruppe="${t}" title="${UNITS[t].name} — nur diese auswählen">${symbol(t)}<span class="zahl">${zahl[t]}</span></button>`)
     .join('');
 }
 
@@ -7869,8 +8288,9 @@ function beobachterHtml(world) {
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
 const NEUHEITEN = {
-  version: '0.43',
+  version: '0.44',
   punkte: [
+    '<b>Feuerleitnetz:</b> Waffen schießen nur auf das, was du gerade siehst — Artillerie, die weiter schießt als sie sieht, braucht einen Späher',
     '<b>Das Spiel wird Resonit</b> — Energie, Masse und Resonit statt Gegenwart, Fron und Götterblut; die Sci-Fi-Völker Vanguard und Kranor folgen',
     '<b>Wracks:</b> Gefallenes lässt Schrott mit einem Teil seiner Masse liegen — Erbauer bergen ihn per Rechtsklick (Shift reiht auf)',
     '<b>Neu: bis zu vier Spieler</b> — jeder gegen jeden auf den Karten „Drei Reiche (3P)“ und „Vierlande (4P)“, Gegner 2 und 3 im Startmenü wählbar; wer Hauptgebäude und Kommandant verliert, scheidet aus und sieht zu',
@@ -7919,18 +8339,22 @@ function kodexKnopfHtml() {
 function kodexHtml(volk, typ) {
   const kodexWelt = (kodexWelten[volk] ??= createWorld({ factions: [volk, gegnerVolkFuer(volk)] }));
   const p = 0;
-  const einheiten = Object.keys(UNITS).filter((k) => UNITS[k].faction === volk);
+  const einheiten = Object.keys(UNITS).filter((k) => UNITS[k].faction === volk && k.indexOf('|') < 0);
+  const module = Object.keys(MODULE).filter((k) => MODULE[k].faction === volk);
   const bauten = Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].faction === volk);
   const knopf = (k, name) => `<button class="ikon${k === typ ? ' an' : ''}" data-kodex="${k}" title="${name}">${ICONS[k] || ''}<span>${name}</span></button>`;
   const karteHtml = !typ
     ? '<p class="leise">Ein Icon wählen — Werte, Kosten und was es freischaltet.</p>'
     : UNITS[typ]
       ? einheitKarte(kodexWelt, p, typ)
-      : gebaeudeKarte(kodexWelt, p, typ);
+      : MODULE[typ]
+        ? modulKarte(typ)
+        : gebaeudeKarte(kodexWelt, p, typ);
   const volkKnopf = (v, name) => `<button data-volk="${v}"${v === volk ? ' class="an"' : ''}>${name}</button>`;
   return `<div class="vorwort kodex"><div class="kapitel">Kodex</div><h1 style="color:${FACTIONS[volk].color}">${FACTIONS[volk].name}</h1>
     <div class="go">${Object.keys(FACTIONS).map((f) => volkKnopf(f, FACTIONS[f].name)).join('')}</div>
     <h2>Einheiten</h2><div class="kodexgitter">${einheiten.map((k) => knopf(k, UNITS[k].name)).join('')}</div>
+    ${module.length ? `<h2>Module</h2><div class="kodexgitter">${module.map((k) => knopf(k, MODULE[k].name)).join('')}</div>` : ''}
     <h2>Gebäude</h2><div class="kodexgitter">${bauten.map((k) => knopf(k, BUILDINGS[k].name)).join('')}</div>
     <div class="kodexkarte">${karteHtml}</div>
     <div class="go"><button id="kodexZurueck">Zurück</button></div></div>`;
@@ -8094,7 +8518,7 @@ function ausbildungsleisteHtml(world, player, fabriken) {
       const zu = gesperrtSkill || voll;
       const zahlHtml = grenze ? `<span class="zahl">${da}/${grenze}</span>` : inQueue ? `<span class="zahl">${inQueue}</span>` : '';
       const grund = gesperrtSkill ? ' — gesperrt, Skillbaum (T)' : voll ? ` — schon ${da}/${grenze}, höchstens ${grenze} gleichzeitig` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u] || ''}<span class="kosten">${d.cost.masse}</span>${zahlHtml}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${symbol(u)}<span class="kosten">${d.cost.masse}</span>${zahlHtml}</button>`;
     })
     .join('');
 }
@@ -8107,6 +8531,77 @@ function ausbildungsleisteHtml(world, player, fabriken) {
 function grenzenSignatur(world, player, fabriken) {
   const liste = fabriken.length ? BUILDINGS[fabriken[0].type].buildList || [] : [];
   return liste.filter((u) => UNITS[u].hoechstens).map((u) => anzahlVon(world, player, u)).join();
+}
+
+// ------------------------------------------------------------ Umruesten (R3)
+
+/** Die gewaehlten eigenen Einheiten mit Steckplaetzen, die so sind wie die erste davon (gleiche Variante). */
+function umruestEinheiten(world, player, sel) {
+  const out = [];
+  for (const id of sel) {
+    const e = byId(world, id);
+    if (!e || e.dead || e.kind !== 'unit' || e.player !== player || !UNITS[e.type].rumpf) continue;
+    if (!out.length || out[0].type === e.type) out.push(e);
+  }
+  return out;
+}
+
+/** Module, die in diesen Steckplatz der Einheit passen: dasselbe Volk, gleiche Groesse, nur-Liste. */
+function umruestModule(def, slot) {
+  return Object.keys(MODULE).filter((id) => {
+    const m = MODULE[id];
+    return m.faction === def.faction && m.groesse === def.slots[slot] && (!m.nur || m.nur.includes(def.rumpf));
+  });
+}
+
+/**
+ * Leiste "Umruesten" fuer die gewaehlten Einheiten mit Steckplaetzen: je Steckplatz
+ * eine Reihe mit dem eingebauten Modul und Knoepfen fuer die anderen (Kosten und Zeit
+ * im Titel). Gesperrt ohne Werkstatt oder ohne Geld. Leer, wenn nichts davon gewaehlt ist.
+ */
+function umruestLeisteHtml(world, player, sel) {
+  const ks = umruestEinheiten(world, player, sel);
+  if (!ks.length) return '';
+  const def = UNITS[ks[0].type];
+  const p = world.players[player];
+  const werk = werkstattFuer(world, ks[0]);
+  const reihen = def.slots.map((gr, i) => {
+    const jetzt = def.bestueckung[i];
+    const knoepfe = umruestModule(def, i)
+      .map((id) => {
+        const m = MODULE[id];
+        const hier = id === jetzt;
+        const zu = hier || !werk || !canAfford(p, m.cost);
+        const titel = `${m.name} — ${kostenText(m.cost)}, ${sekunden(m.buildTime)}${hier ? ' (eingebaut)' : !werk ? ' — braucht eine Werkstatt' : ''}`;
+        return `<button class="modul${hier ? ' an' : ''}${zu ? ' zu' : ''}" data-umr="${i}:${id}" title="${titel}">${m.name}<small>${m.cost.masse}</small></button>`;
+      })
+      .join('');
+    return `<div class="umruest-reihe"><span>${GROESSEN[gr] || gr} ${i + 1}</span>${knoepfe}</div>`;
+  });
+  const kopf = `Umrüsten · ${def.name}${ks.length > 1 ? ` ×${ks.length}` : ''}${werk ? '' : ' — braucht eine Werkstatt'}`;
+  return `<div class="umruest"><b>${kopf}</b>${reihen.join('')}</div>`;
+}
+
+/** Aendert sich, wenn die Leiste neu gezeichnet werden muss: Auswahl, Typ der Einheiten, ob eine Werkstatt da ist. */
+function umruestSignatur(world, player, sel) {
+  const ks = umruestEinheiten(world, player, sel);
+  return ks.length ? ks[0].type + ':' + ks.length + ':' + (werkstattFuer(world, ks[0]) ? 1 : 0) : '';
+}
+
+/** Ein Klick auf ein Modul: alle gewaehlten passenden Einheiten ruesten um (so viele, wie das Geld reicht). */
+function umruestenVerteilt(world, player, sel, slot, modul) {
+  const ks = umruestEinheiten(world, player, sel);
+  if (!ks.length || !MODULE[modul] || !UNITS[ks[0].type].bestueckung || UNITS[ks[0].type].bestueckung[slot] === modul) return;
+  const p = world.players[player];
+  const kosten = MODULE[modul].cost;
+  let masse = p.masse;
+  let resonit = p.resonit;
+  for (const e of ks) {
+    if ((kosten.masse || 0) > masse || (kosten.resonit || 0) > resonit) break;
+    masse -= kosten.masse || 0;
+    resonit -= kosten.resonit || 0;
+    issue(world, { type: 'umruesten', player, id: e.id, slot, modul });
+  }
 }
 
 /** Statt einer Liste aller Netze: nur Warnungen, wo Energie fehlt. */
@@ -8301,6 +8796,35 @@ function gebaeudeKarte(world, player, typ) {
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
+const GROESSEN = { klein: 'klein', gross: 'groß' };
+
+/** Rumpf und Module einer Einheit als Karten-Zeilen: je Steckplatz Groesse und Modul. */
+function bestueckungZeilen(d) {
+  const z = [['Rumpf', UNITS[d.rumpf].name]];
+  d.slots.forEach((gr, i) => {
+    const id = d.bestueckung && d.bestueckung[i];
+    z.push([`Steckplatz ${i + 1} (${GROESSEN[gr] || gr})`, id && MODULE[id] ? MODULE[id].name : 'leer']);
+  });
+  z.push(['Umrüsten', 'in einer Werkstatt: kostet das neue Modul und dessen Bauzeit']);
+  return z;
+}
+
+/** Karte eines Moduls: Groesse, Kosten, Zeit zum Umruesten und was es der Einheit gibt. */
+function modulKarte(id) {
+  const m = MODULE[id];
+  const z = [['Steckplatz', GROESSEN[m.groesse] || m.groesse], ['Kosten', kostenText(m.cost || { masse: 0 })], ['Einbau', sekunden(m.buildTime || 0)]];
+  if (m.nur) z.push(['Nur für', m.nur.map((k) => (UNITS[k] ? UNITS[k].name : k)).join(', ')]);
+  if (m.hp) z.push(['Leben', (m.hp > 0 ? '+' : '') + m.hp + ' LP']);
+  if (m.speed) z.push(['Tempo', (m.speed > 0 ? '+' : '') + prozent(m.speed)]);
+  if (m.weapon) z.push(...waffeZeilen(m, 900));
+  if (m.sicht) z.push(['Sicht', meterText(m.sicht)]);
+  z.push(...volkZeilen(m, false));
+  if (m.bergung) z.push(['Bergung', m.bergung.kraft + ' Masse/min']);
+  if (m.build) z.push(['Baut', m.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(m.build.power)} Kraft`]);
+  if (m.unterhalt) z.push(['Unterhalt', m.unterhalt + ' Masse/min']);
+  return karte(m.name, m.desc, z, '');
+}
+
 /** Alles, was man vor der Ausbildung einer Einheit wissen muss. */
 function einheitKarte(world, player, typ) {
   const d = UNITS[typ];
@@ -8308,6 +8832,7 @@ function einheitKarte(world, player, typ) {
   if (!d.commander) z.push(['Kosten', kostenText(d.cost)], ['Ausbildung', sekunden(d.buildTime)]);
   if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Masse/min']);
   z.push(['Leben', d.hp + ' LP']);
+  if (d.slots) z.push(...bestueckungZeilen(d));
   if (d.hoechstens) z.push(['Begrenzt', `höchstens ${d.hoechstens} gleichzeitig (lebend und in Ausbildung)`]);
   if (d.weapon) z.push(...waffeZeilen(d, 900));
   z.push(...volkZeilen(d, false));
@@ -8392,6 +8917,10 @@ function auswahlKopf(world, e) {
   if (e.kind === 'unit' && e.rufBis > world.tick) teile.push('Schlachtruf');
   if (e.kind === 'unit' && e.wehrBis > world.tick) teile.push('Schildwall');
   if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');
+  if (e.kind === 'unit' && e.umruest) {
+    const m = MODULE[e.umruest.modul];
+    teile.push(e.umruest.bis ? `rüstet um: ${m.name}, noch ${sekunden(e.umruest.bis - world.tick)}` : `unterwegs zur Werkstatt: ${m.name}`);
+  }
   if (e.kind === 'unit' && e.beschworen) teile.push(`vergeht in ${sekunden(e.vergehtBei - world.tick)}`);
   if (e.kind === 'unit' && e.gebundenBis > world.tick) teile.push('festgehalten');
   if (e.kind === 'unit' && e.auftrag && wrackVon(world, e.auftrag)) teile.push(e.birgt === e.auftrag ? 'birgt ein Wrack' : 'unterwegs zu einem Wrack');

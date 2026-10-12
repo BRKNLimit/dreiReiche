@@ -360,7 +360,7 @@ jagt.
    das Ziel sieht; Schalter aus = bitgleich; Spielstand mitten im Gefecht
    bitgenau; 3–4 Spieler: Sicht je Spieler getrennt.
 
-## R3 Chassis und Module (Resonit, Kompendium „Chassis + Module“)
+## R3 Chassis und Module — abgenommen und gemergt (13.10.)
 
 Kein Tech-Baum: Ein Volk hat wenige Rümpfe, die es die ganze Partie über
 gibt; man bestückt sie anders. Vorschlag des Datenmodells in

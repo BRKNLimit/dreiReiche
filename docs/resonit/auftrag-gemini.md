@@ -38,12 +38,16 @@ Verlangsamen. Erlaubt sind nur Felder aus `FELDER`; `npm test` prüft das.
 - Je Volk eine Datei nach dem Muster von `mensch.js` (`VOLK_VANGUARD`,
   `VOLK_KRANOR`), dann in **`src/sim/voelker/index.js`** hinten an
   `VOELKER` anhängen. Das Bundle nimmt neue Dateien von selbst mit.
-- **Rümpfe mit fester Bestückung als normale Einheiten.** Module kommen
-  erst mit Mechanik R3. Beispiele: Picket (leicht, Späher und Raids),
-  Palisade (Rückgrat), Redoubt (schwer). Beim Kranor Auger, Ripper und
-  Dragline. Wo eine Bestückung im Kompendium wichtig ist, darf es zwei
-  Varianten eines Rumpfs geben (z. B. Palisade mit Kanone, Palisade mit
-  Haubitze).
+- **Rümpfe mit Modulen (R3 ist da, `docs/umbau/stand.md`):** Picket
+  (leicht), Palisade (mittel), Redoubt (schwer); beim Kranor Auger, Ripper,
+  Dragline. Jeder Rumpf bekommt `slots` und eine `bestueckung`
+  (Standard), jedes Volk seine `module` aus dem Kompendium (Vanguard: 90 mm
+  Kanone, Kurzhaubitze, Coilgun, Gatling, Mörser, Radarmast,
+  Bergungskran …; Kranor: Brechschaufel, Presslufthammer, Erzschleuder,
+  Greifarm …). Werkstatt mit `umruesten: true`. Es gibt genau **eine**
+  Waffe je Einheit (das erste Waffenmodul) — Module ohne Waffe tragen
+  Sicht, Bergung, Leben, Tempo usw. Die Regeln stehen als Kommentar bei
+  `FELDER` in `src/sim/defs.js`; `npm test` prüft die Bestückungen.
 - **Rollen (R0 ist da):** Pflicht sind nur Gebäude `anker`, `kraft`,
   `masse`, `resonit`, `fabrik` und Einheiten `bauer`, `leicht`. Alles andere
   ist frei — besetze es nur, wo das Kompendium es vorsieht (`turm`, `flak`,

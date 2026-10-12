@@ -3,7 +3,7 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
-## Unveröffentlicht — R3 Chassis und Module (Sonnet)
+## 0.45 — Chassis und Module (R3, Sonnet)
 
 - **Daten:** Ein **Rumpf** ist eine Einheit mit `slots` (`['gross', 'klein', …]`) und
   `bestueckung` (Standard, je Steckplatz ein Modul-Id oder `''`). **Module** stehen je Volk unter

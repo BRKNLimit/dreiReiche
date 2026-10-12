@@ -262,3 +262,31 @@ und bis zu drei KIs, in 2D und 3D. Online und Kampagne bleiben bei zwei.
    Tests: 3 und 4 Spieler deterministisch (Spielstand mitten im Gefecht),
    Ausscheiden, Sieg des Letzten, Kunde ohne Blick auf fremde Entities,
    KI-gegen-KI-Partie mit 4 Spielern endet ohne Hänger.
+
+## R0 Rollen optional, KI robust (Resonit, `docs/resonit/plan.md`)
+
+Resonit kennt „Keine Pendants“: Nicht jedes Volk hat jede Rolle (der Kranor
+hat z. B. keine Jäger und Bomber, kein Volk hat Schreine oder einen
+Tech-Baum). Heute verlangt `ROLLEN` 14 Pflichtrollen, und die KI nimmt viele
+davon als gegeben (`plan.turm`, `plan.zorn`, `plan.forschung`,
+`plan.belagerung`, `plan.schwer` …).
+
+1. **Pflicht bleiben nur:** Gebäude `anker`, `kraft`, `fron`, `blut`,
+   `fabrik`; Einheiten `bauer`, `leicht`. Alles andere wandert nach
+   `ROLLEN.frei` (Art Gebäude/Einheit bleibt geprüft). `test/daten.test.js`
+   und `test/grid.test.js` entsprechend.
+2. **KI ohne fehlende Rollen:** Jede Stelle in `src/sim/ai.js`, die eine
+   Rolle nutzt, muss ohne sie sinnvoll weiterspielen: kein Turm → Heer
+   verteidigt; keine Forschung → keine Skillpunkte-Gebäude; kein `fern`/
+   `schwer`/`belagerung` → Heer aus dem, was die Fabriken ausbilden
+   (`buildList`), z. B. nach Kosten und Waffe gemischt (Designzahlen
+   kennzeichnen). Volk ohne Skills (`skills: {}`, `lernen: []`) und ohne
+   Fähigkeiten (`faehigkeiten: []`) muss gehen.
+3. **Oberfläche:** Hat ein Volk keine Skills, verschwinden Glühbirne,
+   Skillbaum-Taste T und Skill-Hinweise; ohne Fähigkeiten die Q/W/E-Leiste.
+   Kodex und Infokarten ohne Fehler.
+4. **Tests:** ein Testvolk zur Laufzeit (nur Pflichtrollen, keine Skills,
+   keine Fähigkeiten, z. B. aus Menschen-Daten abgeleitet, im `after()`
+   wieder entfernt): KI gegen KI und gegen Menschen 30 min ohne Hänger, sie
+   baut ein Heer und greift an; Oberflächen-Helfer ohne Fehler.
+   `node tools/referenz.mjs` bitgleich.

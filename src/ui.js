@@ -586,6 +586,9 @@ function erbauer() {
  * gehen hin. Sonst: alle bewegen sich dorthin.
  */
 function befehl(x, y, anhaengen = false) {
+  // Rechtsklick auf eine eigene Einheit: ihrem Auftrag anschliessen
+  const freund = eigeneEinheitBei(world, ME, x, y, Math.max(40, 10 / cam.z), sel);
+  if (freund) return mitmachen(world, ME, sel, freund, anhaengen);
   const site =
     world.entities.find(
       (b) =>
@@ -1072,20 +1075,32 @@ function drawEntities() {
 }
 
 function drawSelection() {
-  // Wegpunkte gewaehlter Einheiten: Linie von Ziel zu Ziel
-  ctx.strokeStyle = '#e8dcc0';
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.6;
-  ctx.setLineDash([2, 4]);
-  for (const id of sel) {
+  // Routen gewaehlter Einheiten: ab der Einheit ueber Baustellen und Wegpunkte (Shift)
+  const punkteGemalt = new Set();
+  ctx.lineWidth = 1.2;
+  ctx.globalAlpha = 0.75;
+  for (const id of sel.slice(0, 60)) {
     const u = byId(world, id);
-    if (!u || u.kind !== 'unit' || !u.wege.length) continue;
+    if (!u || u.kind !== 'unit') continue;
+    const route = routeVon(world, u);
+    if (route.length < 2) continue;
+    ctx.strokeStyle = '#e8dcc0';
+    ctx.setLineDash([3, 4]);
     ctx.beginPath();
-    ctx.moveTo(w2sx(u.tx), w2sy(u.ty));
-    for (const [x, y] of u.wege) ctx.lineTo(w2sx(x), w2sy(y));
+    ctx.moveTo(w2sx(route[0][0]), w2sy(route[0][1]));
+    for (const [x, y] of route.slice(1)) ctx.lineTo(w2sx(x), w2sy(y));
     ctx.stroke();
+    ctx.setLineDash([]);
+    for (const [x, y, art] of route.slice(1)) {
+      const schluessel = x + ',' + y;
+      if (punkteGemalt.has(schluessel)) continue;
+      punkteGemalt.add(schluessel);
+      ctx.fillStyle = art === 'angriff' ? '#e06a4a' : art === 'bau' ? '#d8b06a' : '#e8dcc0';
+      ctx.beginPath();
+      ctx.arc(w2sx(x), w2sy(y), 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
-  ctx.setLineDash([]);
   ctx.globalAlpha = 1;
   // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
   ctx.strokeStyle = FACTIONS[meFaction].color;

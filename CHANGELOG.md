@@ -3,6 +3,26 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.39 — Befehle: Routen, Mitmachen, verwaiste Baupläne
+
+- **Routen sichtbar:** Solange eine Einheit gewählt ist, zeigt eine Linie ihre
+  ganze Route ab der Einheit — Baustellen und Pläne der Baureihe (gold),
+  Wegpunkte (hell), Angriffspunkte (rot). Vorher erschien sie erst ab zwei
+  Wegpunkten und ohne das erste Stück.
+- **Shift+Rechtsklick auch für Erbauer:** Die Wegpunkte reihen sich hinter die
+  Bauaufträge; erst bauen, dann die Route laufen — etwa an den Türmen des
+  Gegners vorbei.
+- **Rechtsklick auf eine eigene Einheit:** Die Auswahl schließt sich ihrem
+  Auftrag an — Erbauer bauen mit (die ganze Baureihe), die anderen gehen hin;
+  läuft sie, laufen alle ihre Route mit; steht sie, gehen alle zu ihr.
+- **Verwaiste Baupläne verschwinden:** Bekommt ein Erbauer ohne Shift einen
+  anderen Befehl (bewegen, bauen, angreifen, stoppen), fallen sein Auftrag und
+  seine Baureihe weg; Pläne, die dann niemand mehr bauen soll, verschwinden.
+  Begonnene Baustellen bleiben.
+- Messung danach (36 Seeds × 2): Menschen : Gott 32 : 25, Todesgott :
+  Menschen 42 : 30, Todesgott : Gott 34 : 25 — der Todesgott liegt etwas
+  vorn; nachgestellt wird mit dem Umbau der Völker.
+
 ## 0.38 — Das Totenreich: der Todesgott als drittes Volk
 
 - **Drittes spielbares Volk: der Todesgott** (Entwurf, Modelle, Icons und

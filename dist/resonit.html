@@ -335,7 +335,8 @@
   <dt>Rechtsklick auf Feind</dt><dd>gezielt angreifen, verfolgen bis er fällt</dd>
   <dt>A, Klick</dt><dd>Angriffsbewegung</dd>
   <dt>S</dt><dd>Stopp</dd>
-  <dt>Shift+Rechtsklick</dt><dd>Wegpunkt anhängen (auch mit A)</dd>
+  <dt>Shift+Rechtsklick</dt><dd>Wegpunkt anhängen (auch mit A, auch nach Bauaufträgen) — die Route steht da, solange die Einheit gewählt ist</dd>
+  <dt>Rechtsklick auf eigene Einheit</dt><dd>ihrem Auftrag anschließen: mitbauen oder ihre Route mitlaufen</dd>
   <dt>Strg+1–0, 1–0</dt><dd>Steuergruppe setzen, abrufen (zweimal: hinspringen)</dd>
   <dt>1–0</dt><dd>bauen (Erbauer gewählt, Gruppe leer) · mit Shift: weitere in die Reihe</dd>
   <dt>Fabrik gewählt, Rechtsklick</dt><dd>Sammelpunkt für neue Einheiten</dd>
@@ -357,7 +358,7 @@
 </dl></div>
 </div>
 <script>
-const SPIEL_STAND = 'addd754457';
+const SPIEL_STAND = 'd9219c49c1';
 
 /* ---------------------------------- */
 
@@ -2057,6 +2058,7 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
       if (e.auftrag !== site.id && !e.reihe.includes(site.id)) e.reihe.push(site.id);
       continue;
     }
+    auftraegeAufgeben(world, e, site.id);
     e.auftrag = site.id;
     e.reihe = [];
     e.wege = [];
@@ -2065,6 +2067,28 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
     e.ty = site.y;
     e.arrived = false;
     e.aggro = false;
+  }
+}
+
+/**
+ * Neuer Befehl ohne Shift: Der Erbauer laesst Auftrag und Baureihe fallen.
+ * Plaene, die danach niemand mehr bauen soll, verschwinden -- wie ein
+ * abgebrochener Bauauftrag. Begonnene Baustellen bleiben stehen.
+ */
+function auftraegeAufgeben(world, e, ausser = 0) {
+  const alt = e.auftrag ? [e.auftrag, ...e.reihe] : e.reihe.slice();
+  e.auftrag = 0;
+  e.reihe = [];
+  for (const id of alt) {
+    if (id === ausser) continue;
+    const plan = planVon(world, id);
+    if (!plan) continue;
+    let gebraucht = false;
+    for (let i = 0; i < world.entities.length && !gebraucht; i++) {
+      const u = world.entities[i];
+      gebraucht = !u.dead && u.kind === 'unit' && (u.auftrag === id || u.reihe.includes(id));
+    }
+    if (!gebraucht) world.plaene = world.plaene.filter((q) => q !== plan);
   }
 }
 
@@ -2161,6 +2185,13 @@ function naechsterAuftrag(world, u) {
     u.aggro = false;
     return;
   }
+  // Baureihe fertig, aber Wegpunkte (Shift): von hier aus weiter -- die Mitte
+  // des Gebaeudes, das Ziel des Bauauftrags, erreicht er nie.
+  if (u.wege.length) {
+    u.tx = u.x;
+    u.ty = u.y;
+    u.arrived = true;
+  }
 }
 
 /** Der lebende Kommandant eines Spielers, oder null. */
@@ -2220,8 +2251,9 @@ function applyCommand(world, c) {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
         if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
-          // Shift: hinten anhaengen, solange die Einheit noch unterwegs ist
-          if (c.anhaengen && !e.auftrag && (!e.arrived || e.wege.length)) {
+          // Shift: hinten anhaengen, solange die Einheit unterwegs ist oder noch baut --
+          // die Wegpunkte kommen nach den Bauauftraegen dran
+          if (c.anhaengen && (e.auftrag || !e.arrived || e.wege.length)) {
             if (e.wege.length < 8) e.wege.push([c.x | 0, c.y | 0, c.type === 'attack' ? 1 : 0]);
             continue;
           }
@@ -2233,8 +2265,7 @@ function applyCommand(world, c) {
           e.befY = e.ty;
           e.arrived = false;
           e.aggro = c.type === 'attack';
-          e.auftrag = 0; // ein neuer Befehl ersetzt den Bauauftrag
-          e.reihe = [];
+          auftraegeAufgeben(world, e); // ein neuer Befehl ersetzt den Bauauftrag
         }
       }
     } else if (c.type === 'angreifen') {
@@ -2249,8 +2280,7 @@ function applyCommand(world, c) {
           e.ty = e.befY = t.y;
           e.arrived = false;
           e.aggro = false;
-          e.auftrag = 0;
-          e.reihe = [];
+          auftraegeAufgeben(world, e);
           e.wege = [];
         }
       }
@@ -2264,8 +2294,7 @@ function applyCommand(world, c) {
         e.arrived = true;
         e.aggro = false;
         e.ziel = 0;
-        e.auftrag = 0;
-        e.reihe = [];
+        auftraegeAufgeben(world, e);
         e.wege = [];
       }
     } else if (c.type === 'build') {
@@ -6146,6 +6175,67 @@ function gruppenHtml(world, auswahl) {
 }
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+// ------------------------------------------------------------ Routen und Mitmachen
+/**
+ * Route einer Einheit, wie sie sie abarbeitet: ihre Lage, die Baustellen und
+ * Plaene ihrer Baureihe, das Bewegungsziel, die Wegpunkte (Shift). Je Punkt
+ * [x, y, art] mit art 'bau', 'geh' oder 'angriff'.
+ */
+function routeVon(world, u) {
+  const p = [[u.x, u.y, 'start']];
+  if (u.auftrag) {
+    for (const id of [u.auftrag, ...u.reihe]) {
+      const z = byId(world, id) || planVon(world, id);
+      if (z) p.push([z.x, z.y, 'bau']);
+    }
+  } else if (!u.arrived) p.push([u.tx, u.ty, u.aggro || u.ziel ? 'angriff' : 'geh']);
+  for (const [x, y, angriff] of u.wege) p.push([x, y, angriff ? 'angriff' : 'geh']);
+  return p;
+}
+
+/** Eigene Einheit an diesem Punkt (naechste innerhalb ihres Radius plus Toleranz), ausser den genannten. */
+function eigeneEinheitBei(world, ich, x, y, toleranz, ausser) {
+  let beste = null;
+  let bestD = Infinity;
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'unit' || e.player !== ich || ausser.includes(e.id)) continue;
+    const r = UNITS[e.type].radius + toleranz;
+    const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+    if (d <= r * r && d < bestD) {
+      beste = e;
+      bestD = d;
+    }
+  }
+  return beste;
+}
+
+/**
+ * Rechtsklick mit einer Auswahl auf eine eigene Einheit: sich ihrem Auftrag
+ * anschliessen. Baut sie, bauen die Erbauer mit (ganze Baureihe) und die
+ * anderen gehen hin; laeuft sie, laufen alle ihre Route mit; steht sie, gehen
+ * alle zu ihr. Shift haengt an.
+ */
+function mitmachen(world, ich, sel, freund, anhaengen) {
+  const ids = sel.filter((id) => {
+    const e = byId(world, id);
+    return e && e.kind === 'unit' && e.player === ich && !e.dead;
+  });
+  if (!ids.length) return;
+  let rest = ids;
+  if (freund.auftrag) {
+    const bauer = ids.filter((id) => UNITS[byId(world, id).type].build);
+    const auftraege = [freund.auftrag, ...freund.reihe];
+    if (bauer.length) auftraege.forEach((a, i) => issue(world, { type: 'bauen', player: ich, ids: bauer, id: a, anhaengen: anhaengen || i > 0 }));
+    rest = ids.filter((id) => !bauer.includes(id));
+  }
+  if (!rest.length) return;
+  const punkte = routeVon(world, freund).slice(1);
+  if (!punkte.length) punkte.push([freund.x, freund.y, 'geh']);
+  punkte.forEach(([x, y, art], i) => {
+    issue(world, { type: art === 'angriff' ? 'attack' : 'move', player: ich, ids: rest, x, y, anhaengen: anhaengen || i > 0 });
+  });
+}
+
 // ------------------------------------------------------------ Voelker
 /** Kurzname eines Volks: Menschen, Gott, Todesgott. */
 const volkName = (f) => (FACTIONS[f] ? FACTIONS[f].kurz : f);
@@ -11221,6 +11311,9 @@ function erbauer() {
  * gehen hin. Sonst: alle bewegen sich dorthin.
  */
 function befehl(x, y, anhaengen = false) {
+  // Rechtsklick auf eine eigene Einheit: ihrem Auftrag anschliessen
+  const freund = eigeneEinheitBei(world, ME, x, y, Math.max(40, 10 / cam.z), sel);
+  if (freund) return mitmachen(world, ME, sel, freund, anhaengen);
   const site =
     world.entities.find(
       (b) =>
@@ -11707,20 +11800,32 @@ function drawEntities() {
 }
 
 function drawSelection() {
-  // Wegpunkte gewaehlter Einheiten: Linie von Ziel zu Ziel
-  ctx.strokeStyle = '#e8dcc0';
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.6;
-  ctx.setLineDash([2, 4]);
-  for (const id of sel) {
+  // Routen gewaehlter Einheiten: ab der Einheit ueber Baustellen und Wegpunkte (Shift)
+  const punkteGemalt = new Set();
+  ctx.lineWidth = 1.2;
+  ctx.globalAlpha = 0.75;
+  for (const id of sel.slice(0, 60)) {
     const u = byId(world, id);
-    if (!u || u.kind !== 'unit' || !u.wege.length) continue;
+    if (!u || u.kind !== 'unit') continue;
+    const route = routeVon(world, u);
+    if (route.length < 2) continue;
+    ctx.strokeStyle = '#e8dcc0';
+    ctx.setLineDash([3, 4]);
     ctx.beginPath();
-    ctx.moveTo(w2sx(u.tx), w2sy(u.ty));
-    for (const [x, y] of u.wege) ctx.lineTo(w2sx(x), w2sy(y));
+    ctx.moveTo(w2sx(route[0][0]), w2sy(route[0][1]));
+    for (const [x, y] of route.slice(1)) ctx.lineTo(w2sx(x), w2sy(y));
     ctx.stroke();
+    ctx.setLineDash([]);
+    for (const [x, y, art] of route.slice(1)) {
+      const schluessel = x + ',' + y;
+      if (punkteGemalt.has(schluessel)) continue;
+      punkteGemalt.add(schluessel);
+      ctx.fillStyle = art === 'angriff' ? '#e06a4a' : art === 'bau' ? '#d8b06a' : '#e8dcc0';
+      ctx.beginPath();
+      ctx.arc(w2sx(x), w2sy(y), 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
-  ctx.setLineDash([]);
   ctx.globalAlpha = 1;
   // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
   ctx.strokeStyle = FACTIONS[meFaction].color;

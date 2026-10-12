@@ -219,6 +219,7 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
       if (e.auftrag !== site.id && !e.reihe.includes(site.id)) e.reihe.push(site.id);
       continue;
     }
+    auftraegeAufgeben(world, e, site.id);
     e.auftrag = site.id;
     e.reihe = [];
     e.wege = [];
@@ -227,6 +228,28 @@ function beauftrage(world, player, ids, site, anhaengen = false) {
     e.ty = site.y;
     e.arrived = false;
     e.aggro = false;
+  }
+}
+
+/**
+ * Neuer Befehl ohne Shift: Der Erbauer laesst Auftrag und Baureihe fallen.
+ * Plaene, die danach niemand mehr bauen soll, verschwinden -- wie ein
+ * abgebrochener Bauauftrag. Begonnene Baustellen bleiben stehen.
+ */
+function auftraegeAufgeben(world, e, ausser = 0) {
+  const alt = e.auftrag ? [e.auftrag, ...e.reihe] : e.reihe.slice();
+  e.auftrag = 0;
+  e.reihe = [];
+  for (const id of alt) {
+    if (id === ausser) continue;
+    const plan = planVon(world, id);
+    if (!plan) continue;
+    let gebraucht = false;
+    for (let i = 0; i < world.entities.length && !gebraucht; i++) {
+      const u = world.entities[i];
+      gebraucht = !u.dead && u.kind === 'unit' && (u.auftrag === id || u.reihe.includes(id));
+    }
+    if (!gebraucht) world.plaene = world.plaene.filter((q) => q !== plan);
   }
 }
 
@@ -323,6 +346,13 @@ function naechsterAuftrag(world, u) {
     u.aggro = false;
     return;
   }
+  // Baureihe fertig, aber Wegpunkte (Shift): von hier aus weiter -- die Mitte
+  // des Gebaeudes, das Ziel des Bauauftrags, erreicht er nie.
+  if (u.wege.length) {
+    u.tx = u.x;
+    u.ty = u.y;
+    u.arrived = true;
+  }
 }
 
 /** Der lebende Kommandant eines Spielers, oder null. */
@@ -384,8 +414,9 @@ function applyCommand(world, c) {
       for (let k = 0; k < c.ids.length; k++) {
         const e = byId(world, c.ids[k]);
         if (e && e.kind === 'unit' && e.player === c.player && !e.dead) {
-          // Shift: hinten anhaengen, solange die Einheit noch unterwegs ist
-          if (c.anhaengen && !e.auftrag && (!e.arrived || e.wege.length)) {
+          // Shift: hinten anhaengen, solange die Einheit unterwegs ist oder noch baut --
+          // die Wegpunkte kommen nach den Bauauftraegen dran
+          if (c.anhaengen && (e.auftrag || !e.arrived || e.wege.length)) {
             if (e.wege.length < 8) e.wege.push([c.x | 0, c.y | 0, c.type === 'attack' ? 1 : 0]);
             continue;
           }
@@ -397,8 +428,7 @@ function applyCommand(world, c) {
           e.befY = e.ty;
           e.arrived = false;
           e.aggro = c.type === 'attack';
-          e.auftrag = 0; // ein neuer Befehl ersetzt den Bauauftrag
-          e.reihe = [];
+          auftraegeAufgeben(world, e); // ein neuer Befehl ersetzt den Bauauftrag
         }
       }
     } else if (c.type === 'angreifen') {
@@ -413,8 +443,7 @@ function applyCommand(world, c) {
           e.ty = e.befY = t.y;
           e.arrived = false;
           e.aggro = false;
-          e.auftrag = 0;
-          e.reihe = [];
+          auftraegeAufgeben(world, e);
           e.wege = [];
         }
       }
@@ -428,8 +457,7 @@ function applyCommand(world, c) {
         e.arrived = true;
         e.aggro = false;
         e.ziel = 0;
-        e.auftrag = 0;
-        e.reihe = [];
+        auftraegeAufgeben(world, e);
         e.wege = [];
       }
     } else if (c.type === 'build') {

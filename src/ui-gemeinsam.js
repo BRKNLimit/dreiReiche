@@ -4,7 +4,7 @@
 import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PRIO_NAMES } from './sim/defs.js';
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
-  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld,
+  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
@@ -453,6 +453,67 @@ export function gruppenHtml(world, auswahl) {
 }
 
 /** Bauleiste als Icons mit Kosten und Taste; Namen und Werte zeigt die Info-Karte. */
+// ------------------------------------------------------------ Routen und Mitmachen
+/**
+ * Route einer Einheit, wie sie sie abarbeitet: ihre Lage, die Baustellen und
+ * Plaene ihrer Baureihe, das Bewegungsziel, die Wegpunkte (Shift). Je Punkt
+ * [x, y, art] mit art 'bau', 'geh' oder 'angriff'.
+ */
+export function routeVon(world, u) {
+  const p = [[u.x, u.y, 'start']];
+  if (u.auftrag) {
+    for (const id of [u.auftrag, ...u.reihe]) {
+      const z = byId(world, id) || planVon(world, id);
+      if (z) p.push([z.x, z.y, 'bau']);
+    }
+  } else if (!u.arrived) p.push([u.tx, u.ty, u.aggro || u.ziel ? 'angriff' : 'geh']);
+  for (const [x, y, angriff] of u.wege) p.push([x, y, angriff ? 'angriff' : 'geh']);
+  return p;
+}
+
+/** Eigene Einheit an diesem Punkt (naechste innerhalb ihres Radius plus Toleranz), ausser den genannten. */
+export function eigeneEinheitBei(world, ich, x, y, toleranz, ausser) {
+  let beste = null;
+  let bestD = Infinity;
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'unit' || e.player !== ich || ausser.includes(e.id)) continue;
+    const r = UNITS[e.type].radius + toleranz;
+    const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+    if (d <= r * r && d < bestD) {
+      beste = e;
+      bestD = d;
+    }
+  }
+  return beste;
+}
+
+/**
+ * Rechtsklick mit einer Auswahl auf eine eigene Einheit: sich ihrem Auftrag
+ * anschliessen. Baut sie, bauen die Erbauer mit (ganze Baureihe) und die
+ * anderen gehen hin; laeuft sie, laufen alle ihre Route mit; steht sie, gehen
+ * alle zu ihr. Shift haengt an.
+ */
+export function mitmachen(world, ich, sel, freund, anhaengen) {
+  const ids = sel.filter((id) => {
+    const e = byId(world, id);
+    return e && e.kind === 'unit' && e.player === ich && !e.dead;
+  });
+  if (!ids.length) return;
+  let rest = ids;
+  if (freund.auftrag) {
+    const bauer = ids.filter((id) => UNITS[byId(world, id).type].build);
+    const auftraege = [freund.auftrag, ...freund.reihe];
+    if (bauer.length) auftraege.forEach((a, i) => issue(world, { type: 'bauen', player: ich, ids: bauer, id: a, anhaengen: anhaengen || i > 0 }));
+    rest = ids.filter((id) => !bauer.includes(id));
+  }
+  if (!rest.length) return;
+  const punkte = routeVon(world, freund).slice(1);
+  if (!punkte.length) punkte.push([freund.x, freund.y, 'geh']);
+  punkte.forEach(([x, y, art], i) => {
+    issue(world, { type: art === 'angriff' ? 'attack' : 'move', player: ich, ids: rest, x, y, anhaengen: anhaengen || i > 0 });
+  });
+}
+
 // ------------------------------------------------------------ Voelker
 /** Kurzname eines Volks: Menschen, Gott, Todesgott. */
 export const volkName = (f) => (FACTIONS[f] ? FACTIONS[f].kurz : f);

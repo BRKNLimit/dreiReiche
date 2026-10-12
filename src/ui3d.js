@@ -255,6 +255,9 @@ function erbauer3() {
 
 /** Rechtsklick: auf eigene Baustelle -- Erbauer helfen mit, sonst bewegen. */
 function befehl3(x, y, anhaengen = false) {
+  // Rechtsklick auf eine eigene Einheit: ihrem Auftrag anschliessen
+  const freund = eigeneEinheitBei(world, ME, x, y, 60, sel);
+  if (freund) return mitmachen(world, ME, sel, freund, anhaengen);
   const site =
     world.entities.find(
       (b) =>
@@ -1156,21 +1159,34 @@ function bodenKreis(x, y, r) {
 
 /** Schrein-Umkreise, Faehigkeits-Einsaetze, gerufene und festgehaltene Einheiten, Zielkreis. */
 function zeichneWirkungen() {
-  // Wegpunkte gewaehlter Einheiten: Linie von Ziel zu Ziel
-  octx.strokeStyle = '#e8dcc0';
-  octx.lineWidth = 1;
-  octx.setLineDash([2, 4]);
-  for (const id of sel) {
+  // Routen gewaehlter Einheiten: ab der Einheit ueber Baustellen und Wegpunkte (Shift)
+  const punkteGemalt = new Set();
+  octx.lineWidth = 1.3;
+  for (const id of sel.slice(0, 60)) {
     const u = byId(world, id);
-    if (!u || u.kind !== 'unit' || !u.wege.length) continue;
-    const punkte = [[u.tx, u.ty], ...u.wege].map(([x, y]) => aufSchirm(x * DM, 0.3, y * DM));
-    if (punkte.some((p) => !p)) continue;
+    if (!u || u.kind !== 'unit') continue;
+    const route = routeVon(world, u);
+    if (route.length < 2) continue;
+    const [lx, ly] = lage(u);
+    route[0] = [lx, ly, 'start'];
+    const punkte = route.map(([x, y, art]) => [aufSchirm(x * DM, 0.3, y * DM), art, x + ',' + y]);
+    if (punkte.some(([p]) => !p)) continue;
+    octx.strokeStyle = 'rgba(232, 220, 192, .8)';
+    octx.setLineDash([3, 4]);
     octx.beginPath();
-    octx.moveTo(punkte[0][0], punkte[0][1]);
-    for (const p of punkte.slice(1)) octx.lineTo(p[0], p[1]);
+    octx.moveTo(punkte[0][0][0], punkte[0][0][1]);
+    for (const [p] of punkte.slice(1)) octx.lineTo(p[0], p[1]);
     octx.stroke();
+    octx.setLineDash([]);
+    for (const [p, art, schluessel] of punkte.slice(1)) {
+      if (punkteGemalt.has(schluessel)) continue;
+      punkteGemalt.add(schluessel);
+      octx.fillStyle = art === 'angriff' ? '#e06a4a' : art === 'bau' ? '#d8b06a' : '#e8dcc0';
+      octx.beginPath();
+      octx.arc(p[0], p[1], 4, 0, Math.PI * 2);
+      octx.fill();
+    }
   }
-  octx.setLineDash([]);
   // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
   octx.strokeStyle = FACTIONS[meFaction].color;
   octx.fillStyle = FACTIONS[meFaction].color;

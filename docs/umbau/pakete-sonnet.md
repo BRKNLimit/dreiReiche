@@ -411,3 +411,41 @@ Standardbestückungen und zur Laufzeit bei einer Umrüstung.
    Module): Ableitung (Kosten, LP, Sicht, Waffe), Produktion mit und ohne
    Bestückung, Umrüsten (Kosten, Dauer, ungültige Befehle abgelehnt),
    Spielstand mitten im Umrüsten bitgenau, Hash stabil, Datenprüfung.
+
+## R4a Kartengröße je Karte und strategischer Zoom (Resonit, „Kartenmaßstab“)
+
+Heute ist die Karte fest 2 × 2 km (`MAP = 20000` in `src/sim/grund.js`).
+Resonit will große Karten (erst 10 km, später vielleicht 40 km — der Nutzer
+entscheidet die Zahl noch). R4a macht die Größe zu einer Eigenschaft der
+Karte; welche Größe gespielt wird, ist danach nur noch Kartendaten.
+
+1. **Größe aus den Kartendaten:** `karteDaten.groesse` (dm, Vielfaches der
+   Rastergrößen; ohne Angabe 20000). Vorschlag (Designentscheidung von
+   Claude): `MAP` bleibt der Name, wird aber eine **live gebundene**
+   `export let MAP` in `grund.js` mit `kartenMassSetzen(n)`, gesetzt von
+   `createWorld` und beim Laden eines Spielstands/einer Wiederholung — so
+   lesen auch Geminis Renderer (`MAP` in `gelaende*.js`, `render3d.js`)
+   ohne Änderung die richtige Größe. Alles, was beim Laden des Moduls aus
+   `MAP` vorberechnet wird (Rastergrößen, Gitter, Tabellen), muss danach
+   neu berechnet werden. Einschränkung dokumentieren: je Prozess eine
+   Kartengröße zur Zeit (Tests, die zwei Größen mischen, setzen sie neu).
+   Wer einen besseren, ebenso kleinen Weg findet: begründen.
+2. **Leistung bei 10 km (100000 dm):** Wegfindung, Sichtgitter (Feuerleitnetz
+   und Kunde), Raster, Nebeltextur, Minikarte. Ziel: eine KI-gegen-KI-Partie
+   auf einer 10-km-Karte, 30 Spielminuten, nicht mehr als 3× so lange wie
+   auf 2 km (messen und berichten). Gitter dürfen gröber werden, wenn die
+   Karte groß ist (z. B. Zellgröße aus der Kartengröße), solange 2 km
+   bitgleich bleibt.
+3. **Karte „Weite“ (10 × 10 km, 2 Spieler)** in `KARTEN` (punktsymmetrisch,
+   `kartenFehler` ohne Fehler), Adern und Hindernisse großzügig verteilt;
+   Zufallskarten und Editor können eine Größe wählen (2 / 10 km).
+4. **Strategischer Zoom:** In 2D und 3D lässt sich bis auf die ganze Karte
+   herauszoomen. Ab einer Höhe (Designzahl) zeigt die Ansicht statt
+   Modellen/Figuren klare Taktik-Symbole (Form nach Einheitenklasse —
+   leicht/mittel/schwer/Flieger/Gebäude — in Teamfarbe), wie in Supreme
+   Commander; Auswahl und Befehle funktionieren dort weiter. In Geminis
+   Dateien nichts ändern — die Symbole zeichnet die Oberfläche (2D-Canvas
+   bzw. Overlay in 3D); ein Wunsch an Gemini für schönere Symbole.
+5. **Bitgleich:** Alle bestehenden Karten (2 km) bleiben bitgleich
+   (`node tools/referenz.mjs`), Tests und Smoke grün; Smoke fährt zusätzlich
+   „Weite“ in 2D und 3D.

@@ -91,8 +91,8 @@ Höhen im Gelände, Bergung der Gefallenen. Siehe `docs/scope.md`.
 
 Die Simulation selbst sieht alles. Was ein Spieler weiß, steht in
 `src/sim/kunde.js`: was seine Einheiten und Gebäude gerade sehen, zuletzt
-gesehene Gebäude und Einheiten, und wo der Gegner beginnt (gegenüber dem
-eigenen Hauptgebäude). **Die KI nutzt nur das** — kein Zugriff auf
+gesehene Gebäude und Einheiten, und wo die Gegner beginnen können (bei zwei Spielern gegenüber dem
+eigenen Hauptgebäude, auf Karten mit `basen` alle anderen Basen). **Die KI nutzt nur das** — kein Zugriff auf
 gegnerische Entities in `src/sim/ai.js` an der Kunde vorbei. Auch
 Befehle verraten nichts: Ein Bauplan wird nur gegen Eigenes und die Karte
 geprüft; ein ungesehenes gegnerisches Gebäude findet erst der Erbauer vor

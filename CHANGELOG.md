@@ -3,6 +3,29 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.41 — Bis zu vier Spieler; Richtung Resonit
+
+- **Richtungswechsel (Nutzer):** Das Spiel wird **Resonit**, ein Sci-Fi-RTS
+  im Stil von Supreme Commander, auf diesem Kern. Plan in
+  `docs/resonit/plan.md`, Kompendium in `docs/resonit/kompendium.md`;
+  Gemini beginnt mit Vanguard gegen Kranor. Neue Völker trägt Gemini in
+  `src/sim/voelker/index.js` ein, das Bundle nimmt jede Volksdatei mit.
+- **M9 Mehrspieler (Sonnet):** 2–4 Spieler jeder gegen jeden auf Karten mit
+  `basen` (Geminis „Drei Reiche (3P)“ und „Vierlande (4P)“). Wer Hauptgebäude
+  und Kommandant verliert, scheidet aus; seine Reste verfallen in 5 min
+  (Designzahl). Die Kunde kennt alle möglichen Startplätze, die KI wählt
+  einen Gegner (wer sie angreift, sonst der nächste). Startmenü mit Gegner 2
+  und 3, Spielerfarben, Spielerleiste, Beobachter, Speichern und
+  Wiederholung mit N Spielern; `match`/`sweep` mit `spieler=… karte=…`.
+  Zwei-Spieler-Partien bitgleich; fallen beide im selben Tick, endet die
+  Partie jetzt ohne Sieger (vorher lief sie ewig).
+- **Gemini (Runden 29–31):** Wasser schneidet nicht mehr in den Boden, kein
+  Kamerabeben nach Spielende, Skillbäume mit 22 Skills je Volk, Karten für
+  3 und 4 Spieler. Messung: Menschen : Gott 44 : 26, Todesgott : Menschen
+  30 : 42, Todesgott : Gott 36 : 34.
+- Behoben: Das Kamerabeben war seit Runde 30 ganz aus (Spielende wurde an
+  `winner` erkannt, das während der Partie -1 ist).
+
 ## 0.40 — Umbau der Völker, Teil 1: Grundlage, Luftebene, Schild
 
 Arbeitsteilung des Umbaus (Vorgabe des Nutzers): Gemini 60 % (Inhalte und

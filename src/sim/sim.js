@@ -2114,7 +2114,7 @@ function verfall(world) {
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || world.players[e.player].alive) continue;
-    e.hp -= Math.max(1, Math.ceil(e.maxHp / VERFALL));
+    e.hp -= Math.max(1, ((e.maxHp + VERFALL - 1) / VERFALL) | 0); // aufgerundet, nur ganze Zahlen
     if (e.hp > 0) continue;
     e.hp = 0;
     e.dead = true;

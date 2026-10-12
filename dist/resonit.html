@@ -376,7 +376,7 @@
 </dl></div>
 </div>
 <script>
-const SPIEL_STAND = 'cff370f0c1';
+const SPIEL_STAND = '3964301633';
 
 /* ---------------------------------- */
 
@@ -2395,13 +2395,39 @@ function anchorRadius(world, e) {
 const PER_MIN = 600 * 1000;
 
 // ------------------------------------------------------------------ Weltbau
+
+/**
+ * Wie viele Spieler eine Karte hoechstens fasst: `spieler` in den Kartendaten,
+ * sonst zwei (klassisch, Flusstal, Zufalls- und eigene Karten).
+ */
+function maxSpieler(daten) {
+  return daten && daten.spieler > 2 ? daten.spieler | 0 : 2;
+}
+
+/**
+ * Startplatz des Hauptgebaeudes von Spieler p: `basen[p]` der Karte, sonst
+ * wie immer die beiden Ecken (3000,3000) und (MAP-3000,MAP-3000). Nur aus den
+ * (unveraenderlichen) Kartendaten abgeleitet -- ein geladener Spielstand und
+ * die Kunde brauchen kein eigenes Feld dafuer.
+ */
+function startplatz(daten, p) {
+  const b = daten && daten.basen && daten.basen[p];
+  if (b) return { x: b.x, y: b.y };
+  return p === 0 ? { x: 3000, y: 3000 } : { x: MAP - 3000, y: MAP - 3000 };
+}
 function createWorld(opts = {}) {
-  const f0 = opts.factions?.[0] ?? 'mensch';
-  const f1 = opts.factions?.[1] ?? 'gott';
   // Eine der festen Karten -- oder eigene Daten (Zufallskarte, Editor),
   // gleiches Format wie KARTEN in defs.js, gepruefte mit kartenFehler().
   const karte = opts.karteDaten ? opts.karte || 'eigen' : KARTEN[opts.karte] ? opts.karte : 'klassisch';
   const daten = opts.karteDaten || KARTEN[karte];
+  // So viele Spieler, wie Voelker uebergeben werden, mindestens zwei, hoechstens
+  // so viele, wie die Karte Basen hat. Fehlende Voelker: Menschen, Gott.
+  const n = Math.max(2, Math.min(opts.factions?.length ?? 2, maxSpieler(daten)));
+  const standard = ['mensch', 'gott'];
+  const players = [];
+  for (let i = 0; i < n; i++) {
+    players.push({ id: i, faction: opts.factions?.[i] ?? standard[i] ?? 'mensch', fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 });
+  }
   const world = {
     tick: 0,
     seed: opts.seed ?? 12345,
@@ -2409,10 +2435,7 @@ function createWorld(opts = {}) {
     karteDaten: daten, // die Kartendaten selbst (unveraenderlich)
     nextId: 1,
     entities: [],
-    players: [
-      { id: 0, faction: f0, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 },
-      { id: 1, faction: f1, fron: START_FRON, goetterblut: 0, alive: true, gelernt: [], faehigkeitBereit: [0, 0, 0], forschung: 0, reparaturAcc: 0 },
-    ],
+    players,
     deposits: [],
     plaene: [], // Bauplaene: { id, kind: 'plan', player, type, x, y } -- noch kein Gebaeude
     schlaege: [], // Fernschlaege im Flug (M4): { von, player, x, y, landet, radius, schaden }
@@ -2432,15 +2455,14 @@ function createWorld(opts = {}) {
 }
 
 function setupMap(world) {
-  const lo = 3000;
-  const hi = MAP - 3000;
-
-  for (let p = 0; p < 2; p++) {
+  const n = world.players.length;
+  for (let p = 0; p < n; p++) {
     const f = world.players[p].faction;
     const home = FACTIONS[f].haupt;
-    spawnBuilding(world, p, home, p === 0 ? lo : hi, p === 0 ? lo : hi, true);
+    const platz = startplatz(world.karteDaten, p);
+    spawnBuilding(world, p, home, platz.x, platz.y, true);
   }
-  if (RULES.kommandanten) for (let p = 0; p < 2; p++) spawnKommandant(world, p);
+  if (RULES.kommandanten) for (let p = 0; p < n; p++) spawnKommandant(world, p);
 
   for (const a of world.karteDaten.adern) world.deposits.push({ x: a.x, y: a.y, kind: a.kind, takenBy: 0 });
 }
@@ -2540,9 +2562,15 @@ function spawnKommandant(world, player) {
   if (!haupt) return null;
   const type = FACTIONS[world.players[player].faction].kommandant;
   const off = BUILDINGS[haupt.type].radius + 250;
-  const dx = (MAP >> 1) - haupt.x;
-  const dy = (MAP >> 1) - haupt.y;
-  const d = isqrt(dx * dx + dy * dy) || 1;
+  let dx = (MAP >> 1) - haupt.x;
+  let dy = (MAP >> 1) - haupt.y;
+  let d = isqrt(dx * dx + dy * dy);
+  if (d === 0) {
+    // Basis genau auf der Kartenmitte (3-Spieler-Karte): kein "zur Mitte hin" -- nach Osten
+    dx = 1;
+    dy = 0;
+    d = 1;
+  }
   const x = clamp(haupt.x + (((dx * off) / d) | 0));
   const y = clamp(haupt.y + (((dy * off) / d) | 0));
   const u = spawnUnit(world, player, type, x, y);
@@ -2751,6 +2779,8 @@ function applyCommands(world) {
 }
 
 function applyCommand(world, c) {
+  // Wer ausgeschieden ist, gibt keine Befehle mehr (seine Einheiten verfallen, siehe verfall()).
+  if (!world.players[c.player].alive) return;
   {
     if (c.type === 'move' || c.type === 'attack') {
       for (let k = 0; k < c.ids.length; k++) {
@@ -2822,12 +2852,8 @@ function applyCommand(world, c) {
       demolish(world, c.player, c.id);
     } else if (c.type === 'aufgeben') {
       // Aufgeben zaehlt wie ein gefallener Kommandant
-      world.players[c.player].alive = false;
-      const rest = world.players.filter((p) => p.alive);
-      if (rest.length === 1) {
-        world.over = true;
-        world.winner = rest[0].id;
-      }
+      ausscheiden(world, c.player);
+      siegPruefen(world);
     } else if (c.type === 'lernen') {
       if (kannLernen(world, c.player, c.skill)) world.players[c.player].gelernt.push(c.skill);
     } else if (c.type === 'faehigkeit') {
@@ -3483,6 +3509,7 @@ function step(world) {
   moveUnits(world, auren);
   combat(world, auren);
   einschlaege(world);
+  verfall(world);
   cleanup(world);
 
   world.tick++;
@@ -4356,14 +4383,70 @@ function cleanup(world) {
     }
     // Hauptgebaeude und Kommandant sind vital: Faellt einer, ist die Partie verloren.
     const vital = e.kind === 'building' ? BUILDINGS[e.type].vital : UNITS[e.type].commander;
-    if (vital) world.players[e.player].alive = false;
+    if (vital) ausscheiden(world, e.player);
   }
   world.entities = world.entities.filter((e) => !e.dead);
+  siegPruefen(world);
+}
 
-  const alive = world.players.filter((p) => p.alive);
-  if (alive.length === 1) {
+/**
+ * Ein Spieler scheidet aus (Hauptgebaeude und Kommandant verloren, oder
+ * aufgegeben): alive false, der Tick wird fuer den Verfall gemerkt. Seine
+ * Einheiten und Gebaeude bleiben stehen und verfallen langsam, siehe verfall().
+ */
+function ausscheiden(world, player) {
+  const pl = world.players[player];
+  if (!pl.alive) return;
+  pl.alive = false;
+  pl.ausgeschiedenBei = world.tick;
+  world.events.push({ t: 'ausgeschieden', player });
+}
+
+/**
+ * Gewonnen hat der letzte Uebrige. Scheiden alle im selben Tick aus, endet die
+ * Partie ohne Sieger (winner -1).
+ */
+function siegPruefen(world) {
+  let n = 0;
+  let letzter = -1;
+  for (let i = 0; i < world.players.length; i++) {
+    if (world.players[i].alive) {
+      n++;
+      letzter = i;
+    }
+  }
+  if (n <= 1) {
     world.over = true;
-    world.winner = alive[0].id;
+    world.winner = letzter;
+  }
+}
+
+// Wie lange es dauert, bis alles verfallen ist, was ein ausgeschiedener Spieler
+// hinterlaesst (Ticks, 5 min): bis dahin steht es weiter da -- und kaempft,
+// wenn jemand in Reichweite kommt. Designzahl, ungemessen: lang genug, dass
+// ein Angreifer die Reste noch einnehmen kann, kurz genug, dass kein Turm
+// ewig in der Landschaft stehen bleibt.
+const VERFALL = 3000;
+
+/**
+ * Verfall der Ausgeschiedenen: Jedes Gebaeude und jede Einheit verliert je
+ * Tick einen gleichen Teil ihrer Lebenspunkte (maxHp / VERFALL, aufgerundet)
+ * und vergeht bei null -- vergangen, nicht gefallen: keine Seele fuer
+ * Totenreich-Anker. Ohne Ausgeschiedene kostet das nur den Blick auf die Spieler.
+ */
+function verfall(world) {
+  let aus = false;
+  for (let p = 0; p < world.players.length; p++) if (!world.players[p].alive) aus = true;
+  if (!aus) return;
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || world.players[e.player].alive) continue;
+    e.hp -= Math.max(1, ((e.maxHp + VERFALL - 1) / VERFALL) | 0); // aufgerundet, nur ganze Zahlen
+    if (e.hp > 0) continue;
+    e.hp = 0;
+    e.dead = true;
+    e.vergangen = true;
+    world.events.push({ t: 'died', id: e.id, kind: e.kind, type: e.type, player: e.player, x: e.x, y: e.y, vergangen: true });
   }
 }
 
@@ -4532,6 +4615,8 @@ function hash(world) {
     mix(world.players[p].forschung);
     mix(world.players[p].reparaturAcc);
     for (const id of world.players[p].gelernt) mix(SKILL_NR[id]);
+    // Nur bei drei und mehr Spielern: Ausgeschiedene gibt es bei zweien nicht mehr, die Partie ist aus.
+    if (world.players.length > 2 && !world.players[p].alive) mix(7 + p);
   }
   for (let i = 0; i < world.deposits.length; i++) mix(world.deposits[i].takenBy);
   for (const p of world.plaene) {
@@ -4566,8 +4651,11 @@ function hash(world) {
 // Entity-Reihenfolge; Sets nur zum Nachschlagen, nie zum Durchlaufen.
 //
 // Bekannt ist ohne Sicht nur die Karte selbst (Hindernisse, Adern) und, wie
-// auf jeder Zwei-Spieler-Karte, wo der Gegner beginnt: punktsymmetrisch
-// gegenueber dem eigenen Hauptgebaeude.
+// in jedem RTS mit festen Startplaetzen, wo die Gegner beginnen koennen: auf
+// einer Zwei-Spieler-Karte punktsymmetrisch gegenueber dem eigenen
+// Hauptgebaeude, auf einer Karte mit mehreren Basen (`basen`) auf allen
+// Basen ausser der eigenen. Dazu gehoert, wer noch mitspielt: Das Ausscheiden
+// eines Spielers wird allen gemeldet.
 
 
 // Wie lange eine gesehene Einheit in Erinnerung bleibt (Ticks, 10 min).
@@ -4664,12 +4752,37 @@ function aufklaeren(k, world) {
 }
 
 /**
- * Das gegnerische Hauptgebaeude, soweit bekannt; sonst dort, wo der Gegner
- * beginnt -- gegenueber dem eigenen Hauptgebaeude.
+ * Die moeglichen Startplaetze der Gegner: [{ player, x, y }] in Spielerreihenfolge.
+ * Zwei Spieler ohne `basen` in den Kartendaten: genau einer, gegenueber dem
+ * eigenen Hauptgebaeude. Sonst die Basen aller anderen Spieler der Partie
+ * (Basen der Karte, die niemand besetzt, zaehlen nicht). nurLebende laesst
+ * die Ausgeschiedenen weg.
  */
-function vermutetesHaupt(k, haupt) {
-  const b = k.gebaeude.find((g) => BUILDINGS[g.type].vital);
-  return b || { id: 0, x: MAP - haupt.x, y: MAP - haupt.y, vermutet: true };
+function gegnerPlaetze(world, player, haupt, nurLebende = false) {
+  const out = [];
+  const zwei = world.players.length === 2 && !(world.karteDaten && world.karteDaten.basen);
+  for (let q = 0; q < world.players.length; q++) {
+    if (q === player || (nurLebende && !world.players[q].alive)) continue;
+    if (zwei && haupt) out.push({ player: q, x: MAP - haupt.x, y: MAP - haupt.y });
+    else {
+      const s = startplatz(world.karteDaten, q);
+      out.push({ player: q, x: s.x, y: s.y });
+    }
+  }
+  return out;
+}
+
+/**
+ * Das Hauptgebaeude des Gegners, soweit bekannt; sonst dort, wo er beginnt.
+ * Mit gegner (Spielernummer) und platz (sein Startplatz aus gegnerPlaetze)
+ * gilt das fuer genau diesen Gegner; ohne beides gilt, wie bei zwei Spielern,
+ * jedes gesehene Hauptgebaeude, sonst gegenueber dem eigenen.
+ */
+function vermutetesHaupt(k, haupt, gegner = -1, platz = null) {
+  const b = k.gebaeude.find((g) => BUILDINGS[g.type].vital && (gegner < 0 || g.player === gegner));
+  if (b) return b;
+  if (platz) return { id: 0, x: platz.x, y: platz.y, vermutet: true, player: gegner };
+  return { id: 0, x: MAP - haupt.x, y: MAP - haupt.y, vermutet: true };
 }
 
 /** Steht hier ein bekanntes gegnerisches Gebaeude im Weg (fuer Bauplaetze)? */
@@ -5036,14 +5149,69 @@ function createAI(player = 1, seed = 1, stil = 'standard', stufe = 'mittel') {
     welleX: 0, welleY: 0, welleAufHaupt: false,
     // Raben: wie viele es beim letzten Zug gab, und ab wann nach einem Verlust ein neuer kommt
     rabenVorher: 0, rabeAb: 0,
+    // Gegner, auf den sie zielt (Spielernummer, -1 noch keiner), und seit wann -- bei mehr als zwei Spielern
+    gegner: -1, gegnerSeit: 0,
     kunde: neueKunde(player),
   };
+}
+
+// Mindestens so lange bleibt die KI bei einem Gegner, bevor sie zu einem
+// anderen wechselt, der sie angreift (Ticks, 2 min). Designzahl, ungemessen:
+// ohne das springt das Ziel (und mit ihm die Bauausrichtung zur Front) hin und
+// her, sobald zwei Gegner abwechselnd vor der Tuer stehen.
+const GEGNER_WECHSEL = 1200;
+
+/**
+ * Der Gegner, auf den die KI gerade zielt -- nur aus dem, was die Kunde kennt.
+ * Mit einem lebenden Gegner ist die Wahl trivial (Verhalten wie bei zwei
+ * Spielern). Mit mehreren (Designzahl, ungemessen): wer die KI angreift --
+ * ein gesehener Kaempfer in ihrer Domaene --, wird ihr Ziel, sonst der
+ * naechste: der, dessen Hauptgebaeude (gesehen, sonst Startplatz) dem eigenen
+ * am naechsten steht. Sie bleibt bei ihm, bis er ausscheidet oder (nach
+ * GEGNER_WECHSEL) ein anderer sie angreift. Liefert { player, x, y } oder null.
+ */
+function waehleGegner(ai, world, kunde, haupt) {
+  let kand = gegnerPlaetze(world, ai.player, haupt, true);
+  if (!kand.length) kand = gegnerPlaetze(world, ai.player, haupt);
+  if (!kand.length) return null;
+  let wahl = kand.length === 1 ? kand[0] : kand.find((c) => c.player === ai.gegner) || null;
+  if (kand.length > 1 && (!wahl || world.tick - ai.gegnerSeit >= GEGNER_WECHSEL)) {
+    // Angreifer: der naechste gesehene Kaempfer in der eigenen Domaene
+    let nah = null;
+    let nahD = Infinity;
+    for (const o of kunde.einheiten) {
+      if (!UNITS[o.type].weapon || !kand.some((c) => c.player === o.player) || !inDomain(world, ai.player, o.x, o.y)) continue;
+      const dd = dist2(o.x, o.y, haupt.x, haupt.y);
+      if (dd < nahD) {
+        nahD = dd;
+        nah = o;
+      }
+    }
+    if (nah) wahl = kand.find((c) => c.player === nah.player);
+  }
+  if (!wahl) {
+    let bestD = Infinity;
+    for (const c of kand) {
+      const bekannt = kunde.gebaeude.find((g) => g.player === c.player && BUILDINGS[g.type].vital) || c;
+      const dd = dist2(bekannt.x, bekannt.y, haupt.x, haupt.y);
+      if (dd < bestD) {
+        bestD = dd;
+        wahl = c;
+      }
+    }
+  }
+  if (wahl.player !== ai.gegner) {
+    ai.gegner = wahl.player;
+    ai.gegnerSeit = world.tick;
+  }
+  return wahl;
 }
 function stepAI(ai, world) {
   if (world.over || world.tick < ai.next) return;
   ai.next = world.tick + ai.stufe.takt;
 
   const p = world.players[ai.player];
+  if (!p.alive) return; // ausgeschieden: seine Reste verfallen, geplant wird nichts mehr
   const plan = FACTIONS[p.faction].rollen; // Bau-Rollen (src/sim/voelker/)
   const mine = world.entities.filter((e) => e.player === ai.player && !e.dead);
   const haupt = mine.find((e) => e.kind === 'building' && BUILDINGS[e.type].vital);
@@ -5127,7 +5295,10 @@ function stepAI(ai, world) {
     if (d.anchor) bilanz += ankerGegenwart(anchorRadius(world, b));
   }
   // Das gegnerische Hauptgebaeude -- gesehen oder dort vermutet, wo der Gegner beginnt.
-  const ziel = vermutetesHaupt(kunde, haupt);
+  // Bei mehreren Gegnern das des gewaehlten (waehleGegner).
+  const gegnerWahl = waehleGegner(ai, world, kunde, haupt);
+  if (!gegnerWahl) return;
+  const ziel = vermutetesHaupt(kunde, haupt, gegnerWahl.player, gegnerWahl);
 
   // Raben spaehen: jeder fliegt zur Ader auf der gegnerischen Seite, die am
   // laengsten keiner gesehen hat, sonst zum gegnerischen Hauptgebaeude.
@@ -5586,7 +5757,7 @@ function stepAI(ai, world) {
   for (let w = 0; wacheZahl < nachNaehe.length && w < wacheWert; wacheZahl++) w += UNITS[nachNaehe[wacheZahl].type].cost.fron;
   const wache = nachNaehe.slice(0, wacheZahl);
   const daheimStehend = nachNaehe.slice(wacheZahl);
-  const angriff = angriffsziel(kunde, haupt) || vermuteteFoerderung(world, kunde, haupt, ziel, haupt) || ziel;
+  const angriff = angriffsziel(kunde, haupt, ziel.player) || vermuteteFoerderung(world, kunde, haupt, ziel, haupt) || ziel;
   const welleAuf = (z) => {
     ai.welleZiel = z.id;
     ai.welleX = z.x;
@@ -5605,7 +5776,7 @@ function stepAI(ai, world) {
       y: (welle.reduce((s, u) => s + u.y, 0) / welle.length) | 0,
     };
     const bekannt = kunde.gebaeude.some((b) => b.id === ai.welleZiel);
-    const besser = angriffsziel(kunde, mitte) || vermuteteFoerderung(world, kunde, mitte, ziel, haupt);
+    const besser = angriffsziel(kunde, mitte, ziel.player) || vermuteteFoerderung(world, kunde, mitte, ziel, haupt);
     if (!bekannt || (ai.welleAufHaupt && besser)) {
       const weiter = besser || ziel;
       if (weiter.id !== ai.welleZiel || weiter.x !== ai.welleX || weiter.y !== ai.welleY) {
@@ -5794,10 +5965,12 @@ const TURM_WERT = 600;
  */
 function heimHeer(kunde, haupt, gegner) {
   let summe = 0;
-  for (const b of kunde.gebaeude) if (b.done && b.powered && bodenTurm(b.type)) summe += TURM_WERT;
+  // Mit mehreren Gegnern zaehlt nur, was dem gewaehlten gehoert (gegner.player)
+  const seiner = (o) => gegner.player === undefined || o.player === gegner.player;
+  for (const b of kunde.gebaeude) if (b.done && b.powered && bodenTurm(b.type) && seiner(b)) summe += TURM_WERT;
   for (const o of kunde.gesehen) {
     const d = UNITS[o.type];
-    if (d.worker || !d.weapon || dist2(o.x, o.y, gegner.x, gegner.y) >= dist2(o.x, o.y, haupt.x, haupt.y)) continue;
+    if (!seiner(o) || d.worker || !d.weapon || dist2(o.x, o.y, gegner.x, gegner.y) >= dist2(o.x, o.y, haupt.x, haupt.y)) continue;
     let zorn = 0;
     let wehr = 0;
     for (const s of kunde.gebaeude) {
@@ -6020,15 +6193,17 @@ function vermuteteFoerderung(world, kunde, von, gegner, haupt) {
  * den kein gesehener Turm deckt -- Wirtschaft treffen statt an Mauern
  * zerschellen --, dann Goetterblut vor Fron, dann der naechste vom Punkt von aus.
  */
-function angriffsziel(kunde, von) {
+function angriffsziel(kunde, von, spieler = -1) {
   let best = null;
   let bestRang = Infinity;
   let bestD = Infinity;
   for (const e of kunde.gebaeude) {
     const d = BUILDINGS[e.type];
     if (!d.fronOut && !d.blutOut) continue;
+    // Mit mehreren Gegnern nur Bauten des gewaehlten (spieler); deckt ein Turm nur der Besitzer des Ziels
+    if (spieler >= 0 && e.player !== spieler) continue;
     const gedeckt = kunde.gebaeude.some(
-      (t) => t.done && bodenTurm(t.type) && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
+      (t) => t.done && t.player === e.player && bodenTurm(t.type) && dist2(t.x, t.y, e.x, e.y) <= (BUILDINGS[t.type].weapon.range + 400) ** 2
     );
     const rang = (gedeckt ? 2 : 0) + (d.blutOut ? 0 : 1);
     const dd = dist2(e.x, e.y, von.x, von.y);
@@ -6858,6 +7033,7 @@ if (typeof MODELLE_DEF !== 'undefined') {
 
 
 
+
 const prozent = (promille) => Math.round(promille / 10) + ' %';
 const sekunden = (ticks) => Math.round(ticks / 10) + ' s';
 const meterText = (dm) => Math.round(dm / 10) + ' m';
@@ -6899,6 +7075,11 @@ function neuerNebel(an, player) {
  * ein neuer Tick da ist), dann die Anzeige zum Ziel ueberblenden.
  */
 function nebelAktualisieren(nebel, world) {
+  // Wer bei drei und mehr Spielern ausgeschieden ist, sieht der Partie ohne Nebel zu.
+  if (nebel.an && world.players.length > 2 && !world.players[nebel.kunde.player].alive) {
+    nebel.an = false;
+    nebel.hell.fill(255);
+  }
   if (!nebel.an) return;
   if (nebel.tick !== world.tick) {
     nebel.tick = world.tick;
@@ -7108,8 +7289,11 @@ function karteVorschauMalen(leinwand, daten, zufall = false) {
   for (const h of daten.hindernisse) kreis(h.x, h.y, h.r, h.art === 'fels' ? '#6b6a62' : '#2f5a78');
   for (const f of daten.furten || []) kreis(f.x, f.y, 260, '#8a7f5c');
   for (const a of daten.adern) kreis(a.x, a.y, 230, a.kind === 'goetterblut' ? '#b04a4a' : '#d8b06a');
-  // Startbasen: oben links Sitzplatz 1, unten rechts Sitzplatz 2 (wie in der Draufsicht)
-  for (const [x, y] of [[3000, 3000], [MAP - 3000, MAP - 3000]]) {
+  // Startbasen: oben links Sitzplatz 1, unten rechts Sitzplatz 2 (wie in der Draufsicht);
+  // Karten fuer 3 und 4 Spieler bringen ihre Basen mit, in der Reihenfolge der Sitze
+  const basen = [];
+  for (let p = 0; p < maxSpieler(daten); p++) basen.push(startplatz(daten, p));
+  for (const { x, y } of basen) {
     g.strokeStyle = '#e8e2cf';
     g.lineWidth = 1.5;
     g.beginPath();
@@ -7135,6 +7319,7 @@ function kartenVorschauVerdrahten(el) {
     const schluessel = wahl ? wahl.value : 'klassisch';
     const k = schluessel === 'zufall' ? { daten: zufallsKarte(7) } : karteFuerSpiel(schluessel, null, 0);
     karteVorschauMalen(leinwand, k.daten, schluessel === 'zufall');
+    gegnerZeilenAbgleichen(el, maxSpieler(k.daten));
   };
   const knoepfe = el.querySelectorAll ? el.querySelectorAll('input[name="karte"]') : [];
   for (const k of knoepfe) k.addEventListener('change', malen);
@@ -7373,16 +7558,130 @@ function gegnerVolkFuer(f, wahl = 'auto') {
   if (wahl && wahl !== 'auto' && FACTIONS[wahl]) return wahl;
   return f === 'mensch' ? 'gott' : 'mensch';
 }
-/** Auswahl des Gegner-Volks fuer den Startbildschirm. */
+// Gegner 2 und 3 (nur auf Karten mit mehr als zwei Basen): 'auto', 'keiner' oder ein Volk.
+const gegnerWahlMehr = ['auto', 'auto'];
+
+/** Auswahl des Gegner-Volks fuer den Startbildschirm; auf Karten fuer 3 und 4 Spieler kommen Gegner 2 und 3 dazu. */
 function gegnerVolkHtml(gewaehlt) {
-  const knopf = (v, name) => `<label><input type="radio" name="gegnerVolk" value="${v}"${v === gewaehlt ? ' checked' : ''}> ${name}</label>`;
-  return `<div class="stil">Gegner-Volk: ${knopf('auto', 'das andere')}${Object.keys(FACTIONS).map((f) => knopf(f, FACTIONS[f].kurz)).join('')}</div>`;
+  const zeile = (name, g, titel, ab, keiner) => {
+    const knopf = (v, text) => `<label><input type="radio" name="${name}" value="${v}"${v === g ? ' checked' : ''}> ${text}</label>`;
+    const verborgen = ab > 2 ? ` data-ab="${ab}" style="display:none"` : '';
+    return `<div class="stil"${verborgen}>${titel} ${knopf('auto', 'das andere')}${Object.keys(FACTIONS).map((f) => knopf(f, FACTIONS[f].kurz)).join('')}${keiner ? knopf('keiner', 'keiner') : ''}</div>`;
+  };
+  return (
+    zeile('gegnerVolk', gewaehlt, 'Gegner-Volk:', 2, false) +
+    zeile('gegnerVolk2', gegnerWahlMehr[0], 'Gegner 2:', 3, true) +
+    zeile('gegnerVolk3', gegnerWahlMehr[1], 'Gegner 3:', 4, true)
+  );
+}
+
+/** Die Wahl der Gegner aus dem Startbildschirm lesen; liefert die des ersten Gegners (oder null). */
+function gegnerWahlLesen() {
+  const lies = (name) => {
+    const r = typeof document !== 'undefined' && document.querySelector ? document.querySelector(`#intro input[name="${name}"]:checked`) : null;
+    return r ? r.value : null;
+  };
+  const zwei = lies('gegnerVolk2');
+  const drei = lies('gegnerVolk3');
+  if (zwei) gegnerWahlMehr[0] = zwei;
+  if (drei) gegnerWahlMehr[1] = drei;
+  return lies('gegnerVolk');
+}
+
+/** Zeigt die Zeilen fuer Gegner 2 und 3 nur, wenn die gewaehlte Karte so viele Spieler fasst. */
+function gegnerZeilenAbgleichen(el, spieler) {
+  const zeilen = el.querySelectorAll ? el.querySelectorAll('[data-ab]') : [];
+  for (const z of zeilen) if (z.style) z.style.display = spieler >= Number(z.dataset.ab) ? '' : 'none';
+}
+
+/**
+ * Voelker der Gegner fuer eine Partie: der erste wie gegnerVolkFuer, weitere
+ * (nur auf Karten mit mehr Basen) 'auto' = das jeweils naechste Volk der Reihe
+ * mensch, gott, tod, 'keiner' = dieser Platz bleibt leer. Hoechstens so viele,
+ * wie die Karte Basen hat, minus den eigenen Platz.
+ */
+function gegnerVolkListe(f, daten, wahl = 'auto', mehr = ['auto', 'auto']) {
+  const reihe = Object.keys(FACTIONS);
+  const liste = [gegnerVolkFuer(f, wahl)];
+  let vorher = liste[0];
+  for (let k = 0; k < maxSpieler(daten) - 2; k++) {
+    const w = mehr[k] || 'auto';
+    if (w === 'keiner') continue;
+    const v = FACTIONS[w] ? w : reihe[(reihe.indexOf(vorher) + 1) % reihe.length];
+    liste.push(v);
+    vorher = v;
+  }
+  return liste;
+}
+
+/**
+ * Die KIs einer Partie, Index = Sitz, null fuer den Menschen. Der Mensch sitzt
+ * auf `ich`; beim Zuschauen spielt auch dort eine KI. Seeds wie bisher: Sitz 1
+ * mit dem Seed der Welt, Sitz 0 (nur beim Zuschauen) mit +1, weitere Sitze mit
+ * +Sitz+1. Alle Gegner teilen Stil und Schwierigkeit.
+ */
+function kisErzeugen(world, ich, zuschauen, stil, stufe) {
+  return world.players.map((_, p) => {
+    if (p === ich && !zuschauen) return null;
+    if (p === 0) return createAI(0, world.seed + 1);
+    return createAI(p, p === 1 ? world.seed : world.seed + p + 1, stil, stufe);
+  });
+}
+
+// ------------------------------------------------------------ Spielerfarben
+// Jeder Spieler hat seine Farbe: sein Volk, solange kein Spieler vor ihm es
+// schon traegt; jeder weitere Spieler desselben Volks nimmt der Reihe nach eine
+// Reservefarbe (rot, violett, rosa -- nicht blau oder gruen wie die Voelker).
+// In 2D und 3D dieselbe Funktion.
+const SPIELER_RESERVE = ['#d9534f', '#b06ad4', '#f08cc0'];
+const farbenMerk = new WeakMap(); // je Welt einmal gerechnet; die Voelker der Spieler aendern sich nicht
+function spielerFarbe(world, p) {
+  let farben = farbenMerk.get(world);
+  if (!farben || farben.length !== world.players.length) {
+    farben = [];
+    const gesehen = [];
+    let reserve = 0;
+    for (const pl of world.players) {
+      if (!gesehen.includes(pl.faction)) {
+        gesehen.push(pl.faction);
+        farben.push(FACTIONS[pl.faction].color);
+      } else farben.push(SPIELER_RESERVE[reserve++ % SPIELER_RESERVE.length]);
+    }
+    farbenMerk.set(world, farben);
+  }
+  return farben[p];
+}
+
+/** Wo steht der Spieler? 'gewonnen' / 'verloren' (Partie aus), 'ausgeschieden' (draussen, die Partie laeuft) oder 'dabei'. */
+function spielerStand(world, ich) {
+  if (world.over) return world.winner === ich ? 'gewonnen' : 'verloren';
+  return world.players[ich].alive ? 'dabei' : 'ausgeschieden';
+}
+
+/** Anzeige des eigenen Standes im HUD ('' solange man dabei ist). */
+function endeAnzeige(world, ich) {
+  const s = spielerStand(world, ich);
+  return s === 'gewonnen' ? 'Gewonnen' : s === 'verloren' ? 'Verloren' : s === 'ausgeschieden' ? 'Ausgeschieden — du siehst zu' : '';
+}
+
+/**
+ * Bei drei und mehr Spielern eine Zeile je Spieler: Farbe, Volk, ob er noch
+ * dabei ist. Mehr weiss man vom Gegner nicht -- das zeigt erst die Auswertung.
+ */
+function spielerLeisteHtml(world, ich) {
+  if (world.players.length <= 2) return '';
+  const chip = (pl, p) => {
+    const aus = !pl.alive;
+    const stil = `color:${spielerFarbe(world, p)};${aus ? 'text-decoration:line-through;opacity:.55' : ''}`;
+    return `<span class="spieler" style="${stil}" title="${aus ? 'ausgeschieden' : 'im Spiel'}">● ${volkName(pl.faction)}${p === ich ? ' (du)' : ''}</span>`;
+  };
+  return `<div class="spielerleiste" style="display:flex;flex-wrap:wrap;gap:2px 12px;margin:5px 0;font-size:12px">${world.players.map(chip).join('')}</div>`;
 }
 
 // ------------------------------------------------------------ Beobachter (Zuschauen, Wiederholung)
-/** Beide Seiten auf einen Blick: Vorrat, Foerderung, Heer, Einheiten, Gebaeude, Skills. */
+/** Alle Seiten auf einen Blick: Vorrat, Foerderung, Heer, Einheiten, Gebaeude, Skills. */
 function beobachterHtml(world) {
-  const z = [0, 1].map((p) => {
+  const z = world.players.map((_, p) => {
     const pl = world.players[p];
     let heer = 0;
     let einheiten = 0;
@@ -7398,7 +7697,8 @@ function beobachterHtml(world) {
     }
     return {
       name: volkName(pl.faction),
-      farbe: FACTIONS[pl.faction].color,
+      farbe: spielerFarbe(world, p),
+      aus: !pl.alive,
       fron: pl.fron | 0,
       foerderung: Math.round(foerderungProMin(world, p)),
       blut: pl.goetterblut | 0,
@@ -7408,19 +7708,25 @@ function beobachterHtml(world) {
       skills: pl.gelernt.length,
     };
   });
+  // Der groesste Wert einer Zeile ist hervorgehoben -- aber nur, wenn alle ihn nicht gleich haben.
   const zeile = (titel, k) => {
-    const a = z[0][k];
-    const b = z[1][k];
-    return `<tr><td>${titel}</td><td${a > b ? ' class="vorn"' : ''}>${a}</td><td${b > a ? ' class="vorn"' : ''}>${b}</td></tr>`;
+    const werte = z.map((s) => s[k]);
+    const hoechst = Math.max(...werte);
+    const vorn = (v) => (v === hoechst && werte.some((w) => w < hoechst) ? ' class="vorn"' : '');
+    return `<tr><td>${titel}</td>${werte.map((v) => `<td${vorn(v)}>${v}</td>`).join('')}</tr>`;
   };
-  return `<table class="beobachter"><tr><th></th><th style="color:${z[0].farbe}">${z[0].name}</th><th style="color:${z[1].farbe}">${z[1].name}</th></tr>
+  const kopf = z.map((s) => `<th style="color:${s.farbe}${s.aus ? ';text-decoration:line-through' : ''}">${s.name}</th>`).join('');
+  return `<table class="beobachter"><tr><th></th>${kopf}</tr>
     ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${zeile('Skills', 'skills')}</table>`;
 }
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
 const NEUHEITEN = {
-  version: '0.38',
+  version: '0.41',
   punkte: [
+    '<b>Neu: bis zu vier Spieler</b> — jeder gegen jeden auf den Karten „Drei Reiche (3P)“ und „Vierlande (4P)“, Gegner 2 und 3 im Startmenü wählbar; wer Hauptgebäude und Kommandant verliert, scheidet aus und sieht zu',
+    '<b>Bauleiste mit Reitern</b> (Wirtschaft, Militär, Besonderes) — <kbd>Tab</kbd> wechselt; größerer <b>Skillbaum</b> mit Stufen und Linien (T)',
+    '<b>Neu in 3D:</b> Schildkuppeln, Fernschlag-Raketen und Flak',
     '<b>Neu: der Todesgott</b> als drittes Volk — seine Grabhügel wachsen mit den Toten. „Als Todesgott spielen“, und das Gegner-Volk ist jetzt wählbar',
     '<b>Zwei Kampagnen</b> mit Geschichte, Zielen und Funksprüchen — „Die Rodung“ (Menschen) und „Der Zorn des Waldes“ (Gott)',
     '<b>Online gegen einen Menschen</b> — ohne Server: zwei Codes per Chat austauschen, im Spiel Enter für Nachrichten',
@@ -8483,7 +8789,8 @@ function beben(fx, staerke, x, y, hoerer) {
 
 /** Zeit fortschreiben: Geschosse schlagen ein, Partikel fallen, Ringe weiten sich. */
 function effekteFortschreiben(fx, dt, world, hoerer) {
-  if (world && (world.over || world.winner !== null && world.winner !== undefined)) {
+  // Nach Spielende kein Beben mehr (winner ist -1, solange die Partie laeuft -- darum nur over)
+  if (world && world.over) {
     fx.over = true;
     fx.beben = 0;
   } else {
@@ -9092,6 +9399,7 @@ function musikRassel(ton, ziel, t, laut, frequenz, dauer = 0.06) {
 
 
 
+
 /** Name der Karte fuer Anzeigen und Dateinamen. */
 const kartenName = (k) => KARTEN[k]?.name || { zufall: 'Zufallskarte', eigen: 'eigene Karte' }[k] || k;
 const STAND = typeof SPIEL_STAND !== 'undefined' ? SPIEL_STAND : 'dev';
@@ -9154,17 +9462,23 @@ function aufnahmeLesen(text) {
 }
 
 // ------------------------------------------------------------ Verlauf fuer den Siegbildschirm
-function neuerVerlauf() {
-  return { minuten: [], verluste: [0, 0], getoetet: [0, 0], gebaeudeVerloren: [0, 0], ausgebildet: [0, 0] };
+
+/** Verlauf fuer n Spieler (zwei, wenn nichts anderes gesagt wird). */
+function neuerVerlauf(n = 2) {
+  const nullen = () => Array(n).fill(0);
+  return { minuten: [], verluste: nullen(), getoetet: nullen(), gebaeudeVerloren: nullen(), ausgebildet: nullen() };
 }
 
 /** Nach jedem Tick: Verluste zaehlen, einmal je Minute Heer, Foerderung und Gebaeude festhalten. */
 function verlaufFortschreiben(v, world) {
+  const n = world.players.length;
   for (const ev of world.events) {
     if (ev.t === 'died') {
+      if (ev.vergangen) continue; // verfallen (Ausgeschiedene), nicht gefallen
       if (ev.kind === 'unit') {
         v.verluste[ev.player]++;
-        v.getoetet[1 - ev.player]++;
+        // "Getoetet" kennt nur zwei Spieler: wer den Schuss tat, steht im Ereignis nicht.
+        if (n === 2) v.getoetet[1 - ev.player]++;
       } else v.gebaeudeVerloren[ev.player]++;
     } else if (ev.t === 'spawned') {
       const u = world.entities.find((e) => e.id === ev.id);
@@ -9173,7 +9487,7 @@ function verlaufFortschreiben(v, world) {
   }
   if (world.tick % 600 === 0 || world.over) {
     v.minuten.push(
-      [0, 1].map((p) => {
+      world.players.map((_, p) => {
         let heer = 0;
         let gebaeude = 0;
         for (const e of world.entities) {
@@ -9187,44 +9501,47 @@ function verlaufFortschreiben(v, world) {
   }
 }
 
-/** Kleines Liniendiagramm beider Seiten als SVG. */
-function diagramm(titel, reihe0, reihe1, farbe0, farbe1) {
+/** Kleines Liniendiagramm aller Seiten als SVG: reihen[p] ist die Zahlenreihe des Spielers p, farben[p] seine Farbe. */
+function diagramm(titel, reihen, farben) {
   const B = 260;
   const H = 90;
-  const n = Math.max(reihe0.length, 2);
-  const max = Math.max(1, ...reihe0, ...reihe1);
+  const n = Math.max(reihen[0].length, 2);
+  const max = Math.max(1, ...reihen.flat());
   const pfad = (r) =>
     r.map((w, i) => `${i ? 'L' : 'M'}${((i / (n - 1)) * B).toFixed(1)},${(H - (w / max) * (H - 6) - 3).toFixed(1)}`).join(' ');
   return `<div class="diagramm"><b>${titel}</b>
     <svg viewBox="0 0 ${B} ${H}" preserveAspectRatio="none">
-      <path d="${pfad(reihe0)}" fill="none" stroke="${farbe0}" stroke-width="2"/>
-      <path d="${pfad(reihe1)}" fill="none" stroke="${farbe1}" stroke-width="2"/>
+      ${reihen.map((r, p) => `<path d="${pfad(r)}" fill="none" stroke="${farben[p]}" stroke-width="2"/>`).join('\n      ')}
     </svg><span>höchstens ${Math.round(max)}</span></div>`;
 }
 
 /**
- * Siegbildschirm: Ergebnis, Zahlen beider Seiten, Verlauf von Heer,
+ * Siegbildschirm: Ergebnis, Zahlen aller Seiten, Verlauf von Heer,
  * Foerderung und Gebaeuden. Knoepfe: endeSpeichern, endeNochmal, endeKarte.
+ * Bei drei und vier Spielern: Sieg, Niederlage (auch wer vorher ausschied), Farben je Spieler.
  */
 function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
   const f = world.players.map((p) => FACTIONS[p.faction]);
+  const farben = world.players.map((_, p) => spielerFarbe(world, p));
   const min = (world.tick / 600).toFixed(1).replace('.', ',');
   const titel = wiederholung ? `Wiederholung: ${f[world.winner]?.name || '—'} gewinnt` : world.winner === ich ? 'Sieg' : 'Niederlage';
-  const zeile = (name, a, b) => `<tr><td>${name}</td><td>${a}</td><td>${b}</td></tr>`;
-  const reihe = (k, p) => v.minuten.map((m) => m[p][k]);
+  const zeile = (name, liste) => `<tr><td>${name}</td>${liste.map((a) => `<td>${a}</td>`).join('')}</tr>`;
+  const reihen = (k) => world.players.map((_, p) => v.minuten.map((m) => (m[p] ? m[p][k] : 0)));
+  // Wer gefallen ist, steht in der Kopfzeile durchgestrichen (nur bei mehr als zwei Spielern interessant)
+  const kopf = world.players.map((pl, p) => `<th style="color:${farben[p]}${!pl.alive && world.players.length > 2 ? ';text-decoration:line-through' : ''}">${f[p].name}</th>`).join('');
   return `<h1>${titel}</h1>
     <p>nach ${min} Minuten auf der Karte ${kartenName(world.karte)}</p>
     <table class="sieg">
-      <tr><th></th><th style="color:${f[0].color}">${f[0].name}</th><th style="color:${f[1].color}">${f[1].name}</th></tr>
-      ${zeile('Ausgebildet', v.ausgebildet[0], v.ausgebildet[1])}
-      ${zeile('Getötet', v.getoetet[0], v.getoetet[1])}
-      ${zeile('Verloren', v.verluste[0], v.verluste[1])}
-      ${zeile('Gebäude verloren', v.gebaeudeVerloren[0], v.gebaeudeVerloren[1])}
+      <tr><th></th>${kopf}</tr>
+      ${zeile('Ausgebildet', v.ausgebildet)}
+      ${world.players.length === 2 ? zeile('Getötet', v.getoetet) : ''}
+      ${zeile('Verloren', v.verluste)}
+      ${zeile('Gebäude verloren', v.gebaeudeVerloren)}
     </table>
     <div class="diagramme">
-      ${diagramm('Heer (Fron)', reihe('heer', 0), reihe('heer', 1), f[0].color, f[1].color)}
-      ${diagramm('Förderung (Fron/min)', reihe('foerderung', 0), reihe('foerderung', 1), f[0].color, f[1].color)}
-      ${diagramm('Gebäude', reihe('gebaeude', 0), reihe('gebaeude', 1), f[0].color, f[1].color)}
+      ${diagramm('Heer (Fron)', reihen('heer'), farben)}
+      ${diagramm('Förderung (Fron/min)', reihen('foerderung'), farben)}
+      ${diagramm('Gebäude', reihen('gebaeude'), farben)}
     </div>
     <div class="go">
       ${mitAufnahme ? `<button id="endeSpeichern" class="mitIcon">${ICONS.wiederholung || ''} Wiederholung speichern</button>` : ''}
@@ -12334,7 +12651,7 @@ const mini = document.getElementById('mini');
 const mctx = mini.getContext('2d');
 
 let meFaction = 'mensch';
-let world, ai, aiMe;
+let world, ais = []; // ais[sitz]: die KI auf dem Sitz, null fuer den Menschen (beim Zuschauen sitzt auch auf ME eine)
 let angriff = false; // A gedrueckt: naechster Klick ist eine Angriffsbewegung
 let stats; // Auswertung der Partie, siehe zaehle()
 let zeigeAuswertung = false;
@@ -12453,13 +12770,6 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   }
   meFaction = f;
   if (online) meFaction = online.config.factions[online.ich]; // als Gast das zweite Volk
-  const gegner = online
-    ? online.config.factions[1]
-    : wdh
-      ? wdh.factions[1]
-      : geladen
-        ? geladen.world.players[1].faction
-        : gegnerVolkFuer(f, m ? 'auto' : gegnerVolk);
   const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : tagesAktiv ? tagesAktiv.seed : (Date.now() / 1000) | 0;
   const karte = online
     ? { schluessel: online.config.karte, daten: online.config.karteDaten || KARTEN[online.config.karte] }
@@ -12467,26 +12777,34 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
       ? { schluessel: geladen.world.karte, daten: geladen.world.karteDaten }
       : karteFuerSpiel(karteSchluessel, wdh, seed);
   karteWaehlen(karte.schluessel, karte.daten);
-  world = geladen ? geladen.world : createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
+  // Die Gegner: online der eine Mitspieler, sonst aus Wiederholung, Spielstand oder Startbildschirm --
+  // auf Karten fuer 3 und 4 Spieler bis zu drei.
+  const gegner = online
+    ? [online.config.factions[1]]
+    : wdh
+      ? wdh.factions.slice(1)
+      : geladen
+        ? geladen.world.players.slice(1).map((pl) => pl.faction)
+        : gegnerVolkListe(f, karte.daten, m ? 'auto' : gegnerVolk, gegnerWahlMehr);
+  world = geladen ? geladen.world : createWorld({ seed, factions: [f, ...gegner], karte: karte.schluessel, karteDaten: karte.daten });
   if (m && !geladen) m.aufbau(world);
-  ai = ohneKI ? null : geladen ? geladen.ais[1] : m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
-  // Zuschauen: dieselbe KI spielt auch die eigene Seite.
-  aiMe = ohneKI ? null : geladen ? geladen.ais[0] : zuschauen ? createAI(0, world.seed + 1) : null;
+  // Zuschauen: auch auf dem eigenen Sitz spielt eine KI.
+  ais = ohneKI ? [] : geladen ? geladen.ais : m && m.ki === false ? [] : kisErzeugen(world, ME, zuschauen, gegnerStil, gegnerStufe);
   nebel = neuerNebel(!zuschauen && !wdh, ME);
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null, online: !!online });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, ...gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null, online: !!online });
   netz = online ? { kanal: online.kanal, gs: neuerGleichschritt(online.ich), zu: '', wartetSeit: 0 } : null;
   wdhStaende = [];
   spulenBis = -1;
   wdhSicht = 'alle';
-  verlauf = stand ? stand.extra.verlauf : neuerVerlauf();
+  verlauf = stand ? stand.extra.verlauf : neuerVerlauf(world.players.length);
   if (stand) aufnahme = stand.extra.aufnahme;
   endeGezeigt = false;
   angriff = false;
   zeigeAuswertung = false;
-  stats = neueStats();
+  stats = neueStats(world.players.length);
   sel = [];
   placing = null;
   skillsOffen = false;
@@ -12498,7 +12816,7 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   zielen = null;
   schlagZielen = false;
   wirkungen.length = 0;
-  flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
+  flaeche = neueFlaeche(world.players.length);
   cam.x = 3000;
   cam.y = 3000;
   if (stand && stand.extra.cam) Object.assign(cam, stand.extra.cam);
@@ -12507,8 +12825,9 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
     cam.y = stand.extra.kam.z * 10;
   }
   if (ME === 1) {
-    cam.x = MAP - 3000;
-    cam.y = MAP - 3000;
+    const heim = startplatz(world.karteDaten, 1);
+    cam.x = heim.x;
+    cam.y = heim.y;
   }
   renderBar();
   zeitleisteZeigen();
@@ -13036,8 +13355,7 @@ function tick2d(still = false) {
   wdhStandMerken();
   if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
   else if (aufnahme) aufnehmen(aufnahme, world);
-  if (aiMe) stepAI(aiMe, world);
-  if (ai) stepAI(ai, world);
+  for (const a of ais) if (a) stepAI(a, world);
   if (mission && mission.takt) mission.takt(world); // Missionsereignisse, auch beim Abspielen
   step(world);
   if (netz) gsNachSchritt(netz.gs, world, netzOffen, netzPost);
@@ -13144,7 +13462,7 @@ function infoKarte() {
 /** Eigene Bauplaene: gestrichelte Umrisse; Erbauer auf dem Weg dorthin mit gepunkteter Linie. */
 function drawPlaene() {
   ctx.lineWidth = 1.5;
-  ctx.strokeStyle = FACTIONS[meFaction].color;
+  ctx.strokeStyle = spielerFarbe(world, ME);
   for (const q of world.plaene) {
     if (q.player !== ME) continue;
     const r = Math.max(4, BUILDINGS[q.type].radius * cam.z);
@@ -13175,7 +13493,7 @@ function drawSchreine() {
     if (e.dead || e.kind !== 'building' || !e.done || verborgen(e)) continue;
     const buff = BUILDINGS[e.type].buff;
     if (!buff) continue;
-    ctx.strokeStyle = FACTIONS[world.players[e.player].faction].color;
+    ctx.strokeStyle = spielerFarbe(world, e.player);
     ctx.globalAlpha = e.powered ? 0.45 : 0.15;
     ctx.beginPath();
     ctx.arc(w2sx(e.x), w2sy(e.y), buff.radius * cam.z, 0, Math.PI * 2);
@@ -13277,8 +13595,8 @@ function markierung(e) {
 
 /** Die Domäne ist die wichtigste Linie im Spiel -- also die auffälligste. */
 function drawDomains() {
-  for (let p = 0; p < 2; p++) {
-    const col = FACTIONS[world.players[p].faction].color;
+  for (let p = 0; p < world.players.length; p++) {
+    const col = spielerFarbe(world, p);
     const anker = world.entities.filter(
       (e) => !e.dead && e.player === p && e.kind === 'building' && anchorRadius(world, e) > 0 &&
         (p === ME || !nebel.an || nebel.bekannt.has(e.id))
@@ -13390,14 +13708,14 @@ function drawEntities() {
   for (const b of nebel.bekannt.values()) {
     if (nebel.kunde.jetzt.has(b.id)) continue;
     const r = Math.max(4, BUILDINGS[b.type].radius * cam.z);
-    ctx.strokeStyle = FACTIONS[world.players[b.player].faction].color;
+    ctx.strokeStyle = spielerFarbe(world, b.player);
     ctx.lineWidth = 1.5;
     ctx.strokeRect(w2sx(b.x) - r, w2sy(b.y) - r, r * 2, r * 2);
   }
   ctx.globalAlpha = 1;
   for (const e of world.entities) {
     if (verborgen(e)) continue;
-    const col = FACTIONS[world.players[e.player].faction].color;
+    const col = spielerFarbe(world, e.player);
     const x = w2sx(e.x);
     const y = w2sy(e.y);
     if (x < -60 || y < -60 || x > cv.clientWidth + 60 || y > cv.clientHeight + 60) continue;
@@ -13541,8 +13859,8 @@ function drawSelection() {
   }
   ctx.globalAlpha = 1;
   // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
-  ctx.strokeStyle = FACTIONS[meFaction].color;
-  ctx.fillStyle = FACTIONS[meFaction].color;
+  ctx.strokeStyle = spielerFarbe(world, ME);
+  ctx.fillStyle = spielerFarbe(world, ME);
   ctx.lineWidth = 1.5;
   for (const id of gewaehlteFabriken(world, sel, ME)) {
     const b = byId(world, id);
@@ -13667,7 +13985,7 @@ function drawGhost() {
   const drin = inDomain(world, ME, gx, gy);
   const gerodet = def.needsGrowth && isCleared(world, gx, gy);
   const fels = aufHindernis(world, gx, gy, def.radius);
-  const col = gerodet || ohneAder || fels ? COL.bad : drin ? FACTIONS[meFaction].color : COL.gold;
+  const col = gerodet || ohneAder || fels ? COL.bad : drin ? spielerFarbe(world, ME) : COL.gold;
 
   if (def.anchor) {
     ctx.strokeStyle = col;
@@ -13713,11 +14031,11 @@ function drawHud() {
   document.getElementById('hud').innerHTML = `
     <div class="res">
       ${kommandantZeile()}
-      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : netz ? ' · Online' : tagesAktiv ? ' · Tagesherausforderung' : ''}</span>
+      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : ais[0] ? ' · Zuschauen' : netz ? ' · Online' : tagesAktiv ? ' · Tagesherausforderung' : ''}</span>
     </div>
-    ${(wiederholung && wdhSicht === 'alle') || aiMe ? beobachterHtml(world) : ''}${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
+    ${spielerLeisteHtml(world, wiederholung || ais[0] ? -1 : ME)}${(wiederholung && wdhSicht === 'alle') || ais[0] ? beobachterHtml(world) : ''}${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahlHtml()}
-    ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}
+    ${(world.over || !(wiederholung || ais[0])) && endeAnzeige(world, ME) ? `<div class="over">${endeAnzeige(world, ME)}</div>` : ''}
     ${world.over || zeigeAuswertung ? flaecheHtml() + auswertungHtml() : ''}`;
 }
 
@@ -13734,7 +14052,7 @@ function kommandantZeile() {
 // Die Leitfrage beim Selbstspielen: Wann fordert die Domaene eine
 // Entscheidung, wann nervt sie? Reibung (gedrosselte und stillstehende
 // Baustellen), Kampfort, Anker und Goetterblut -- je Seite gezaehlt.
-function neueStats() {
+function neueStats(n = 2) {
   const seite = () => ({
     blut: -1,
     heim: 0,
@@ -13747,11 +14065,11 @@ function neueStats() {
     gedrosselt: 0,
     still: 0,
   });
-  return [seite(), seite()];
+  return Array.from({ length: n }, seite);
 }
 
 function zaehle() {
-  for (let p = 0; p < 2; p++) {
+  for (let p = 0; p < world.players.length; p++) {
     if (stats[p].blut < 0 && world.players[p].goetterblut > 0) stats[p].blut = world.tick;
   }
   for (const ev of world.events) {
@@ -13775,14 +14093,14 @@ function zaehle() {
   }
   // Reibung: ein Tick zaehlt, wenn irgendeine Baustelle gedrosselt ist bzw.
   // ganz ohne Gegenwart steht (meist: ausserhalb der Domaene gebaut).
-  const gedrosselt = [false, false];
-  const still = [false, false];
+  const gedrosselt = world.players.map(() => false);
+  const still = world.players.map(() => false);
   for (const e of world.entities) {
     if (e.dead || e.kind !== 'building' || e.done) continue;
     if (e.powered === 0) still[e.player] = true;
     else if (e.powered < 1000) gedrosselt[e.player] = true;
   }
-  for (let p = 0; p < 2; p++) {
+  for (let p = 0; p < world.players.length; p++) {
     if (gedrosselt[p]) stats[p].gedrosselt++;
     if (still[p]) stats[p].still++;
   }
@@ -13797,13 +14115,14 @@ function auswertungHtml() {
     const pct = (x) => Math.round((100 * x) / n);
     return `${pct(z.heim)}·${pct(z.fremd)}·${pct(z.frei)}`;
   };
-  const a = stats[ME];
-  const b = stats[1 - ME];
-  const zeile = (name, f) => `<b>${name}</b><span>${f(a)}</span><span>${f(b)}</span>`;
+  // Du zuerst, dann die Gegner in Sitzreihenfolge
+  const reihe = [ME, ...world.players.map((_, p) => p).filter((p) => p !== ME)];
+  const zeile = (name, f) => `<b>${name}</b>${reihe.map((p) => `<span>${f(stats[p])}</span>`).join('')}`;
+  const kopf = reihe.map((p, i) => `<span class="evh" style="color:${spielerFarbe(world, p)}">${i === 0 ? 'du' : reihe.length > 2 ? volkName(world.players[p].faction) : 'Gegner'}</span>`).join('');
   return `<div class="eval">
     <div class="fac">Auswertung${world.over ? '' : ' (I)'}</div>
-    <div class="evg">
-      <b></b><span class="evh">du</span><span class="evh">Gegner</span>
+    <div class="evg" style="grid-template-columns:1fr${' auto'.repeat(reihe.length)}">
+      <b></b>${kopf}
       ${zeile('Götterblut ab', (s) => min(s.blut))}
       ${zeile('Schüsse % heim·fremd·frei', ort)}
       ${zeile('Anker +/−', (s) => s.ankerGebaut + '/' + s.ankerVerloren)}
@@ -13817,21 +14136,24 @@ function auswertungHtml() {
 // Die Kernfrage des Prototyps, sichtbar gemacht: Wie groß ist welche Domäne
 // gerade, und wie hat sich das entwickelt? Nur Anzeige, ändert nichts.
 const FLAECHE_RASTER = 200; // dm, also 20 m × 20 m = 0,04 ha je Zelle
-let flaeche = { tick: -1, ha: [0, 0], verlauf: [[], []] };
+let flaeche = neueFlaeche(2);
+function neueFlaeche(n) {
+  return { tick: -1, ha: Array(n).fill(0), verlauf: Array.from({ length: n }, () => []) };
+}
 
 function messeFlaeche() {
   if (flaeche.tick >= 0 && world.tick >= flaeche.tick && world.tick - flaeche.tick < 50) return;
   flaeche.tick = world.tick;
-  const zellen = [0, 0];
+  const zellen = world.players.map(() => 0);
   for (let y = FLAECHE_RASTER >> 1; y < MAP; y += FLAECHE_RASTER) {
     for (let x = FLAECHE_RASTER >> 1; x < MAP; x += FLAECHE_RASTER) {
-      for (let p = 0; p < 2; p++) if (inDomain(world, p, x, y)) zellen[p]++;
+      for (let p = 0; p < world.players.length; p++) if (inDomain(world, p, x, y)) zellen[p]++;
     }
   }
   const zelleHa = (FLAECHE_RASTER * FLAECHE_RASTER) / 1e6; // dm² -> ha
   flaeche.ha = zellen.map((z) => Math.round(z * zelleHa));
   const n = Math.floor(world.tick / 300); // alle 30 s ein Punkt
-  for (let p = 0; p < 2; p++) {
+  for (let p = 0; p < world.players.length; p++) {
     flaeche.verlauf[p][n] = flaeche.ha[p];
   }
 }
@@ -13840,21 +14162,21 @@ function flaecheHtml() {
   messeFlaeche();
   const v = flaeche.verlauf;
   const len = Math.max(v[0].length, 2);
-  const top = Math.max(1, ...v[0].filter(Number.isFinite), ...v[1].filter(Number.isFinite));
+  const top = Math.max(1, ...v.flatMap((r) => r.filter(Number.isFinite)));
   const linie = (arr) =>
     arr
       .map((h, i) => (Number.isFinite(h) ? `${((i / (len - 1)) * 240).toFixed(1)},${(36 - (h / top) * 34).toFixed(1)}` : ''))
       .filter(Boolean)
       .join(' ');
-  const farbe = (p) => FACTIONS[world.players[p].faction].color;
-  const gegner = 1 - ME;
+  const farbe = (p) => spielerFarbe(world, p);
+  const gegner = world.players.map((_, p) => p).filter((p) => p !== ME);
   return `<div class="area">
       <div class="res">
         <b>Domäne</b><span style="color:${farbe(ME)}">${flaeche.ha[ME]} ha</span>
-        <b>Gegner</b><span style="color:${farbe(gegner)}">${flaeche.ha[gegner]} ha</span>
+        ${gegner.map((g) => `<b>${gegner.length > 1 ? volkName(world.players[g].faction) : 'Gegner'}</b><span style="color:${farbe(g)}">${flaeche.ha[g]} ha</span>`).join('')}
       </div>
       <svg viewBox="0 0 240 38" preserveAspectRatio="none" class="spark">
-        <polyline points="${linie(v[gegner])}" fill="none" stroke="${farbe(gegner)}" stroke-width="1.2" opacity=".6"/>
+        ${gegner.map((g) => `<polyline points="${linie(v[g])}" fill="none" stroke="${farbe(g)}" stroke-width="1.2" opacity=".6"/>`).join('')}
         <polyline points="${linie(v[ME])}" fill="none" stroke="${farbe(ME)}" stroke-width="1.6"/>
       </svg></div>`;
 }
@@ -13898,8 +14220,8 @@ function drawMini() {
     mctx.arc(h.x * s, h.y * s, h.r * s, 0, Math.PI * 2);
     mctx.fill();
   }
-  for (let p = 0; p < 2; p++) {
-    mctx.fillStyle = FACTIONS[world.players[p].faction].color;
+  for (let p = 0; p < world.players.length; p++) {
+    mctx.fillStyle = spielerFarbe(world, p);
     mctx.globalAlpha = 0.18;
     for (const e of world.entities) {
       if (e.player !== p || e.kind !== 'building') continue;
@@ -14007,8 +14329,8 @@ function starte(f, zuschauen) {
   if (gewaehlt) gegnerStil = gewaehlt.value;
   const stufe = document.querySelector?.('#intro input[name="stufe"]:checked');
   if (stufe) gegnerStufe = stufe.value;
-  const volk = document.querySelector?.('#intro input[name="gegnerVolk"]:checked');
-  if (volk) gegnerVolk = volk.value;
+  const volk = gegnerWahlLesen(); // Gegner 1 (und, auf Karten fuer 3 und 4 Spieler, 2 und 3)
+  if (volk) gegnerVolk = volk;
   const karte = document.querySelector?.('#intro input[name="karte"]:checked');
   if (karte) karteSchluessel = karte.value;
   document.getElementById('intro').style.display = 'none';
@@ -14084,9 +14406,9 @@ function standHinweis(text) {
   standMeldungBis = performance.now() + 2500;
 }
 function standText() {
-  return spielstandText(world, [aiMe, ai], {
+  return spielstandText(world, ais, {
     meFaction,
-    zuschauen: !!aiMe,
+    zuschauen: !!ais[0],
     gegnerStil,
     gegnerStufe,
     karteSchluessel,
@@ -14119,7 +14441,7 @@ function standLaden(text) {
   standHinweis('Spielstand geladen');
 }
 function autoSpeichern() {
-  if (autoSpeichernSinnvoll(world, !!aiMe, wiederholung) && !missionGewonnen && !netz) schnellSpeichern(standText());
+  if (autoSpeichernSinnvoll(world, !!ais[0], wiederholung) && !missionGewonnen && !netz) schnellSpeichern(standText());
 }
 addEventListener('pagehide', autoSpeichern);
 addEventListener('visibilitychange', () => {
@@ -14137,7 +14459,7 @@ const wdhZeit = (t) => {
 };
 function wdhStandMerken() {
   if (!wiederholung || world.tick % 600 !== 0 || wdhStaende.some((s) => s.tick === world.tick)) return;
-  wdhStaende.push({ tick: world.tick, zustand: zustandSichern(world, [aiMe, ai]), zeiger: wdhZeiger, verlauf: JSON.parse(JSON.stringify(verlauf)) });
+  wdhStaende.push({ tick: world.tick, zustand: zustandSichern(world, ais), zeiger: wdhZeiger, verlauf: JSON.parse(JSON.stringify(verlauf)) });
 }
 /** Zu einem Tick springen: zurueck ueber den letzten Stand davor, dann vorspulen. */
 function wdhSpringen(ziel) {
@@ -14148,8 +14470,7 @@ function wdhSpringen(ziel) {
   if (bester && (ziel < world.tick || bester.tick > world.tick)) {
     const g = zustandLaden(bester.zustand);
     world = g.world;
-    aiMe = g.ais[0];
-    ai = g.ais[1];
+    ais = g.ais;
     wdhZeiger = bester.zeiger;
     verlauf = JSON.parse(JSON.stringify(bester.verlauf));
     endeGezeigt = false;
@@ -14157,7 +14478,7 @@ function wdhSpringen(ziel) {
     effekteLeeren(fx);
     nebel = neuerNebel(wdhSicht !== 'alle', ME);
     wirkungen.length = 0;
-    stats = neueStats();
+    stats = neueStats(world.players.length);
   }
   spulenBis = ziel;
 }
@@ -14200,7 +14521,7 @@ function zeitleisteZeigen() {
     <input id="wdhRegler" type="range" min="0" max="${wiederholung.ende}" step="10" value="${world.tick}">
     <span id="wdhZeit"></span>
     <span class="gruppe">${[1, 2, 4, 8, 16].map((t) => knopf('tempo="' + t + '"', '×' + t, speed === t)).join('')}</span>
-    <span class="gruppe">${knopf('sicht="alle"', 'Alles', wdhSicht === 'alle')}${knopf('sicht="0"', name(0), wdhSicht === 0)}${knopf('sicht="1"', name(1), wdhSicht === 1)}</span>`;
+    <span class="gruppe">${knopf('sicht="alle"', 'Alles', wdhSicht === 'alle')}${world.players.map((_, p) => knopf('sicht="' + p + '"', name(p), wdhSicht === p)).join('')}</span>`;
   el.hidden = false;
   el.onclick = (e) => {
     const b = e.target.closest ? e.target.closest('button') : null;
@@ -14235,7 +14556,7 @@ function zeitleisteAktualisieren() {
 // ------------------------------------------------------------ Bilanz und Erfolge (src/bilanz.js)
 /** Ende einer eigenen Partie eintragen (nicht beim Zuschauen oder Abspielen); liefert neue Erfolge. */
 function ergebnisErfassen(gewonnen) {
-  if (wiederholung || aiMe) return [];
+  if (wiederholung || ais[0]) return [];
   const k = mission ? mission.kampagne : null;
   return partieErfassen({
     gewonnen,

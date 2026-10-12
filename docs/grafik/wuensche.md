@@ -11,13 +11,12 @@ Format:
 
 ## Offen
 
-- [ ] **Mehrspieler: 3 und 4 Spieler in Simulation und Oberfläche** (Karten `dreiReiche`, `vierlande`):
-  `createWorld`/`setupMap` mit `karteDaten.basen` und beliebig vielen Spielern, Sieg erst, wenn nur einer übrig ist,
-  KI und Kunde mit mehreren Gegnern, Startmenü mit mehreren Gegnern. — **in Arbeit (Claude/Sonnet, M9)**
 
 
 
 ## Erledigt
+
+- [x] **Mehrspieler: 3 und 4 Spieler** (Karten `dreiReiche`, `vierlande`) — M9, 0.41: jeder gegen jeden, Gegner 2 und 3 im Startmenü.
 
 - [x] **`test/grid.test.js` lockern für M1/M2; Rollen in `luft`/`schild`-Tests wiederherstellen** — erledigt mit 0.40
   (Vollständigkeit je Rolle für alle Völker, `ROLLEN_VORHER`).

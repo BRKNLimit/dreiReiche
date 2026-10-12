@@ -227,7 +227,7 @@ Genaue Aufträge folgen nach Abnahme von M1/M2 (Konzept Abschnitt 2).
 (M7 wartet, bis Gemini die neuen Rollen in die Völker eingetragen hat (G3a) —
 ohne sie lässt sich die KI nicht messen. Vorher kommt M9.)
 
-## M9 Mehrspieler: 3 und 4 Spieler (Wunsch des Nutzers)
+## M9 Mehrspieler: 3 und 4 Spieler — abgenommen und gemergt (12.10.)
 
 Gemini hat die Karten `dreiReiche` (3 Basen) und `vierlande` (4 Basen) in
 `KARTEN` eingetragen (`spieler`, `basen: [{x, y}]`). Das Spiel kann bisher

@@ -271,7 +271,8 @@ function beben(fx, staerke, x, y, hoerer) {
 
 /** Zeit fortschreiben: Geschosse schlagen ein, Partikel fallen, Ringe weiten sich. */
 export function effekteFortschreiben(fx, dt, world, hoerer) {
-  if (world && (world.over || world.winner !== null && world.winner !== undefined)) {
+  // Nach Spielende kein Beben mehr (winner ist -1, solange die Partie laeuft -- darum nur over)
+  if (world && world.over) {
     fx.over = true;
     fx.beben = 0;
   } else {

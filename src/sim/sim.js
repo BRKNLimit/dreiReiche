@@ -2119,7 +2119,7 @@ function verfall(world) {
     e.hp = 0;
     e.dead = true;
     e.vergangen = true;
-    world.events.push({ t: 'died', id: e.id, kind: e.kind, type: e.type, player: e.player, x: e.x, y: e.y });
+    world.events.push({ t: 'died', id: e.id, kind: e.kind, type: e.type, player: e.player, x: e.x, y: e.y, vergangen: true });
   }
 }
 

@@ -24,7 +24,7 @@ let ME = 0; // eigener Sitzplatz -- online als Gast 1
 const ZEIGE_EINHEIT = 1.6;
 const ZEIGE_GEBAEUDE = 1.25;
 let meFaction = 'mensch';
-let world, ai, aiMe;
+let world, ais = []; // ais[sitz]: die KI auf dem Sitz, null fuer den Menschen (beim Zuschauen sitzt auch auf ME eine)
 let gegnerStil = 'standard';
 let gegnerStufe = 'mittel'; // Schwierigkeit der Gegner-KI, im Startbildschirm waehlbar
 let gegnerVolk = 'auto'; // Volk des Gegners, im Startbildschirm waehlbar (auto: das andere)
@@ -97,7 +97,7 @@ const ausfall = new Map(); // id -> Zeitpunkt des letzten Schusses (ms), fuer de
 
 const kam = { x: 420, z: 420, dist: 300, yaw: -Math.PI * 0.75, pitch: 0.95 };
 
-const teamFarbe = (p) => HEX(FACTIONS[world.players[p].faction].color);
+const teamFarbe = (p) => HEX(spielerFarbe(world, p));
 
 // ------------------------------------------------------------ Kamera
 let VP = new Float32Array(16);
@@ -181,13 +181,6 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
   }
   meFaction = f;
   if (online) meFaction = online.config.factions[online.ich]; // als Gast das zweite Volk
-  const gegner = online
-    ? online.config.factions[1]
-    : wdh
-      ? wdh.factions[1]
-      : geladen
-        ? geladen.world.players[1].faction
-        : gegnerVolkFuer(f, m ? 'auto' : gegnerVolk);
   const seed = online ? online.config.seed : geladen ? geladen.world.seed : wdh ? wdh.seed : tagesAktiv ? tagesAktiv.seed : (Date.now() / 1000) | 0;
   const karte = online
     ? { schluessel: online.config.karte, daten: online.config.karteDaten || KARTEN[online.config.karte] }
@@ -199,20 +192,29 @@ function neu(f, zuschauen = false, wdh = null, m = null, stand = null, online = 
     if (typeof baueBoden === 'function') bodenModell = baueBoden(); // src/gelaende3d.js liest KARTE
     if (typeof baueDeko === 'function') baueDeko(); // Baeume, Pfad je Karte (src/gelaende3d.js, Gemini)
   }
-  world = geladen ? geladen.world : createWorld({ seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: karte.daten });
+  // Die Gegner: online der eine Mitspieler, sonst aus Wiederholung, Spielstand oder Startbildschirm --
+  // auf Karten fuer 3 und 4 Spieler bis zu drei.
+  const gegner = online
+    ? [online.config.factions[1]]
+    : wdh
+      ? wdh.factions.slice(1)
+      : geladen
+        ? geladen.world.players.slice(1).map((pl) => pl.faction)
+        : gegnerVolkListe(f, karte.daten, m ? 'auto' : gegnerVolk, gegnerWahlMehr);
+  world = geladen ? geladen.world : createWorld({ seed, factions: [f, ...gegner], karte: karte.schluessel, karteDaten: karte.daten });
   if (m && !geladen) m.aufbau(world);
-  ai = ohneKI ? null : geladen ? geladen.ais[1] : m && m.ki === false ? null : createAI(1, world.seed, gegnerStil, gegnerStufe);
-  aiMe = ohneKI ? null : geladen ? geladen.ais[0] : zuschauen ? createAI(0, world.seed + 1) : null;
+  // Zuschauen: auch auf dem eigenen Sitz spielt eine KI.
+  ais = ohneKI ? [] : geladen ? geladen.ais : m && m.ki === false ? [] : kisErzeugen(world, ME, zuschauen, gegnerStil, gegnerStufe);
   nebel = neuerNebel(!zuschauen && !wdh, ME);
   wiederholung = wdh;
   wdhZeiger = 0;
   wiederholungsHinweis = '';
-  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null, online: !!online });
+  aufnahme = wdh ? null : neueAufnahme({ seed: world.seed, factions: [f, ...gegner], karte: karte.schluessel, karteDaten: KARTEN[karte.schluessel] ? null : karte.daten, stil: gegnerStil, stufe: gegnerStufe, zuschauen, mission: m ? m.id : null, online: !!online });
   netz = online ? { kanal: online.kanal, gs: neuerGleichschritt(online.ich), zu: '', wartetSeit: 0 } : null;
   wdhStaende = [];
   spulenBis = -1;
   wdhSicht = 'alle';
-  verlauf = stand ? stand.extra.verlauf : neuerVerlauf();
+  verlauf = stand ? stand.extra.verlauf : neuerVerlauf(world.players.length);
   if (stand) aufnahme = stand.extra.aufnahme;
   endeGezeigt = false;
   sel = [];
@@ -844,8 +846,7 @@ function tick(still = false) {
   wdhStandMerken();
   if (wiederholung) wdhZeiger = abspielen(wiederholung, world, wdhZeiger);
   else if (aufnahme) aufnehmen(aufnahme, world);
-  if (aiMe) stepAI(aiMe, world);
-  if (ai) stepAI(ai, world);
+  for (const a of ais) if (a) stepAI(a, world);
   if (mission && mission.takt) mission.takt(world); // Missionsereignisse, auch beim Abspielen
   step(world);
   if (netz) gsNachSchritt(netz.gs, world, netzOffen, netzPost);
@@ -1200,7 +1201,7 @@ function zeichneDomaenen() {
   gl.enable(gl.STENCIL_TEST);
   gl.depthMask(false);
   const randBreite = Math.max(1.2, kam.dist * 0.006);
-  for (let p = 0; p < 2; p++) {
+  for (let p = 0; p < world.players.length; p++) {
     const anker = world.entities.filter(
       (e) => e.player === p && e.kind === 'building' && anchorRadius(world, e) > 0 && (p === ME || !nebel.an || nebel.bekannt.has(e.id))
     );
@@ -1314,8 +1315,8 @@ function zeichneWirkungen() {
     }
   }
   // Sammelpunkte gewaehlter Fabriken: gestrichelte Linie und Fahne
-  octx.strokeStyle = FACTIONS[meFaction].color;
-  octx.fillStyle = FACTIONS[meFaction].color;
+  octx.strokeStyle = spielerFarbe(world, ME);
+  octx.fillStyle = spielerFarbe(world, ME);
   octx.lineWidth = 1.5;
   for (const id of gewaehlteFabriken(world, sel, ME)) {
     const b = byId(world, id);
@@ -1343,7 +1344,7 @@ function zeichneWirkungen() {
   octx.setLineDash([6, 6]);
   for (const e of world.entities) {
     if (e.dead || e.kind !== 'building' || !e.done || !BUILDINGS[e.type].buff || verborgen(e)) continue;
-    octx.strokeStyle = FACTIONS[world.players[e.player].faction].color;
+    octx.strokeStyle = spielerFarbe(world, e.player);
     octx.globalAlpha = e.powered ? 0.5 : 0.18;
     bodenKreis(e.x, e.y, BUILDINGS[e.type].buff.radius);
   }
@@ -1554,11 +1555,11 @@ function zeichneHud() {
   document.getElementById('hud').innerHTML = `
     <div class="res">
       ${k ? `<b>${UNITS[k.type].name} <kbd>K</kbd></b><span>${Math.round((100 * k.hp) / k.maxHp)} %</span>` : ''}
-      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : aiMe ? ' · Zuschauen' : netz ? ' · Online' : tagesAktiv ? ' · Tagesherausforderung' : ''}</span>
+      <b>Zeit</b><span>${(world.tick / 600).toFixed(1)} min${paused ? ' ⏸' : ''}${speed !== 1 ? ' ×' + speed : ''}${wiederholung ? ' · Wiederholung' : ais[0] ? ' · Zuschauen' : netz ? ' · Online' : tagesAktiv ? ' · Tagesherausforderung' : ''}</span>
     </div>
-    ${(wiederholung && wdhSicht === 'alle') || aiMe ? beobachterHtml(world) : ''}${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
+    ${spielerLeisteHtml(world, ME)}${(wiederholung && wdhSicht === 'alle') || ais[0] ? beobachterHtml(world) : ''}${mission ? zieleHtml(mission, missionStand, world) : ''}${netzHinweis()}${standMeldung && performance.now() < standMeldungBis ? `<div class="warn"><span>${standMeldung}</span></div>` : ''}${warnungenHtml(world, ME)}${wiederholungsHinweis ? `<div class="warn"><span>${wiederholungsHinweis}</span></div>` : ''}
     ${auswahl}
-    ${world.over ? `<div class="over">${world.winner === ME ? 'Gewonnen' : 'Verloren'}</div>` : ''}`;
+    ${(world.over || !(wiederholung || ais[0])) && endeAnzeige(world, ME) ? `<div class="over">${endeAnzeige(world, ME)}</div>` : ''}`;
 }
 
 function zeichneMini() {
@@ -1572,8 +1573,8 @@ function zeichneMini() {
     mctx3.arc(h.x * s, h.y * s, h.r * s, 0, Math.PI * 2);
     mctx3.fill();
   }
-  for (let p = 0; p < 2; p++) {
-    mctx3.fillStyle = FACTIONS[world.players[p].faction].color;
+  for (let p = 0; p < world.players.length; p++) {
+    mctx3.fillStyle = spielerFarbe(world, p);
     mctx3.globalAlpha = 0.18;
     for (const e of world.entities) {
       if (e.player !== p || e.kind !== 'building') continue;
@@ -1661,8 +1662,8 @@ function starte3(f, zuschauen) {
   if (gewaehlt) gegnerStil = gewaehlt.value;
   const stufe = document.querySelector?.('#intro input[name="stufe"]:checked');
   if (stufe) gegnerStufe = stufe.value;
-  const volk = document.querySelector?.('#intro input[name="gegnerVolk"]:checked');
-  if (volk) gegnerVolk = volk.value;
+  const volk = gegnerWahlLesen(); // Gegner 1 (und, auf Karten fuer 3 und 4 Spieler, 2 und 3)
+  if (volk) gegnerVolk = volk;
   const karte = document.querySelector?.('#intro input[name="karte"]:checked');
   if (karte) karteSchluessel = karte.value;
   document.getElementById('intro').style.display = 'none';
@@ -1739,9 +1740,9 @@ function standHinweis(text) {
   standMeldungBis = performance.now() + 2500;
 }
 function standText() {
-  return spielstandText(world, [aiMe, ai], {
+  return spielstandText(world, ais, {
     meFaction,
-    zuschauen: !!aiMe,
+    zuschauen: !!ais[0],
     gegnerStil,
     gegnerStufe,
     karteSchluessel,
@@ -1774,7 +1775,7 @@ function standLaden(text) {
   standHinweis('Spielstand geladen');
 }
 function autoSpeichern() {
-  if (autoSpeichernSinnvoll(world, !!aiMe, wiederholung) && !missionGewonnen && !netz) schnellSpeichern(standText());
+  if (autoSpeichernSinnvoll(world, !!ais[0], wiederholung) && !missionGewonnen && !netz) schnellSpeichern(standText());
 }
 addEventListener('pagehide', autoSpeichern);
 addEventListener('visibilitychange', () => {
@@ -1792,7 +1793,7 @@ const wdhZeit = (t) => {
 };
 function wdhStandMerken() {
   if (!wiederholung || world.tick % 600 !== 0 || wdhStaende.some((s) => s.tick === world.tick)) return;
-  wdhStaende.push({ tick: world.tick, zustand: zustandSichern(world, [aiMe, ai]), zeiger: wdhZeiger, verlauf: JSON.parse(JSON.stringify(verlauf)) });
+  wdhStaende.push({ tick: world.tick, zustand: zustandSichern(world, ais), zeiger: wdhZeiger, verlauf: JSON.parse(JSON.stringify(verlauf)) });
 }
 /** Zu einem Tick springen: zurueck ueber den letzten Stand davor, dann vorspulen. */
 function wdhSpringen(ziel) {
@@ -1803,8 +1804,7 @@ function wdhSpringen(ziel) {
   if (bester && (ziel < world.tick || bester.tick > world.tick)) {
     const g = zustandLaden(bester.zustand);
     world = g.world;
-    aiMe = g.ais[0];
-    ai = g.ais[1];
+    ais = g.ais;
     wdhZeiger = bester.zeiger;
     verlauf = JSON.parse(JSON.stringify(bester.verlauf));
     endeGezeigt = false;
@@ -1857,7 +1857,7 @@ function zeitleisteZeigen() {
     <input id="wdhRegler" type="range" min="0" max="${wiederholung.ende}" step="10" value="${world.tick}">
     <span id="wdhZeit"></span>
     <span class="gruppe">${[1, 2, 4, 8, 16].map((t) => knopf('tempo="' + t + '"', '×' + t, speed === t)).join('')}</span>
-    <span class="gruppe">${knopf('sicht="alle"', 'Alles', wdhSicht === 'alle')}${knopf('sicht="0"', name(0), wdhSicht === 0)}${knopf('sicht="1"', name(1), wdhSicht === 1)}</span>`;
+    <span class="gruppe">${knopf('sicht="alle"', 'Alles', wdhSicht === 'alle')}${world.players.map((_, p) => knopf('sicht="' + p + '"', name(p), wdhSicht === p)).join('')}</span>`;
   el.hidden = false;
   el.onclick = (e) => {
     const b = e.target.closest ? e.target.closest('button') : null;
@@ -1892,7 +1892,7 @@ function zeitleisteAktualisieren() {
 // ------------------------------------------------------------ Bilanz und Erfolge (src/bilanz.js)
 /** Ende einer eigenen Partie eintragen (nicht beim Zuschauen oder Abspielen); liefert neue Erfolge. */
 function ergebnisErfassen(gewonnen) {
-  if (wiederholung || aiMe) return [];
+  if (wiederholung || ais[0]) return [];
   const k = mission ? mission.kampagne : null;
   return partieErfassen({
     gewonnen,

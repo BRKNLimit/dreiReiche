@@ -126,7 +126,10 @@ try {
       `\n;globalThis.__t = { MODELLE, BUILDINGS, UNITS, spawnBuilding, spawnUnit, issue, fx,
         get world() { return world; }, get ME() { return ME; },
         get sel() { return sel; }, set sel(v) { sel = v; }, get placing() { return placing; }, set placing(v) { placing = v; },
-        get gruppe() { return bauGruppeSchl; } };`
+        get gruppe() { return bauGruppeSchl; },
+        // Mehrspieler: neue Partie auf der gewaehlten Karte (ohne Startbildschirm), Tempo und Pause setzen
+        neuSpiel(f, zuschauen, karte, mehr) { karteSchluessel = karte; gegnerVolk = 'auto'; gegnerWahlMehr[0] = mehr[0]; gegnerWahlMehr[1] = mehr[1]; paused = false; speed = 8; neu(f, zuschauen); },
+        get ais() { return ais; } };`
   )();
   nodes.introSchau.onclick(); // Zuschauen: beide Seiten spielt die KI
 } catch (e) {
@@ -250,10 +253,37 @@ if (!hauptgebaeude || !bauer) {
   console.log('Modelle gezeichnet (Instanzen):', `schildkuppel ${anzahl('schildkuppel')}, fernschlag ${anzahl('fernschlag')}, flak ${anzahl('flak')}`);
 }
 
+// ---- Vier Spieler auf Vierlande (Mensch + drei KIs), Spielstand, Zuschauen, drei Spieler
+{
+  try {
+    nodes.intro.style.display = 'none';
+    T.neuSpiel('mensch', false, 'vierlande', ['auto', 'auto']);
+    pruefe(T.world.players.length === 4, `Vierlande mit ${T.world.players.length} Spielern`);
+    pruefe(T.ais.filter(Boolean).length === 3 && !T.ais[0], 'Vierlande: drei KIs, der Mensch auf Sitz 0');
+    laufe(300);
+    pruefe(nodes.hud.innerHTML.includes('spielerleiste'), 'Vierlande: keine Spielerleiste im HUD');
+    delete speicher['dreiReiche.spielstand'];
+    feuer('keydown', { ...basis, key: 'F5' });
+    pruefe(!!speicher['dreiReiche.spielstand'], 'Vierlande: F5 hat nichts gespeichert');
+    feuer('keydown', { ...basis, key: 'F9' });
+    pruefe(T.world.players.length === 4 && T.ais.length === 4, 'Vierlande: Laden stellt den Stand nicht her');
+    laufe(200);
+    T.neuSpiel('mensch', true, 'vierlande', ['gott', 'tod']);
+    pruefe(T.ais.filter(Boolean).length === 4, 'Zuschauen auf Vierlande: nicht vier KIs');
+    laufe(200);
+    pruefe((nodes.hud.innerHTML.match(/<th/g) || []).length >= 5, 'Zuschauen auf Vierlande: Beobachter ohne vier Spalten');
+    T.neuSpiel('tod', false, 'dreiReiche', ['auto', 'auto']);
+    pruefe(T.world.players.length === 3, `Drei Reiche mit ${T.world.players.length} Spielern`);
+    laufe(300);
+  } catch (e) {
+    fehler.push(e);
+  }
+}
+
 if (fehler.length) {
   console.log('FEHLER:');
   for (const e of fehler.slice(0, 5)) console.log(' ', e.message, '\n   ', (e.stack || '').split('\n')[1]);
   process.exit(1);
 }
-console.log('3D-Smoke-Test ok — 1000 Frames, Eingaben verarbeitet, keine Ausnahmen.');
+console.log('3D-Smoke-Test ok — 1000 Frames, Eingaben verarbeitet, 3 und 4 Spieler, keine Ausnahmen.');
 console.log('HUD-Ausgabe vorhanden:', nodes.hud.innerHTML.length > 0);

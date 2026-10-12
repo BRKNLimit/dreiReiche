@@ -5,9 +5,10 @@ import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PR
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
   gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon, zieleVon,
-  schlagBereit, anzahlVon, auraAn, bonus,
+  schlagBereit, anzahlVon, auraAn, bonus, maxSpieler, startplatz,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
+import { createAI } from './sim/ai.js';
 import { ICONS } from './icons.js';
 import { zufallsKarte, kartenFehler } from './sim/kartenbau.js';
 
@@ -53,6 +54,11 @@ export function neuerNebel(an, player) {
  * ein neuer Tick da ist), dann die Anzeige zum Ziel ueberblenden.
  */
 export function nebelAktualisieren(nebel, world) {
+  // Wer bei drei und mehr Spielern ausgeschieden ist, sieht der Partie ohne Nebel zu.
+  if (nebel.an && world.players.length > 2 && !world.players[nebel.kunde.player].alive) {
+    nebel.an = false;
+    nebel.hell.fill(255);
+  }
   if (!nebel.an) return;
   if (nebel.tick !== world.tick) {
     nebel.tick = world.tick;
@@ -262,8 +268,11 @@ export function karteVorschauMalen(leinwand, daten, zufall = false) {
   for (const h of daten.hindernisse) kreis(h.x, h.y, h.r, h.art === 'fels' ? '#6b6a62' : '#2f5a78');
   for (const f of daten.furten || []) kreis(f.x, f.y, 260, '#8a7f5c');
   for (const a of daten.adern) kreis(a.x, a.y, 230, a.kind === 'goetterblut' ? '#b04a4a' : '#d8b06a');
-  // Startbasen: oben links Sitzplatz 1, unten rechts Sitzplatz 2 (wie in der Draufsicht)
-  for (const [x, y] of [[3000, 3000], [MAP - 3000, MAP - 3000]]) {
+  // Startbasen: oben links Sitzplatz 1, unten rechts Sitzplatz 2 (wie in der Draufsicht);
+  // Karten fuer 3 und 4 Spieler bringen ihre Basen mit, in der Reihenfolge der Sitze
+  const basen = [];
+  for (let p = 0; p < maxSpieler(daten); p++) basen.push(startplatz(daten, p));
+  for (const { x, y } of basen) {
     g.strokeStyle = '#e8e2cf';
     g.lineWidth = 1.5;
     g.beginPath();
@@ -289,6 +298,7 @@ export function kartenVorschauVerdrahten(el) {
     const schluessel = wahl ? wahl.value : 'klassisch';
     const k = schluessel === 'zufall' ? { daten: zufallsKarte(7) } : karteFuerSpiel(schluessel, null, 0);
     karteVorschauMalen(leinwand, k.daten, schluessel === 'zufall');
+    gegnerZeilenAbgleichen(el, maxSpieler(k.daten));
   };
   const knoepfe = el.querySelectorAll ? el.querySelectorAll('input[name="karte"]') : [];
   for (const k of knoepfe) k.addEventListener('change', malen);
@@ -527,16 +537,130 @@ export function gegnerVolkFuer(f, wahl = 'auto') {
   if (wahl && wahl !== 'auto' && FACTIONS[wahl]) return wahl;
   return f === 'mensch' ? 'gott' : 'mensch';
 }
-/** Auswahl des Gegner-Volks fuer den Startbildschirm. */
+// Gegner 2 und 3 (nur auf Karten mit mehr als zwei Basen): 'auto', 'keiner' oder ein Volk.
+export const gegnerWahlMehr = ['auto', 'auto'];
+
+/** Auswahl des Gegner-Volks fuer den Startbildschirm; auf Karten fuer 3 und 4 Spieler kommen Gegner 2 und 3 dazu. */
 export function gegnerVolkHtml(gewaehlt) {
-  const knopf = (v, name) => `<label><input type="radio" name="gegnerVolk" value="${v}"${v === gewaehlt ? ' checked' : ''}> ${name}</label>`;
-  return `<div class="stil">Gegner-Volk: ${knopf('auto', 'das andere')}${Object.keys(FACTIONS).map((f) => knopf(f, FACTIONS[f].kurz)).join('')}</div>`;
+  const zeile = (name, g, titel, ab, keiner) => {
+    const knopf = (v, text) => `<label><input type="radio" name="${name}" value="${v}"${v === g ? ' checked' : ''}> ${text}</label>`;
+    const verborgen = ab > 2 ? ` data-ab="${ab}" style="display:none"` : '';
+    return `<div class="stil"${verborgen}>${titel} ${knopf('auto', 'das andere')}${Object.keys(FACTIONS).map((f) => knopf(f, FACTIONS[f].kurz)).join('')}${keiner ? knopf('keiner', 'keiner') : ''}</div>`;
+  };
+  return (
+    zeile('gegnerVolk', gewaehlt, 'Gegner-Volk:', 2, false) +
+    zeile('gegnerVolk2', gegnerWahlMehr[0], 'Gegner 2:', 3, true) +
+    zeile('gegnerVolk3', gegnerWahlMehr[1], 'Gegner 3:', 4, true)
+  );
+}
+
+/** Die Wahl der Gegner aus dem Startbildschirm lesen; liefert die des ersten Gegners (oder null). */
+export function gegnerWahlLesen() {
+  const lies = (name) => {
+    const r = typeof document !== 'undefined' && document.querySelector ? document.querySelector(`#intro input[name="${name}"]:checked`) : null;
+    return r ? r.value : null;
+  };
+  const zwei = lies('gegnerVolk2');
+  const drei = lies('gegnerVolk3');
+  if (zwei) gegnerWahlMehr[0] = zwei;
+  if (drei) gegnerWahlMehr[1] = drei;
+  return lies('gegnerVolk');
+}
+
+/** Zeigt die Zeilen fuer Gegner 2 und 3 nur, wenn die gewaehlte Karte so viele Spieler fasst. */
+export function gegnerZeilenAbgleichen(el, spieler) {
+  const zeilen = el.querySelectorAll ? el.querySelectorAll('[data-ab]') : [];
+  for (const z of zeilen) if (z.style) z.style.display = spieler >= Number(z.dataset.ab) ? '' : 'none';
+}
+
+/**
+ * Voelker der Gegner fuer eine Partie: der erste wie gegnerVolkFuer, weitere
+ * (nur auf Karten mit mehr Basen) 'auto' = das jeweils naechste Volk der Reihe
+ * mensch, gott, tod, 'keiner' = dieser Platz bleibt leer. Hoechstens so viele,
+ * wie die Karte Basen hat, minus den eigenen Platz.
+ */
+export function gegnerVolkListe(f, daten, wahl = 'auto', mehr = ['auto', 'auto']) {
+  const reihe = Object.keys(FACTIONS);
+  const liste = [gegnerVolkFuer(f, wahl)];
+  let vorher = liste[0];
+  for (let k = 0; k < maxSpieler(daten) - 2; k++) {
+    const w = mehr[k] || 'auto';
+    if (w === 'keiner') continue;
+    const v = FACTIONS[w] ? w : reihe[(reihe.indexOf(vorher) + 1) % reihe.length];
+    liste.push(v);
+    vorher = v;
+  }
+  return liste;
+}
+
+/**
+ * Die KIs einer Partie, Index = Sitz, null fuer den Menschen. Der Mensch sitzt
+ * auf `ich`; beim Zuschauen spielt auch dort eine KI. Seeds wie bisher: Sitz 1
+ * mit dem Seed der Welt, Sitz 0 (nur beim Zuschauen) mit +1, weitere Sitze mit
+ * +Sitz+1. Alle Gegner teilen Stil und Schwierigkeit.
+ */
+export function kisErzeugen(world, ich, zuschauen, stil, stufe) {
+  return world.players.map((_, p) => {
+    if (p === ich && !zuschauen) return null;
+    if (p === 0) return createAI(0, world.seed + 1);
+    return createAI(p, p === 1 ? world.seed : world.seed + p + 1, stil, stufe);
+  });
+}
+
+// ------------------------------------------------------------ Spielerfarben
+// Jeder Spieler hat seine Farbe: sein Volk, solange kein Spieler vor ihm es
+// schon traegt; jeder weitere Spieler desselben Volks nimmt der Reihe nach eine
+// Reservefarbe (rot, violett, rosa -- nicht blau oder gruen wie die Voelker).
+// In 2D und 3D dieselbe Funktion.
+const SPIELER_RESERVE = ['#d9534f', '#b06ad4', '#f08cc0'];
+const farbenMerk = new WeakMap(); // je Welt einmal gerechnet; die Voelker der Spieler aendern sich nicht
+export function spielerFarbe(world, p) {
+  let farben = farbenMerk.get(world);
+  if (!farben || farben.length !== world.players.length) {
+    farben = [];
+    const gesehen = [];
+    let reserve = 0;
+    for (const pl of world.players) {
+      if (!gesehen.includes(pl.faction)) {
+        gesehen.push(pl.faction);
+        farben.push(FACTIONS[pl.faction].color);
+      } else farben.push(SPIELER_RESERVE[reserve++ % SPIELER_RESERVE.length]);
+    }
+    farbenMerk.set(world, farben);
+  }
+  return farben[p];
+}
+
+/** Wo steht der Spieler? 'gewonnen' / 'verloren' (Partie aus), 'ausgeschieden' (draussen, die Partie laeuft) oder 'dabei'. */
+export function spielerStand(world, ich) {
+  if (world.over) return world.winner === ich ? 'gewonnen' : 'verloren';
+  return world.players[ich].alive ? 'dabei' : 'ausgeschieden';
+}
+
+/** Anzeige des eigenen Standes im HUD ('' solange man dabei ist). */
+export function endeAnzeige(world, ich) {
+  const s = spielerStand(world, ich);
+  return s === 'gewonnen' ? 'Gewonnen' : s === 'verloren' ? 'Verloren' : s === 'ausgeschieden' ? 'Ausgeschieden — du siehst zu' : '';
+}
+
+/**
+ * Bei drei und mehr Spielern eine Zeile je Spieler: Farbe, Volk, ob er noch
+ * dabei ist. Mehr weiss man vom Gegner nicht -- das zeigt erst die Auswertung.
+ */
+export function spielerLeisteHtml(world, ich) {
+  if (world.players.length <= 2) return '';
+  const chip = (pl, p) => {
+    const aus = !pl.alive;
+    const stil = `color:${spielerFarbe(world, p)};${aus ? 'text-decoration:line-through;opacity:.55' : ''}`;
+    return `<span class="spieler" style="${stil}" title="${aus ? 'ausgeschieden' : 'im Spiel'}">● ${volkName(pl.faction)}${p === ich ? ' (du)' : ''}</span>`;
+  };
+  return `<div class="res spielerleiste" style="flex-wrap:wrap;gap:2px 10px">${world.players.map(chip).join('')}</div>`;
 }
 
 // ------------------------------------------------------------ Beobachter (Zuschauen, Wiederholung)
-/** Beide Seiten auf einen Blick: Vorrat, Foerderung, Heer, Einheiten, Gebaeude, Skills. */
+/** Alle Seiten auf einen Blick: Vorrat, Foerderung, Heer, Einheiten, Gebaeude, Skills. */
 export function beobachterHtml(world) {
-  const z = [0, 1].map((p) => {
+  const z = world.players.map((_, p) => {
     const pl = world.players[p];
     let heer = 0;
     let einheiten = 0;
@@ -552,7 +676,8 @@ export function beobachterHtml(world) {
     }
     return {
       name: volkName(pl.faction),
-      farbe: FACTIONS[pl.faction].color,
+      farbe: spielerFarbe(world, p),
+      aus: !pl.alive,
       fron: pl.fron | 0,
       foerderung: Math.round(foerderungProMin(world, p)),
       blut: pl.goetterblut | 0,
@@ -562,12 +687,15 @@ export function beobachterHtml(world) {
       skills: pl.gelernt.length,
     };
   });
+  // Der groesste Wert einer Zeile ist hervorgehoben -- aber nur, wenn alle ihn nicht gleich haben.
   const zeile = (titel, k) => {
-    const a = z[0][k];
-    const b = z[1][k];
-    return `<tr><td>${titel}</td><td${a > b ? ' class="vorn"' : ''}>${a}</td><td${b > a ? ' class="vorn"' : ''}>${b}</td></tr>`;
+    const werte = z.map((s) => s[k]);
+    const hoechst = Math.max(...werte);
+    const vorn = (v) => (v === hoechst && werte.some((w) => w < hoechst) ? ' class="vorn"' : '');
+    return `<tr><td>${titel}</td>${werte.map((v) => `<td${vorn(v)}>${v}</td>`).join('')}</tr>`;
   };
-  return `<table class="beobachter"><tr><th></th><th style="color:${z[0].farbe}">${z[0].name}</th><th style="color:${z[1].farbe}">${z[1].name}</th></tr>
+  const kopf = z.map((s) => `<th style="color:${s.farbe}${s.aus ? ';text-decoration:line-through' : ''}">${s.name}</th>`).join('');
+  return `<table class="beobachter"><tr><th></th>${kopf}</tr>
     ${zeile('Fron', 'fron')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'blut')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${zeile('Skills', 'skills')}</table>`;
 }
 

@@ -9,6 +9,7 @@
 import { foerderungProMin } from './sim/sim.js';
 import { UNITS, FACTIONS, KARTEN } from './sim/defs.js';
 import { ICONS } from './icons.js';
+import { spielerFarbe } from './ui-gemeinsam.js';
 
 /** Name der Karte fuer Anzeigen und Dateinamen. */
 const kartenName = (k) => KARTEN[k]?.name || { zufall: 'Zufallskarte', eigen: 'eigene Karte' }[k] || k;
@@ -75,17 +76,22 @@ export function aufnahmeLesen(text) {
 
 // ------------------------------------------------------------ Verlauf fuer den Siegbildschirm
 
-export function neuerVerlauf() {
-  return { minuten: [], verluste: [0, 0], getoetet: [0, 0], gebaeudeVerloren: [0, 0], ausgebildet: [0, 0] };
+/** Verlauf fuer n Spieler (zwei, wenn nichts anderes gesagt wird). */
+export function neuerVerlauf(n = 2) {
+  const nullen = () => Array(n).fill(0);
+  return { minuten: [], verluste: nullen(), getoetet: nullen(), gebaeudeVerloren: nullen(), ausgebildet: nullen() };
 }
 
 /** Nach jedem Tick: Verluste zaehlen, einmal je Minute Heer, Foerderung und Gebaeude festhalten. */
 export function verlaufFortschreiben(v, world) {
+  const n = world.players.length;
   for (const ev of world.events) {
     if (ev.t === 'died') {
+      if (ev.vergangen) continue; // verfallen (Ausgeschiedene), nicht gefallen
       if (ev.kind === 'unit') {
         v.verluste[ev.player]++;
-        v.getoetet[1 - ev.player]++;
+        // "Getoetet" kennt nur zwei Spieler: wer den Schuss tat, steht im Ereignis nicht.
+        if (n === 2) v.getoetet[1 - ev.player]++;
       } else v.gebaeudeVerloren[ev.player]++;
     } else if (ev.t === 'spawned') {
       const u = world.entities.find((e) => e.id === ev.id);
@@ -94,7 +100,7 @@ export function verlaufFortschreiben(v, world) {
   }
   if (world.tick % 600 === 0 || world.over) {
     v.minuten.push(
-      [0, 1].map((p) => {
+      world.players.map((_, p) => {
         let heer = 0;
         let gebaeude = 0;
         for (const e of world.entities) {
@@ -108,44 +114,47 @@ export function verlaufFortschreiben(v, world) {
   }
 }
 
-/** Kleines Liniendiagramm beider Seiten als SVG. */
-function diagramm(titel, reihe0, reihe1, farbe0, farbe1) {
+/** Kleines Liniendiagramm aller Seiten als SVG: reihen[p] ist die Zahlenreihe des Spielers p, farben[p] seine Farbe. */
+function diagramm(titel, reihen, farben) {
   const B = 260;
   const H = 90;
-  const n = Math.max(reihe0.length, 2);
-  const max = Math.max(1, ...reihe0, ...reihe1);
+  const n = Math.max(reihen[0].length, 2);
+  const max = Math.max(1, ...reihen.flat());
   const pfad = (r) =>
     r.map((w, i) => `${i ? 'L' : 'M'}${((i / (n - 1)) * B).toFixed(1)},${(H - (w / max) * (H - 6) - 3).toFixed(1)}`).join(' ');
   return `<div class="diagramm"><b>${titel}</b>
     <svg viewBox="0 0 ${B} ${H}" preserveAspectRatio="none">
-      <path d="${pfad(reihe0)}" fill="none" stroke="${farbe0}" stroke-width="2"/>
-      <path d="${pfad(reihe1)}" fill="none" stroke="${farbe1}" stroke-width="2"/>
+      ${reihen.map((r, p) => `<path d="${pfad(r)}" fill="none" stroke="${farben[p]}" stroke-width="2"/>`).join('\n      ')}
     </svg><span>höchstens ${Math.round(max)}</span></div>`;
 }
 
 /**
- * Siegbildschirm: Ergebnis, Zahlen beider Seiten, Verlauf von Heer,
+ * Siegbildschirm: Ergebnis, Zahlen aller Seiten, Verlauf von Heer,
  * Foerderung und Gebaeuden. Knoepfe: endeSpeichern, endeNochmal, endeKarte.
+ * Bei drei und vier Spielern: Sieg, Niederlage (auch wer vorher ausschied), Farben je Spieler.
  */
 export function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
   const f = world.players.map((p) => FACTIONS[p.faction]);
+  const farben = world.players.map((_, p) => spielerFarbe(world, p));
   const min = (world.tick / 600).toFixed(1).replace('.', ',');
   const titel = wiederholung ? `Wiederholung: ${f[world.winner]?.name || '—'} gewinnt` : world.winner === ich ? 'Sieg' : 'Niederlage';
-  const zeile = (name, a, b) => `<tr><td>${name}</td><td>${a}</td><td>${b}</td></tr>`;
-  const reihe = (k, p) => v.minuten.map((m) => m[p][k]);
+  const zeile = (name, liste) => `<tr><td>${name}</td>${liste.map((a) => `<td>${a}</td>`).join('')}</tr>`;
+  const reihen = (k) => world.players.map((_, p) => v.minuten.map((m) => (m[p] ? m[p][k] : 0)));
+  // Wer gefallen ist, steht in der Kopfzeile durchgestrichen (nur bei mehr als zwei Spielern interessant)
+  const kopf = world.players.map((pl, p) => `<th style="color:${farben[p]}${!pl.alive && world.players.length > 2 ? ';text-decoration:line-through' : ''}">${f[p].name}</th>`).join('');
   return `<h1>${titel}</h1>
     <p>nach ${min} Minuten auf der Karte ${kartenName(world.karte)}</p>
     <table class="sieg">
-      <tr><th></th><th style="color:${f[0].color}">${f[0].name}</th><th style="color:${f[1].color}">${f[1].name}</th></tr>
-      ${zeile('Ausgebildet', v.ausgebildet[0], v.ausgebildet[1])}
-      ${zeile('Getötet', v.getoetet[0], v.getoetet[1])}
-      ${zeile('Verloren', v.verluste[0], v.verluste[1])}
-      ${zeile('Gebäude verloren', v.gebaeudeVerloren[0], v.gebaeudeVerloren[1])}
+      <tr><th></th>${kopf}</tr>
+      ${zeile('Ausgebildet', v.ausgebildet)}
+      ${world.players.length === 2 ? zeile('Getötet', v.getoetet) : ''}
+      ${zeile('Verloren', v.verluste)}
+      ${zeile('Gebäude verloren', v.gebaeudeVerloren)}
     </table>
     <div class="diagramme">
-      ${diagramm('Heer (Fron)', reihe('heer', 0), reihe('heer', 1), f[0].color, f[1].color)}
-      ${diagramm('Förderung (Fron/min)', reihe('foerderung', 0), reihe('foerderung', 1), f[0].color, f[1].color)}
-      ${diagramm('Gebäude', reihe('gebaeude', 0), reihe('gebaeude', 1), f[0].color, f[1].color)}
+      ${diagramm('Heer (Fron)', reihen('heer'), farben)}
+      ${diagramm('Förderung (Fron/min)', reihen('foerderung'), farben)}
+      ${diagramm('Gebäude', reihen('gebaeude'), farben)}
     </div>
     <div class="go">
       ${mitAufnahme ? `<button id="endeSpeichern" class="mitIcon">${ICONS.wiederholung || ''} Wiederholung speichern</button>` : ''}

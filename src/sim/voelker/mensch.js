@@ -21,8 +21,7 @@ export const VOLK_MENSCH = {
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
   rollen: { anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne', zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten', bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult' },
-  // Reihenfolge, in der die KI den Skillbaum lernt
-  lernen: ['bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte', 'kapellenbau', 'belagerungsbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'ansturm'],
+  lernen: ['bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte', 'kapellenbau', 'drill_schuetzen', 'steinmetzkunst', 'soeldnervertraege', 'waffenmeister', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'belagerungsbau', 'plattenschmiede', 'wehrmauern', 'feldwerkstatt', 'ansturm', 'veteranenheer', 'festungsarchitektur', 'koenigsbann'],
   gebaeude: {
     halle: {
       name: 'Thingstätte',
@@ -285,18 +284,33 @@ export const VOLK_MENSCH = {
     },
   },
   skills: {
-    belagerungsbau: {
-      faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
-      desc: 'Die Kaserne baut Ballisten — sie schießen weiter, als ein Turm reicht.',
-    },
+    // Ast: Einheiten
     bogenbau: {
       faction: 'mensch', ast: 'einheiten', name: 'Bogenbau', kosten: 1, frei: ['jaeger'],
       desc: 'Die Kaserne bildet Jäger aus — Fernkämpfer hinter der Linie.',
+    },
+    drill_schuetzen: {
+      faction: 'mensch', ast: 'einheiten', name: 'Schützendrill', kosten: 1, braucht: ['bogenbau'], wirkung: { ausbildung: 150 },
+      desc: 'Gleichmäßiges Bogenspannen und Pfeilgreifen: Jäger rücken schneller nach.',
     },
     soeldnervertraege: {
       faction: 'mensch', ast: 'einheiten', name: 'Söldnerverträge', kosten: 2, braucht: ['bogenbau'], frei: ['soeldner'],
       desc: 'Die Kaserne wirbt Söldner an — schwer gerüstet, bezahlt mit Götterblut.',
     },
+    waffenmeister: {
+      faction: 'mensch', ast: 'einheiten', name: 'Waffenmeister', kosten: 2, braucht: ['soeldnervertraege'], wirkung: { schaden: 120 },
+      desc: 'Gereckter Federstahl und geschmiedete Hellebardenblätter schlagen tiefere Wunden.',
+    },
+    belagerungsbau: {
+      faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
+      desc: 'Die Kaserne baut Ballisten — sie schießen weiter, als ein Turm reicht.',
+    },
+    feldwerkstatt: {
+      faction: 'mensch', ast: 'einheiten', name: 'Feldinstandsetzung', kosten: 2, braucht: ['belagerungsbau'], wirkung: { ausbildung: 150, schaden: 80 },
+      desc: 'Zimmermannstrupps warten Katapulte und Lafetten direkt an der Frontlinie.',
+    },
+
+    // Ast: Gebäude
     kriegsbanner: {
       faction: 'mensch', ast: 'gebaeude', name: 'Kriegsbanner', kosten: 1, frei: ['banner'],
       desc: 'Schrein des Zorns: Wer unter dem Banner kämpft, schlägt härter zu.',
@@ -305,6 +319,20 @@ export const VOLK_MENSCH = {
       faction: 'mensch', ast: 'gebaeude', name: 'Kapellenbau', kosten: 1, frei: ['kapelle'],
       desc: 'Schrein der Wehr: Gebete schützen, wer in der Nähe kämpft.',
     },
+    steinmetzkunst: {
+      faction: 'mensch', ast: 'gebaeude', name: 'Steinmetzkunst', kosten: 1, braucht: ['fronvoegte'], wirkung: { foerderung: 120, schutz: 50 },
+      desc: 'Präzise behauener Quaderstein festigt Schächte, Sägewerke und Fundamente.',
+    },
+    wehrmauern: {
+      faction: 'mensch', ast: 'gebaeude', name: 'Wehrzinnen', kosten: 2, braucht: ['kapellenbau', 'steinmetzkunst'], wirkung: { schutz: 100 },
+      desc: 'Massive Zinnen und Brustwehren schützen Verteidiger und Wachtürme vor Treffern.',
+    },
+    festungsarchitektur: {
+      faction: 'mensch', ast: 'gebaeude', name: 'Festungsarchitektur', kosten: 2, braucht: ['wehrmauern'], wirkung: { foerderung: 150, schutz: 80 },
+      desc: 'Monumentale königliche Bauwerke: Höchste Standfestigkeit und geordnete Vorratshaltung.',
+    },
+
+    // Ast: Verbesserungen
     klingen: {
       faction: 'mensch', ast: 'verbesserung', name: 'Geschliffene Klingen', kosten: 1, wirkung: { schaden: 100 },
       desc: 'Bessere Waffen für alle.',
@@ -312,6 +340,10 @@ export const VOLK_MENSCH = {
     kettenhemden: {
       faction: 'mensch', ast: 'verbesserung', name: 'Kettenhemden', kosten: 1, braucht: ['klingen'], wirkung: { schutz: 100 },
       desc: 'Bessere Rüstung für alle.',
+    },
+    plattenschmiede: {
+      faction: 'mensch', ast: 'verbesserung', name: 'Plattenschmiede', kosten: 2, braucht: ['kettenhemden'], wirkung: { schutz: 120 },
+      desc: 'Ausgetriebene Stahlbrustpanzer weisen Hiebe und Pfeile zuverlässig ab.',
     },
     fronvoegte: {
       faction: 'mensch', ast: 'verbesserung', name: 'Fronvögte', kosten: 1, wirkung: { foerderung: 200 },
@@ -325,6 +357,16 @@ export const VOLK_MENSCH = {
       faction: 'mensch', ast: 'verbesserung', name: 'Sold und Ordnung', kosten: 2, braucht: ['drillmeister'], wirkung: { unterhalt: 250 },
       desc: 'Ein geordnetes Heer kostet weniger.',
     },
+    quartiermeister: {
+      faction: 'mensch', ast: 'verbesserung', name: 'Heereslogistik', kosten: 2, braucht: ['sold'], wirkung: { unterhalt: 150, foerderung: 100 },
+      desc: 'Geordnete Wagenzüge und Mehlmagazine entlasten die Truppenkasse nachhaltig.',
+    },
+    veteranenheer: {
+      faction: 'mensch', ast: 'verbesserung', name: 'Veteranenordnung', kosten: 3, braucht: ['plattenschmiede', 'sold'], wirkung: { schaden: 100, schutz: 100 },
+      desc: 'Kampferprobte Regimenter mit eiserner Standfestigkeit und Schlachtroutine.',
+    },
+
+    // Ast: Kommandant
     heldenmut: {
       faction: 'mensch', ast: 'kommandant', name: 'Heldenmut', kosten: 1, wirkung: { kdtSchutz: 200 },
       desc: 'Der Held hält mehr aus.',
@@ -340,6 +382,10 @@ export const VOLK_MENSCH = {
     ansturm: {
       faction: 'mensch', ast: 'kommandant', name: 'Ansturm', kosten: 2, braucht: ['schlachtruf'], faehigkeit: 'ansturm',
       desc: 'Der Held stürmt voran, und alle folgen.',
+    },
+    koenigsbann: {
+      faction: 'mensch', ast: 'kommandant', name: 'Königsbann', kosten: 2, braucht: ['schildwall', 'ansturm'], wirkung: { kdtSchutz: 250, schaden: 60 },
+      desc: 'Die unerschütterliche Hoheit des Königs inspiriert die Garde und trotzt jedem Schrecken.',
     },
 
   },

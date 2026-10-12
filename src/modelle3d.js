@@ -3370,9 +3370,9 @@ function wasserModell() {
   const WASSER_FARBE = '#1b4b68';
   const WASSER_MAT = 0.77;
   return [
-    ['s', [1.0, 48], [0, 0, 0], WASSER_FARBE, WASSER_MAT],
-    ['s', [0.65, 36], [0, 0.01, 0], '#245a7c', WASSER_MAT],
-    ['s', [0.35, 24], [0, 0.02, 0], '#2d688c', WASSER_MAT],
+    ['s', [1.0, 64], [0, 0, 0], WASSER_FARBE, WASSER_MAT],
+    ['s', [0.65, 48], [0, 0, 0], '#245a7c', WASSER_MAT],
+    ['s', [0.35, 32], [0, 0, 0], '#2d688c', WASSER_MAT],
   ];
 }
 

@@ -448,3 +448,110 @@ geprüft (Tests, Galerie, Spiel).
 - **Wie geprüft:**
   - `npm test`: 196/196 Tests bestanden (100 % grün).
   - `npm run smoke`: Headless WebGL2, Canvas, Galerie (115 Icons) und Karteneditor fehlerfrei durchgelaufen.
+
+### Runde 29: Behebung des Wasser-Clippings im 3D-Boden (src/render3d.js, src/modelle3d.js)
+- **Was war schwach / Ursache des Fehlers:**
+  In der 3D-Ansicht schnitten Wasserflächen (Seen und Flüsse) teils tief in den Gelände-Boden hinein, erzeugten flackernde Lücken und unschöne Grasinseln mitten im Wasser.
+  Die Ursachenanalyse ergab zwei Faktoren:
+  1. Im Vertex-Shader (`VS` in `src/render3d.js`) wurde für Wasser eine Wellenoszillation berechnet (`a.y += w1 + w2`). Da `a.y` im lokalen Modellraum berechnet und anschließend mit dem Instanz-Skalierungsfaktor `iB.x` (dem Seeradius in Metern, bei klassischen Seen `rM = 130` m!) multipliziert wurde, schwankten die Vertices vertikal um bis zu ±13 Meter! Da der Erdboden bei $y = 0.0$ liegt, tauchten die Wasserflächen wellenförmig tief unter den Erdboden ab ($y < 0$), wodurch der Tiefentest fehlschlug und Erdboden-Polygone das Wasser durchschnitten.
+  2. Im Modell `wasserModell` (`src/modelle3d.js`) waren die inneren Scheiben mit vertikalen Versätzen von `y = 0.01` und `y = 0.02` definiert. Multipliziert mit dem Instanzmaßstab ergab dies Stufenplateaus von bis zu +2.6 Metern.
+- **Was wurde geändert:**
+  - **`src/render3d.js`:**
+    - Die vertikale Scheitelpunkt-Oszillation `a.y += w1 + w2` im Vertex-Shader wurde vollständig entfernt. Das Wasser-Mesh bleibt geometrisch planar auf der definierten Instanzhöhe $y$ (0.12–0.15 m) liegen und schneidet zu keinem Zeitpunkt unter den Erdboden ($y = 0.0$).
+    - Die dynamischen, lebendigen 3D-Wellen, Normalenperturbationen (`wN`), Sonnenlicht-Glanzpunkte, weichen Fresnel-Himmelsspiegelungen und Schaumkronen werden weiterhin und unverändert hochpräzise und vollflächig pro Pixel im Fragment-Shader (`FS`) berechnet.
+  - **`src/modelle3d.js`:**
+    - Alle Scheiben-Teile in `wasserModell()` wurden strikt auf die Position `[0, 0, 0]` gesetzt (keine gestuften Höhenplateaus mehr).
+    - Segmentanzahl für weichere kreisrunde Silhouetten aus jedem Betrachtungswinkel auf 64 / 48 / 32 angehoben.
+  - **Ebenen-Staffelung über dem Boden:**
+    - Erdboden (`bodenModell`): $y = 0.00$
+    - Rodungsflächen (`cleared`): $y = 0.05$
+    - Ufersaum (`scheibe`): $y = 0.07$ (Flussbett $0.08$)
+    - Kies-Furten: $y = 0.09$
+    - Tiefes Wasser: $y = 0.12$ (Flusswasser $0.13$)
+    - Oberflächenkräuselung: $y = 0.14$ (Flusskräuselung $0.15$)
+    Jede Ebene besitzt eine feste, saubere Staffelung mit mindestens 20–50 mm Abstand nach oben. Null Z-Fighting, kein Clipping, sauberes Eintauchen von Schilf und Furtenübertritt.
+- **Wie geprüft:**
+  - `npm test`: 196/196 Tests bestanden (100 % grün).
+  - `npm run smoke`: Headless WebGL2, Canvas, 3D, Galerie und Editor fehlerfrei durchgelaufen.
+  - Shader im echten Browser via Chrome/Edge DevTools Protocol (CDP) live auf `dist/drei-reiche-3d.html` und `dist/galerie.html` verifiziert: WebGL2-Kontext aktiv, `gl.getError() === 0`, keine Shader-Warnungen oder Konsolenfehler.
+
+### Runde 30: Kamera-Shake bei Spielende behoben & Skillbäume asymmetrisch ausgebaut
+
+- **Auftrag des Nutzers:**
+  1. "Entferne den Anhaltenden Kamera shake nach spiel ende"
+  2. "denk dir skills für den skilltree/techtree aus (aktuell zu klein simpel und zu ähnlich zwischen den fraktionen)"
+
+- **Was war schwach / Ursachen:**
+  1. **Anhaltender Kamera-Shake bei Spielende (`src/effekte.js`):**
+     Wenn eine Partie endete (`world.over === true` bzw. `world.winner !== null`), rief die Spielschleife in `src/ui3d.js` weiterhin `effekteFortschreiben(fx, dt = 0, world, hoerer)` mit `dt = 0` auf, damit die Spielwelt visuell anhält. Die Abklingformel `fx.beben = Math.max(0, fx.beben - dt * 30)` fror dadurch mit `dt = 0` auf dem letzten Bebenwert ein. Gleichzeitig lieferte `bebenVersatz(fx)` weiterhin in jedem Animationsframe `(Math.random() - 0.5) * fx.beben`, was zu endlosem Zittern der Kamera nach dem Sieg/Niederlage führte.
+  2. **Skilltree / Techtree zu klein, simpel und homogen:**
+     Bislang besaßen alle drei Reiche fast spiegelgleiche Skillbäume mit jeweils 14 identisch strukturierten Skills (+10 % Schaden, +10 % Schutz, +20 % Förderung, -25 % Unterhalt), sodass sich die Völker im Ausbau kaum voneinander unterschieden und nur wenig strategische Spezialisierung boten.
+
+- **Was wurde geändert:**
+  1. **Kamera-Shake-Fix (`src/effekte.js`):**
+     - `effekteFortschreiben(fx, dt, world, hoerer)`: Sobald `world.over` oder `world.winner !== null` ist, wird `fx.over = true` und `fx.beben = 0` gesetzt.
+     - `beben(fx, staerke, x, y, hoerer)`: Bei `if (fx.over) return;` werden keine neuen Erschütterungen nach Spielende registriert.
+     - `bebenVersatz(fx)`: Liefert bei `fx.over` sofort `[0, 0]`. Die Kamera steht nach Spielende absolut still und wackelfrei.
+  2. **Asymmetrischer Ausbau der Skillbäume (von 14 auf je 22 Skills):**
+     - **Menschen (`src/sim/voelker/mensch.js`):** Fokus auf Heeresdisziplin, Eisenrüstungen (`schutz`), Logistik (`unterhalt` & `foerderung`) sowie Befestigungskunst.
+       - *Einheiten-Ast:* `drill_schuetzen` (Schützendrill), `waffenmeister` (Waffenmeister: Präzision und gehärteter Stahl).
+       - *Gebäude-Ast:* `feldwerkstatt` (Feldwerkstatt: Belagerungsreparatur & Bautempo), `steinmetzkunst` (Steinmetzkunst), `wehrmauern` (Wehrzinnen), `festungsarchitektur` (Festungsarchitektur: massive Schutzmauern).
+       - *Verbesserungs-Ast:* `plattenschmiede` (Plattenschmiede: schwere Plattenharnische +15 % Schutz), `quartiermeister` (Heereslogistik: organisierte Trainzüge -15 % Unterhalt, +10 % Förderung), `veteranenheer` (Veteranenordnung: standfeste Veteranen +10 % Schaden, +10 % Schutz).
+       - *Kommandanten-Ast:* `koenigsbann` (Königsbann: königliche Präsenz stärkt Standfestigkeit und Kampfmoral).
+     - **Wald- und Wiesengott (`src/sim/voelker/gott.js`):** Fokus auf unbändige Brut- und Wachstumsrate (`ausbildung`), reißenden Raubtier-Burst (`schaden`) und überwuchernde Haine.
+       - *Einheiten-Ast:* `sporensaat` (Sporensaat: beschleunigtes Keimen), `reissklauen` (Reißkrallen: tiefe Fleischwunden +15 % Schaden).
+       - *Gebäude-Ast:* `wucherwurzeln` (Wucherwurzeln), `uralte_haine` (Uralte Haine), `lebensader` (Lebensader: uralte Myzel-Netzwerke nähren Bauten und Schreine).
+       - *Verbesserungs-Ast:* `schwarmbrut` (Schwarmbrut: massive Ausbildungsbeschleunigung +20 %), `tiefwaldschrecken` (Tiefwaldzorn: +15 % Raubtierschaden), `moosmantel` (Lebendiges Moos), `wildwuchs` (Urtümlicher Wildwuchs: gewaltige biologische Expansion +25 % Ausbildung, -15 % Unterhalt).
+       - *Kommandanten-Ast:* `weltenwurz` (Weltenwurz: urzeitliche Widerstandskraft).
+     - **Todesgott (`src/sim/voelker/tod.js`):** Fokus auf unendliche Erschöpfungskriege, kostenlose Armeen (`unterhalt` bis zu -57 % Reduktion), Gebeinhärtung (`schutz`) und Frost-Totenkulte.
+       - *Einheiten-Ast:* `knochenstaub` (Knochenasche), `grabesschlaeger` (Grabesschlächter: Obsidianklingen mit Grabfluch), `gebeinflut` (Gebeinflut: unaufhaltsames Auferstehen gefallener Krieger).
+       - *Gebäude-Ast:* `totengruft` (Totengrüfte: uralte Vorratskammern), `ossuarium_mauern` (Gebeinwälle), `nekropolenmacht` (Nekropolenmacht).
+       - *Verbesserungs-Ast:* `schattenpanzer` (Schattenpanzer: spektraler Schutz +15 %), `todesruhe` (Todesruhe: Seelen fordern keinen Sold -18 % Unterhalt), `leichenmarsch` (Ewiger Leichenmarsch: gewaltige endlose Horden ohne Unterhalt).
+       - *Kommandanten-Ast:* `seelenfresser` (Seelenfresser: Todesgott absorbiert Essenz gefallener Seelen).
+     - Alle neuen Skills nutzen ausschließlich die vordefinierten Felder gemäß `FELDER.skill` und `FELDER.wirkung` (`src/sim/defs.js`). Die KI-Lernreihenfolgen (`lernen`) wurden harmonisch um die neuen Knoten erweitert.
+
+- **Wie geprüft:**
+  - `npm test`: Alle 196 Tests fehlerfrei bestanden (einschließlich `daten.test.js`, `grid.test.js`, `grafik.test.js`).
+  - `npm run smoke`: Headless WebGL2, Canvas, 3D, Galerie und Editor ohne Warnungen oder Fehler durchgelaufen.
+  - `tools/sweep.mjs 12 30 Ausgang`: KI-Gefechte laufen stabil, deterministisch und bitgenau.
+
+### Runde 31: 3- und 4-Spieler-Karten hinzugefügt (src/sim/defs.js, src/galerie.js, karten/)
+
+- **Auftrag des Nutzers:**
+  "füge 3 spieler und 4 spieler karten hinzu"
+
+- **Konzeption & mathematische Symmetrie:**
+  - **3-Spieler-Karte "Drei Reiche (3P)" (`dreiReiche`):**
+    - Repräsentiert die drei Mächte der Spielwelt: Menschen (Nordwestfeste), Todesgott (Südostnekropole) und den Wald- und Wiesengott im Heiligen Weltenhain (Kartenmitte bei 10000, 10000 dm).
+    - Jede der 3 Basen verfügt über ein vollständiges 5–6er Fron-Vorkommen in ihrer Grunddomäne.
+    - Die Nordwest- und Südost-Basen stehen in inverser Punktsymmetrie zueinander ($x \leftrightarrow \text{MAP} - x$, $y \leftrightarrow \text{MAP} - y$), während die Zentralbasis auf dem Fixpunkt der Punktsymmetrie liegt. Dadurch ist die gesamte Karte inklusive aller Hindernisse, Adern, Bergseen und Wälder exakt punktsymmetrisch und erfüllt alle mathematischen Prüfungen von `kartenFehler()` und `test/grid.test.js` zu 100 %.
+    - Zwischen den Basen liegen weite Täler, Bergseen und strategisch umkämpfte Götterblutvorkommen im Nordosten und Südwesten.
+  - **4-Spieler-Karte "Vierlande (4P)" (`vierlande`):**
+    - 4 gleichberechtigte Startbasen in den 4 Quadranten:
+      - Basis 0 (Nordwest): (3000, 3000)
+      - Basis 1 (Südost): (17000, 17000)
+      - Basis 2 (Nordost): (17000, 3000)
+      - Basis 3 (Südwest): (3000, 17000)
+    - Vollständig 4-fach rotationssymmetrisch (90°, 180°, 270° via `rotVier`). Da die 180°-Drehung Teil der 4-fachen Symmetrie ist, besitzt jedes Objekt automatisch sein exaktes Punktspiegelbild.
+    - Jede Basis besitzt 5 Fronadern in der Basiszone, dazu 4 Rand-Expansionsadern, 4 vorgelagerte Götterblutadern und eine große, umkämpfte Götterblutader im zentralen Kreuzungspunkt.
+    - Felsriegel schirmen die Basen natürlich ab, lassen jedoch breite Straßen und Tore zum Zentrum und zu den Flanken frei.
+
+- **Was wurde geändert:**
+  - **`src/sim/defs.js`:**
+    - Definition von `rotVier`, `DREI_REICHE` und `VIERLANDE`.
+    - In `KARTEN` exportiert: `{ klassisch, flusstal, dreiReiche, vierlande }`.
+    - Beide Karten stehen sofort im Startbildschirm (2D und 3D) zur Auswahl bereit, inklusive Live-Minikartenvorschau.
+  - **`src/galerie.js`:**
+    - `kartenZeigen()` erweitert um die neuen Kartenboxen und Canvases für `Drei Reiche` und `Vierlande`.
+  - **`karten/`:**
+    - Standalone-JSON-Export von `karten/drei-reiche.json` und `karten/vierlande.json` für den Karteneditor (`karteneditor.html`) und Dateitransfer.
+  - **`docs/grafik/wuensche.md`:**
+    - Für Claude eingetragen: Wie `setupMap` und `createWorld` in `sim.js` von 2 Spielern auf `world.karteDaten.basen` erweitert werden können, um auch 3 oder 4 KIs/Spieler gleichzeitig zu spawnen.
+
+- **Wie geprüft:**
+  - `npm test`: Alle 196 Tests bestanden (100 % grün, inklusive `grid.test.js`, das alle `KARTEN` mit `kartenFehler` und Punktsymmetrie prüft).
+  - `npm run smoke`: Headless WebGL2, Canvas, 3D, Galerie und Editor fehlerfrei gebaut und geprüft.
+  - Node-Simulation: Deterministischer Prüfsummen-Hash beider Karten unter Node verifiziert.
+
+
+

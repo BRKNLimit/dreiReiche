@@ -386,8 +386,118 @@ const FLUSSTAL = {
   furten: paarweise([FURT]),
 };
 
+/** 4-fache Rotationssymmetrie um die Kartenmitte (90°, 180°, 270°). */
+const rotVier = (liste) =>
+  liste.flatMap((o) => {
+    const r0 = o;
+    const r1 = { ...o, x: MAP - o.y, y: o.x };
+    const r2 = { ...o, x: MAP - o.x, y: MAP - o.y };
+    const r3 = { ...o, x: o.y, y: MAP - o.x };
+    const unique = [];
+    for (const p of [r0, r1, r2, r3]) {
+      if (!unique.some((q) => q.x === p.x && q.y === p.y)) unique.push(p);
+    }
+    return unique;
+  });
+
+// Drei Reiche (3 Spieler): Menschenfeste im Nordwesten, Nekropole im
+// Südosten, Heiliger Weltenhain im Zentrum der Karte. Punktsymmetrisch um
+// die Mitte; jede der drei Basen verfügt über ein volles Fron-Vorkommen.
+const DREI_REICHE = {
+  name: 'Drei Reiche (3P)',
+  spieler: 3,
+  basen: [
+    { x: 3000, y: 3000 },
+    { x: 17000, y: 17000 },
+    { x: 10000, y: 10000 },
+  ],
+  hindernisse: paarweise([
+    { x: 8000, y: 3500, r: 600, art: 'fels' },
+    { x: 9200, y: 4200, r: 500, art: 'fels' },
+    { x: 12500, y: 3000, r: 700, art: 'fels' },
+    { x: 6200, y: 7800, r: 550, art: 'fels' },
+    { x: 14500, y: 7000, r: 1200, art: 'see' },
+  ]),
+  adern: [
+    // Basis 1 (NW) & Basis 2 (SE)
+    ...paarweise([
+      { x: 4800, y: 2200, kind: 'fron' },
+      { x: 2200, y: 4800, kind: 'fron' },
+      { x: 6200, y: 4500, kind: 'fron' },
+      { x: 6700, y: 2100, kind: 'fron' },
+      { x: 2100, y: 6700, kind: 'fron' },
+    ]),
+    // Basis 3 (Zentrum)
+    ...paarweise([
+      { x: 8600, y: 9200, kind: 'fron' },
+      { x: 9200, y: 11400, kind: 'fron' },
+      { x: 11400, y: 8600, kind: 'fron' },
+    ]),
+    // Externe Adern
+    ...paarweise([
+      { x: 15500, y: 4200, kind: 'fron' },
+      { x: 14200, y: 5500, kind: 'goetterblut' },
+      { x: 7400, y: 6800, kind: 'goetterblut' },
+    ]),
+  ],
+  wald: paarweise([
+    { x: 8500, y: 2600, r: 2400 },
+    { x: 10000, y: 6500, r: 2000 },
+  ]),
+  wiesen: paarweise([
+    { x: 14000, y: 5000, r: 2500 },
+  ]),
+  furten: [],
+};
+
+// Vierlande (4 Spieler): Vier Quadranten mit je einer Basis in den Ecken
+// und weiten Toren zur umkämpften Mitte. Vollständig 4-fach rotationssymmetrisch.
+const VIERLANDE = {
+  name: 'Vierlande (4P)',
+  spieler: 4,
+  basen: [
+    { x: 3000, y: 3000 },
+    { x: 17000, y: 17000 },
+    { x: 17000, y: 3000 },
+    { x: 3000, y: 17000 },
+  ],
+  hindernisse: rotVier([
+    { x: 9500, y: 5500, r: 550, art: 'fels' },
+    { x: 10500, y: 5500, r: 550, art: 'fels' },
+    { x: 10000, y: 4400, r: 600, art: 'fels' },
+    { x: 10000, y: 3200, r: 650, art: 'fels' },
+    { x: 7500, y: 2000, r: 900, art: 'see' },
+  ]),
+  adern: [
+    // Basis-Fronadern (5 je Quadrant)
+    ...rotVier([
+      { x: 4800, y: 2200, kind: 'fron' },
+      { x: 2200, y: 4800, kind: 'fron' },
+      { x: 5800, y: 3600, kind: 'fron' },
+      { x: 3600, y: 5800, kind: 'fron' },
+      { x: 6200, y: 2100, kind: 'fron' },
+    ]),
+    // Ausbauadern
+    ...rotVier([
+      { x: 10000, y: 1600, kind: 'fron' },
+    ]),
+    // Götterblut
+    { x: 10000, y: 10000, kind: 'goetterblut' },
+    ...rotVier([
+      { x: 7200, y: 7200, kind: 'goetterblut' },
+    ]),
+  ],
+  wald: rotVier([
+    { x: 6000, y: 1800, r: 1800 },
+  ]),
+  wiesen: rotVier([
+    { x: 7200, y: 7200, r: 1600 },
+  ]),
+  furten: [],
+};
+
 /** Alle Karten nach Schluessel; die erste ist die Vorgabe. */
-export const KARTEN = { klassisch: KLASSISCH, flusstal: FLUSSTAL };
+export const KARTEN = { klassisch: KLASSISCH, flusstal: FLUSSTAL, dreiReiche: DREI_REICHE, vierlande: VIERLANDE };
 
 /**
  * Die gerade gespielte Karte, fuer die Darstellung (Boden, Baeume). Die

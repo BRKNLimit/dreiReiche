@@ -11,17 +11,16 @@ Format:
 
 ## Offen
 
-- [ ] **`test/grid.test.js` lockern für M1 (Luftebene) und M2 (Schild):**
-  - In `test/grid.test.js` Zeile 1330 (`jede Fraktion hat Hauptgebaeude, Anker, Verteidigung...`):
-    `assert.equal(hat((d) => d.weapon), 1)` schlägt fehl, sobald ein Volk eine `flak` hat (`hat((d) => d.weapon) === 2`). Besser prüfen: `hat((d) => d.weapon && zieleVon(d) !== 'luft') === 1`.
-    Ebenso schlägt `assert.equal(hat((d) => d.buildList && !d.vital), 1)` fehl, sobald ein Volk eine `luftfabrik` besitzt. Besser: Bodenfabrik prüfen oder `luftfabrik` ausnehmen.
-  - In `test/luft.test.js` (Zeile 55) und `test/schild.test.js` (Zeile 56):
-    Der `after()`-Hook löscht via `delete FACTIONS.mensch.rollen[r]` alle Rollen der Luftebene bzw. des Schildes. Besser: Originalzustand vor dem Test merken und im `after()` wiederherstellen, damit echte Rollen in den Volksdateien nicht gelöscht werden.
-
+- [ ] **Mehrspieler: 3 und 4 Spieler in Simulation und Oberfläche** (Karten `dreiReiche`, `vierlande`):
+  `createWorld`/`setupMap` mit `karteDaten.basen` und beliebig vielen Spielern, Sieg erst, wenn nur einer übrig ist,
+  KI und Kunde mit mehreren Gegnern, Startmenü mit mehreren Gegnern. — **in Arbeit (Claude/Sonnet, M9)**
 
 
 
 ## Erledigt
+
+- [x] **`test/grid.test.js` lockern für M1/M2; Rollen in `luft`/`schild`-Tests wiederherstellen** — erledigt mit 0.40
+  (Vollständigkeit je Rolle für alle Völker, `ROLLEN_VORHER`).
 
 - [x] **Modelle `schildkuppel`, `fernschlag`, `flak` eingebunden (M8)** — `src/ui3d.js` (`zeichneEffektModelle`), `src/effekte.js`:
       `schildkuppel` als durchsichtige Kuppel über eigenen (und gewählten fremden) Schildgebäuden, Größe nach `schild.radius`,

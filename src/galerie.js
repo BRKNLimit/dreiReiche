@@ -371,12 +371,38 @@ function kartenZeigen() {
       </div>
       <p>Gewundenes Flusstal: Der breite Fluss trennt die Basen von Nordwest nach Südost und ist nur an zwei flachen Kiesfurten passierbar. Dichte Nadelwälder an den Berghängen, offene Blumenwiesen in den Ecken mit Götterblut.</p>
     </div>
+    <div class="karte-box">
+      <h2><span>Drei Reiche</span><span style="font-size:12px;color:var(--dim)">3 Spieler</span></h2>
+      <canvas id="cv-karte-dreiReiche" width="480" height="480"></canvas>
+      <div class="karte-tags">
+        <span class="karte-tag">200 × 200 m</span>
+        <span class="karte-tag">3 Basen</span>
+        <span class="karte-tag">Zentraler Weltenhain</span>
+        <span class="karte-tag">Bergseen</span>
+      </div>
+      <p>Dreiparteien-Konflikt: Nordwestfeste, Südostnekropole und der Heilige Weltenhain im Herzen der Karte. Drei voll ausgebaute Startdomänen mit reichen Fronadern und umkämpften Götterbluttälern.</p>
+    </div>
+    <div class="karte-box">
+      <h2><span>Vierlande</span><span style="font-size:12px;color:var(--dim)">4 Spieler</span></h2>
+      <canvas id="cv-karte-vierlande" width="480" height="480"></canvas>
+      <div class="karte-tags">
+        <span class="karte-tag">200 × 200 m</span>
+        <span class="karte-tag">4 Quadranten</span>
+        <span class="karte-tag">4 Basen</span>
+        <span class="karte-tag">Kreuzungs-Zentrum</span>
+      </div>
+      <p>Vierlager-Schlachtfeld: Vier symmetrische Quadranten mit Eckbasen, natürlichen Felsbarrieren und breiten Toren zum zentralen Kreuzweg. Hohe Dynamik für Gefechte jeder gegen jeden oder 2v2-Bündnisse.</p>
+    </div>
   `;
 
   const cvKlassisch = document.getElementById('cv-karte-klassisch');
   const cvFlusstal = document.getElementById('cv-karte-flusstal');
+  const cvDreiReiche = document.getElementById('cv-karte-dreiReiche');
+  const cvVierlande = document.getElementById('cv-karte-vierlande');
   if (cvKlassisch && cvKlassisch.getContext && typeof KARTEN !== 'undefined') zeichneKarteVorschau(cvKlassisch, KARTEN.klassisch, 'klassisch');
   if (cvFlusstal && cvFlusstal.getContext && typeof KARTEN !== 'undefined') zeichneKarteVorschau(cvFlusstal, KARTEN.flusstal, 'flusstal');
+  if (cvDreiReiche && cvDreiReiche.getContext && typeof KARTEN !== 'undefined' && KARTEN.dreiReiche) zeichneKarteVorschau(cvDreiReiche, KARTEN.dreiReiche, 'dreiReiche');
+  if (cvVierlande && cvVierlande.getContext && typeof KARTEN !== 'undefined' && KARTEN.vierlande) zeichneKarteVorschau(cvVierlande, KARTEN.vierlande, 'vierlande');
 }
 
 /** Icons in drei Groessen, ohne WebGL. */

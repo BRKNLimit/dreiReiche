@@ -23,8 +23,7 @@ export const VOLK_GOTT = {
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
   rollen: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', posten: 'wipfelausguck', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
-  // Reihenfolge, in der die KI den Skillbaum lernt
-  lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf'],
+  lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'sporensaat', 'wucherwurzeln', 'reissklauen', 'borke', 'keimkraft', 'lebenssaft', 'wurzelbrecher', 'ents', 'genuegsamkeit', 'rudelruf', 'uralte_haine', 'tiefwaldschrecken', 'schwarmbrut', 'wildwuchs', 'lebensader', 'weltenwurz'],
   gebaeude: {
     herzbaum: {
       name: 'Herzbaum',
@@ -281,18 +280,33 @@ export const VOLK_GOTT = {
     },
   },
   skills: {
-    wurzelbrecher: {
-      faction: 'gott', ast: 'einheiten', name: 'Wurzelbrecher wecken', kosten: 2, braucht: ['waldgeister'], frei: ['wurzelbrecher'],
-      desc: 'Das Dickicht weckt Wurzelbrecher — sie sprengen Mauern von innen.',
-    },
+    // Ast: Einheiten
     waldgeister: {
       faction: 'gott', ast: 'einheiten', name: 'Waldgeister rufen', kosten: 1, frei: ['waldgeist'],
       desc: 'Das Dickicht ruft Waldgeister — sie werfen Licht aus der Ferne.',
+    },
+    sporensaat: {
+      faction: 'gott', ast: 'einheiten', name: 'Sporensaat', kosten: 1, braucht: ['waldgeister'], wirkung: { ausbildung: 180 },
+      desc: 'Fruchtbare Waldsporen treiben im Dickicht: Waldgeister und Wölfe formieren sich schneller.',
+    },
+    wurzelbrecher: {
+      faction: 'gott', ast: 'einheiten', name: 'Wurzelbrecher wecken', kosten: 2, braucht: ['waldgeister'], frei: ['wurzelbrecher'],
+      desc: 'Das Dickicht weckt Wurzelbrecher — sie sprengen Mauern von innen.',
     },
     ents: {
       faction: 'gott', ast: 'einheiten', name: 'Ents erwecken', kosten: 2, braucht: ['waldgeister'], frei: ['ent'],
       desc: 'Das Dickicht erweckt Ents — uralt, gewaltig, genährt von Götterblut.',
     },
+    tiefwaldschrecken: {
+      faction: 'gott', ast: 'einheiten', name: 'Tiefwaldzorn', kosten: 2, braucht: ['ents', 'wurzelbrecher'], wirkung: { schaden: 140 },
+      desc: 'Uralte Bäume und Wurzelungetüme schlagen mit der Gewalt brechender Stämme zu.',
+    },
+    schwarmbrut: {
+      faction: 'gott', ast: 'einheiten', name: 'Schwarmbrut', kosten: 2, braucht: ['sporensaat'], wirkung: { ausbildung: 200, schaden: 60 },
+      desc: 'Nimmersatte Schwärme brechen aus dem Geäst hervor und überfluten die Lichtungen.',
+    },
+
+    // Ast: Gebäude
     dornen: {
       faction: 'gott', ast: 'gebaeude', name: 'Dornenschrein', kosten: 1, frei: ['dornenschrein'],
       desc: 'Schrein des Zorns: Dornen schärfen, wer in ihrer Nähe kämpft.',
@@ -301,13 +315,35 @@ export const VOLK_GOTT = {
       faction: 'gott', ast: 'gebaeude', name: 'Steinkreis', kosten: 1, frei: ['steinkreis'],
       desc: 'Schrein der Wehr: Alte Steine halten Schaden fern.',
     },
+    wucherwurzeln: {
+      faction: 'gott', ast: 'gebaeude', name: 'Wucherwurzeln', kosten: 1, braucht: ['saftfluss'], wirkung: { foerderung: 140, ausbildung: 80 },
+      desc: 'Tief greifende Moosfasern und Wurzeln durchziehen den Boden und speisen Haine.',
+    },
+    uralte_haine: {
+      faction: 'gott', ast: 'gebaeude', name: 'Uralte Haine', kosten: 2, braucht: ['steine', 'wucherwurzeln'], wirkung: { schutz: 100 },
+      desc: 'Bemooste Megalithen und knorrige Eichenkronen schlucken feindliche Geschosse.',
+    },
+    lebensader: {
+      faction: 'gott', ast: 'gebaeude', name: 'Lebensader', kosten: 2, braucht: ['uralte_haine'], wirkung: { foerderung: 160, schutz: 80 },
+      desc: 'Das pulsierende Herz der Natur lässt Erde, Moos und Baumsaft unerschöpflich quellen.',
+    },
+
+    // Ast: Verbesserungen
     faenge: {
       faction: 'gott', ast: 'verbesserung', name: 'Scharfe Fänge', kosten: 1, wirkung: { schaden: 100 },
       desc: 'Krallen und Zähne für alle.',
     },
+    reissklauen: {
+      faction: 'gott', ast: 'verbesserung', name: 'Reißkrallen', kosten: 2, braucht: ['faenge'], wirkung: { schaden: 150 },
+      desc: 'Krumme, gehärtete Hornklauen zerfetzen Harnische und Schilde.',
+    },
     borke: {
       faction: 'gott', ast: 'verbesserung', name: 'Borkenhaut', kosten: 1, braucht: ['faenge'], wirkung: { schutz: 100 },
       desc: 'Rinde statt Haut für alle.',
+    },
+    moosmantel: {
+      faction: 'gott', ast: 'verbesserung', name: 'Lebendiges Moos', kosten: 2, braucht: ['borke'], wirkung: { schutz: 100, ausbildung: 100 },
+      desc: 'Dichte, feuchte Moospolster schließen Wunden im Kampf rasch wieder.',
     },
     saftfluss: {
       faction: 'gott', ast: 'verbesserung', name: 'Saftfluss', kosten: 1, wirkung: { foerderung: 200 },
@@ -321,6 +357,12 @@ export const VOLK_GOTT = {
       faction: 'gott', ast: 'verbesserung', name: 'Genügsamkeit', kosten: 2, braucht: ['keimkraft'], wirkung: { unterhalt: 250 },
       desc: 'Die Geschöpfe des Waldes brauchen weniger.',
     },
+    wildwuchs: {
+      faction: 'gott', ast: 'verbesserung', name: 'Urtümlicher Wildwuchs', kosten: 3, braucht: ['reissklauen', 'keimkraft'], wirkung: { ausbildung: 220, schaden: 100 },
+      desc: 'Die wilde Wut des Waldes: Unfassbare Vermehrungsflut und raubtierhafte Wildheit.',
+    },
+
+    // Ast: Kommandant
     rinde: {
       faction: 'gott', ast: 'kommandant', name: 'Uralte Rinde', kosten: 1, wirkung: { kdtSchutz: 200 },
       desc: 'Der Waldgott hält mehr aus.',
@@ -336,6 +378,10 @@ export const VOLK_GOTT = {
     rudelruf: {
       faction: 'gott', ast: 'kommandant', name: 'Rudelruf', kosten: 2, braucht: ['wurzelgriff'], faehigkeit: 'rudelruf',
       desc: 'Ein Heulen, und das Rudel kommt.',
+    },
+    weltenwurz: {
+      faction: 'gott', ast: 'kommandant', name: 'Weltenwurz', kosten: 2, braucht: ['lebenssaft', 'rudelruf'], wirkung: { kdtSchutz: 250, schaden: 80 },
+      desc: 'Die Wurzeln des Titanen greifen tief in das Weltenherz: Der Waldgott wird nahezu unbezwingbar.',
     },
   },
   faehigkeiten: {

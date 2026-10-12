@@ -103,7 +103,7 @@
   </div>
 </div>
 <script>
-const SPIEL_STAND = '90213daecf';
+const SPIEL_STAND = 'fd93a05a31';
 
 /* ---------------------------------- */
 
@@ -145,8 +145,7 @@ const VOLK_MENSCH = {
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
   rollen: { anker: 'grenzstein', kraft: 'schmiede', fron: 'saege', blut: 'schacht', fabrik: 'kaserne', zorn: 'banner', wehr: 'kapelle', turm: 'wachturm', forschung: 'skriptorium', posten: 'spaehposten', bauer: 'bauer', leicht: 'soldat', fern: 'jaeger', schwer: 'soeldner', belagerung: 'katapult' },
-  // Reihenfolge, in der die KI den Skillbaum lernt
-  lernen: ['bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte', 'kapellenbau', 'belagerungsbau', 'soeldnervertraege', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'ansturm'],
+  lernen: ['bogenbau', 'kriegsbanner', 'klingen', 'heldenmut', 'schlachtruf', 'fronvoegte', 'kapellenbau', 'drill_schuetzen', 'steinmetzkunst', 'soeldnervertraege', 'waffenmeister', 'kettenhemden', 'drillmeister', 'sold', 'schildwall', 'belagerungsbau', 'plattenschmiede', 'wehrmauern', 'feldwerkstatt', 'ansturm', 'veteranenheer', 'festungsarchitektur', 'koenigsbann'],
   gebaeude: {
     halle: {
       name: 'Thingstätte',
@@ -409,18 +408,33 @@ const VOLK_MENSCH = {
     },
   },
   skills: {
-    belagerungsbau: {
-      faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
-      desc: 'Die Kaserne baut Ballisten — sie schießen weiter, als ein Turm reicht.',
-    },
+    // Ast: Einheiten
     bogenbau: {
       faction: 'mensch', ast: 'einheiten', name: 'Bogenbau', kosten: 1, frei: ['jaeger'],
       desc: 'Die Kaserne bildet Jäger aus — Fernkämpfer hinter der Linie.',
+    },
+    drill_schuetzen: {
+      faction: 'mensch', ast: 'einheiten', name: 'Schützendrill', kosten: 1, braucht: ['bogenbau'], wirkung: { ausbildung: 150 },
+      desc: 'Gleichmäßiges Bogenspannen und Pfeilgreifen: Jäger rücken schneller nach.',
     },
     soeldnervertraege: {
       faction: 'mensch', ast: 'einheiten', name: 'Söldnerverträge', kosten: 2, braucht: ['bogenbau'], frei: ['soeldner'],
       desc: 'Die Kaserne wirbt Söldner an — schwer gerüstet, bezahlt mit Götterblut.',
     },
+    waffenmeister: {
+      faction: 'mensch', ast: 'einheiten', name: 'Waffenmeister', kosten: 2, braucht: ['soeldnervertraege'], wirkung: { schaden: 120 },
+      desc: 'Gereckter Federstahl und geschmiedete Hellebardenblätter schlagen tiefere Wunden.',
+    },
+    belagerungsbau: {
+      faction: 'mensch', ast: 'einheiten', name: 'Belagerungsbau', kosten: 2, braucht: ['bogenbau'], frei: ['katapult'],
+      desc: 'Die Kaserne baut Ballisten — sie schießen weiter, als ein Turm reicht.',
+    },
+    feldwerkstatt: {
+      faction: 'mensch', ast: 'einheiten', name: 'Feldinstandsetzung', kosten: 2, braucht: ['belagerungsbau'], wirkung: { ausbildung: 150, schaden: 80 },
+      desc: 'Zimmermannstrupps warten Katapulte und Lafetten direkt an der Frontlinie.',
+    },
+
+    // Ast: Gebäude
     kriegsbanner: {
       faction: 'mensch', ast: 'gebaeude', name: 'Kriegsbanner', kosten: 1, frei: ['banner'],
       desc: 'Schrein des Zorns: Wer unter dem Banner kämpft, schlägt härter zu.',
@@ -429,6 +443,20 @@ const VOLK_MENSCH = {
       faction: 'mensch', ast: 'gebaeude', name: 'Kapellenbau', kosten: 1, frei: ['kapelle'],
       desc: 'Schrein der Wehr: Gebete schützen, wer in der Nähe kämpft.',
     },
+    steinmetzkunst: {
+      faction: 'mensch', ast: 'gebaeude', name: 'Steinmetzkunst', kosten: 1, braucht: ['fronvoegte'], wirkung: { foerderung: 120, schutz: 50 },
+      desc: 'Präzise behauener Quaderstein festigt Schächte, Sägewerke und Fundamente.',
+    },
+    wehrmauern: {
+      faction: 'mensch', ast: 'gebaeude', name: 'Wehrzinnen', kosten: 2, braucht: ['kapellenbau', 'steinmetzkunst'], wirkung: { schutz: 100 },
+      desc: 'Massive Zinnen und Brustwehren schützen Verteidiger und Wachtürme vor Treffern.',
+    },
+    festungsarchitektur: {
+      faction: 'mensch', ast: 'gebaeude', name: 'Festungsarchitektur', kosten: 2, braucht: ['wehrmauern'], wirkung: { foerderung: 150, schutz: 80 },
+      desc: 'Monumentale königliche Bauwerke: Höchste Standfestigkeit und geordnete Vorratshaltung.',
+    },
+
+    // Ast: Verbesserungen
     klingen: {
       faction: 'mensch', ast: 'verbesserung', name: 'Geschliffene Klingen', kosten: 1, wirkung: { schaden: 100 },
       desc: 'Bessere Waffen für alle.',
@@ -436,6 +464,10 @@ const VOLK_MENSCH = {
     kettenhemden: {
       faction: 'mensch', ast: 'verbesserung', name: 'Kettenhemden', kosten: 1, braucht: ['klingen'], wirkung: { schutz: 100 },
       desc: 'Bessere Rüstung für alle.',
+    },
+    plattenschmiede: {
+      faction: 'mensch', ast: 'verbesserung', name: 'Plattenschmiede', kosten: 2, braucht: ['kettenhemden'], wirkung: { schutz: 120 },
+      desc: 'Ausgetriebene Stahlbrustpanzer weisen Hiebe und Pfeile zuverlässig ab.',
     },
     fronvoegte: {
       faction: 'mensch', ast: 'verbesserung', name: 'Fronvögte', kosten: 1, wirkung: { foerderung: 200 },
@@ -449,6 +481,16 @@ const VOLK_MENSCH = {
       faction: 'mensch', ast: 'verbesserung', name: 'Sold und Ordnung', kosten: 2, braucht: ['drillmeister'], wirkung: { unterhalt: 250 },
       desc: 'Ein geordnetes Heer kostet weniger.',
     },
+    quartiermeister: {
+      faction: 'mensch', ast: 'verbesserung', name: 'Heereslogistik', kosten: 2, braucht: ['sold'], wirkung: { unterhalt: 150, foerderung: 100 },
+      desc: 'Geordnete Wagenzüge und Mehlmagazine entlasten die Truppenkasse nachhaltig.',
+    },
+    veteranenheer: {
+      faction: 'mensch', ast: 'verbesserung', name: 'Veteranenordnung', kosten: 3, braucht: ['plattenschmiede', 'sold'], wirkung: { schaden: 100, schutz: 100 },
+      desc: 'Kampferprobte Regimenter mit eiserner Standfestigkeit und Schlachtroutine.',
+    },
+
+    // Ast: Kommandant
     heldenmut: {
       faction: 'mensch', ast: 'kommandant', name: 'Heldenmut', kosten: 1, wirkung: { kdtSchutz: 200 },
       desc: 'Der Held hält mehr aus.',
@@ -464,6 +506,10 @@ const VOLK_MENSCH = {
     ansturm: {
       faction: 'mensch', ast: 'kommandant', name: 'Ansturm', kosten: 2, braucht: ['schlachtruf'], faehigkeit: 'ansturm',
       desc: 'Der Held stürmt voran, und alle folgen.',
+    },
+    koenigsbann: {
+      faction: 'mensch', ast: 'kommandant', name: 'Königsbann', kosten: 2, braucht: ['schildwall', 'ansturm'], wirkung: { kdtSchutz: 250, schaden: 60 },
+      desc: 'Die unerschütterliche Hoheit des Königs inspiriert die Garde und trotzt jedem Schrecken.',
     },
 
   },
@@ -499,8 +545,7 @@ const VOLK_GOTT = {
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
   rollen: { anker: 'hain', kraft: 'quelle', fron: 'moos', blut: 'blutwurz', fabrik: 'dickicht', zorn: 'dornenschrein', wehr: 'steinkreis', turm: 'waechterbaum', forschung: 'eiche', posten: 'wipfelausguck', bauer: 'dryade', leicht: 'wolf', fern: 'waldgeist', schwer: 'ent', belagerung: 'wurzelbrecher', rabe: 'rabe' },
-  // Reihenfolge, in der die KI den Skillbaum lernt
-  lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'wurzelbrecher', 'ents', 'borke', 'keimkraft', 'genuegsamkeit', 'lebenssaft', 'rudelruf'],
+  lernen: ['waldgeister', 'dornen', 'faenge', 'rinde', 'wurzelgriff', 'saftfluss', 'steine', 'sporensaat', 'wucherwurzeln', 'reissklauen', 'borke', 'keimkraft', 'lebenssaft', 'wurzelbrecher', 'ents', 'genuegsamkeit', 'rudelruf', 'uralte_haine', 'tiefwaldschrecken', 'schwarmbrut', 'wildwuchs', 'lebensader', 'weltenwurz'],
   gebaeude: {
     herzbaum: {
       name: 'Herzbaum',
@@ -757,18 +802,33 @@ const VOLK_GOTT = {
     },
   },
   skills: {
-    wurzelbrecher: {
-      faction: 'gott', ast: 'einheiten', name: 'Wurzelbrecher wecken', kosten: 2, braucht: ['waldgeister'], frei: ['wurzelbrecher'],
-      desc: 'Das Dickicht weckt Wurzelbrecher — sie sprengen Mauern von innen.',
-    },
+    // Ast: Einheiten
     waldgeister: {
       faction: 'gott', ast: 'einheiten', name: 'Waldgeister rufen', kosten: 1, frei: ['waldgeist'],
       desc: 'Das Dickicht ruft Waldgeister — sie werfen Licht aus der Ferne.',
+    },
+    sporensaat: {
+      faction: 'gott', ast: 'einheiten', name: 'Sporensaat', kosten: 1, braucht: ['waldgeister'], wirkung: { ausbildung: 180 },
+      desc: 'Fruchtbare Waldsporen treiben im Dickicht: Waldgeister und Wölfe formieren sich schneller.',
+    },
+    wurzelbrecher: {
+      faction: 'gott', ast: 'einheiten', name: 'Wurzelbrecher wecken', kosten: 2, braucht: ['waldgeister'], frei: ['wurzelbrecher'],
+      desc: 'Das Dickicht weckt Wurzelbrecher — sie sprengen Mauern von innen.',
     },
     ents: {
       faction: 'gott', ast: 'einheiten', name: 'Ents erwecken', kosten: 2, braucht: ['waldgeister'], frei: ['ent'],
       desc: 'Das Dickicht erweckt Ents — uralt, gewaltig, genährt von Götterblut.',
     },
+    tiefwaldschrecken: {
+      faction: 'gott', ast: 'einheiten', name: 'Tiefwaldzorn', kosten: 2, braucht: ['ents', 'wurzelbrecher'], wirkung: { schaden: 140 },
+      desc: 'Uralte Bäume und Wurzelungetüme schlagen mit der Gewalt brechender Stämme zu.',
+    },
+    schwarmbrut: {
+      faction: 'gott', ast: 'einheiten', name: 'Schwarmbrut', kosten: 2, braucht: ['sporensaat'], wirkung: { ausbildung: 200, schaden: 60 },
+      desc: 'Nimmersatte Schwärme brechen aus dem Geäst hervor und überfluten die Lichtungen.',
+    },
+
+    // Ast: Gebäude
     dornen: {
       faction: 'gott', ast: 'gebaeude', name: 'Dornenschrein', kosten: 1, frei: ['dornenschrein'],
       desc: 'Schrein des Zorns: Dornen schärfen, wer in ihrer Nähe kämpft.',
@@ -777,13 +837,35 @@ const VOLK_GOTT = {
       faction: 'gott', ast: 'gebaeude', name: 'Steinkreis', kosten: 1, frei: ['steinkreis'],
       desc: 'Schrein der Wehr: Alte Steine halten Schaden fern.',
     },
+    wucherwurzeln: {
+      faction: 'gott', ast: 'gebaeude', name: 'Wucherwurzeln', kosten: 1, braucht: ['saftfluss'], wirkung: { foerderung: 140, ausbildung: 80 },
+      desc: 'Tief greifende Moosfasern und Wurzeln durchziehen den Boden und speisen Haine.',
+    },
+    uralte_haine: {
+      faction: 'gott', ast: 'gebaeude', name: 'Uralte Haine', kosten: 2, braucht: ['steine', 'wucherwurzeln'], wirkung: { schutz: 100 },
+      desc: 'Bemooste Megalithen und knorrige Eichenkronen schlucken feindliche Geschosse.',
+    },
+    lebensader: {
+      faction: 'gott', ast: 'gebaeude', name: 'Lebensader', kosten: 2, braucht: ['uralte_haine'], wirkung: { foerderung: 160, schutz: 80 },
+      desc: 'Das pulsierende Herz der Natur lässt Erde, Moos und Baumsaft unerschöpflich quellen.',
+    },
+
+    // Ast: Verbesserungen
     faenge: {
       faction: 'gott', ast: 'verbesserung', name: 'Scharfe Fänge', kosten: 1, wirkung: { schaden: 100 },
       desc: 'Krallen und Zähne für alle.',
     },
+    reissklauen: {
+      faction: 'gott', ast: 'verbesserung', name: 'Reißkrallen', kosten: 2, braucht: ['faenge'], wirkung: { schaden: 150 },
+      desc: 'Krumme, gehärtete Hornklauen zerfetzen Harnische und Schilde.',
+    },
     borke: {
       faction: 'gott', ast: 'verbesserung', name: 'Borkenhaut', kosten: 1, braucht: ['faenge'], wirkung: { schutz: 100 },
       desc: 'Rinde statt Haut für alle.',
+    },
+    moosmantel: {
+      faction: 'gott', ast: 'verbesserung', name: 'Lebendiges Moos', kosten: 2, braucht: ['borke'], wirkung: { schutz: 100, ausbildung: 100 },
+      desc: 'Dichte, feuchte Moospolster schließen Wunden im Kampf rasch wieder.',
     },
     saftfluss: {
       faction: 'gott', ast: 'verbesserung', name: 'Saftfluss', kosten: 1, wirkung: { foerderung: 200 },
@@ -797,6 +879,12 @@ const VOLK_GOTT = {
       faction: 'gott', ast: 'verbesserung', name: 'Genügsamkeit', kosten: 2, braucht: ['keimkraft'], wirkung: { unterhalt: 250 },
       desc: 'Die Geschöpfe des Waldes brauchen weniger.',
     },
+    wildwuchs: {
+      faction: 'gott', ast: 'verbesserung', name: 'Urtümlicher Wildwuchs', kosten: 3, braucht: ['reissklauen', 'keimkraft'], wirkung: { ausbildung: 220, schaden: 100 },
+      desc: 'Die wilde Wut des Waldes: Unfassbare Vermehrungsflut und raubtierhafte Wildheit.',
+    },
+
+    // Ast: Kommandant
     rinde: {
       faction: 'gott', ast: 'kommandant', name: 'Uralte Rinde', kosten: 1, wirkung: { kdtSchutz: 200 },
       desc: 'Der Waldgott hält mehr aus.',
@@ -812,6 +900,10 @@ const VOLK_GOTT = {
     rudelruf: {
       faction: 'gott', ast: 'kommandant', name: 'Rudelruf', kosten: 2, braucht: ['wurzelgriff'], faehigkeit: 'rudelruf',
       desc: 'Ein Heulen, und das Rudel kommt.',
+    },
+    weltenwurz: {
+      faction: 'gott', ast: 'kommandant', name: 'Weltenwurz', kosten: 2, braucht: ['lebenssaft', 'rudelruf'], wirkung: { kdtSchutz: 250, schaden: 80 },
+      desc: 'Die Wurzeln des Titanen greifen tief in das Weltenherz: Der Waldgott wird nahezu unbezwingbar.',
     },
   },
   faehigkeiten: {
@@ -848,8 +940,7 @@ const VOLK_TOD = {
   // Rollen der gemeinsamen Basis: welches eigene Gebaeude bzw. welche
   // eigene Einheit diese Rolle spielt. Die KI baut nach Rollen.
   rollen: { anker: 'grabhuegel', kraft: 'seelenbrunnen', fron: 'knochenmuehle', blut: 'fleischwurz', fabrik: 'katakombe', zorn: 'pestaltar', wehr: 'ossuarium', turm: 'knochenturm', forschung: 'totenarchiv', posten: 'geisterturm', bauer: 'totengraeber', leicht: 'skelettkrieger', fern: 'klageweib', schwer: 'grabwaechter', belagerung: 'knochentitan', rabe: 'aasgeier' },
-  // Reihenfolge, in der die KI den Skillbaum lernt
-  lernen: ['klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte', 'beinhaus', 'titanenform', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'ewigerDienst', 'seelenrausch', 'knochensturm'],
+  lernen: ['klageweiber', 'pestweihe', 'pestodem', 'nekromantie', 'grabeskaelte', 'seelenernte', 'beinhaus', 'knochenstaub', 'totengruft', 'grabwaechterweihe', 'knochenhaertung', 'grabeskuehle', 'seelenrausch', 'titanenform', 'ewigerDienst', 'schattenpanzer', 'knochensturm', 'grabesschlaeger', 'ossuarium_mauern', 'gebeinflut', 'todesruhe', 'leichenmarsch', 'nekropolenmacht', 'seelenfresser'],
   gebaeude: {
     nekropole: {
       name: 'Nekropole',
@@ -1096,18 +1187,33 @@ const VOLK_TOD = {
     },
   },
   skills: {
+    // Ast: Einheiten
     klageweiber: {
       faction: 'tod', ast: 'einheiten', name: 'Klageweiber wecken', kosten: 1, frei: ['klageweib'],
       desc: 'Die Katakomben rufen Klageweiber — ihre Schreie treffen aus der Ferne.',
+    },
+    knochenstaub: {
+      faction: 'tod', ast: 'einheiten', name: 'Knochenasche', kosten: 1, braucht: ['klageweiber'], wirkung: { ausbildung: 150 },
+      desc: 'Aus kalter Gräberasche formen sich die Geister der Klageweiber müheloser.',
     },
     grabwaechterweihe: {
       faction: 'tod', ast: 'einheiten', name: 'Grabwächter weihen', kosten: 2, braucht: ['klageweiber'], frei: ['grabwaechter'],
       desc: 'Die Katakomben erwecken Grabwächter aus Obsidian und Götterblut.',
     },
+    grabesschlaeger: {
+      faction: 'tod', ast: 'einheiten', name: 'Grabesschlächter', kosten: 2, braucht: ['grabwaechterweihe'], wirkung: { schaden: 130 },
+      desc: 'Obsidianklingen mit eisigem Grabfluch spalten Schilde und Knochen.',
+    },
     titanenform: {
       faction: 'tod', ast: 'einheiten', name: 'Knochentitan formen', kosten: 2, braucht: ['klageweiber'], frei: ['knochentitan'],
       desc: 'Ein Koloss aus Gebeinen bricht Mauern und Festungen.',
     },
+    gebeinflut: {
+      faction: 'tod', ast: 'einheiten', name: 'Gebeinflut', kosten: 2, braucht: ['knochenstaub', 'titanenform'], wirkung: { ausbildung: 180, schutz: 70 },
+      desc: 'Aus zerborstenen Festungen erstehen unzählige Knochenkrieger aufs Neue.',
+    },
+
+    // Ast: Gebäude
     pestweihe: {
       faction: 'tod', ast: 'gebaeude', name: 'Pestaltar', kosten: 1, frei: ['pestaltar'],
       desc: 'Schrein des Zorns: kalter Hauch schärft die Hiebe.',
@@ -1116,6 +1222,20 @@ const VOLK_TOD = {
       faction: 'tod', ast: 'gebaeude', name: 'Ossuarium', kosten: 1, frei: ['ossuarium'],
       desc: 'Schrein der Wehr: Knochenwände dämpfen Schaden.',
     },
+    totengruft: {
+      faction: 'tod', ast: 'gebaeude', name: 'Totengrüfte', kosten: 1, braucht: ['seelenernte'], wirkung: { foerderung: 120, unterhalt: 100 },
+      desc: 'Gewölbte Grüfte bergen uralte Vorräte und verringern den Fronaufwand.',
+    },
+    ossuarium_mauern: {
+      faction: 'tod', ast: 'gebaeude', name: 'Gebeinwälle', kosten: 2, braucht: ['beinhaus', 'totengruft'], wirkung: { schutz: 120 },
+      desc: 'Aufgetürmte Schädel und Rippenwände federn Einschläge finster ab.',
+    },
+    nekropolenmacht: {
+      faction: 'tod', ast: 'gebaeude', name: 'Nekropolenmacht', kosten: 2, braucht: ['ossuarium_mauern'], wirkung: { foerderung: 160, schutz: 80 },
+      desc: 'Die finstere Herrschaft der Nekropole entzieht dem Umland alle Lebensenergie.',
+    },
+
+    // Ast: Verbesserungen
     pestodem: {
       faction: 'tod', ast: 'verbesserung', name: 'Pestodem', kosten: 1, wirkung: { schaden: 100 },
       desc: 'Giftige Hiebe für alle.',
@@ -1123,6 +1243,10 @@ const VOLK_TOD = {
     knochenhaertung: {
       faction: 'tod', ast: 'verbesserung', name: 'Knochenhärtung', kosten: 1, braucht: ['pestodem'], wirkung: { schutz: 100 },
       desc: 'Versteinerte Gebeine für alle.',
+    },
+    schattenpanzer: {
+      faction: 'tod', ast: 'verbesserung', name: 'Schattenpanzer', kosten: 2, braucht: ['knochenhaertung'], wirkung: { schutz: 150 },
+      desc: 'Ätherische Kälte und verhärteter Knochen widerstehen stärkstem Waffenbeschuss.',
     },
     seelenernte: {
       faction: 'tod', ast: 'verbesserung', name: 'Seelenernte', kosten: 1, wirkung: { foerderung: 200 },
@@ -1136,6 +1260,16 @@ const VOLK_TOD = {
       faction: 'tod', ast: 'verbesserung', name: 'Ewiger Dienst', kosten: 2, braucht: ['grabeskuehle'], wirkung: { unterhalt: 250 },
       desc: 'Tote fordern wenig — der Unterhalt sinkt.',
     },
+    todesruhe: {
+      faction: 'tod', ast: 'verbesserung', name: 'Todesruhe', kosten: 2, braucht: ['ewigerDienst'], wirkung: { unterhalt: 180 },
+      desc: 'Kein Magen knurrt, kein Herz verlangt Sold: Das Totenheer marschiert fast kostenlos.',
+    },
+    leichenmarsch: {
+      faction: 'tod', ast: 'verbesserung', name: 'Ewiger Leichenmarsch', kosten: 3, braucht: ['todesruhe', 'schattenpanzer'], wirkung: { unterhalt: 200, schutz: 100 },
+      desc: 'Vollkommene Selbstgenügsamkeit der Untoten: Riesige Armeen ohne nennenswerten Unterhalt.',
+    },
+
+    // Ast: Kommandant
     nekromantie: {
       faction: 'tod', ast: 'kommandant', name: 'Nekromantische Aura', kosten: 1, wirkung: { kdtSchutz: 200 },
       desc: 'Der Todesgott hält mehr aus.',
@@ -1151,6 +1285,10 @@ const VOLK_TOD = {
     knochensturm: {
       faction: 'tod', ast: 'kommandant', name: 'Knochensturm', kosten: 2, braucht: ['grabeskaelte'], faehigkeit: 'knochensturm',
       desc: 'Skelettkrieger brechen aus der Erde und kämpfen eine Weile mit.',
+    },
+    seelenfresser: {
+      faction: 'tod', ast: 'kommandant', name: 'Seelenfresser', kosten: 2, braucht: ['seelenrausch', 'knochensturm'], wirkung: { kdtSchutz: 250, schaden: 80 },
+      desc: 'Der Todesgott labt sich am Hauch jedes Gefallenen und wird zur wandelnden Festung.',
     },
   },
   faehigkeiten: {
@@ -1257,6 +1395,17 @@ const UNITS = {};
 //                foerderung mehr Fron und Goetterblut aus Foerderbauten
 //                ausbildung schnellere Ausbildung in Fabriken
 //                unterhalt  weniger Unterhalt
+//                tempo      schnellere Einheiten (zaehlt zu Ansturm und Tempo-Aura)
+//                reichweite weiter schiessende Waffen (weapon.range)
+//                sicht      weitere Sicht im Nebel des Krieges
+//                baukraft   schnelleres Bauen und Reparieren der Erbauer
+//                regeneration LP pro Minute dazu -- absolut, keine Promille;
+//                           Gebaeude nur versorgt (anteilig powered)
+//   nur:         [Typen] -- dann wirkt die Wirkung nur auf diese Einheiten-
+//                bzw. Gebaeudetypen, sonst auf das ganze Volk. Bei ausbildung
+//                gilt die Liste fuer die Fabrik und fuer die Einheit, die sie
+//                ausbildet. (Ein Skill mit nur zaehlt bei Abfragen ohne Typ
+//                nicht -- das ganze Volk sieht ihn nie.)
 //   faehigkeit:  gibt dem Kommandanten eine aktive Faehigkeit (FAEHIGKEITEN)
 // Die Reihenfolge der Eintraege ist die Anzeigereihenfolge.
 const AESTE = { einheiten: 'Einheiten', gebaeude: 'Gebäude', verbesserung: 'Verbesserungen', kommandant: 'Kommandant' };
@@ -1358,8 +1507,11 @@ const FELDER = {
   abwehr: ['radius', 'laden'],
   build: ['power'],
   cost: ['fron', 'goetterblut'],
-  skill: ['faction', 'ast', 'name', 'desc', 'kosten', 'braucht', 'frei', 'wirkung', 'faehigkeit'],
-  wirkung: ['schaden', 'schutz', 'kdtSchutz', 'foerderung', 'ausbildung', 'unterhalt'],
+  // nur (M6): Liste eigener Einheiten-/Gebaeudetypen, auf die die wirkung des
+  // Skills beschraenkt ist (sonst ganzes Volk). Siehe bonus() in sim.js.
+  skill: ['faction', 'ast', 'name', 'desc', 'kosten', 'braucht', 'frei', 'wirkung', 'nur', 'faehigkeit'],
+  // tempo, reichweite, sicht, baukraft: Promille; regeneration: LP pro Minute (M6).
+  wirkung: ['schaden', 'schutz', 'kdtSchutz', 'foerderung', 'ausbildung', 'unterhalt', 'tempo', 'reichweite', 'sicht', 'baukraft', 'regeneration'],
   faehigkeit: ['name', 'art', 'radius', 'reichweite', 'dauer', 'wert', 'abklingen', 'einheit', 'anzahl'],
   faehigkeitArt: ['ruf', 'wehr', 'tempo', 'heilung', 'griff', 'rufen'],
 };
@@ -1528,8 +1680,118 @@ const FLUSSTAL = {
   furten: paarweise([FURT]),
 };
 
+/** 4-fache Rotationssymmetrie um die Kartenmitte (90°, 180°, 270°). */
+const rotVier = (liste) =>
+  liste.flatMap((o) => {
+    const r0 = o;
+    const r1 = { ...o, x: MAP - o.y, y: o.x };
+    const r2 = { ...o, x: MAP - o.x, y: MAP - o.y };
+    const r3 = { ...o, x: o.y, y: MAP - o.x };
+    const unique = [];
+    for (const p of [r0, r1, r2, r3]) {
+      if (!unique.some((q) => q.x === p.x && q.y === p.y)) unique.push(p);
+    }
+    return unique;
+  });
+
+// Drei Reiche (3 Spieler): Menschenfeste im Nordwesten, Nekropole im
+// Südosten, Heiliger Weltenhain im Zentrum der Karte. Punktsymmetrisch um
+// die Mitte; jede der drei Basen verfügt über ein volles Fron-Vorkommen.
+const DREI_REICHE = {
+  name: 'Drei Reiche (3P)',
+  spieler: 3,
+  basen: [
+    { x: 3000, y: 3000 },
+    { x: 17000, y: 17000 },
+    { x: 10000, y: 10000 },
+  ],
+  hindernisse: paarweise([
+    { x: 8000, y: 3500, r: 600, art: 'fels' },
+    { x: 9200, y: 4200, r: 500, art: 'fels' },
+    { x: 12500, y: 3000, r: 700, art: 'fels' },
+    { x: 6200, y: 7800, r: 550, art: 'fels' },
+    { x: 14500, y: 7000, r: 1200, art: 'see' },
+  ]),
+  adern: [
+    // Basis 1 (NW) & Basis 2 (SE)
+    ...paarweise([
+      { x: 4800, y: 2200, kind: 'fron' },
+      { x: 2200, y: 4800, kind: 'fron' },
+      { x: 6200, y: 4500, kind: 'fron' },
+      { x: 6700, y: 2100, kind: 'fron' },
+      { x: 2100, y: 6700, kind: 'fron' },
+    ]),
+    // Basis 3 (Zentrum)
+    ...paarweise([
+      { x: 8600, y: 9200, kind: 'fron' },
+      { x: 9200, y: 11400, kind: 'fron' },
+      { x: 11400, y: 8600, kind: 'fron' },
+    ]),
+    // Externe Adern
+    ...paarweise([
+      { x: 15500, y: 4200, kind: 'fron' },
+      { x: 14200, y: 5500, kind: 'goetterblut' },
+      { x: 7400, y: 6800, kind: 'goetterblut' },
+    ]),
+  ],
+  wald: paarweise([
+    { x: 8500, y: 2600, r: 2400 },
+    { x: 10000, y: 6500, r: 2000 },
+  ]),
+  wiesen: paarweise([
+    { x: 14000, y: 5000, r: 2500 },
+  ]),
+  furten: [],
+};
+
+// Vierlande (4 Spieler): Vier Quadranten mit je einer Basis in den Ecken
+// und weiten Toren zur umkämpften Mitte. Vollständig 4-fach rotationssymmetrisch.
+const VIERLANDE = {
+  name: 'Vierlande (4P)',
+  spieler: 4,
+  basen: [
+    { x: 3000, y: 3000 },
+    { x: 17000, y: 17000 },
+    { x: 17000, y: 3000 },
+    { x: 3000, y: 17000 },
+  ],
+  hindernisse: rotVier([
+    { x: 9500, y: 5500, r: 550, art: 'fels' },
+    { x: 10500, y: 5500, r: 550, art: 'fels' },
+    { x: 10000, y: 4400, r: 600, art: 'fels' },
+    { x: 10000, y: 3200, r: 650, art: 'fels' },
+    { x: 7500, y: 2000, r: 900, art: 'see' },
+  ]),
+  adern: [
+    // Basis-Fronadern (5 je Quadrant)
+    ...rotVier([
+      { x: 4800, y: 2200, kind: 'fron' },
+      { x: 2200, y: 4800, kind: 'fron' },
+      { x: 5800, y: 3600, kind: 'fron' },
+      { x: 3600, y: 5800, kind: 'fron' },
+      { x: 6200, y: 2100, kind: 'fron' },
+    ]),
+    // Ausbauadern
+    ...rotVier([
+      { x: 10000, y: 1600, kind: 'fron' },
+    ]),
+    // Götterblut
+    { x: 10000, y: 10000, kind: 'goetterblut' },
+    ...rotVier([
+      { x: 7200, y: 7200, kind: 'goetterblut' },
+    ]),
+  ],
+  wald: rotVier([
+    { x: 6000, y: 1800, r: 1800 },
+  ]),
+  wiesen: rotVier([
+    { x: 7200, y: 7200, r: 1600 },
+  ]),
+  furten: [],
+};
+
 /** Alle Karten nach Schluessel; die erste ist die Vorgabe. */
-const KARTEN = { klassisch: KLASSISCH, flusstal: FLUSSTAL };
+const KARTEN = { klassisch: KLASSISCH, flusstal: FLUSSTAL, dreiReiche: DREI_REICHE, vierlande: VIERLANDE };
 
 /**
  * Die gerade gespielte Karte, fuer die Darstellung (Boden, Baeume). Die
@@ -2377,11 +2639,15 @@ function tryPlace(world, player, type, x, y) {
   return b;
 }
 
-/** Sichtweite einer Einheit oder eines Gebaeudes im Nebel des Krieges. */
-function sichtweite(e) {
+/**
+ * Sichtweite einer Einheit oder eines Gebaeudes im Nebel des Krieges. Mit world
+ * kommt die Wirkung 'sicht' aus dem Skillbaum dazu; ohne world die Grundsicht.
+ */
+function sichtweite(e, world) {
   const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
-  if (e.kind === 'building' && !e.done) return 400;
-  return def.sicht || (e.kind === 'unit' ? 900 : 700);
+  const r = e.kind === 'building' && !e.done ? 400 : def.sicht || (e.kind === 'unit' ? 900 : 700);
+  const mehr = world ? bonus(world, e.player, 'sicht', e.type) : 0;
+  return mehr ? r + (((r * mehr) / 1000) | 0) : r;
 }
 
 /**
@@ -2396,7 +2662,7 @@ function sichtGitter(world, player) {
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.player !== player) continue;
-    const r = sichtweite(e);
+    const r = sichtweite(e, world);
     const x0 = Math.max(0, ((e.x - r) / ZELLE) | 0);
     const x1 = Math.min(n - 1, ((e.x + r) / ZELLE) | 0);
     const y0 = Math.max(0, ((e.y - r) / ZELLE) | 0);
@@ -2545,16 +2811,32 @@ function gesperrt(world, player, typ) {
   return sperrt;
 }
 
-/** Summe einer Wirkung in Promille ueber alle gelernten Skills. */
-function bonus(world, player, art) {
+/**
+ * Summe einer Wirkung ueber alle gelernten Skills (Promille; bei 'regeneration'
+ * LP pro Minute) -- die eine Stelle, an der jede Wirkung gerechnet wird.
+ * Ein Skill mit nur: [typen] zaehlt nur, wenn typ (oder typ2) dort steht;
+ * ohne Typ in der Abfrage zaehlen nur Skills fuers ganze Volk. typ2 gibt es
+ * fuer die Ausbildung: Fabrik und ausgebildete Einheit sind beide gemeint.
+ */
+function bonus(world, player, art, typ, typ2) {
   if (!RULES.skills) return 0;
   const g = world.players[player].gelernt;
   let s = 0;
   for (let i = 0; i < g.length; i++) {
-    const w = SKILLS[g[i]].wirkung;
-    if (w && w[art]) s += w[art];
+    const sk = SKILLS[g[i]];
+    const w = sk.wirkung;
+    if (!w || !w[art]) continue;
+    if (sk.nur && !(sk.nur.includes(typ) || (typ2 !== undefined && sk.nur.includes(typ2)))) continue;
+    s += w[art];
   }
   return s;
+}
+
+/** Reichweite der Waffe von e (dm, Rand zu Rand): die der Definition plus die Wirkung 'reichweite' aus dem Skillbaum. */
+function waffenReichweite(world, e) {
+  const r = (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).weapon.range;
+  const mehr = bonus(world, e.player, 'reichweite', e.type);
+  return mehr ? r + (((r * mehr) / 1000) | 0) : r;
 }
 
 /** Kann der Spieler diesen Skill jetzt lernen? */
@@ -2838,13 +3120,13 @@ function step(world) {
     if (def.schlag) ladungWeiter(e, 'schlag', def.schlag.laden);
     if (def.abwehr) ladungWeiter(e, 'abwehr', def.abwehr.laden);
     if (def.fronOut || def.blutOut) {
-      const mehr = 1000 + bonus(world, e.player, 'foerderung');
+      const mehr = 1000 + bonus(world, e.player, 'foerderung', e.type);
       if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
       if (def.blutOut) pl.blutAcc = (pl.blutAcc || 0) + (((def.blutOut * e.powered * mehr) / 1000) | 0);
     }
 
     if (e.queue.length > 0) {
-      e.queueProgress += ((e.powered * (1000 + bonus(world, e.player, 'ausbildung'))) / 1000) | 0;
+      e.queueProgress += ((e.powered * (1000 + bonus(world, e.player, 'ausbildung', e.type, e.queue[0]))) / 1000) | 0;
       const need = UNITS[e.queue[0]].buildTime * 1000;
       if (e.queueProgress >= need) {
         const type = e.queue.shift();
@@ -2879,13 +3161,17 @@ function step(world) {
 
   // Unterhalt: laufend Fron je lebender Einheit. Wer nicht zahlen kann,
   // steht bei null -- kaufen geht dann nichts mehr.
-  const weniger = [];
-  for (let p = 0; p < world.players.length; p++) weniger.push(1000 - bonus(world, p, 'unterhalt'));
+  // Die Wirkung 'unterhalt' kann auf einzelne Typen beschraenkt sein (nur): je
+  // Spieler und Typ einmal gerechnet und gemerkt.
+  const weniger = world.players.map(() => Object.create(null));
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.kind !== 'unit' || e.beschworen) continue;
     const u = UNITS[e.type].unterhalt;
-    if (u) world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * weniger[e.player];
+    if (!u) continue;
+    const merk = weniger[e.player];
+    if (merk[e.type] === undefined) merk[e.type] = 1000 - bonus(world, e.player, 'unterhalt', e.type);
+    world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * merk[e.type];
   }
   for (let p = 0; p < world.players.length; p++) {
     const pl = world.players[p];
@@ -2989,7 +3275,8 @@ function regenerieren(world, auren) {
     const einheit = e.kind === 'unit';
     if (!einheit && !e.done) continue;
     const def = einheit ? UNITS[e.type] : BUILDINGS[e.type];
-    const reg = def.regeneration || 0;
+    // LP pro Minute: die der Definition plus die Wirkung 'regeneration' aus dem Skillbaum (absolut, nicht Promille)
+    const reg = (def.regeneration || 0) + bonus(world, e.player, 'regeneration', e.type);
     const heil = einheit ? auraWert(auren, e, 'heilung') : 0;
     if (!reg && !heil) continue;
     if (e.hp >= e.maxHp) {
@@ -3225,7 +3512,9 @@ function erschaffen(world) {
     }
     const nah = BUILDINGS[site.type].radius + UNITS[u.type].radius + BAU_NAH;
     if (dist2(u.x, u.y, site.x, site.y) > nah * nah) continue;
-    site.hilfe += b.power;
+    // Baukraft in Promille eines Ticks; die Wirkung 'baukraft' aus dem Skillbaum legt darauf
+    const mehr = bonus(world, u.player, 'baukraft', u.type);
+    site.hilfe += mehr ? b.power + (((b.power * mehr) / 1000) | 0) : b.power;
     u.baut = site.id;
   }
 }
@@ -3333,7 +3622,7 @@ function moveUnits(world, auren) {
       }
       e.tx = gx[i] = t.x;
       e.ty = gy[i] = t.y;
-      const nah = reichweite(e, t) - 10;
+      const nah = reichweite(e, t, world) - 10;
       if (dist2(e.x, e.y, t.x, t.y) <= nah * nah) {
         gx[i] = e.x;
         gy[i] = e.y;
@@ -3341,10 +3630,11 @@ function moveUnits(world, auren) {
       continue;
     }
     if (!w || !(e.arrived || e.aggro) || e.auftrag) continue; // wer baut, jagt nicht
-    const leine = e.arrived ? LEASH + w.range : MAP * 2;
-    const o = chaseTarget(alle, alleRaster, e, w.range + CHASE, leine);
+    const wr = waffenReichweite(world, e);
+    const leine = e.arrived ? LEASH + wr : MAP * 2;
+    const o = chaseTarget(alle, alleRaster, e, wr + CHASE, leine);
     if (!o) continue;
-    const nah = reichweite(e, o) - 10;
+    const nah = reichweite(e, o, world) - 10;
     if (dist2(e.x, e.y, o.x, o.y) > nah * nah) {
       gx[i] = o.x;
       gy[i] = o.y;
@@ -3393,10 +3683,10 @@ function moveUnits(world, auren) {
     const e = us[i];
     if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
     let speed = UNITS[e.type].speed;
-    // Tempo in Promille ueber/unter dem Grundtempo: Ansturm und Tempo-Aura (die
-    // staerkste) schneller, ein Treffer mit verlangsamt langsamer. Alles
-    // addiert, nie unter TEMPO_MIN.
-    let tempo = auraWert(auren, e, 'tempo');
+    // Tempo in Promille ueber/unter dem Grundtempo: Skillbaum (Wirkung 'tempo'),
+    // Ansturm und Tempo-Aura (die staerkste) schneller, ein Treffer mit
+    // verlangsamt langsamer. Alles addiert, nie unter TEMPO_MIN.
+    let tempo = auraWert(auren, e, 'tempo') + bonus(world, e.player, 'tempo', e.type);
     if (e.tempoBis > world.tick) tempo += e.tempoWert; // Ansturm
     if (e.langsamBis > world.tick) tempo -= e.langsamWert;
     if (tempo) speed = ((speed * Math.max(TEMPO_MIN, 1000 + tempo)) / 1000) | 0;
@@ -3591,11 +3881,11 @@ function combat(world, auren) {
     if (e.kind === 'unit' && e.ziel) {
       const t = byId(world, e.ziel);
       if (t && !t.dead) {
-        const r = reichweite(e, t);
+        const r = reichweite(e, t, world);
         if (dist2(e.x, e.y, t.x, t.y) <= r * r) target = t;
       }
     }
-    if (!target) target = nearestEnemy(alle, alleRaster, e);
+    if (!target) target = nearestEnemy(world, alle, alleRaster, e);
     if (!target) continue;
 
     let dmg = target.kind === 'building' && def.weapon.gebaeude ? def.weapon.gebaeude : def.weapon.damage;
@@ -3608,7 +3898,7 @@ function combat(world, auren) {
     const erf = erfahrung(world, e);
     if (erf) dmg = ((dmg * (1000 + erf)) / 1000) | 0;
     // Skills: Verbesserung des ganzen Volkes, Schlachtruf.
-    const sb = bonus(world, e.player, 'schaden');
+    const sb = bonus(world, e.player, 'schaden', e.type);
     if (sb) dmg = ((dmg * (1000 + sb)) / 1000) | 0;
     if (e.kind === 'unit' && e.rufBis > world.tick) dmg = ((dmg * (1000 + e.rufWert)) / 1000) | 0;
     // Aura (M3): die staerkste Schadensaura eigener Quellen im Umkreis.
@@ -3687,8 +3977,8 @@ function trefferNehmen(world, schilde, auren, t, dmgVorher) {
   if (erf) dmg = ((dmg * (1000 - erf)) / 1000) | 0;
   // Skills: Schutz des ganzen Volkes, dazu der des Kommandanten.
   if (t.kind === 'unit') {
-    let sch = bonus(world, t.player, 'schutz');
-    if (UNITS[t.type].commander) sch += bonus(world, t.player, 'kdtSchutz');
+    let sch = bonus(world, t.player, 'schutz', t.type);
+    if (UNITS[t.type].commander) sch += bonus(world, t.player, 'kdtSchutz', t.type);
     if (sch) dmg = ((dmg * (1000 - sch)) / 1000) | 0;
     if (t.wehrBis > world.tick) dmg = ((dmg * (1000 - t.wehrWert)) / 1000) | 0; // Schildwall
     // Aura (M3): die staerkste Schutzaura eigener Quellen; mehr als 1000 gaebe Heilung.
@@ -3727,24 +4017,26 @@ function radiusVon(e) {
 /**
  * Wie weit die Mitten hoechstens auseinander sein duerfen, damit e o trifft:
  * Reichweite (Rand zu Rand) plus beide Raender. Nahkampf heisst Beruehrung.
+ * Mit world zaehlt die Wirkung 'reichweite' des Skillbaums; ohne die Grundreichweite.
  */
-function reichweite(e, o) {
+function reichweite(e, o, world) {
   const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
-  return def.weapon.range + radiusVon(e) + radiusVon(o);
+  return (world ? waffenReichweite(world, e) : def.weapon.range) + radiusVon(e) + radiusVon(o);
 }
 
 /** Naechster Feind, den e mit seiner Waffe erreicht -- Belagerung nimmt Gebaeude zuerst. */
-function nearestEnemy(alle, alleRaster, e) {
+function nearestEnemy(world, alle, alleRaster, e) {
   const w = (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).weapon;
   const gebaeudeZuerst = w.vorrang === 'gebaeude';
+  const wr = waffenReichweite(world, e); // einmal je Schuetze, nicht je Kandidat
   let best = null;
   let bestD = Infinity;
   let bestRang = 1;
-  for (const i of nachbarn(alleRaster, e.x, e.y, w.range + radiusVon(e) + GROESSTER_RADIUS)) {
+  for (const i of nachbarn(alleRaster, e.x, e.y, wr + radiusVon(e) + GROESSTER_RADIUS)) {
     const o = alle[i];
     if (o.dead || o.player === e.player || !erreicht(e, o)) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
-    const r = reichweite(e, o);
+    const r = wr + radiusVon(e) + radiusVon(o);
     if (dd > r * r) continue;
     const rang = gebaeudeZuerst && o.kind === 'building' ? 0 : 1;
     if (rang < bestRang || (rang === bestRang && dd <= bestD)) {
@@ -3844,9 +4136,9 @@ function unterhaltProMin(world, player) {
   let s = 0;
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
-    if (!e.dead && e.kind === 'unit' && e.player === player) s += UNITS[e.type].unterhalt || 0;
+    if (!e.dead && e.kind === 'unit' && e.player === player) s += (UNITS[e.type].unterhalt || 0) * (1000 - bonus(world, player, 'unterhalt', e.type));
   }
-  return ((s * (1000 - bonus(world, player, 'unterhalt'))) / 1000) | 0;
+  return (s / 1000) | 0;
 }
 
 /** Foerderung eines Spielers in Fron pro Minute, so wie sie gerade laeuft. */
@@ -3856,9 +4148,9 @@ function foerderungProMin(world, player) {
     const e = world.entities[i];
     if (e.dead || e.kind !== 'building' || !e.done || e.player !== player) continue;
     const out = BUILDINGS[e.type].fronOut;
-    if (out) s += ((out * e.powered) / 1000) | 0;
+    if (out) s += (((out * e.powered) / 1000) | 0) * (1000 + bonus(world, player, 'foerderung', e.type));
   }
-  return ((s * (1000 + bonus(world, player, 'foerderung'))) / 1000) | 0;
+  return (s / 1000) | 0;
 }
 function gridReport(world, player) {
   const out = [];
@@ -4027,7 +4319,7 @@ function sichtQuellen(world, player) {
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.player !== player) continue;
-    q.push(e.x, e.y, sichtweite(e));
+    q.push(e.x, e.y, sichtweite(e, world));
   }
   return q;
 }
@@ -6961,13 +7253,65 @@ function menueHtml(laufend, hatStand, speicherbar = true) {
       <button id="menueHaupt">Hauptmenü</button>
     </div></div>`;
 }
-function bauleisteHtml(world, player, liste) {
-  return liste
+
+// Die Bauleiste in Gruppen: Mit den Rollen der gemeinsamen Basis hat ein Volk
+// bald ~19 Gebaeude, die Tasten 1-0 reichen nicht. Die Gruppe ergibt sich aus
+// der Rolle, die ein Gebaeude im Volk spielt (FACTIONS[v].rollen) -- eine
+// Gruppe ist also keine eigene Angabe in den Volksdateien. Gebaeude ohne Rolle
+// (volkseigene) landen unter "Besonderes". Die Reihenfolge innerhalb einer
+// Gruppe ist die in FACTIONS[v].bauten.
+const BAU_GRUPPEN = [
+  { schluessel: 'wirtschaft', name: 'Wirtschaft', rollen: ['kraft', 'fron', 'blut', 'umwandler', 'anker', 'forschung', 'posten'] },
+  { schluessel: 'militaer', name: 'Militär', rollen: ['fabrik', 'luftfabrik', 'werkstatt', 'turm', 'flak'] },
+  { schluessel: 'besonderes', name: 'Besonderes', rollen: ['zorn', 'wehr', 'schild', 'schlag', 'abwehr'] },
+];
+
+/**
+ * Die nichtleeren Bau-Gruppen eines Volks: [{ schluessel, name, liste }].
+ * Leere Gruppen fehlen (ein Volk mit nur 9 Gebaeuden hat vielleicht keine
+ * Abwehr-Gebaeude), ihre Reihenfolge ist die von BAU_GRUPPEN.
+ */
+function bauGruppen(volk) {
+  const f = FACTIONS[volk];
+  const rolleVon = {};
+  for (const r of Object.keys(f.rollen || {})) if (!(f.rollen[r] in rolleVon)) rolleVon[f.rollen[r]] = r;
+  const gruppeVon = (typ) => {
+    const k = BAU_GRUPPEN.findIndex((g) => g.rollen.includes(rolleVon[typ]));
+    return k >= 0 ? k : BAU_GRUPPEN.length - 1; // ohne Rolle: Besonderes
+  };
+  const out = BAU_GRUPPEN.map((g) => ({ schluessel: g.schluessel, name: g.name, liste: [] }));
+  for (const t of f.bauten) out[gruppeVon(t)].liste.push(t);
+  return out.filter((g) => g.liste.length);
+}
+
+/** Die gewaehlte Gruppe; ist sie nicht (mehr) da, die erste. */
+function aktiveBauGruppe(gruppen, schluessel) {
+  return gruppen.find((g) => g.schluessel === schluessel) || gruppen[0];
+}
+
+/** Tab: die Gruppe nach (richtung 1) bzw. vor (-1) der aktiven, reihum. */
+function naechsteBauGruppe(gruppen, schluessel, richtung) {
+  if (!gruppen.length) return schluessel;
+  const k = gruppen.indexOf(aktiveBauGruppe(gruppen, schluessel));
+  return gruppen[(k + richtung + gruppen.length) % gruppen.length].schluessel;
+}
+
+/** Bauleiste: Reiter der Gruppen (bei mehr als einer) und die Gebaeude der aktiven Gruppe, Tasten 1-0. */
+function bauleisteHtml(world, player, gruppen, aktiv) {
+  const gr = aktiveBauGruppe(gruppen, aktiv);
+  if (!gr) return '';
+  const reiter = gruppen.length > 1
+    ? `<div class="reiter">${gruppen.map((g) => `<button class="reiter-knopf${g === gr ? ' aktiv' : ''}" data-reiter="${g.schluessel}" title="${g.name} (Tab wechselt)">${g.name}</button>`).join('')}</div>`
+    : '';
+  const knoepfe = gr.liste
     .map((t, i) => {
       const zu = gesperrt(world, player, t);
-      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span><kbd>${(i + 1) % 10}</kbd></button>`;
+      // Taste nur fuer die ersten zehn; weitere bleiben anklickbar
+      const taste = i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : '';
+      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span>${taste}</button>`;
     })
     .join('');
+  return reiter + knoepfe;
 }
 
 /** Ausbildungsleiste fuer Fabriken: Icons zum Anklicken mit Kosten und Warteschlange, ohne Tastenkuerzel (wie Supreme Commander). */
@@ -7185,6 +7529,7 @@ function gebaeudeKarte(world, player, typ) {
   if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
   if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
   if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : UNITS[u].kampf ? 'nah' : 'Späher'})`).join(', ')]);
+  z.push(...skillZeilen(world, player, typ));
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
@@ -7202,6 +7547,7 @@ function einheitKarte(world, player, typ) {
   if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
   if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; Nahkämpfer und Bodenwaffen erreichen ihn nicht']);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
+  z.push(...skillZeilen(world, player, typ));
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
@@ -7393,14 +7739,53 @@ function skillWirkung(sk) {
   const teile = [];
   if (sk.frei) teile.push('Schaltet frei: ' + sk.frei.map((t) => (UNITS[t] || BUILDINGS[t]).name).join(', '));
   const w = sk.wirkung || {};
-  if (w.schaden) teile.push(`+${prozent(w.schaden)} Schaden aller Einheiten`);
-  if (w.schutz) teile.push(`−${prozent(w.schutz)} genommener Schaden aller Einheiten`);
+  const anfang = teile.length; // ab hier die Wirkungen; "nur für ..." kommt einmal hinter die letzte
+  // nur: [typen] -- dann gilt die Wirkung nur fuer diese, und die Karte sagt es ("nur für Jäger, Soldat")
+  const nurFuer = sk.nur ? ` — nur für ${sk.nur.map((t) => (UNITS[t] || BUILDINGS[t] || { name: t }).name).join(', ')}` : '';
+  const alle = (text) => (sk.nur ? '' : ' ' + text); // "aller Einheiten" faellt weg, wenn nur die Liste gilt
+  if (w.schaden) teile.push(`+${prozent(w.schaden)} Schaden${alle('aller Einheiten')}`);
+  if (w.schutz) teile.push(`−${prozent(w.schutz)} genommener Schaden${alle('aller Einheiten')}`);
   if (w.kdtSchutz) teile.push(`−${prozent(w.kdtSchutz)} genommener Schaden des Kommandanten`);
   if (w.foerderung) teile.push(`+${prozent(w.foerderung)} Förderung`);
   if (w.ausbildung) teile.push(`${prozent(w.ausbildung)} schnellere Ausbildung`);
   if (w.unterhalt) teile.push(`−${prozent(w.unterhalt)} Unterhalt`);
+  if (w.tempo) teile.push(`+${prozent(w.tempo)} Tempo`);
+  if (w.reichweite) teile.push(`+${prozent(w.reichweite)} Reichweite`);
+  if (w.sicht) teile.push(`+${prozent(w.sicht)} Sicht`);
+  if (w.baukraft) teile.push(`+${prozent(w.baukraft)} Baukraft`);
+  if (w.regeneration) teile.push(`+${w.regeneration} LP/min Regeneration`);
+  if (teile.length > anfang) teile[teile.length - 1] += nurFuer;
   if (sk.faehigkeit) teile.push(faehigkeitText(sk.faehigkeit));
   return teile.join(' · ');
+}
+
+/** Tiefe eines Skills in der braucht-Kette: 0 ohne Voraussetzung, sonst eins mehr als die tiefste. */
+function skillTiefe(id, kette = []) {
+  const sk = SKILLS[id];
+  if (!sk || !sk.braucht || !sk.braucht.length || kette.includes(id)) return 0; // kette: Schutz vor Kreisen in den Daten
+  let t = 0;
+  for (const b of sk.braucht) t = Math.max(t, 1 + skillTiefe(b, [...kette, id]));
+  return t;
+}
+
+/**
+ * Skills eines Volks je Ast, in Stufen nach der Tiefe der braucht-Kette:
+ * { ast: [{ stufe, ids }] } -- Stufe 0 zuerst, leere Stufen fehlen, die
+ * Reihenfolge innerhalb einer Stufe ist die in SKILLS.
+ */
+function skillStufen(faction) {
+  const out = {};
+  for (const ast of Object.keys(AESTE)) {
+    const je = new Map();
+    for (const [id, sk] of Object.entries(SKILLS)) {
+      if (sk.faction !== faction || sk.ast !== ast) continue;
+      const t = skillTiefe(id);
+      if (!je.has(t)) je.set(t, []);
+      je.get(t).push(id);
+    }
+    out[ast] = [...je.keys()].sort((a, b) => a - b).map((stufe) => ({ stufe, ids: je.get(stufe) }));
+  }
+  return out;
 }
 
 /** Aendert sich, sobald sich am Skillbaum etwas aendert -- dann neu zeichnen. */
@@ -7408,31 +7793,104 @@ function skillSignatur(world, player) {
   return world.players[player].gelernt.join() + '|' + skillFrei(world, player);
 }
 
-/** Der Skillbaum eines Spielers: vier Aeste, jeder Skill ein Knopf. */
+/**
+ * Der Skillbaum eines Spielers: vier Spalten (Aeste), darin die Stufen nach der
+ * Tiefe der braucht-Kette von oben nach unten, jeder Skill ein Knopf. Die
+ * Linien zu den Voraussetzungen zieht skillLinien() nach dem Einsetzen ins DOM
+ * (sie brauchen die Lage der Knoepfe).
+ */
 function skillBaumHtml(world, player) {
   const pl = world.players[player];
   const frei = skillFrei(world, player);
+  const stufen = skillStufen(pl.faction);
+  const karte = (id) => {
+    const sk = SKILLS[id];
+    const gelernt = pl.gelernt.includes(id);
+    const kann = kannLernen(world, player, id);
+    const fehlt = (sk.braucht || []).filter((b) => !pl.gelernt.includes(b)).map((b) => SKILLS[b].name);
+    const fuss = gelernt
+      ? 'gelernt'
+      : (fehlt.length ? 'braucht ' + fehlt.join(', ') + ' · ' : '') + `${sk.kosten} Punkt${sk.kosten > 1 ? 'e' : ''}`;
+    const braucht = (sk.braucht || []).filter((b) => SKILLS[b]).join(' ');
+    return `<button class="skill ${gelernt ? 'gelernt' : kann ? 'kann' : 'zu'}" data-skill="${id}" data-braucht="${braucht}"${kann ? '' : ' disabled'}>
+      <b>${sk.name}</b><span class="sw">${skillWirkung(sk)}</span><i>${sk.desc}</i><span class="sk">${fuss}</span></button>`;
+  };
   const spalten = Object.entries(AESTE)
     .map(([ast, titel]) => {
-      const karten = Object.entries(SKILLS)
-        .filter(([, sk]) => sk.faction === pl.faction && sk.ast === ast)
-        .map(([id, sk]) => {
-          const gelernt = pl.gelernt.includes(id);
-          const kann = kannLernen(world, player, id);
-          const fehlt = (sk.braucht || []).filter((b) => !pl.gelernt.includes(b)).map((b) => SKILLS[b].name);
-          const fuss = gelernt
-            ? 'gelernt'
-            : (fehlt.length ? 'braucht ' + fehlt.join(', ') + ' · ' : '') + `${sk.kosten} Punkt${sk.kosten > 1 ? 'e' : ''}`;
-          return `<button class="skill ${gelernt ? 'gelernt' : kann ? 'kann' : 'zu'}" data-skill="${id}"${kann ? '' : ' disabled'}>
-            <b>${sk.name}</b><span class="sw">${skillWirkung(sk)}</span><i>${sk.desc}</i><span class="sk">${fuss}</span></button>`;
-        })
+      const reihen = stufen[ast]
+        .map(({ stufe, ids }) => `<div class="stufe">${stufen[ast].length > 1 ? `<small>Stufe ${stufe + 1}</small>` : ''}${ids.map(karte).join('')}</div>`)
         .join('');
-      return `<div class="ast"><h3>${titel}</h3>${karten}</div>`;
+      return `<div class="ast"><h3>${titel}</h3>${reihen}</div>`;
     })
     .join('');
   const takt = Math.round(RULES.skillTakt / 600);
   return `<div class="skopf"><b>Skillbaum</b> — ${frei} Punkt${frei === 1 ? '' : 'e'} frei, alle ${takt} min ein neuer · Klick lernt · <kbd>T</kbd> schließt</div>
-    <div class="aeste">${spalten}</div>`;
+    <div class="aeste"><svg class="linien" aria-hidden="true"></svg>${spalten}</div>`;
+}
+
+/**
+ * Linien von jeder Voraussetzung zu dem Skill, der sie braucht: von der
+ * Unterkante der Voraussetzung zur Oberkante des Skills (liegt er nicht
+ * darunter, von Seite zu Seite). Gruen, wenn die Voraussetzung gelernt ist.
+ * Misst die Knoepfe, darum erst nach dem Einsetzen des HTML und bei sichtbarem
+ * Feld aufrufen -- und nach einer Groessenaenderung noch einmal. Ohne DOM
+ * (Smoke-Test) tut es nichts.
+ */
+function skillLinien(el) {
+  if (!el || !el.querySelector) return;
+  const feld = el.querySelector('.aeste');
+  const svg = el.querySelector('.linien');
+  if (!feld || !svg || !feld.getBoundingClientRect) return;
+  // erst auf null: sonst zaehlt die alte Groesse des SVG selbst zur scrollWidth/scrollHeight und das Feld waechst nur noch
+  svg.setAttribute('width', 0);
+  svg.setAttribute('height', 0);
+  const basis = feld.getBoundingClientRect();
+  const karten = new Map();
+  for (const k of feld.querySelectorAll('[data-skill]')) karten.set(k.dataset.skill, k);
+  const pfade = [];
+  for (const [id, k] of karten) {
+    const braucht = (k.dataset.braucht || '').split(' ').filter(Boolean);
+    for (const b of braucht) {
+      const v = karten.get(b);
+      if (!v) continue;
+      const a = v.getBoundingClientRect();
+      const z = k.getBoundingClientRect();
+      const ok = v.classList.contains('gelernt') ? ' ok' : '';
+      let d;
+      if (z.top >= a.bottom - 1) {
+        const x1 = a.left + a.width / 2 - basis.left;
+        const y1 = a.bottom - basis.top;
+        const x2 = z.left + z.width / 2 - basis.left;
+        const y2 = z.top - basis.top;
+        const m = (y1 + y2) / 2;
+        d = `M${x1} ${y1} C${x1} ${m} ${x2} ${m} ${x2} ${y2}`;
+      } else {
+        const rechts = z.left > a.left;
+        const x1 = (rechts ? a.right : a.left) - basis.left;
+        const x2 = (rechts ? z.left : z.right) - basis.left;
+        const y1 = a.top + a.height / 2 - basis.top;
+        const y2 = z.top + z.height / 2 - basis.top;
+        const m = (x1 + x2) / 2;
+        d = `M${x1} ${y1} C${m} ${y1} ${m} ${y2} ${x2} ${y2}`;
+      }
+      pfade.push(`<path class="${ok.trim()}" d="${d}"/>`);
+    }
+  }
+  svg.setAttribute('width', feld.scrollWidth);
+  svg.setAttribute('height', feld.scrollHeight);
+  svg.innerHTML = pfade.join('');
+}
+
+/** Wirkungen aus dem Skillbaum, die fuer einen Typ gerade gelten, als Zeile der Info-Karte (leer, wenn keine). */
+function skillZeilen(world, player, typ) {
+  const teile = [];
+  const b = (art) => bonus(world, player, art, typ);
+  if (b('tempo')) teile.push(`Tempo +${prozent(b('tempo'))}`);
+  if (b('reichweite')) teile.push(`Reichweite +${prozent(b('reichweite'))}`);
+  if (b('sicht')) teile.push(`Sicht +${prozent(b('sicht'))}`);
+  if (b('baukraft')) teile.push(`Baukraft +${prozent(b('baukraft'))}`);
+  if (b('regeneration')) teile.push(`Regeneration +${b('regeneration')} LP/min`);
+  return teile.length ? [['Skills', teile.join(', ')]] : [];
 }
 
 /** Zeit bis zum naechsten Skillpunkt, als Text. */

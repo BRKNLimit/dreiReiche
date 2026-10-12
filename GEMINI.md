@@ -1,14 +1,18 @@
-# Die drei Reiche — Regeln für Gemini (Grafik und Inhalte)
+# Resonit — Regeln für Gemini (Grafik und Inhalte)
 
-Du arbeitest an einem RTS-Prototyp im Browser: Menschen gegen den Wald- und
-Wiesengott, WebGL 2 ohne Bibliothek, alles läuft offline aus einer HTML-Datei.
-**Du bist für Grafik und Inhalte zuständig** (60 % des Umbaus der Völker).
-Claude (Technik, Prüfung, Merges) und ein Sonnet-Agent (Mechaniken) arbeiten
-parallel in anderen Dateien. Den aktuellen Auftrag findest du in
-**`docs/umbau/auftrag-gemini.md`**, den Rahmen in `docs/umbau/konzept.md`,
-was schon nutzbar ist in `docs/umbau/stand.md` (erledigt:
-`docs/grafik/auftrag*.md`). Drei Völker: Menschen, Wald- und Wiesengott,
-Todesgott.
+**Neu seit 12.10.2026: Das Spiel wird Resonit** — das Sci-Fi-RTS im Stil von
+Supreme Commander aus dem Kompendium (`docs/resonit/kompendium.md`). Gebaut
+wird auf dem bestehenden Kern **dieses** Repos (nicht in `resonit-scifi`,
+der Ordner bleibt nur Quelle für Ideen und Modelle). Plan:
+`docs/resonit/plan.md`. **Dein Auftrag: `docs/resonit/auftrag-gemini.md`.**
+Die Fantasy-Völker (Menschen, Wald- und Wiesengott, Todesgott) bleiben
+spielbar, bis Vanguard und Kranor stehen — an ihnen arbeitest du nicht mehr.
+
+WebGL 2 ohne Bibliothek, alles läuft offline aus einer HTML-Datei.
+**Du bist für Grafik und Inhalte zuständig** (60 %). Claude (Technik,
+Prüfung, Merges) und ein Sonnet-Agent (Mechaniken) arbeiten parallel in
+anderen Dateien. Was an Mechaniken nutzbar ist, steht in
+`docs/umbau/stand.md`.
 
 **Lies diese Datei zu Beginn jeder Sitzung neu** — nach
 `git fetch && git merge origin/main`. Sie ändert sich zwischen den Runden.
@@ -52,8 +56,8 @@ Kein `npm install` nötig, keine Abhängigkeiten.
 | `src/galerie.js`, `src/galerie.html` | Die Galerie |
 | `docs/grafik/` | Dein Protokoll, deine Wünsche an Claude, Stil-Notizen |
 | `docs/bilder/` | Bilder (Screenshots, Vorlagen) |
-| `src/sim/voelker/*.js` | **Inhalte** der drei Völker (Gebäude, Einheiten, Skills, Rollen) — nur mit Feldern aus `FELDER` und nur, was `docs/umbau/stand.md` freigibt |
-| `docs/umbau/entwurf-*.md` | Deine Inhaltsentwürfe je Volk |
+| `src/sim/voelker/*.js` | **Inhalte** der Völker (Gebäude, Einheiten, Rollen) — nur mit Feldern aus `FELDER` und nur, was `docs/umbau/stand.md` freigibt. Neu: `vanguard.js`, `kranor.js` |
+| `docs/resonit/entwurf-*.md`, `docs/umbau/entwurf-*.md` | Deine Inhaltsentwürfe je Volk |
 | `erweiterungen/` | Dein Todesgott-Entwurf (Archiv) |
 
 **Nicht anfassen:** `src/sim/**` außer `src/sim/voelker/` (deterministische Simulation), `src/ui.js`,
@@ -129,12 +133,12 @@ sichtbare Kante darf nicht mehr als etwa 10 % vom Kreis abweichen.
 7. Trag jede Arbeitsrunde in `docs/grafik/protokoll.md` ein: was, warum,
    wie geprüft.
 8. **Inhalte ja, Regeln nein.** Einheiten, Gebäude, Werte und Skill-Bäume
-   entwirfst und pflegst du im Rahmen von `docs/umbau/konzept.md` —
+   entwirfst und pflegst du im Rahmen von `docs/resonit/kompendium.md` und `docs/resonit/plan.md` —
    aber nur mit Feldern aus `FELDER` (`src/sim/defs.js`, geprüft von
    `test/daten.test.js`). Neue Mechaniken (neue Felder, neue Regeln)
    erfindest du nicht: als Wunsch in `docs/grafik/wuensche.md`. Werte
    änderst du nur mit Messung (`tools/sweep.mjs … voelker=a-b`, alle
-   Paarungen 45–55 %) im Protokoll. Keine neuen Völker.
+   Paarungen 45–55 %) im Protokoll. Neue Völker nur die vier aus dem Kompendium, in der Reihenfolge des Plans.
 9. **Shader im echten Browser prüfen:** Die Smoke-Tests haben kein echtes
    WebGL. Nach Änderungen an Shadern `dist/drei-reiche-3d.html` einmal im
    Browser öffnen und die Konsole auf Fehler ansehen.
@@ -142,7 +146,18 @@ sichtbare Kante darf nicht mehr als etwa 10 % vom Kreis abweichen.
     drei Reiche“) — der Ausdruck steht im Deutschen für den
     Nationalsozialismus.
 
-## Stil (Vorgaben des Nutzers)
+## Stil Resonit (ab jetzt)
+
+- **Hard-SciFi, Supreme Commander:** gebürsteter Stahl, Ketten, Radarschalen,
+  Leuchtstreifen in Teamfarbe; Gebäude als Industrieanlagen. Lesbar aus
+  großer Höhe: klare Silhouetten je Rumpfklasse (leicht, mittel, schwer).
+- **Vanguard:** schwer gepanzert, ballistisch, kantige Wannen, olivgrau mit
+  Teamfarbe. **Kranor:** umgebaute Bergbaumaschinen — Schaufeln, Bohrköpfe,
+  Ketten, Rost und Warnstreifen. Weitere Völker kommen später.
+- Ideen und Modelle aus `../resonit-scifi/src/render3d/` darfst du
+  übernehmen, aber im Format von `src/modelle3d.js` (siehe oben).
+
+## Stil Fantasy (Archiv — gilt nur noch für die alten Völker)
 
 - **Waldgott:** riesig, dunkel, unheimlich. Fast schwarzer Mantel ohne
   sichtbare Füße, unten zerfasert wie Wurzeln; hoher Kragen, hängende Ärmel;

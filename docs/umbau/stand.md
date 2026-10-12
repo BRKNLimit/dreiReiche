@@ -1,5 +1,7 @@
 # Stand des Umbaus — welche Mechaniken nutzbar sind
 
+**Seit 12.10.2026 wird das Spiel Resonit** (`docs/resonit/plan.md`). Die Mechaniken unten gelten weiter; die Fantasy-Völker werden nicht mehr nachgestellt.
+
 Pflegt Claude nach jedem Merge. Inhalte (Gemini, `src/sim/voelker/`) dürfen
 nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Felder.
 
@@ -23,5 +25,6 @@ nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Feld
 | --- | --- | --- | --- |
 | 0.39 (vor dem Umbau) | 32 : 25 | 42 : 30 | 34 : 25 |
 | + Spähposten für Gott und Tod (Gemini, Runde 28) | 38 : 24 | 32 : 40 | 33 : 29 |
+| + Skillbäume 22 je Volk (Gemini, Runde 30) | 44 : 26 | 30 : 42 | 36 : 34 |
 
-KI gegen KI, 36 Seeds × 2 Sitzplätze, 45 min, Stil-Paarungen (`tools/sweep.mjs 36 45 Ausgang stile voelker=…`). Messungen mit weniger Partien (Gemini: 10 Seeds × 30 min) streuen zu stark für Aussagen — bitte immer diese Einstellung.
+KI gegen KI, 36 Seeds × 2 Sitzplätze, 45 min, Stil-Paarungen (`tools/sweep.mjs 36 45 Ausgang stile voelker=…`). Nach den Skillbäumen gewinnt Tod gegen Gott auffällig oft schon in Minute 4 (Seeds paarweise „M4 M4“) — vermutlich fällt der Kommandant früh; mit dem Wechsel zu Resonit nicht weiter verfolgt. Messungen mit weniger Partien (Gemini: 10 Seeds × 30 min) streuen zu stark für Aussagen — bitte immer diese Einstellung.

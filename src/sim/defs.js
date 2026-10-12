@@ -7,11 +7,9 @@
 // und FELDER (welche Felder die Simulation kennt).
 
 import { TICK_MS, MAP, PRIO, PRIO_NAMES } from './grund.js';
-import { VOLK_MENSCH } from './voelker/mensch.js';
-import { VOLK_GOTT } from './voelker/gott.js';
-import { VOLK_TOD } from './voelker/tod.js';
+import { VOELKER } from './voelker/index.js';
 
-export { TICK_MS, MAP, PRIO, PRIO_NAMES };
+export { TICK_MS, MAP, PRIO, PRIO_NAMES, VOELKER };
 
 // Regeln, die fuer alle Fraktionen gleich gelten. Ein Objekt, damit Messungen
 // (tools/match.mjs) sie umschalten koennen, ohne die Datei zu aendern.
@@ -62,10 +60,8 @@ export const RULES = {
 
 export const FACTIONS = {};
 
-// Die Voelker stehen je in einer Datei unter src/sim/voelker/. Hier werden
-// sie zusammengesetzt -- die Reihenfolge der Voelker bestimmt die Reihenfolge
-// der Schluessel (und damit z. B. die Nummern der Skills im Spielstand).
-export const VOELKER = [VOLK_MENSCH, VOLK_GOTT, VOLK_TOD];
+// Die Voelker stehen je in einer Datei unter src/sim/voelker/, die Liste in
+// src/sim/voelker/index.js. Hier werden sie zusammengesetzt.
 
 // sicht: Sichtweite im Nebel des Krieges, Dezimeter (sonst Einheiten 900,
 // fertige Gebaeude 700, Baustellen 400).

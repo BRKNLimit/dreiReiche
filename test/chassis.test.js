@@ -10,7 +10,7 @@ import { createWorld, step, spawnBuilding, spawnUnit, issue, hash, anzahlVon, bo
 import { BUILDINGS, UNITS, FACTIONS, MODULE, RUEMPFE, RULES, SKILLS, FELDER, huelleAnlegen, variante, bestueckungTyp, rumpfVon } from '../src/sim/defs.js';
 import { createAI, stepAI } from '../src/sim/ai.js';
 import { zustandSichern, zustandLaden } from '../src/spielstand.js';
-import { einheitKarte, auswahlKopf, gruppenHtml, kodexZeigen } from '../src/ui-gemeinsam.js';
+import { einheitKarte, auswahlKopf, gruppenHtml, kodexZeigen, modulKarte, umruestLeisteHtml, umruestSignatur, umruestenVerteilt } from '../src/ui-gemeinsam.js';
 
 const V = 'rtest';
 const klon = (q, ueber = {}) => ({ ...structuredClone(q), faction: V, ...ueber });
@@ -465,4 +465,30 @@ test('Oberflaeche: Karten, Auswahlkopf und Kodex kennen Rumpf, Module und Umrues
   assert.ok(el.innerHTML.includes('Testrumpf') && el.innerHTML.includes('Haubitze'), 'Kodex nennt Rumpf und Module');
   assert.ok(!el.innerHTML.includes('Testrumpf (') && !el.innerHTML.includes('data-kodex="rrumpf|'), 'Varianten stehen nicht einzeln im Kodex');
   assert.doesNotThrow(() => kodexZeigen(el, () => {}, V, 'rhaubitze'));
+});
+
+test('Oberflaeche: die Umruestleiste zeigt je Steckplatz die passenden Module, sperrt ohne Werkstatt und gibt Befehle', () => {
+  const w = neu();
+  const u1 = spawnUnit(w, 0, STD, 3500, 3500);
+  const u2 = spawnUnit(w, 0, STD, 3560, 3500);
+  const leiste = umruestLeisteHtml(w, 0, [u1.id, u2.id]);
+  assert.ok(/braucht eine Werkstatt/.test(leiste), 'ohne Werkstatt gesperrt');
+  assert.ok(leiste.includes('data-umr="0:rhaubitze"') && leiste.includes('data-umr="1:rradar"'));
+  assert.ok(!leiste.includes('data-umr="0:rgatling"') && !leiste.includes('data-umr="1:rkanone"'), 'nur Module der passenden Groesse');
+  assert.ok(!leiste.includes('rnurAnderer') && !leiste.includes('rfremd'), 'weder nur-fremde noch Module anderer Voelker');
+  assert.ok(/×2/.test(leiste), 'zwei Einheiten');
+  assert.equal(umruestLeisteHtml(w, 0, []), '');
+  assert.equal(umruestLeisteHtml(w, 0, [hauptV(w).id]), '', 'ein Gebaeude hat keine Steckplaetze');
+  const sig = umruestSignatur(w, 0, [u1.id]);
+  spawnBuilding(w, 0, 'rwerk', 4500, 3000, true);
+  assert.notEqual(umruestSignatur(w, 0, [u1.id]), sig, 'eine Werkstatt aendert die Leiste');
+  assert.ok(!/braucht eine Werkstatt/.test(umruestLeisteHtml(w, 0, [u1.id])));
+  // Ein Klick befiehlt allen gewaehlten, solange das Geld reicht
+  w.players[0].masse = 120; // Haubitze kostet 120: nur eine
+  w.players[0].resonit = 5;
+  umruestenVerteilt(w, 0, [u1.id, u2.id], 0, 'rhaubitze');
+  step(w);
+  assert.equal([u1, u2].filter((u) => u.umruest).length, 1);
+  assert.doesNotThrow(() => modulKarte('rhaubitze'));
+  assert.ok(/Umkreis|Fläche/.test(modulKarte('rhaubitze')));
 });

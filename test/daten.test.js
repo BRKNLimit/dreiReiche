@@ -24,7 +24,9 @@ test('Daten: jedes Volk nur mit Feldern, die das Spiel kennt, und nur ganzen Zah
     nurBekannte(w('growth'), v.volk.growth, FELDER.growth);
     for (const [k, b] of Object.entries(v.gebaeude)) {
       nurBekannte(w(k), b, FELDER.gebaeude);
-      for (const f of ['weapon', 'buff', 'cost']) if (b[f]) nurBekannte(w(`${k}.${f}`), b[f], FELDER[f]);
+      for (const f of ['weapon', 'buff', 'cost', 'schild']) if (b[f]) nurBekannte(w(`${k}.${f}`), b[f], FELDER[f]);
+      // Ein Schild ohne eines seiner drei Felder tut nichts oder teilt durch null
+      if (b.schild) for (const f of FELDER.schild) assert.ok(b.schild[f] > 0, w(`${k}.schild.${f}: muss eine positive Zahl sein`));
       if (b.weapon?.ziele) assert.ok(FELDER.weaponZiele.includes(b.weapon.ziele), w(`${k}.weapon.ziele: „${b.weapon.ziele}“ ist keins von ${FELDER.weaponZiele}`));
       ganzzahlig(w(k), b);
     }

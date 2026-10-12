@@ -337,6 +337,17 @@ export function stepAI(ai, world) {
     }
   }
 
+  // 3g. Schildgenerator (hat das Volk einen): einer beim Hauptgebaeude, wenn die
+  //     Wirtschaft steht und ab Minute 10 -- vorher waere Fron fuer Schutz
+  //     verschwendet, den noch niemand braucht. Minute 10: Designzahl, nicht gemessen.
+  if (plan.schild && frei(plan.schild) && wirtschaftSteht && minute >= 10) {
+    const sg = BUILDINGS[plan.schild];
+    if (zahl(plan.schild) < 1 && fron >= sg.cost.fron && bilanz >= (sg.gegenwartIn || 0)) {
+      const platz = daheimFrei(world, kunde, haupt, plan.schild, 500, front + 330);
+      if (platz && bau(plan.schild, ...platz)) return;
+    }
+  }
+
   // 3b. Goetterblut: Schacht auf die Ader, oder die Domaene zur Ader schieben.
   if (veneBereit && fron >= kosten(plan.blut) && bilanz >= BUILDINGS[plan.blut].gegenwartIn) {
     if (bau(plan.blut, vene.x, vene.y)) return;

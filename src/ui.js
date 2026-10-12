@@ -716,6 +716,7 @@ function draw() {
   drawDeposits();
   drawSchreine();
   drawEntities();
+  drawSchilde();
   drawPlaene();
   drawWirkungen();
   drawNebel();
@@ -799,6 +800,33 @@ function drawSchreine() {
   }
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
+}
+
+/**
+ * Schildkuppeln als Kreis um eigene Schildgebaeude (gewaehlte kraeftiger), die
+ * Deckkraft folgt der Ladung. Fremde nur, wenn man sie sieht und anklickt.
+ */
+function drawSchilde() {
+  ctx.setLineDash([]);
+  for (const e of world.entities) {
+    if (e.dead || e.kind !== 'building' || !e.done || verborgen(e)) continue;
+    const s = BUILDINGS[e.type].schild;
+    if (!s) continue;
+    const gewaehlt = sel.includes(e.id);
+    if (e.player !== ME && !gewaehlt) continue;
+    const fuell = Math.min(1, e.schildPunkte / s.kapazitaet);
+    ctx.strokeStyle = '#7ab8ff';
+    ctx.fillStyle = '#7ab8ff';
+    ctx.lineWidth = gewaehlt ? 2.5 : 1.5;
+    ctx.beginPath();
+    ctx.arc(w2sx(e.x), w2sy(e.y), s.radius * cam.z, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.1 + 0.6 * fuell;
+    ctx.stroke();
+    ctx.globalAlpha = 0.08 * fuell;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 1;
 }
 
 /** Faehigkeiten: Einsatzringe, gerufene und festgehaltene Einheiten. */

@@ -326,3 +326,36 @@ Gefecht wird zum zweiten Kampf um das Trümmerfeld.
 7. **Tests:** Wrack entsteht mit richtiger Masse, Bergung zahlt aus und
    endet, zwei Berger teilen sich ein Wrack deterministisch, Spielstand
    mitten in der Bergung bitgenau, Kunde sieht ungesehene Wracks nicht.
+
+## R2 Feuerleitnetz (Resonit, Kompendium „Das Feuerleitnetz & Aufklärung“)
+
+Heute sieht die Simulation alles: Ein Turm oder eine Einheit trifft jeden
+Feind in Reichweite, auch im Nebel. In Resonit gilt: **Eine Waffe zielt nur
+auf das, was ihr Spieler gerade sieht** — mit irgendeiner eigenen Einheit
+oder einem eigenen Gebäude. Schwerste Artillerie mit Reichweite über ihrer
+Sicht braucht also einen Späher; der Gegner kontert, indem er die Späher
+jagt.
+
+1. **Sicht in der Simulation:** je Spieler ein Sichtgitter (es gibt schon
+   `sichtGitter` für Kunde/Nebel), deterministisch, einmal je Tick oder
+   gecacht, solange sich nichts bewegt hat — Laufzeit von
+   `node tools/referenz.mjs` höchstens +20 % (vorher/nachher messen).
+2. **Zielwahl:** `nearestEnemy`, gezielter Angriff (`ziel`), Verfolgen
+   (`chaseTarget`), Flächentreffer zählen nur Ziele, deren Zelle der
+   Schütze-Spieler gerade sieht (Flächenschaden trifft am Einschlagort
+   trotzdem alles — nur die Zielwahl braucht Sicht). Fernschlag (M4) zielt
+   wie bisher auf einen Punkt (keine Sicht nötig, Kompendium: Bastille
+   braucht Späher — das kommt mit den Inhalten über `schlag`-Reichweite und
+   KI-Zielwahl aus der Kunde, nicht hier).
+3. **Ein Schalter** `RULES.feuerleitnetz` (an); aus = bitgleich zu heute.
+4. **Oberfläche:** Infokarte zeigt bei `weapon.range > sicht` „braucht
+   Aufklärung“; ein gezielter Angriff auf etwas, das gerade aus der Sicht
+   verschwindet, bricht nicht ab, sondern die Einheit geht hin (wie heute
+   Verfolgen).
+5. **KI:** braucht nichts Eigenes — sie nutzt ohnehin nur die Kunde.
+6. **Referenz** darf sich ändern (Türme und Fernkämpfer mit Reichweite über
+   Sicht, Flieger); alte und neue Zeile und eine Messung
+   `node tools/sweep.mjs 36 45 Ausgang stile` vorher/nachher in den Bericht.
+7. **Tests:** Turm schießt nicht ins Ungesehene, schießt, sobald ein Späher
+   das Ziel sieht; Schalter aus = bitgleich; Spielstand mitten im Gefecht
+   bitgenau; 3–4 Spieler: Sicht je Spieler getrennt.

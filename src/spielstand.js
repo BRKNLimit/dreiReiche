@@ -8,7 +8,7 @@
 // Ein geladener Stand laeuft bitgenau so weiter wie der gesicherte -- das
 // prueft test/spielstand.test.js.
 
-import { KARTEN, FACTIONS } from './sim/defs.js';
+import { KARTEN, FACTIONS, variantenAusText } from './sim/defs.js';
 import { wegGitter } from './sim/weg.js';
 
 const STAND_FORMAT = 'drei-reiche-spielstand';
@@ -32,6 +32,7 @@ export function zustandSichern(world, ais) {
 
 /** Gegenstueck zu zustandSichern: liefert { world, ais }. */
 export function zustandLaden(z) {
+  variantenAusText(JSON.stringify(z)); // R3: umgeruestete Einheiten sind Varianten, die es in diesem Lauf noch nicht gibt
   const world = JSON.parse(JSON.stringify(z.world));
   world.karteDaten = world.karteDaten || KARTEN[world.karte];
   world.hindernisse = world.leer ? [] : world.karteDaten.hindernisse;

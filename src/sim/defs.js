@@ -8,6 +8,7 @@
 
 import { TICK_MS, MAP, PRIO, PRIO_NAMES } from './grund.js';
 import { VOELKER } from './voelker/index.js';
+import { ruempfeStandard, ruempfeFehler, ruempfeSchluessel, ruempfeTeile, ruempfeAbleiten } from './ruempfe.js';
 
 export { TICK_MS, MAP, PRIO, PRIO_NAMES, VOELKER };
 
@@ -78,6 +79,14 @@ export const RULES = {
   // eine Waffe weiter als die Sicht, braucht sie einen Spaeher. false = wie
   // vor R2 (bitgleich).
   feuerleitnetz: true,
+
+  // Umruesten (R3): Wie viel der Kosten des alten Moduls zurueckkommt, wenn ein
+  // Steckplatz ein neues bekommt, in Promille. 0 = das alte ist verloren (das neue
+  // kostet voll). Designzahl, ungemessen.
+  umruestErstattung: 0,
+  // Wie nah an der Werkstatt eine Einheit stehen muss, um umgeruestet zu werden:
+  // Abstand von Rand zu Rand, in dm. Designzahl, ungemessen (15 m).
+  umruestReichweite: 150,
 };
 
 export const FACTIONS = {};
@@ -103,6 +112,14 @@ export const BUILDINGS = {};
 // fliegt: ueber Fels, Wasser und Mauern; mit weapon kaempft ein Flieger wie
 // jede andere Einheit, ohne bleibt er Spaeher.
 export const UNITS = {};
+
+// Module (R3): je Volk `module: { id: { ... } }` in der Volksdatei, hier alle
+// zusammen (jedes mit `faction`). Welche Felder ein Modul hat und wie aus Rumpf
+// und Modulen eine Einheit wird, steht bei FELDER.modul weiter unten.
+export const MODULE = {};
+// Rohdaten der Ruempfe (Einheiten mit `slots`): UNITS[rumpf] ist die daraus
+// abgeleitete Einheit mit Standardbestueckung, hier steht der nackte Rumpf.
+export const RUEMPFE = {};
 
 // ------------------------------------------------------------- Skillbaum
 // Je Fraktion ein Baum mit vier Aesten. Ein Skill kostet Punkte, braucht
@@ -149,6 +166,8 @@ export const SKILLS = {};
 // abklingen: Ticks bis zum naechsten Einsatz.
 export const FAEHIGKEITEN = {};
 
+const hatEigen = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+
 for (const v of VOELKER) {
   // Ein Volk ohne freie Rollen, Skills oder Faehigkeiten darf die Felder weglassen (R0)
   FACTIONS[v.schluessel] = Object.assign(v.volk, { rollen: v.rollen || {}, lernen: v.lernen || [], faehigkeiten: v.volk.faehigkeiten || [] });
@@ -156,6 +175,71 @@ for (const v of VOELKER) {
   Object.assign(UNITS, v.einheiten);
   Object.assign(SKILLS, v.skills);
   Object.assign(FAEHIGKEITEN, v.faehigkeiten);
+  // Module (R3): optional; jedes Modul gehoert dem Volk, in dessen Datei es steht
+  for (const id of Object.keys(v.module || {})) MODULE[id] = { ...v.module[id], faction: v.schluessel };
+}
+// Ruempfe (R3): jede Einheit mit slots wird zur Einheit mit ihrer Standardbestueckung
+for (const k of Object.keys(UNITS)) if (UNITS[k].slots) huelleAnlegen(k);
+
+/**
+ * Macht aus einer Einheit mit `slots` einen Rumpf: Die Rohdaten kommen nach
+ * RUEMPFE[k], UNITS[k] wird die Einheit mit Standardbestueckung (Schluessel des
+ * Rumpfs). Passt die Standardbestueckung nicht (Modul fehlt, falsche Groesse ...),
+ * bleibt UNITS[k] unveraendert und false kommt zurueck -- test/daten.test.js
+ * meldet den Grund. Die Tests legen so auch Ruempfe zur Laufzeit an.
+ */
+export function huelleAnlegen(k) {
+  const roh = RUEMPFE[k] || UNITS[k];
+  if (ruempfeFehler(k, roh, ruempfeStandard(roh), MODULE)) return false;
+  RUEMPFE[k] = roh;
+  UNITS[k] = ruempfeAbleiten(k, roh, ruempfeStandard(roh), MODULE);
+  return true;
+}
+
+/**
+ * Die Einheit zu einem Schluessel (UNITS[key]); gibt es sie noch nicht und
+ * beschreibt der Schluessel eine gueltige Variante (`rumpf|modul|...`, nicht die
+ * Standardbestueckung, sie hat den Schluessel des Rumpfs), wird sie jetzt
+ * abgeleitet und eingetragen -- eine reine Funktion des Schluessels, in jedem Lauf
+ * und auf jedem Rechner gleich. Null bei allem anderen.
+ */
+export function variante(key) {
+  if (typeof key !== 'string') return null;
+  if (hatEigen(UNITS, key)) return UNITS[key];
+  const t = ruempfeTeile(key);
+  if (!t || !hatEigen(RUEMPFE, t.huelle)) return null;
+  const roh = RUEMPFE[t.huelle];
+  if (ruempfeFehler(t.huelle, roh, t.liste, MODULE) || ruempfeSchluessel(t.huelle, roh, t.liste) !== key) return null;
+  UNITS[key] = ruempfeAbleiten(t.huelle, roh, t.liste, MODULE);
+  return UNITS[key];
+}
+
+/**
+ * Schluessel der Einheit, die ein Rumpf mit dieser Bestueckung ergibt (eine
+ * Liste mit einem Modul oder '' je Steckplatz); legt die Variante an. Null, wenn
+ * es der Rumpf nicht gibt oder die Bestueckung nicht passt.
+ */
+export function bestueckungTyp(huelle, liste) {
+  if (typeof huelle !== 'string' || !hatEigen(RUEMPFE, huelle)) return null;
+  const roh = RUEMPFE[huelle];
+  if (ruempfeFehler(huelle, roh, liste, MODULE)) return null;
+  const key = ruempfeSchluessel(huelle, roh, liste);
+  return variante(key) ? key : null;
+}
+
+/** Der Rumpf einer Einheitenart (Schluessel); eine Einheit ohne Steckplaetze ist ihr eigener Rumpf. */
+export function rumpfVon(typ) {
+  const d = UNITS[typ];
+  return (d && d.rumpf) || typ;
+}
+
+/**
+ * Legt alle Varianten an, die in einem Text (JSON eines Spielstands) als Typ
+ * vorkommen -- ein geladener Stand kennt Einheiten, die erst im Spiel
+ * umgeruestet wurden.
+ */
+export function variantenAusText(text) {
+  for (const m of text.matchAll(/"([A-Za-z0-9_]+(?:\|[A-Za-z0-9_-]*)+)"/g)) variante(m[1]);
 }
 
 // ------------------------------------------------------------- Felder und Rollen
@@ -170,19 +254,62 @@ export const FELDER = {
     'name', 'desc', 'short', 'faction', 'hp', 'radius', 'sicht', 'cost', 'buildTime',
     'anchor', 'anchorMin', 'vital', 'needs', 'needsGrowth', 'clears',
     'energieIn', 'energieOut', 'prio', 'masseOut', 'resonitOut', 'forschung',
-    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr', 'regeneration', 'aura', 'auferstehen',
+    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr', 'regeneration', 'aura', 'auferstehen', 'umruesten',
   ],
+  // ---- Ruempfe und Module (R3) ----------------------------------------------
+  // Ein RUMPF ist eine Einheit mit `slots`: eine Liste der Steckplatzgroessen,
+  // z. B. slots: ['gross', 'klein'] ('klein' | 'gross', siehe FELDER.groesse). Dazu
+  // `bestueckung`: die Standardbestueckung, je Steckplatz ein Modul-Id oder '' (leer);
+  // fehlt sie, ist der Rumpf nackt. Die Werte des Rumpfs (hp, cost, buildTime, speed ...)
+  // gelten fuer den NACKTEN Rumpf, die Module kommen dazu.
+  // Ein MODUL steht in der Volksdatei unter `module: { id: { ... } }` (neben gebaeude,
+  // einheiten ...) und hat die Felder FELDER.modul. Module-Ids sind ueber alle Voelker
+  // eindeutig und duerfen weder Einheit noch Gebaeude heissen.
+  //
+  // ABLEITUNG (ruempfeAbleiten in src/sim/ruempfe.js; gilt fuer jede Bestueckung):
+  //   cost, buildTime  Summe aus Rumpf und allen Modulen (cost je Ressource)
+  //   hp               Summe (Module addieren; Rumpf plus Module mindestens 1)
+  //   unterhalt        Summe
+  //   regeneration     Summe (LP pro Minute)
+  //   sicht            das Maximum aus Rumpf (ohne Angabe 900) und Modulen
+  //   speed            Rumpftempo mal (1000 + Summe der Modul-speed) / 1000; speed
+  //                    der Module ist also PROMILLE (-100 = 10 % langsamer), nie unter 10 %
+  //   weapon, kampf    die EINE Waffe: die des ersten Waffenmoduls in Steckplatz-
+  //                    Reihenfolge (samt dessen kampf); ohne Waffenmodul die des Rumpfs.
+  //                    Zweite Waffen gibt es nicht.
+  //   bergung, build, worker, aura   vom ersten Modul, das es hat, wenn der Rumpf es nicht hat
+  //   alles andere (radius, fliegt, commander, hoechstens, name, desc ...)  vom Rumpf
+  //   name             bei Standardbestueckung der Rumpfname, sonst "Rumpf (Modul, Modul)"
+  // Die abgeleitete Einheit traegt ausserdem `rumpf` (Schluessel des Rumpfs), `slots`
+  // und `bestueckung`. Sie steht in UNITS unter diesem SCHLUESSEL:
+  //   Standardbestueckung   der Rumpf-Schluessel, z. B. 'palisade'
+  //   andere Bestueckung    'palisade|haubitze|gatling' (je Steckplatz ein Modul, '-' = leer)
+  // Fabriken nennen in `buildList` den Rumpf-Schluessel und bilden die Standardbestueckung
+  // aus; produce darf eine andere mitgeben. Modelle, Icons und 2D-Figuren kommen vom RUMPF.
+  // Umruesten: das Gebaeude braucht `umruesten: true` (typisch die Werkstatt).
   // hoechstens (M5): so viele Einheiten dieses Typs darf ein Spieler zugleich
   // haben -- lebende plus in Ausbildung. Ein produce darueber hinaus wird
   // abgelehnt (sim.js, anzahlVon). Fuer Prototypen; ohne Angabe keine Grenze.
   // regeneration (M3): LP pro Minute, die die Einheit bzw. das Gebaeude von
   // selbst zurueckbekommt (Gebaeude nur versorgt, anteilig zu powered).
   // aura (M3): wirkt auf eigene Einheiten im Umkreis, siehe FELDER.aura.
-  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura', 'bergung'],
+  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura', 'bergung', 'slots', 'bestueckung'],
   // bergung (R1): die Einheit birgt Wracks (Befehl 'bergen'); kraft ist die
   // Masse pro Minute. Erbauer (build) bergen auch ohne dieses Feld, mit ihrer
   // Baukraft umgerechnet (RULES.bergungProBaukraft). Geborgen wird nur auf Befehl.
   bergung: ['kraft'],
+  // modul (R3): Felder eines Moduls. Alle ausser name, groesse und cost sind optional.
+  //   name, desc   Anzeige
+  //   groesse      'klein' | 'gross' -- passt nur in einen Steckplatz dieser Groesse
+  //   cost         wie bei Einheiten, buildTime Ticks (Umruesten: so lange steht die Einheit)
+  //   nur          Liste von Rumpf-Schluesseln, auf die das Modul passt (ohne: auf alle des Volks)
+  //   weapon, kampf    Waffe wie bei Einheiten (ein Waffenmodul braucht beides)
+  //   sicht, bergung, build, worker, regeneration, aura, unterhalt   wie bei Einheiten
+  //   hp           LP, die das Modul zum Rumpf addiert (darf negativ sein)
+  //   speed        PROMILLE Tempoaenderung des Rumpfs (-100 = 10 % langsamer)
+  //   faction      setzt das Spiel selbst (das Volk, in dessen Datei das Modul steht)
+  modul: ['name', 'desc', 'groesse', 'cost', 'buildTime', 'nur', 'kampf', 'weapon', 'sicht', 'bergung', 'build', 'worker', 'regeneration', 'aura', 'unterhalt', 'hp', 'speed', 'faction'],
+  groesse: ['klein', 'gross'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
   // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
   // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,
@@ -549,5 +676,5 @@ export function buildingsOf(f) {
   return Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].faction === f);
 }
 export function unitsOf(f) {
-  return Object.keys(UNITS).filter((k) => UNITS[k].faction === f);
+  return Object.keys(UNITS).filter((k) => UNITS[k].faction === f && k.indexOf('|') < 0);
 }

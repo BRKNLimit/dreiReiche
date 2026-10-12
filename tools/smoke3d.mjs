@@ -119,6 +119,13 @@ const speicher = {};
 globalThis.localStorage = { getItem: (k) => speicher[k] ?? null, setItem: (k, v) => (speicher[k] = String(v)), removeItem: (k) => delete speicher[k] };
 const fehler = [];
 process.on('uncaughtException', (e) => fehler.push(e));
+// Eine nicht abgefangene Ausnahme bricht die Pruefung ab, ohne den Schluss zu erreichen -- das ist ein Fehler, kein stiller Erfolg
+let vollstaendig = false;
+process.on('exit', () => {
+  if (vollstaendig) return;
+  console.log('FEHLER: Pruefung vorzeitig beendet', fehler.slice(0, 3).map((e) => e.message).join(' / '));
+  process.exitCode = 1;
+});
 try {
   // Zugriff auf Innenleben der Seite fuer die Pruefungen unten: eine Zeile hinten an das Skript
   new Function(
@@ -246,11 +253,31 @@ if (!hauptgebaeude || !bauer) {
   pruefe(anzahl('schildkuppel') > davor.schildkuppel, 'Schildkuppel wurde nicht gezeichnet');
   pruefe(anzahl('fernschlag') > davor.fernschlag, 'Fernschlag im Flug wurde nicht gezeichnet');
   pruefe(anzahl('flak') > davor.flak, `Flak-Wolke wurde nicht gezeichnet (Flieger ${flieger.hp}/${flieger.maxHp})`);
-  // aufraeumen, damit der Rest der Pruefung nichts davon sieht
+  console.log('Modelle gezeichnet (Instanzen):', `schildkuppel ${anzahl('schildkuppel')}, fernschlag ${anzahl('fernschlag')}, flak ${anzahl('flak')}`);
+
+  // ---- Wracks (R1): ein gefallener Gegner laesst eines liegen, es wird gezeichnet (Platzhaltermodell) und geborgen
+  {
+    const vorWrack = anzahl('wrack');
+    const feind = T.spawnUnit(T.world, andere, 'soldat', x + 400, y + 400);
+    feind.dead = true;
+    const bergerBauer = T.spawnUnit(T.world, T.ME, 'bauer', x + 300, y + 400);
+    laufe(30);
+    pruefe(T.MODELLE.wrack, 'Modell wrack fehlt in MODELLE (src/platzhalter.js)');
+    pruefe(T.world.wracks.length > 0, 'Ein gefallener Soldat hinterlaesst kein Wrack');
+    pruefe(anzahl('wrack') > vorWrack, 'Wrack wurde nicht gezeichnet');
+    const meins = T.world.wracks.find((w) => w.x === feind.x && w.y === feind.y); // im Zuschauen spielen beide Seiten KIs: die Masse zaehlt nicht, das Wrack schon
+    pruefe(!!meins, 'Das Wrack des Soldaten liegt nicht an seiner Stelle');
+    T.issue(T.world, { type: 'bergen', player: T.ME, ids: [bergerBauer.id], id: meins ? meins.id : 0 });
+    for (let i = 0; i < 10; i++) laufe(20);
+    pruefe(!meins || meins.masse < meins.voll || !T.world.wracks.includes(meins), 'Bergen verringert das Wrack nicht');
+    bergerBauer.dead = true;
+    console.log('Wracks:', T.world.wracks.length, 'liegen,', `wrack ${anzahl('wrack')} Instanzen`);
+  }
+  // aufraeumen, damit der Rest der Pruefung nichts davon sieht (erst jetzt: ein Effekt am gefallenen
+  // Testflieger braucht seinen Eintrag in UNITS noch, bis er verblasst ist)
   for (const k of ['testkuppel', 'testschlag', 'testflak']) delete T.BUILDINGS[k];
   delete T.UNITS.testflieger;
   for (const e of [kuppel, schlag, flak, flieger]) e.dead = true;
-  console.log('Modelle gezeichnet (Instanzen):', `schildkuppel ${anzahl('schildkuppel')}, fernschlag ${anzahl('fernschlag')}, flak ${anzahl('flak')}`);
 }
 
 // ---- Vier Spieler auf Vierlande (Mensch + drei KIs), Spielstand, Zuschauen, drei Spieler
@@ -285,5 +312,6 @@ if (fehler.length) {
   for (const e of fehler.slice(0, 5)) console.log(' ', e.message, '\n   ', (e.stack || '').split('\n')[1]);
   process.exit(1);
 }
+vollstaendig = true;
 console.log('3D-Smoke-Test ok — 1000 Frames, Eingaben verarbeitet, 3 und 4 Spieler, keine Ausnahmen.');
 console.log('HUD-Ausgabe vorhanden:', nodes.hud.innerHTML.length > 0);

@@ -1033,7 +1033,7 @@ function zeichne(now, dt) {
   // Wracks (R1): gehoeren niemandem, kein Teamanteil; was nur in Erinnerung ist, matt
   if (MODELLE.wrack) {
     for (const w of wracksSichtbar(nebel, world)) {
-      instanz('wrack', w.x * DM, 0, w.y * DM, (w.id % 8) * 0.8, wrackGroesse(w) * DM, [0, 0, 0], 1, wrackJetzt(nebel, w) ? 1 : 0.6);
+      instanz('wrack', w.x * DM, 0, w.y * DM, (w.id % 8) * 0.8, wrackGroesse(w) * DM * 0.85, [0, 0, 0], 1, wrackJetzt(nebel, w) ? 1 : 0.6);
     }
   }
   for (const e of world.entities) {

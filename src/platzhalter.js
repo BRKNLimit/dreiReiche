@@ -27,7 +27,7 @@ for (const [k, v] of Object.entries(ICON_NAMEN)) ICONS[k] ??= ICONS[v];
 const PLATZHALTER_MODELLE = {
   // Wrack (R1): flacher Schrotthaufen, Radius 1, gehoert niemandem (kein Teamanteil)
   wrack: [
-    ['z', [0.78, 0.98, 0.12, 9], [0, 0.06, 0], '#2b2926'],
+    ['z', [0.58, 0.74, 0.1, 9], [0, 0.05, 0], '#2b2926'],
     ['k', [0.3, 6], [0, 0.14, 0], '#34312d'],
     ['q', [0.7, 0.07, 0.36], [0.12, 0.24, 0.06], '#3d3b37', 0, [0.15, 0.5, 0.35]],
     ['q', [0.46, 0.06, 0.62], [-0.3, 0.2, -0.2], '#4b3b2e', 0, [-0.25, -0.7, 0.2]],

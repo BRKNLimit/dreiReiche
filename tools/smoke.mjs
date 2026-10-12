@@ -128,12 +128,19 @@ const speicher = {};
 globalThis.localStorage = { getItem: (k) => speicher[k] ?? null, setItem: (k, v) => (speicher[k] = String(v)), removeItem: (k) => delete speicher[k] };
 const errors = [];
 process.on('uncaughtException', (e) => errors.push(e));
+// Eine nicht abgefangene Ausnahme bricht die Pruefung ab, ohne den Schluss zu erreichen -- das ist ein Fehler, kein stiller Erfolg
+let vollstaendig = false;
+process.on('exit', () => {
+  if (vollstaendig) return;
+  console.log('FEHLER: Pruefung vorzeitig beendet', errors.slice(0, 3).map((e) => e.message).join(' / '));
+  process.exitCode = 1;
+});
 
 try {
   // Zugriff auf Innenleben der Seite fuer die Bauleisten-Pruefung unten: eine Zeile hinten an das Skript
   new Function(
     code +
-      `\n;globalThis.__t = { BUILDINGS, UNITS,
+      `\n;globalThis.__t = { BUILDINGS, UNITS, spawnUnit, issue,
         get world() { return world; }, get ME() { return ME; },
         get sel() { return sel; }, set sel(v) { sel = v; }, get placing() { return placing; }, set placing(v) { placing = v; },
         get gruppe() { return bauGruppeSchl; },
@@ -250,6 +257,20 @@ for (let i = 0; i < 400 && frameFn; i++) {
     T.placing = null;
     T.sel = [];
     weiter(3);
+    // Wracks (R1): ein gefallener Gegner laesst eines liegen (gezeichnet, ohne Ausnahme), der Erbauer birgt es auf Befehl
+    const feind = T.spawnUnit(T.world, 1 - T.ME, 'soldat', bauer.x + 200, bauer.y);
+    feind.dead = true;
+    weiter(20);
+    pruefe(T.world.wracks.length > 0, 'Ein gefallener Soldat hinterlaesst kein Wrack');
+    T.sel = [bauer.id];
+    const meins = T.world.wracks.find((w) => w.x === feind.x && w.y === feind.y);
+    pruefe(!!meins, 'Das Wrack des Soldaten liegt nicht an seiner Stelle');
+    const masseVor = T.world.players[T.ME].masse;
+    T.issue(T.world, { type: 'bergen', player: T.ME, ids: [bauer.id], id: meins ? meins.id : 0 });
+    weiter(120);
+    pruefe(!meins || (meins.masse < meins.voll && T.world.players[T.ME].masse > masseVor) || !T.world.wracks.includes(meins), 'Bergen zahlt keine Masse aus');
+    T.sel = [];
+    weiter(3);
   }
 }
 
@@ -340,6 +361,7 @@ if (errors.length) {
   for (const e of errors.slice(0, 5)) console.log(' ', e.message, '\n   ', (e.stack || '').split('\n')[1]);
   process.exit(1);
 }
+vollstaendig = true;
 console.log('Smoke-Test ok — 1000 Frames, Eingaben, Spielstand, Online-Dialog, Mission mit Welle, 3 und 4 Spieler — keine Ausnahmen.');
 console.log('Canvas-Aufrufe:', [...calls].sort().join(', '));
 console.log('HUD-Ausgabe vorhanden:', nodes.hud.innerHTML.length > 0);

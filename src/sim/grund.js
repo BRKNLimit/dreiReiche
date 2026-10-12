@@ -13,4 +13,4 @@ export const PRIO = {
   werk: 3, // Baustellen und Fabriken -- fallen zuerst
 };
 
-export const PRIO_NAMES = ['Zorn', 'Wehr', 'Segen', 'Werk'];
+export const PRIO_NAMES = ['Geschütze', 'Schilde', 'Sonstiges', 'Fabriken']; // Anzeige (Resonit); die Schluessel bleiben

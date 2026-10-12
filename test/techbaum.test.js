@@ -234,7 +234,8 @@ test('Reichweite: ein gezielter Angriff bleibt erst in der groesseren Reichweite
     lerne(w, 0, ...gelernt);
     const s = spawnUnit(w, 0, 'tfern', 3000, 5000);
     const z = fest(spawnUnit(w, 1, 'tgegner', 6000, 5000));
-    s.ziel = z.id; // gezielter Angriff
+    // gezielter Angriff, wie ihn der Befehl setzt: Ziel und Stelle, an der man es zuletzt sah
+    issue(w, { type: 'angreifen', player: 0, ids: [s.id], id: z.id });
     schritte(w, 120);
     return z.x - s.x;
   };

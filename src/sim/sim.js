@@ -660,29 +660,72 @@ export function sichtweite(e, world) {
 /**
  * Was ein Spieler gerade sieht: 1 je Zelle (dasselbe Gitter wie die
  * Wegfindung), deren Mitte in Sichtweite einer eigenen Einheit oder eines
- * eigenen Gebaeudes liegt. Die Simulation selbst kennt keinen Nebel -- das
- * ist eine Sicht fuer Oberflaechen und eine spaetere, ehrliche KI.
+ * eigenen Gebaeudes liegt. Mit RULES.feuerleitnetz entscheidet dieses Gitter
+ * auch, was eine Waffe anvisieren darf (siehe siehtZiel); sonst kennt die
+ * Simulation keinen Nebel und das Gitter dient den Oberflaechen.
+ *
+ * Zeilenweise gefuellt: je Zellzeile die Spanne, deren Mitten im Kreis liegen
+ * (isqrt rundet exakt ab, also gilt |dx| <= isqrt(r^2 - dy^2) genau dann, wenn
+ * dx^2 + dy^2 <= r^2) -- dasselbe Ergebnis wie Zelle fuer Zelle, nur ohne
+ * jede Zelle einzeln zu messen.
  */
 export function sichtGitter(world, player) {
   const n = MAP / ZELLE;
   const g = new Uint8Array(n * n);
+  const halb = ZELLE >> 1;
+  const weiten = Object.create(null); // Sichtweite je Typ (und Baustelle), nur zum Nachschlagen
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.player !== player) continue;
-    const r = sichtweite(e, world);
-    const x0 = Math.max(0, ((e.x - r) / ZELLE) | 0);
-    const x1 = Math.min(n - 1, ((e.x + r) / ZELLE) | 0);
+    const art = e.kind === 'building' && !e.done ? '!' + e.type : e.type;
+    const r = weiten[art] || (weiten[art] = sichtweite(e, world));
     const y0 = Math.max(0, ((e.y - r) / ZELLE) | 0);
     const y1 = Math.min(n - 1, ((e.y + r) / ZELLE) | 0);
     for (let cy = y0; cy <= y1; cy++) {
-      const my = cy * ZELLE + (ZELLE >> 1) - e.y;
-      for (let cx = x0; cx <= x1; cx++) {
-        const mx = cx * ZELLE + (ZELLE >> 1) - e.x;
-        if (mx * mx + my * my <= r * r) g[cy * n + cx] = 1;
-      }
+      const my = cy * ZELLE + halb - e.y;
+      const rest = r * r - my * my;
+      if (rest < 0) continue;
+      const w = isqrt(rest);
+      const lo = e.x - w - halb; // Zellmitte >= e.x - w  <=>  cx * ZELLE >= lo
+      const hi = e.x + w - halb; // Zellmitte <= e.x + w  <=>  cx * ZELLE <= hi
+      const x0 = lo <= 0 ? 0 : ((lo + ZELLE - 1) / ZELLE) | 0;
+      const x1 = hi < 0 ? -1 : Math.min(n - 1, (hi / ZELLE) | 0);
+      const zeile = cy * n;
+      for (let cx = x0; cx <= x1; cx++) g[zeile + cx] = 1;
     }
   }
   return g;
+}
+
+/**
+ * Feuerleitnetz (R2): Sicht fuer die Zielwahl eines Ticks. Das Gitter eines
+ * Spielers entsteht erst, wenn ein Schuetze von ihm ein Ziel prueft (also nur,
+ * wenn ein Feind nahe genug ist), und gilt dann fuer Verfolgen und Kampf des
+ * ganzen Ticks -- einmal je Spieler, nicht je Schuetze. Es wird aus den Lagen
+ * dieses Augenblicks gebaut, ist also bei jedem Lauf gleich; es gehoert nicht
+ * zum Zustand der Welt und wird nicht gespeichert. Ist das Feuerleitnetz aus,
+ * gibt es null, und siehtZiel(null, ...) sagt immer ja.
+ */
+function neueZielsicht(world) {
+  return RULES.feuerleitnetz ? { world, gitter: [] } : null;
+}
+
+/**
+ * Sieht der Spieler dieses Ziel gerade? Eine Einheit, wenn ihre Zelle in Sicht
+ * ist; ein Gebaeude, sobald seine Mitte oder einer der vier Randpunkte (links,
+ * rechts, oben, unten) in Sicht ist -- wie in der Kunde, die ein Gebaeude
+ * sieht, sobald sein Rand in Sicht ist.
+ */
+function siehtZiel(sicht, player, o) {
+  if (!sicht) return true;
+  let g = sicht.gitter[player];
+  if (!g) g = sicht.gitter[player] = sichtGitter(sicht.world, player);
+  const n = MAP / ZELLE;
+  const zelle = (x, y) => Math.min(n - 1, Math.max(0, (y / ZELLE) | 0)) * n + Math.min(n - 1, Math.max(0, (x / ZELLE) | 0));
+  if (g[zelle(o.x, o.y)]) return true;
+  if (o.kind !== 'building') return false;
+  const r = BUILDINGS[o.type].radius;
+  return g[zelle(o.x - r, o.y)] === 1 || g[zelle(o.x + r, o.y)] === 1 || g[zelle(o.x, o.y - r)] === 1 || g[zelle(o.x, o.y + r)] === 1;
 }
 
 /** Ueberschneidet ein Kreis (x, y, r) einen Felsen oder See? */
@@ -1212,8 +1255,11 @@ export function step(world) {
   // Heilen, Bewegung und Kampf dieselben Quellen sehen -- und ohne Aura nichts kosten.
   const auren = aurenSammeln(world);
   regenerieren(world, auren);
-  moveUnits(world, auren);
-  combat(world, auren);
+  // Feuerleitnetz (R2): eine Sicht je Tick, aus den Lagen vom Tickbeginn, fuer
+  // Verfolgen und Kampf gleichermassen (Auren und Sicht kosten ohne Gefecht nichts).
+  const sicht = neueZielsicht(world);
+  moveUnits(world, auren, sicht);
+  combat(world, auren, sicht);
   einschlaege(world);
   verfall(world);
   cleanup(world);
@@ -1701,7 +1747,7 @@ function nachbarn(zellen, x, y, w, sortieren = true) {
   return out;
 }
 
-function moveUnits(world, auren) {
+function moveUnits(world, auren, sicht) {
   // Erst alle Ziele aus denselben Ausgangslagen, dann alle bewegen --
   // sonst haengt die Verfolgung von der Reihenfolge in der Liste ab.
   const us = [];
@@ -1728,6 +1774,18 @@ function moveUnits(world, auren) {
         e.arrived = true;
         continue;
       }
+      if (!siehtZiel(sicht, e.player, t)) {
+        // Das Ziel ist aus der Sicht: kein Abbruch, die Einheit geht zur letzten
+        // bekannten Stelle (tx, ty) -- mehr weiss ihr Spieler nicht. Ist sie dort
+        // und sieht es nicht, ist der Auftrag zu Ende.
+        if (e.x === e.tx && e.y === e.ty) {
+          e.ziel = 0;
+          e.befX = e.x;
+          e.befY = e.y;
+          e.arrived = true;
+        }
+        continue;
+      }
       e.tx = gx[i] = t.x;
       e.ty = gy[i] = t.y;
       const nah = reichweite(e, t, world) - 10;
@@ -1740,7 +1798,7 @@ function moveUnits(world, auren) {
     if (!w || !(e.arrived || e.aggro) || e.auftrag) continue; // wer baut, jagt nicht
     const wr = waffenReichweite(world, e);
     const leine = e.arrived ? LEASH + wr : MAP * 2;
-    const o = chaseTarget(alle, alleRaster, e, wr + CHASE, leine);
+    const o = chaseTarget(alle, alleRaster, e, wr + CHASE, leine, sicht);
     if (!o) continue;
     const nah = reichweite(e, o, world) - 10;
     if (dist2(e.x, e.y, o.x, o.y) > nah * nah) {
@@ -1834,7 +1892,7 @@ function moveUnits(world, auren) {
  * Naechster Feind, dessen Rand hoechstens r vom eigenen Rand entfernt ist und
  * der nicht weiter als leash vom Befehlspunkt liegt.
  */
-function chaseTarget(alle, alleRaster, e, r, leash) {
+function chaseTarget(alle, alleRaster, e, r, leash, sicht) {
   let best = null;
   let bestD = Infinity;
   let bestRang = 1;
@@ -1849,6 +1907,7 @@ function chaseTarget(alle, alleRaster, e, r, leash) {
     const rang = gebaeudeZuerst && o.kind === 'building' ? 0 : 1;
     if (rang > bestRang || (rang === bestRang && dd >= bestD)) continue;
     if (dist2(e.tx, e.ty, o.x, o.y) > leash * leash) continue;
+    if (!siehtZiel(sicht, e.player, o)) continue;
     bestRang = rang;
     bestD = dd;
     best = o;
@@ -1968,7 +2027,7 @@ function umgehen(world, u, gebaeude) {
  * steht, zuerst -- und Spieler 0, dessen Befehle zuerst gelten, gewaenne
  * jeden Gleichstand.
  */
-function combat(world, auren) {
+function combat(world, auren, sicht) {
   const shots = []; // je Schuss drei Eintraege: Ziel, Schaden, Schuetze
   const alle = world.entities.filter((e) => !e.dead);
   const alleRaster = raster(alle);
@@ -1990,10 +2049,10 @@ function combat(world, auren) {
       const t = byId(world, e.ziel);
       if (t && !t.dead) {
         const r = reichweite(e, t, world);
-        if (dist2(e.x, e.y, t.x, t.y) <= r * r) target = t;
+        if (dist2(e.x, e.y, t.x, t.y) <= r * r && siehtZiel(sicht, e.player, t)) target = t;
       }
     }
-    if (!target) target = nearestEnemy(world, alle, alleRaster, e);
+    if (!target) target = nearestEnemy(world, alle, alleRaster, e, sicht);
     if (!target) continue;
 
     let dmg = target.kind === 'building' && def.weapon.gebaeude ? def.weapon.gebaeude : def.weapon.damage;
@@ -2133,7 +2192,7 @@ export function reichweite(e, o, world) {
 }
 
 /** Naechster Feind, den e mit seiner Waffe erreicht -- Belagerung nimmt Gebaeude zuerst. */
-function nearestEnemy(world, alle, alleRaster, e) {
+function nearestEnemy(world, alle, alleRaster, e, sicht) {
   const w = (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).weapon;
   const gebaeudeZuerst = w.vorrang === 'gebaeude';
   const wr = waffenReichweite(world, e); // einmal je Schuetze, nicht je Kandidat
@@ -2148,6 +2207,7 @@ function nearestEnemy(world, alle, alleRaster, e) {
     if (dd > r * r) continue;
     const rang = gebaeudeZuerst && o.kind === 'building' ? 0 : 1;
     if (rang < bestRang || (rang === bestRang && dd <= bestD)) {
+      if (!siehtZiel(sicht, e.player, o)) continue;
       bestRang = rang;
       bestD = dd;
       best = o;

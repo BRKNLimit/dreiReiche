@@ -3,6 +3,43 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## Unveröffentlicht — R2 Feuerleitnetz (Sonnet)
+
+- **Regel:** Eine Waffe zielt nur auf das, was ihr Spieler gerade sieht — mit
+  irgendeiner eigenen Einheit oder einem eigenen Gebäude. Gilt für die
+  Zielwahl im Kampf (`nearestEnemy`), den gezielten Angriff (`ziel`) und das
+  Verfolgen (`chaseTarget`). Schalter `RULES.feuerleitnetz` (an); aus ist die
+  Partie bitgleich zu vorher.
+- **Sicht in der Simulation:** `sichtGitter(world, player)` (das Gitter der
+  Wegfindung, 20 m je Zelle) entscheidet. Je Tick und Spieler höchstens einmal,
+  erst wenn ein Schütze ein Ziel prüft, aus den Lagen dieses Augenblicks; es
+  steht nicht im Zustand und nicht im Spielstand. Eine Einheit sieht man, wenn
+  ihre Zelle in Sicht ist, ein Gebäude, sobald seine Mitte oder einer der vier
+  Randpunkte in Sicht ist (wie die Kunde). Das Gitter wird zeilenweise gefüllt
+  (gleiches Ergebnis wie Zelle für Zelle, per Test geprüft) und kostet so wenig,
+  dass die Referenz nur etwa 8 % länger läuft.
+- **Gezielter Angriff:** Verschwindet das Ziel aus der Sicht, bricht der
+  Befehl nicht ab: die Einheit geht zur letzten Stelle, an der ihr Spieler das
+  Ziel sah (`tx`, `ty`, schon im Zustand), und schießt, sobald sie es wieder
+  sieht. Steht sie dort und sieht nichts, endet der Auftrag. Der Befehl selbst
+  prüft die Sicht nicht (der Spieler hat es einen Tick vorher angeklickt).
+- **Was nicht gilt:** Ein Flächentreffer trifft am Einschlagort alles im
+  Umkreis, auch Ungesehenes — nur das Ziel braucht Sicht. Der Fernschlag (M4)
+  zielt auf einen Punkt und braucht keine Sicht.
+- **Oberfläche:** Die Infokarte (Kodex, Auswahl) zeigt „Aufklärung — braucht
+  Aufklärung: schießt weiter als die eigene Sicht reicht“, wenn
+  `weapon.range` über der Sicht liegt (heute nur die Balliste: 100 m gegen
+  70 m; die Türme sehen 120 m weit).
+- **Messung:** `node tools/referenz.mjs` ändert sich mit dem Netz (aus: bitgleich
+  zu vorher): mensch-gott 2157955899 → 1841131042, tod-mensch 404230641 →
+  1939603545, gott-tod 3257908315 → 3545926028 (alle @9000). Laufzeit
+  6,1 s → 6,6 bis 7,0 s. Menschen : Gott (`sweep 36 45 Ausgang stile`)
+  34 : 36 → 37 : 33, Ø 24,1 → 24,6 min; mit `rules.feuerleitnetz = false` im
+  Sweep (Einstellung „R2 ohne Feuerleitnetz“) genau 34 : 36 wie vorher. Der
+  Unterschied liegt im Rauschen der Messung (R1 zeigte bei gleichem Aufbau
+  ±5 Siege je nach Wrack-Anteil).
+- **Werkzeug:** Sweep-Einstellungen „R2 ohne Feuerleitnetz“ und „R2 Feuerleitnetz“.
+
 ## 0.43 — Wracks und Bergung (R1, Sonnet)
 
 - **Wracks:** Eine gefallene Einheit lässt `RULES.wrackAnteil` (700 Promille),

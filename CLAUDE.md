@@ -91,7 +91,10 @@ da: Wracks in `world.wracks`, Befehl `bergen`, Regeln `wrackAnteil`,
 
 ## Nebel des Krieges
 
-Die Simulation selbst sieht alles. Was ein Spieler weiß, steht in
+Die Simulation selbst sieht alles — bis auf die **Zielwahl** der Waffen: Seit
+R2 (`RULES.feuerleitnetz`) zielt eine Waffe nur auf das, was ihr Spieler gerade
+sieht (`sichtGitter` in `src/sim/sim.js`; Flächenschaden und Fernschlag
+ausgenommen, siehe CHANGELOG). Was ein Spieler weiß, steht in
 `src/sim/kunde.js`: was seine Einheiten und Gebäude gerade sehen, zuletzt
 gesehene Gebäude und Einheiten, und wo die Gegner beginnen können (bei zwei Spielern gegenüber dem
 eigenen Hauptgebäude, auf Karten mit `basen` alle anderen Basen). **Die KI nutzt nur das** — kein Zugriff auf

@@ -182,6 +182,44 @@ nur einmischen, wo das Feld existiert).
 9. Tests je Mechanik (`test/volksmechaniken.test.js`) inkl. Spielstand und
    Determinismus; Referenz bitgleich.
 
-## M6 Tech-Baum · M8 Oberfläche · M7 KI
+## M3 — abgenommen und gemergt (12.10.)
+
+## M8 Oberfläche (vor M6, weil die Bauleiste sonst platzt)
+
+1. **Bauleiste in Gruppen.** Mit den neuen Rollen hat jedes Volk bald ~19
+   Gebäude, die Tasten 1–0 reichen nicht. Drei Gruppen, abgeleitet aus den
+   Rollen (`FACTIONS[f].rollen`): **Wirtschaft** (kraft, fron, blut,
+   umwandler, anker, forschung, posten), **Militär** (fabrik, luftfabrik,
+   werkstatt, turm, flak), **Besonderes** (zorn, wehr, schild, schlag,
+   abwehr und alles in `bauten` ohne Rolle). Reihenfolge innerhalb einer
+   Gruppe wie in `bauten`. Oberfläche: kleine Reiter über der Bauleiste,
+   **Tab** wechselt die Gruppe (Shift+Tab zurück), 1–0 bauen in der
+   aktiven Gruppe. Gilt in 2D und 3D; die Hilfe (H) nennt Tab. Ohne Erbauer
+   bleibt die Leiste wie heute (Ausbildung).
+2. **Modelle von Gemini einbinden** (stehen in `src/modelle3d.js`):
+   `schildkuppel` in 3D statt des Rings (Größe nach `schild.radius`,
+   Deckkraft nach Ladung — falls das Modell keine Transparenz kann, den Ring
+   behalten und die Kuppel zusätzlich zeigen); `fernschlag` als Geschoss im
+   Flug (Bogen vom Gebäude zum Ziel, Ankunft zum Einschlagtick); `flak` als
+   Treffereffekt der Flak-Waffe (`ziele: 'luft'`). In 2D reichen Kreise.
+   Danach den Wunsch in `docs/grafik/wuensche.md` abhaken.
+
+## M6 Tech-Baum
+
+1. Neue Wirkungen in `skill.wirkung` (Promille wie die vorhandenen):
+   `tempo`, `reichweite`, `sicht`, `baukraft` und `regeneration` (LP/min
+   dazu, absolut). Dazu **`nur: [typen]`** am Skill: dann wirkt die Wirkung
+   nur auf diese Einheiten-/Gebäudetypen (sonst aufs ganze Volk wie heute).
+   Alles in `bonus()` bzw. dort, wo Tempo, Reichweite, Sicht, Baukraft und
+   Regeneration heute berechnet werden — eine Stelle je Größe.
+2. `FELDER.skill` um `nur`, `FELDER.wirkung` um die neuen; `daten.test.js`
+   prüft, dass `nur` eigene Typen nennt.
+3. Oberfläche Skillbaum (T): vier Spalten (Äste), darin die Stufen nach
+   Tiefe der `braucht`-Kette, Linien zu den Voraussetzungen, scrollbar, die
+   Karte zeigt Wirkung inkl. „nur für …“. Muss mit ~28 Skills je Volk gut
+   lesbar bleiben.
+4. Tests je Wirkung und für `nur`; Referenz bitgleich.
+
+## M7 KI
 
 Genaue Aufträge folgen nach Abnahme von M1/M2 (Konzept Abschnitt 2).

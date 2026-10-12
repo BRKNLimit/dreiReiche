@@ -13,9 +13,9 @@ nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Feld
 | M3 Volks-Mechaniken | `regeneration` (LP/min, Einheit und Gebäude), `aura: { art: heilung/tempo/schaden/schutz, wert, radius }` (stärkste je Art zählt), `weapon.flaeche: { radius, anteil }`, `weapon.verlangsamt: { dauer, wert }`, `auferstehen: { alle, einheit, dauer }` (nur an Ankern mit perTod) | **nutzbar** (seit 12.10.) — aber Änderungen an **bestehenden** Einheiten erst nach Freigabe der Entwürfe durch den Nutzer |
 | M4 Fernschlag, Abwehr | `schlag: { laden, flug, reichweite, radius, schaden, kosten }`, `abwehr: { radius, laden }` (laden in Ticks bei voller Versorgung), Rollen `schlag`, `abwehr` — Einschlag trifft beide Seiten, Schilde zuerst; die KI baut ab Minute 20 bzw. bei Bedarf | **nutzbar** (seit 12.10.) |
 | M5 Prototypen | `hoechstens` (Einheit: lebende + bestellte), Rollen `werkstatt` (Gebäude), `prototyp` (Einheit) — die KI baut die Werkstatt ab Minute 18 | **nutzbar** (seit 12.10.) |
-| M6 Tech-Baum | `wirkung.tempo/reichweite/sicht/baukraft/regeneration`, `nur` | geplant |
+| M6 Tech-Baum | `wirkung.tempo/reichweite/sicht/baukraft/regeneration`, `nur` | in Arbeit (Sonnet) |
 | M7 KI | — | geplant |
-| M8 Oberfläche | — | geplant |
+| M8 Oberfläche | Bauleiste in Gruppen (Tab), Modelle schildkuppel/fernschlag/flak | in Arbeit (Sonnet) |
 
 ## Messungen
 

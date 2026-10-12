@@ -1109,8 +1109,12 @@ function karte(titel, desc, zeilen, sperre) {
     <div class="kz">${zeilen.map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('')}</div></div>`;
 }
 
-/** Waffe einer Einheit oder eines Gebaeudes: Kampfart, Schaden, Reichweite. */
-function waffeZeilen(d) {
+/**
+ * Waffe einer Einheit oder eines Gebaeudes: Kampfart, Schaden, Reichweite.
+ * grundSicht ist die Sicht, die die Simulation ohne Eintrag `sicht` annimmt
+ * (Einheit 900, Gebaeude 700) -- fuer den Hinweis auf das Feuerleitnetz.
+ */
+function waffeZeilen(d, grundSicht) {
   const w = d.weapon;
   const fern = d.kampf === 'fern';
   const z = [
@@ -1119,6 +1123,9 @@ function waffeZeilen(d) {
     ['Reichweite', fern ? meterText(w.range) : 'Berührung'],
     ['Trifft', { boden: 'Boden', luft: 'Luft', beide: 'Boden und Luft' }[zieleVon(d)]],
   ];
+  // Feuerleitnetz (R2): zielt nur auf Gesehenes -- reicht die Waffe weiter als die Sicht, muss ein anderer sehen
+  const sicht = d.sicht || grundSicht;
+  if (RULES.feuerleitnetz && w.range > sicht) z.push(['Aufklärung', `braucht Aufklärung: schießt weiter (${meterText(w.range)}) als die eigene Sicht reicht (${meterText(sicht)})`]);
   // Volks-Mechaniken (M3): Flaechentreffer und Verlangsamung
   if (w.flaeche) z.push(['Fläche', `trifft auch im Umkreis ${meterText(w.flaeche.radius)} mit ${prozent(w.flaeche.anteil)}`]);
   if (w.verlangsamt) z.push(['Bremst', `${sekunden(w.verlangsamt.dauer)} um ${prozent(w.verlangsamt.wert)}`]);
@@ -1210,7 +1217,7 @@ export function gebaeudeKarte(world, player, typ) {
     const was = d.buff.zorn ? `+${prozent(d.buff.zorn)} Schaden` : `−${prozent(d.buff.wehr)} genommener Schaden`;
     z.push(['Wirkung', `${was} im Umkreis von ${meterText(d.buff.radius)}`]);
   }
-  if (d.weapon) z.push(...waffeZeilen(d));
+  if (d.weapon) z.push(...waffeZeilen(d, 700));
   if (d.schild) z.push(['Schild', schildText(d.schild)]);
   if (d.schlag) z.push(...schlagZeilen(d.schlag));
   if (d.abwehr) z.push(...abwehrZeilen(d.abwehr));
@@ -1231,7 +1238,7 @@ export function einheitKarte(world, player, typ) {
   if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Masse/min']);
   z.push(['Leben', d.hp + ' LP']);
   if (d.hoechstens) z.push(['Begrenzt', `höchstens ${d.hoechstens} gleichzeitig (lebend und in Ausbildung)`]);
-  if (d.weapon) z.push(...waffeZeilen(d));
+  if (d.weapon) z.push(...waffeZeilen(d, 900));
   z.push(...volkZeilen(d, false));
   z.push(['Tempo', tempo(d.speed)]);
   if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);

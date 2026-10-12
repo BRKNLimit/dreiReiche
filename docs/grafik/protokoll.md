@@ -448,3 +448,30 @@ geprüft (Tests, Galerie, Spiel).
 - **Wie geprüft:**
   - `npm test`: 196/196 Tests bestanden (100 % grün).
   - `npm run smoke`: Headless WebGL2, Canvas, Galerie (115 Icons) und Karteneditor fehlerfrei durchgelaufen.
+
+### Runde 29: Behebung des Wasser-Clippings im 3D-Boden (src/render3d.js, src/modelle3d.js)
+- **Was war schwach / Ursache des Fehlers:**
+  In der 3D-Ansicht schnitten Wasserflächen (Seen und Flüsse) teils tief in den Gelände-Boden hinein, erzeugten flackernde Lücken und unschöne Grasinseln mitten im Wasser.
+  Die Ursachenanalyse ergab zwei Faktoren:
+  1. Im Vertex-Shader (`VS` in `src/render3d.js`) wurde für Wasser eine Wellenoszillation berechnet (`a.y += w1 + w2`). Da `a.y` im lokalen Modellraum berechnet und anschließend mit dem Instanz-Skalierungsfaktor `iB.x` (dem Seeradius in Metern, bei klassischen Seen `rM = 130` m!) multipliziert wurde, schwankten die Vertices vertikal um bis zu ±13 Meter! Da der Erdboden bei $y = 0.0$ liegt, tauchten die Wasserflächen wellenförmig tief unter den Erdboden ab ($y < 0$), wodurch der Tiefentest fehlschlug und Erdboden-Polygone das Wasser durchschnitten.
+  2. Im Modell `wasserModell` (`src/modelle3d.js`) waren die inneren Scheiben mit vertikalen Versätzen von `y = 0.01` und `y = 0.02` definiert. Multipliziert mit dem Instanzmaßstab ergab dies Stufenplateaus von bis zu +2.6 Metern.
+- **Was wurde geändert:**
+  - **`src/render3d.js`:**
+    - Die vertikale Scheitelpunkt-Oszillation `a.y += w1 + w2` im Vertex-Shader wurde vollständig entfernt. Das Wasser-Mesh bleibt geometrisch planar auf der definierten Instanzhöhe $y$ (0.12–0.15 m) liegen und schneidet zu keinem Zeitpunkt unter den Erdboden ($y = 0.0$).
+    - Die dynamischen, lebendigen 3D-Wellen, Normalenperturbationen (`wN`), Sonnenlicht-Glanzpunkte, weichen Fresnel-Himmelsspiegelungen und Schaumkronen werden weiterhin und unverändert hochpräzise und vollflächig pro Pixel im Fragment-Shader (`FS`) berechnet.
+  - **`src/modelle3d.js`:**
+    - Alle Scheiben-Teile in `wasserModell()` wurden strikt auf die Position `[0, 0, 0]` gesetzt (keine gestuften Höhenplateaus mehr).
+    - Segmentanzahl für weichere kreisrunde Silhouetten aus jedem Betrachtungswinkel auf 64 / 48 / 32 angehoben.
+  - **Ebenen-Staffelung über dem Boden:**
+    - Erdboden (`bodenModell`): $y = 0.00$
+    - Rodungsflächen (`cleared`): $y = 0.05$
+    - Ufersaum (`scheibe`): $y = 0.07$ (Flussbett $0.08$)
+    - Kies-Furten: $y = 0.09$
+    - Tiefes Wasser: $y = 0.12$ (Flusswasser $0.13$)
+    - Oberflächenkräuselung: $y = 0.14$ (Flusskräuselung $0.15$)
+    Jede Ebene besitzt eine feste, saubere Staffelung mit mindestens 20–50 mm Abstand nach oben. Null Z-Fighting, kein Clipping, sauberes Eintauchen von Schilf und Furtenübertritt.
+- **Wie geprüft:**
+  - `npm test`: 196/196 Tests bestanden (100 % grün).
+  - `npm run smoke`: Headless WebGL2, Canvas, 3D, Galerie und Editor fehlerfrei durchgelaufen.
+  - Shader im echten Browser via Chrome/Edge DevTools Protocol (CDP) live auf `dist/drei-reiche-3d.html` und `dist/galerie.html` verifiziert: WebGL2-Kontext aktiv, `gl.getError() === 0`, keine Shader-Warnungen oder Konsolenfehler.
+

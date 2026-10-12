@@ -243,14 +243,7 @@ void main() {
   float istWasser = (aCol.a > 0.74 && aCol.a < 0.80) ? 1.0 : 0.0;
   vWasserInfo = vec2(istWasser, iC.w);
 
-  if (istWasser > 0.5) {
-    // Sanfte vertikale Wellenbewegung im Wasser
-    vec2 wp = iA.xz + vec2(c * a.x + s * a.z, -s * a.x + c * a.z) * iB.x;
-    float t = iC.w * 1.8;
-    float w1 = sin(wp.x * 0.28 + wp.y * 0.22 + t * 2.0) * 0.06;
-    float w2 = cos(wp.x * 0.18 - wp.y * 0.32 + t * 1.5) * 0.04;
-    a.y += w1 + w2;
-  } else if (istWaldgott > 0.5) {
+  if (istWaldgott > 0.5) {
     // 1. Waldgott: schwebender Mantel mit Wurzeln, organisches Brustkorb-Atmen
     float saum = max(0.0, 0.85 - a.y);
     a.z += iC.w * 0.22 * saum;

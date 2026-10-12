@@ -305,9 +305,8 @@ Gefecht wird zum zweiten Kampf um das Trümmerfeld.
    merken), und vergehen nicht von selbst.
 2. **Bergung:** Ein Erbauer (`build`) oder eine Einheit mit dem neuen Feld
    `bergung: { kraft }` (Masse pro Minute, Datenfeld in `FELDER`) birgt ein
-   Wrack per Rechtsklick (Befehl `bergen`) bzw. automatisch, wenn er untätig
-   daneben steht? — nein: nur auf Befehl, so wenig vorgeben wie möglich.
-   Erbauer bergen mit ihrer Baukraft umgerechnet (Designzahl). Die Masse
+   Wrack per Rechtsklick (Befehl `bergen`) — nur auf Befehl, nicht
+   automatisch (so wenig vorgeben wie möglich). Erbauer bergen mit ihrer Baukraft umgerechnet (Designzahl). Die Masse
    geht dem Spieler zu, das Wrack schrumpft und verschwindet bei 0.
    Shift-Ketten (Routen, `wege`) wie beim Bauen.
 3. **Hindernis/Deckung:** Wracks sind kein Weg-Hindernis (das wäre ein neues

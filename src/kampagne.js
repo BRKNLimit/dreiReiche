@@ -68,7 +68,7 @@ const RODUNG = [
     ziele: [
       { text: 'Wähle deinen Helden (Taste <kbd>K</kbd>)', erfuellt: (w, ich, c) => c.sel.some((id) => w.entities.find((e) => e.id === id && e.type === 'held')) },
       { text: 'Baue ein Sägewerk auf eine Steinader (Held wählen, <kbd>2</kbd>, Klick auf eine Ader)', erfuellt: (w, ich) => kmZahl(w, ich, 'saege') >= 1 },
-      { text: 'Baue eine Schmiede (Taste <kbd>1</kbd>) — sie liefert Gegenwart, die Kraft für Fabriken und Förderung', erfuellt: (w, ich) => kmZahl(w, ich, 'schmiede') >= 1 },
+      { text: 'Baue eine Schmiede (Taste <kbd>1</kbd>) — sie liefert Energie, die Kraft für Fabriken und Förderung', erfuellt: (w, ich) => kmZahl(w, ich, 'schmiede') >= 1 },
       { text: 'Bilde zwei Bauern aus (Thingstätte anklicken, Bauer-Icon unten)', erfuellt: (w, ich) => kmZahl(w, ich, 'bauer') >= 2 },
       { text: 'Baue eine Kaserne (Taste <kbd>4</kbd>)', erfuellt: (w, ich) => kmZahl(w, ich, 'kaserne') >= 1 },
       { text: 'Bilde sechs Soldaten aus', erfuellt: (w, ich) => kmZahl(w, ich, 'soldat') >= 6 },
@@ -77,7 +77,7 @@ const RODUNG = [
     ],
     meldungen: [
       { wer: HEDWIG, text: 'Willkommen am Grat, Herr. Die Leute warten auf Eure Befehle — zuerst ein Sägewerk, ohne Holz keine Siedlung.', wann: (w) => w.tick >= 20 },
-      { wer: HEDWIG, text: 'Das Sägewerk läuft. Aber ohne Gegenwart steht bald alles still — die Schmiede liefert sie, die Thingstätte allein reicht nicht.', wann: (w, ich, s) => s[1] },
+      { wer: HEDWIG, text: 'Das Sägewerk läuft. Aber ohne Energie steht bald alles still — die Schmiede liefert sie, die Thingstätte allein reicht nicht.', wann: (w, ich, s) => s[1] },
       { wer: HEDWIG, text: 'Die Esse glüht. Jetzt Hände: Die Thingstätte bildet Bauern aus, die bauen mit.', wann: (w, ich, s) => s[2] },
       { wer: GEROLD, text: 'Die Kaserne steht. Gebt mir ein halbes Dutzend Leute, und wir sehen nach, was hinter dem Grat heult.', wann: (w, ich, s) => s[4] },
       { wer: GEROLD, text: 'Wölfe! Und dahinter ein Hain, der letzte Woche noch nicht da war. Das ist kein gewöhnlicher Wald.', wann: (w, ich) => kmNahe(w, ich, w.vorposten || [], 1400) },
@@ -152,18 +152,18 @@ const RODUNG = [
     karte: 'flusstal',
     stil: 'standard',
     stufe: 'mittel',
-    vorwort: `Das Flusstal. Jenseits der Furten glimmt das Götterblut in den Wiesen —
+    vorwort: `Das Flusstal. Jenseits der Furten glimmt das Resonit in den Wiesen —
       der Stoff, aus dem Söldner gemacht werden und Belagerungsgerät. Der Gott
       weiß, was dort liegt, und er wird es verteidigen.
-      <b>Errichte zwei Blutschächte und sammle 300 Götterblut.</b>`,
+      <b>Errichte zwei Blutschächte und sammle 300 Resonit.</b>`,
     nachwort: `Rotes Gold füllt die Truhen. Mit ihm lassen sich Ballisten bauen, die
       weiter schießen als jeder Wächterbaum. Es ist Zeit, den Gott selbst zu stellen.`,
     aufbau(world) {
       world.players[0].masse += 500;
     },
     ziele: [
-      { text: 'Errichte zwei Blutschächte auf Götterblut-Adern', erfuellt: (w, ich) => kmZahl(w, ich, 'schacht') >= 2 },
-      { text: 'Sammle 300 Götterblut', erfuellt: (w, ich) => w.players[ich].resonit >= 300 },
+      { text: 'Errichte zwei Blutschächte auf Resonit-Adern', erfuellt: (w, ich) => kmZahl(w, ich, 'schacht') >= 2 },
+      { text: 'Sammle 300 Resonit', erfuellt: (w, ich) => w.players[ich].resonit >= 300 },
     ],
     meldungen: [
       { wer: MIRA, text: 'Rotes Glimmen jenseits des Flusses. Hinüber kommt man nur an den Furten, wo es flach ist.', wann: (w) => w.tick >= 30 },
@@ -234,7 +234,7 @@ const ZORN = [
     ziele: [
       { text: 'Wähle den Waldgott (Taste <kbd>K</kbd>)', erfuellt: (w, ich, c) => c.sel.some((id) => w.entities.find((e) => e.id === id && e.type === 'waldgott')) },
       { text: 'Errichte eine Moosgrube auf einer Steinader (Waldgott wählen, <kbd>2</kbd>, Klick auf eine Ader)', erfuellt: (w, ich) => kmZahl(w, ich, 'moos') >= 1 },
-      { text: 'Pflanze einen Hain (Taste <kbd>3</kbd>) — deine Domäne wächst mit seinem Alter', erfuellt: (w, ich) => kmZahl(w, ich, 'hain') >= 1 },
+      { text: 'Pflanze einen Hain (Taste <kbd>3</kbd>) — dein Netz wächst mit seinem Alter', erfuellt: (w, ich) => kmZahl(w, ich, 'hain') >= 1 },
       { text: 'Rufe drei Dryaden (Herzbaum anklicken, Dryaden-Icon unten)', erfuellt: (w, ich) => kmZahl(w, ich, 'dryade') >= 3 },
       { text: 'Rufe zwei Wölfe', erfuellt: (w, ich) => kmZahl(w, ich, 'wolf') >= 2 },
       { text: 'Fasse deine Geschöpfe zur Steuergruppe 1 zusammen (wählen, <kbd>Strg</kbd>+<kbd>1</kbd>)', erfuellt: (w, ich, c) => (c.gruppen['1'] || []).length >= 4 },

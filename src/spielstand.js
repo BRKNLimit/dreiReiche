@@ -64,7 +64,7 @@ export function spielstandLesen(text) {
   } catch {
     return { fehler: 'Kein Spielstand (kein JSON).' };
   }
-  if (!s || s.format !== STAND_FORMAT || !s.zustand) return { fehler: 'Kein Spielstand der drei Reiche.' };
+  if (!s || s.format !== STAND_FORMAT || !s.zustand) return { fehler: 'Kein Resonit-Spielstand.' };
   return { s, warnung: s.stand !== STAND_SIM ? 'Gespeichert mit einem anderen Stand des Spiels — es kann Fehler geben.' : '' };
 }
 

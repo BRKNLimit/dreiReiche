@@ -161,7 +161,7 @@ test('Oberflaeche ohne Skills und Faehigkeiten: Glühbirne, T und Q/W/E-Leiste f
   const w = createWorld({ seed: 2, factions: [V, 'mensch'] });
   const res = ressourcenHtml(w, 0);
   assert.ok(!/Skillpunkte/.test(res), 'keine Skillpunkte in der Leiste');
-  assert.ok(/Gegenwart/.test(res) && /Fron/.test(res), 'Gegenwart und Fron bleiben');
+  assert.ok(/Energie/.test(res) && /Masse/.test(res), 'Energie und Masse bleiben');
   assert.ok(/Skillpunkte/.test(ressourcenHtml(w, 1)), 'der Mensch behaelt sie');
   assert.equal(faehigkeitenHtml(w, 0), '');
   assert.doesNotThrow(() => skillBaumHtml(w, 0));

@@ -63,7 +63,7 @@ Merges.
 
 ### Technik (Claude)
 
-- **T1 Begriffe an einer Stelle:** Namen der Ressourcen, Prio-Stufen und
+- **T1 Begriffe (erledigt, 0.42):** Namen der Ressourcen, Prio-Stufen und
   „Netz“ statt „Domäne“ kommen aus einer Tabelle. Titel „Resonit“. Erst
   nach dem Merge von M9, weil dieselben Dateien betroffen sind.
 - **T2 Schlüssel umbenennen (erledigt, 0.42):** `gegenwart` → `energie`, `fron` →

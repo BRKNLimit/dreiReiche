@@ -1528,7 +1528,7 @@ function zeichneUeberlagerung(now) {
     const def = BUILDINGS[placing];
     const text =
       def.name +
-      (drin || !def.energieIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
+      (drin || !def.energieIn ? '' : ' — außerhalb des Netzes: ohne Energie') +
       (erbauer3().length ? '' : ' — keine Erbauer gewählt: die Baustelle wartet');
     octx.fillText(text, maus.x, maus.y - 24);
   }
@@ -1618,7 +1618,7 @@ function zeichneMini() {
 // ------------------------------------------------------------ Startbildschirm
 const STIL_NAMEN3 = { sturm: 'Sturm — greift früh an', standard: 'Standard', burg: 'Burg — baut aus, greift spät an' };
 function introHtml3() {
-  return `<h1>Die drei Reiche — 3D</h1>
+  return `<h1>Resonit — 3D</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
     ${neuheitenHtml()}
     ${fortsetzenHtml()}
@@ -1627,13 +1627,13 @@ function introHtml3() {
     ${bilanzHtml()}
     ${kodexKnopfHtml()}
     <details class="regeln"><summary>Spielregeln in Kürze</summary>
-    <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
-    (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
+    <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Das Netz
+    (farbige Fläche) zeigt, wo Energie fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er im Netz liegt. Fällt der Kommandant,
     ist die Partie verloren.</p>
     <p>Erbauer (Arbeiter oder Kommandant) wählen, dann Gebäude setzen: Das ist erst ein <b>Bauplan</b>
     — ohne Kosten, ohne Sicht. Gebaut und bezahlt wird, sobald ein Erbauer daneben steht; wer weggeht,
     baut nicht weiter. Mit <kbd>Shift</kbd> reiht man mehrere Pläne hintereinander.</p>
-    <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
+    <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Masse — große Heere fressen die Wirtschaft.
     ${Object.keys(FACTIONS).some(hatSkills) ? `Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
     Schreine, Verbesserungen und drei Fähigkeiten des Kommandanten frei — Kommandant wählen, dann
     <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,

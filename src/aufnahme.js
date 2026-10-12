@@ -67,7 +67,7 @@ export function aufnahmeLesen(text) {
     return { fehler: 'Keine Wiederholung (kein JSON).' };
   }
   if (!a || a.format !== FORMAT || !Array.isArray(a.befehle) || !Array.isArray(a.factions)) {
-    return { fehler: 'Keine Wiederholung der drei Reiche.' };
+    return { fehler: 'Keine Resonit-Wiederholung.' };
   }
   const warnung =
     a.stand !== STAND ? 'Aufgenommen mit einem anderen Stand des Spiels — die Partie kann anders verlaufen.' : '';
@@ -152,8 +152,8 @@ export function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
       ${zeile('Gebäude verloren', v.gebaeudeVerloren)}
     </table>
     <div class="diagramme">
-      ${diagramm('Heer (Fron)', reihen('heer'), farben)}
-      ${diagramm('Förderung (Fron/min)', reihen('foerderung'), farben)}
+      ${diagramm('Heer (Masse)', reihen('heer'), farben)}
+      ${diagramm('Förderung (Masse/min)', reihen('foerderung'), farben)}
       ${diagramm('Gebäude', reihen('gebaeude'), farben)}
     </div>
     <div class="go">

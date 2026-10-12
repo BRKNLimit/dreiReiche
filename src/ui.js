@@ -959,7 +959,7 @@ function markierung(e) {
 
 
 
-/** Die Domäne ist die wichtigste Linie im Spiel -- also die auffälligste. */
+/** Das Netz ist die wichtigste Linie im Spiel -- also die auffälligste. */
 function drawDomains() {
   for (let p = 0; p < world.players.length; p++) {
     const col = spielerFarbe(world, p);
@@ -1377,7 +1377,7 @@ function drawGhost() {
   ctx.fillStyle = COL.text;
   ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'center';
-  const ader = def.needs === 'resonit' ? 'Götterblut-Ader' : 'Fron-Ader';
+  const ader = def.needs === 'resonit' ? 'Resonit-Ader' : 'Masse-Ader';
   const txt = ohneAder
     ? def.name + ' — braucht eine freie ' + ader
     : fels
@@ -1385,7 +1385,7 @@ function drawGhost() {
     : gerodet
     ? def.name + ' — gerodeter Boden trägt nicht'
     : def.name +
-      (drin || !def.energieIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
+      (drin || !def.energieIn ? '' : ' — außerhalb des Netzes: ohne Energie') +
       (erbauer().length ? '' : ' — keine Erbauer gewählt: die Baustelle wartet');
   ctx.fillText(txt, x, y - r - 8);
 }
@@ -1458,7 +1458,7 @@ function zaehle() {
     }
   }
   // Reibung: ein Tick zaehlt, wenn irgendeine Baustelle gedrosselt ist bzw.
-  // ganz ohne Gegenwart steht (meist: ausserhalb der Domaene gebaut).
+  // ganz ohne Energie steht (meist: ausserhalb der Domaene gebaut).
   const gedrosselt = world.players.map(() => false);
   const still = world.players.map(() => false);
   for (const e of world.entities) {
@@ -1489,17 +1489,17 @@ function auswertungHtml() {
     <div class="fac">Auswertung${world.over ? '' : ' (I)'}</div>
     <div class="evg" style="grid-template-columns:1fr${' auto'.repeat(reihe.length)}">
       <b></b>${kopf}
-      ${zeile('Götterblut ab', (s) => min(s.resonit))}
+      ${zeile('Resonit ab', (s) => min(s.resonit))}
       ${zeile('Schüsse % heim·fremd·frei', ort)}
       ${zeile('Anker +/−', (s) => s.ankerGebaut + '/' + s.ankerVerloren)}
       ${zeile('Einheiten +/−', (s) => s.gebaut + '/' + s.gefallen)}
       ${zeile('Bau gedrosselt', (s) => sek(s.gedrosselt))}
-      ${zeile('Bau ohne Gegenwart', (s) => sek(s.still))}
+      ${zeile('Bau ohne Energie', (s) => sek(s.still))}
     </div></div>`;
 }
 
-// ------------------------------------------------------------ Domänenfläche
-// Die Kernfrage des Prototyps, sichtbar gemacht: Wie groß ist welche Domäne
+// ------------------------------------------------------------ Netzefläche
+// Die Kernfrage des Prototyps, sichtbar gemacht: Wie groß ist welche Netz
 // gerade, und wie hat sich das entwickelt? Nur Anzeige, ändert nichts.
 const FLAECHE_RASTER = 200; // dm, also 20 m × 20 m = 0,04 ha je Zelle
 let flaeche = neueFlaeche(2);
@@ -1538,7 +1538,7 @@ function flaecheHtml() {
   const gegner = world.players.map((_, p) => p).filter((p) => p !== ME);
   return `<div class="area">
       <div class="res">
-        <b>Domäne</b><span style="color:${farbe(ME)}">${flaeche.ha[ME]} ha</span>
+        <b>Netz</b><span style="color:${farbe(ME)}">${flaeche.ha[ME]} ha</span>
         ${gegner.map((g) => `<b>${gegner.length > 1 ? volkName(world.players[g].faction) : 'Gegner'}</b><span style="color:${farbe(g)}">${flaeche.ha[g]} ha</span>`).join('')}
       </div>
       <svg viewBox="0 0 240 38" preserveAspectRatio="none" class="spark">
@@ -1627,7 +1627,7 @@ function introHtml() {
   const bis = Math.round(((gg.max - gg.start) / gg.perTick / 600) * 10) / 10;
   const pz = (b) => Math.round(BUILDINGS[b].buff.zorn / 10) + ' %';
   const pw = (b) => Math.round(BUILDINGS[b].buff.wehr / 10) + ' %';
-  return `<h1>Die drei Reiche</h1>
+  return `<h1>Resonit</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
     ${neuheitenHtml()}
     ${fortsetzenHtml()}
@@ -1650,19 +1650,19 @@ function introHtml() {
     </div>
     <p>Für beide gilt: Ein gesetztes Gebäude ist erst ein <b>Bauplan</b> — ohne Kosten, ohne Sicht.
     Gebaut und bezahlt wird, sobald ein <b>Erbauer</b> (Arbeiter oder Kommandant) daneben steht; wer
-    weggeht, baut nicht weiter. Mit <kbd>Shift</kbd> reiht man mehrere Pläne hintereinander. Gegenwart fließt nur in der Domäne —
-    Fabriken, Förderung und Schreine brauchen sie. Schreine wirken auf eigene Einheiten in ihrem Umkreis (${meter(BUILDINGS.banner.buff.radius)}), solange die in der eigenen Domäne stehen. Götterblut liegt in der
+    weggeht, baut nicht weiter. Mit <kbd>Shift</kbd> reiht man mehrere Pläne hintereinander. Energie fließt nur im Netz —
+    Fabriken, Förderung und Schreine brauchen sie. Schreine wirken auf eigene Einheiten in ihrem Umkreis (${meter(BUILDINGS.banner.buff.radius)}), solange die im eigenen Netz stehen. Resonit liegt in der
     Kartenmitte; schwere Einheiten brauchen es.</p>
     <p>Jede Seite hat einen <b>Kommandanten</b> — ${UNITS[FACTIONS.mensch.kommandant].name} bzw.
     ${UNITS[FACTIONS.gott.kommandant].name}: extrem stark, und er baut mit voller Kraft, wo
     immer er steht. <b>Fällt er, ist die Partie verloren.</b> Ob er hinten baut oder
     vorn kämpft, entscheidest du.</p>
-    <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
+    <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Masse — große Heere fressen die Wirtschaft.
     ${Object.keys(FACTIONS).some(hatSkills) ? `Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
     Schreine, Verbesserungen und drei Fähigkeiten des Kommandanten frei — Kommandant wählen, dann
     <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,
     sammelt ein wenig Erfahrung.` : ''}</p>
-    <p class="achten">Die Domäne ist das Werkzeug, nicht das Ziel: Wann fordert sie eine Entscheidung — und wann nervt sie?</p>
+    <p class="achten">Das Netz ist das Werkzeug, nicht das Ziel: Wann fordert sie eine Entscheidung — und wann nervt sie?</p>
     </details>
     <div class="stil">Gegner:
       ${Object.keys(STILE)

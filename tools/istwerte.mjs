@@ -29,7 +29,7 @@ for (const v of VOELKER) {
   teile.push(
     `## ${vk.name} (\`${v.schluessel}\`)`,
     '',
-    `- Domäne: growth ${wert(vk.growth)} · Kommandant \`${vk.kommandant}\` · Hauptgebäude \`${vk.haupt}\``,
+    `- Netz (Domäne): growth ${wert(vk.growth)} · Kommandant \`${vk.kommandant}\` · Hauptgebäude \`${vk.haupt}\``,
     `- Rollen: ${rollen}`,
     `- Fähigkeiten: ${vk.faehigkeiten.map((f) => `\`${f}\` ${wert(FAEHIGKEITEN[f])}`).join('; ')}`,
     '',

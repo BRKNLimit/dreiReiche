@@ -310,7 +310,7 @@ function missionSpielen() {
     pruefe(nodes.hud.innerHTML.includes('spielerleiste'), 'Vierlande: keine Spielerleiste im HUD');
     fire('keydown', { ...base, key: 'i' });
     weiter(3);
-    pruefe(nodes.hud.innerHTML.includes('Auswertung') && nodes.hud.innerHTML.includes('Domäne'), 'Vierlande: keine Auswertung');
+    pruefe(nodes.hud.innerHTML.includes('Auswertung') && nodes.hud.innerHTML.includes('Netz'), 'Vierlande: keine Auswertung');
     fire('keydown', { ...base, key: 'i' });
     delete speicher['dreiReiche.spielstand'];
     fire('keydown', { ...base, key: 'F5' });

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Die drei Reiche — 3D</title>
+<title>Resonit — 3D</title>
 <style>
   :root {
     --bg: #12140f;
@@ -7206,9 +7206,9 @@ function nebelBild(nebel, frame) {
 
 // ------------------------------------------------------------ Ressourcenleiste
 // Nach dem Entwurf des Nutzers: dunkle Leiste oben links, rechts rund
-// auslaufend; Gluehbirne = freie Skillpunkte, Blitz = Gegenwart, Tropfen =
-// Goetterblut, gruene Kristalle = Fron. Icons in src/icons.js.
-/** Ressourcenleiste: freie Skillpunkte, Gegenwart-Ueberschuss aller Netze, Goetterblut, Fron. */
+// auslaufend; Gluehbirne = freie Skillpunkte, Blitz = Energie, Tropfen =
+// Goetterblut, gruene Kristalle = Masse. Icons in src/icons.js.
+/** Ressourcenleiste: freie Skillpunkte, Energie-Ueberschuss aller Netze, Goetterblut, Masse. */
 function ressourcenHtml(world, player) {
   const p = world.players[player];
   let angebot = 0;
@@ -7226,9 +7226,9 @@ function ressourcenHtml(world, player) {
     (hatSkills(p.faction)
       ? eintrag(ICONS.skillpunkte, skillFrei(world, player), `Skillpunkte, die du ausgeben kannst (T) — nächster in ${naechsterPunkt(world, player)}`, skillFrei(world, player) > 0 ? 'frei' : '')
       : '') +
-    eintrag(ICONS.energie, frei, `Gegenwart: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
-    eintrag(ICONS.resonit, p.resonit, 'Götterblut') +
-    eintrag(ICONS.masse, p.masse, `Fron: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
+    eintrag(ICONS.energie, frei, `Energie: ${angebot} geliefert, ${bedarf} gebraucht`, frei < 0 ? 'knapp' : '') +
+    eintrag(ICONS.resonit, p.resonit, 'Resonit') +
+    eintrag(ICONS.masse, p.masse, `Masse: +${plus} Förderung, −${minus} Unterhalt pro Minute`, plus - minus < 0 ? 'knapp' : '')
   );
 }
 
@@ -7369,7 +7369,7 @@ function karteDateiLaden(eingabe, fertig) {
     } catch {
       return fertig('Keine Karte (kein JSON).');
     }
-    if (!d || !Array.isArray(d.hindernisse) || !Array.isArray(d.adern)) return fertig('Keine Karte der drei Reiche.');
+    if (!d || !Array.isArray(d.hindernisse) || !Array.isArray(d.adern)) return fertig('Keine Resonit-Karte.');
     const fehler = kartenFehler(d);
     if (fehler.length) return fertig('Nicht spielbar: ' + fehler[0]);
     d.name = d.name || datei.name.replace(/\.json$/, '');
@@ -7749,7 +7749,7 @@ function beobachterHtml(world) {
   };
   const kopf = z.map((s) => `<th style="color:${s.farbe}${s.aus ? ';text-decoration:line-through' : ''}">${s.name}</th>`).join('');
   return `<table class="beobachter"><tr><th></th>${kopf}</tr>
-    ${zeile('Fron', 'masse')}${zeile('Förderung/min', 'foerderung')}${zeile('Götterblut', 'resonit')}${zeile('Heer (Fron)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${world.players.some((pl) => hatSkills(pl.faction)) ? zeile('Skills', 'skills') : ''}</table>`;
+    ${zeile('Masse', 'masse')}${zeile('Förderung/min', 'foerderung')}${zeile('Resonit', 'resonit')}${zeile('Heer (Masse)', 'heer')}${zeile('Einheiten', 'einheiten')}${zeile('Gebäude', 'gebaeude')}${world.players.some((pl) => hatSkills(pl.faction)) ? zeile('Skills', 'skills') : ''}</table>`;
 }
 
 // ------------------------------------------------------------ Was ist neu? (einmal je Stand)
@@ -7992,7 +7992,7 @@ function grenzenSignatur(world, player, fabriken) {
   return liste.filter((u) => UNITS[u].hoechstens).map((u) => anzahlVon(world, player, u)).join();
 }
 
-/** Statt einer Liste aller Netze: nur Warnungen, wo Gegenwart fehlt. */
+/** Statt einer Liste aller Netze: nur Warnungen, wo Energie fehlt. */
 function warnungenHtml(world, player) {
   const out = [];
   // Fernschlaege im Flug sieht jeder, auch ohne Sicht auf das Ziel: Einschlag und Countdown.
@@ -8005,16 +8005,16 @@ function warnungenHtml(world, player) {
     if (!r.throttled) continue;
     let stufe = '';
     for (let i = 3; i >= 0 && !stufe; i--) if (r.satPrio[i] < 1000) stufe = PRIO_NAMES[i];
-    out.push(`<div class="warn">${ICONS.energie}<span>Gegenwart knapp ${r.supply}/${r.demand} — ${stufe} gedrosselt</span></div>`);
+    out.push(`<div class="warn">${ICONS.energie}<span>Energie knapp ${r.supply}/${r.demand} — ${stufe} gedrosselt</span></div>`);
   }
-  // Tuerme ohne Gegenwart schlafen -- das sieht man ihnen sonst nicht an.
+  // Tuerme ohne Energie schlafen -- das sieht man ihnen sonst nicht an.
   const schlafen = {};
   for (const e of world.entities) {
     if (e.dead || e.player !== player || e.kind !== 'building' || !e.done || !BUILDINGS[e.type].weapon || e.powered) continue;
     schlafen[e.type] = (schlafen[e.type] || 0) + 1;
   }
   for (const [t, n] of Object.entries(schlafen)) {
-    out.push(`<div class="warn">${ICONS[t] || ''}<span>${n}× ${BUILDINGS[t].name} ohne Gegenwart — schießt nicht</span></div>`);
+    out.push(`<div class="warn">${ICONS[t] || ''}<span>${n}× ${BUILDINGS[t].name} ohne Energie — schießt nicht</span></div>`);
   }
   return out.join('');
 }
@@ -8032,7 +8032,7 @@ function planHtml(world, plan) {
   const zustand = unterwegs
     ? canAfford(world.players[plan.player], d.cost)
       ? `${unterwegs} Erbauer unterwegs`
-      : `<span class="warn">wartet auf Fron (${kostenText(d.cost)})</span>`
+      : `<span class="warn">wartet auf Masse (${kostenText(d.cost)})</span>`
     : inReihe
       ? `${inReihe} Erbauer ${inReihe === 1 ? 'hat' : 'haben'} ihn in der Reihe`
       : '<span class="warn">wartet auf Erbauer — Erbauer wählen, Rechtsklick</span>';
@@ -8041,9 +8041,9 @@ function planHtml(world, plan) {
 
 // ------------------------------------------------------------ Info-Karten
 
-/** Kosten als Text: "120 Fron" oder "130 Fron + 10 Götterblut". */
+/** Kosten als Text: "120 Masse" oder "130 Masse + 10 Resonit". */
 function kostenText(cost) {
-  return cost.masse + ' Fron' + (cost.resonit ? ` + ${cost.resonit} Götterblut` : '');
+  return cost.masse + ' Masse' + (cost.resonit ? ` + ${cost.resonit} Resonit` : '');
 }
 
 const tempo = (v) => (v >= 32 ? 'sehr schnell' : v >= 28 ? 'schnell' : v >= 24 ? 'mittel' : v >= 20 ? 'gemächlich' : 'langsam');
@@ -8110,11 +8110,11 @@ function schildText(s) {
   return `${s.kapazitaet} Punkte, lädt ${s.laden * 10} pro s, Umkreis ${meterText(s.radius)}`;
 }
 
-/** Kosten, die auch nur aus Goetterblut bestehen (oder nichts) duerfen: "10 Fron + 5 Götterblut". */
+/** Kosten, die auch nur aus Goetterblut bestehen (oder nichts) duerfen: "10 Masse + 5 Resonit". */
 function kostenKurz(cost) {
   const t = [];
-  if (cost && cost.masse) t.push(cost.masse + ' Fron');
-  if (cost && cost.resonit) t.push(cost.resonit + ' Götterblut');
+  if (cost && cost.masse) t.push(cost.masse + ' Masse');
+  if (cost && cost.resonit) t.push(cost.resonit + ' Resonit');
   return t.length ? t.join(' + ') : 'nichts';
 }
 
@@ -8148,16 +8148,16 @@ function gebaeudeKarte(world, player, typ) {
     z.push(['Kosten', kostenText(d.cost)], ['Bauzeit', `${dauer(kdt)} · ${dauer(arb)} (allein)`]);
   }
   z.push(['Leben', d.hp + ' LP']);
-  if (d.energieIn) z.push(['Gegenwart', 'braucht ' + d.energieIn]);
-  if (d.energieOut) z.push(['Gegenwart', 'liefert ' + d.energieOut]);
+  if (d.energieIn) z.push(['Energie', 'braucht ' + d.energieIn]);
+  if (d.energieOut) z.push(['Energie', 'liefert ' + d.energieOut]);
   if (d.anchor) {
     const g = FACTIONS[d.faction].growth;
     const start = Math.max(d.anchorMin || 0, g.start);
-    z.push(['Domäne', g.perTick && g.max > start ? `${meterText(start)}, wächst bis ${meterText(g.max)}` : meterText(start)]);
+    z.push(['Netz', g.perTick && g.max > start ? `${meterText(start)}, wächst bis ${meterText(g.max)}` : meterText(start)]);
   }
-  if (d.masseOut) z.push(['Förderung', d.masseOut + ' Fron/min']);
-  if (d.resonitOut) z.push(['Förderung', d.resonitOut + ' Götterblut/min']);
-  if (d.needs) z.push(['Standort', d.needs === 'masse' ? 'auf einem Steinvorkommen' : 'auf einer Götterblut-Ader']);
+  if (d.masseOut) z.push(['Förderung', d.masseOut + ' Masse/min']);
+  if (d.resonitOut) z.push(['Förderung', d.resonitOut + ' Resonit/min']);
+  if (d.needs) z.push(['Standort', d.needs === 'masse' ? 'auf einem Massevorkommen' : 'auf einer Resonit-Ader']);
   if (d.needsGrowth) z.push(['Standort', 'nur auf ungerodetem Boden']);
   if (d.clears) z.push(['Rodet', meterText(d.clears) + ' ringsum']);
   if (d.buff) {
@@ -8182,7 +8182,7 @@ function einheitKarte(world, player, typ) {
   const d = UNITS[typ];
   const z = [];
   if (!d.commander) z.push(['Kosten', kostenText(d.cost)], ['Ausbildung', sekunden(d.buildTime)]);
-  if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Fron/min']);
+  if (d.unterhalt) z.push(['Unterhalt', d.unterhalt + ' Masse/min']);
   z.push(['Leben', d.hp + ' LP']);
   if (d.hoechstens) z.push(['Begrenzt', `höchstens ${d.hoechstens} gleichzeitig (lebend und in Ausbildung)`]);
   if (d.weapon) z.push(...waffeZeilen(d));
@@ -8235,7 +8235,7 @@ function ausbildungHtml(world, player, typ) {
       if (gesperrt(world, player, u)) return `<div class="zeile zu"><kbd>${'QWER'[i]}</kbd> <s>${d.name}</s> — ${sperrText(world, player, u)}</div>`;
       // Prototypen: wie viele es gibt und wie viele es hoechstens geben darf
       const grenze = d.hoechstens ? ` · ${anzahlVon(world, player, u)}/${d.hoechstens} (höchstens ${d.hoechstens} gleichzeitig)` : '';
-      const unterhalt = d.unterhalt ? ` · ${d.unterhalt} Fron/min` : '';
+      const unterhalt = d.unterhalt ? ` · ${d.unterhalt} Masse/min` : '';
       return `<div class="zeile"><kbd>${'QWER'[i]}</kbd> <b>${d.name}</b> (${d.kampf === 'fern' ? 'Fernkampf' : 'Nahkampf'}) · ${kostenText(d.cost)} · ${sekunden(d.buildTime)}${unterhalt}${grenze}</div>`;
     })
     .join('');
@@ -9486,7 +9486,7 @@ function aufnahmeLesen(text) {
     return { fehler: 'Keine Wiederholung (kein JSON).' };
   }
   if (!a || a.format !== FORMAT || !Array.isArray(a.befehle) || !Array.isArray(a.factions)) {
-    return { fehler: 'Keine Wiederholung der drei Reiche.' };
+    return { fehler: 'Keine Resonit-Wiederholung.' };
   }
   const warnung =
     a.stand !== STAND ? 'Aufgenommen mit einem anderen Stand des Spiels — die Partie kann anders verlaufen.' : '';
@@ -9571,8 +9571,8 @@ function siegHtml(world, v, ich, mitAufnahme, wiederholung) {
       ${zeile('Gebäude verloren', v.gebaeudeVerloren)}
     </table>
     <div class="diagramme">
-      ${diagramm('Heer (Fron)', reihen('heer'), farben)}
-      ${diagramm('Förderung (Fron/min)', reihen('foerderung'), farben)}
+      ${diagramm('Heer (Masse)', reihen('heer'), farben)}
+      ${diagramm('Förderung (Masse/min)', reihen('foerderung'), farben)}
       ${diagramm('Gebäude', reihen('gebaeude'), farben)}
     </div>
     <div class="go">
@@ -9658,7 +9658,7 @@ const RODUNG = [
     ziele: [
       { text: 'Wähle deinen Helden (Taste <kbd>K</kbd>)', erfuellt: (w, ich, c) => c.sel.some((id) => w.entities.find((e) => e.id === id && e.type === 'held')) },
       { text: 'Baue ein Sägewerk auf eine Steinader (Held wählen, <kbd>2</kbd>, Klick auf eine Ader)', erfuellt: (w, ich) => kmZahl(w, ich, 'saege') >= 1 },
-      { text: 'Baue eine Schmiede (Taste <kbd>1</kbd>) — sie liefert Gegenwart, die Kraft für Fabriken und Förderung', erfuellt: (w, ich) => kmZahl(w, ich, 'schmiede') >= 1 },
+      { text: 'Baue eine Schmiede (Taste <kbd>1</kbd>) — sie liefert Energie, die Kraft für Fabriken und Förderung', erfuellt: (w, ich) => kmZahl(w, ich, 'schmiede') >= 1 },
       { text: 'Bilde zwei Bauern aus (Thingstätte anklicken, Bauer-Icon unten)', erfuellt: (w, ich) => kmZahl(w, ich, 'bauer') >= 2 },
       { text: 'Baue eine Kaserne (Taste <kbd>4</kbd>)', erfuellt: (w, ich) => kmZahl(w, ich, 'kaserne') >= 1 },
       { text: 'Bilde sechs Soldaten aus', erfuellt: (w, ich) => kmZahl(w, ich, 'soldat') >= 6 },
@@ -9667,7 +9667,7 @@ const RODUNG = [
     ],
     meldungen: [
       { wer: HEDWIG, text: 'Willkommen am Grat, Herr. Die Leute warten auf Eure Befehle — zuerst ein Sägewerk, ohne Holz keine Siedlung.', wann: (w) => w.tick >= 20 },
-      { wer: HEDWIG, text: 'Das Sägewerk läuft. Aber ohne Gegenwart steht bald alles still — die Schmiede liefert sie, die Thingstätte allein reicht nicht.', wann: (w, ich, s) => s[1] },
+      { wer: HEDWIG, text: 'Das Sägewerk läuft. Aber ohne Energie steht bald alles still — die Schmiede liefert sie, die Thingstätte allein reicht nicht.', wann: (w, ich, s) => s[1] },
       { wer: HEDWIG, text: 'Die Esse glüht. Jetzt Hände: Die Thingstätte bildet Bauern aus, die bauen mit.', wann: (w, ich, s) => s[2] },
       { wer: GEROLD, text: 'Die Kaserne steht. Gebt mir ein halbes Dutzend Leute, und wir sehen nach, was hinter dem Grat heult.', wann: (w, ich, s) => s[4] },
       { wer: GEROLD, text: 'Wölfe! Und dahinter ein Hain, der letzte Woche noch nicht da war. Das ist kein gewöhnlicher Wald.', wann: (w, ich) => kmNahe(w, ich, w.vorposten || [], 1400) },
@@ -9742,18 +9742,18 @@ const RODUNG = [
     karte: 'flusstal',
     stil: 'standard',
     stufe: 'mittel',
-    vorwort: `Das Flusstal. Jenseits der Furten glimmt das Götterblut in den Wiesen —
+    vorwort: `Das Flusstal. Jenseits der Furten glimmt das Resonit in den Wiesen —
       der Stoff, aus dem Söldner gemacht werden und Belagerungsgerät. Der Gott
       weiß, was dort liegt, und er wird es verteidigen.
-      <b>Errichte zwei Blutschächte und sammle 300 Götterblut.</b>`,
+      <b>Errichte zwei Blutschächte und sammle 300 Resonit.</b>`,
     nachwort: `Rotes Gold füllt die Truhen. Mit ihm lassen sich Ballisten bauen, die
       weiter schießen als jeder Wächterbaum. Es ist Zeit, den Gott selbst zu stellen.`,
     aufbau(world) {
       world.players[0].masse += 500;
     },
     ziele: [
-      { text: 'Errichte zwei Blutschächte auf Götterblut-Adern', erfuellt: (w, ich) => kmZahl(w, ich, 'schacht') >= 2 },
-      { text: 'Sammle 300 Götterblut', erfuellt: (w, ich) => w.players[ich].resonit >= 300 },
+      { text: 'Errichte zwei Blutschächte auf Resonit-Adern', erfuellt: (w, ich) => kmZahl(w, ich, 'schacht') >= 2 },
+      { text: 'Sammle 300 Resonit', erfuellt: (w, ich) => w.players[ich].resonit >= 300 },
     ],
     meldungen: [
       { wer: MIRA, text: 'Rotes Glimmen jenseits des Flusses. Hinüber kommt man nur an den Furten, wo es flach ist.', wann: (w) => w.tick >= 30 },
@@ -9824,7 +9824,7 @@ const ZORN = [
     ziele: [
       { text: 'Wähle den Waldgott (Taste <kbd>K</kbd>)', erfuellt: (w, ich, c) => c.sel.some((id) => w.entities.find((e) => e.id === id && e.type === 'waldgott')) },
       { text: 'Errichte eine Moosgrube auf einer Steinader (Waldgott wählen, <kbd>2</kbd>, Klick auf eine Ader)', erfuellt: (w, ich) => kmZahl(w, ich, 'moos') >= 1 },
-      { text: 'Pflanze einen Hain (Taste <kbd>3</kbd>) — deine Domäne wächst mit seinem Alter', erfuellt: (w, ich) => kmZahl(w, ich, 'hain') >= 1 },
+      { text: 'Pflanze einen Hain (Taste <kbd>3</kbd>) — dein Netz wächst mit seinem Alter', erfuellt: (w, ich) => kmZahl(w, ich, 'hain') >= 1 },
       { text: 'Rufe drei Dryaden (Herzbaum anklicken, Dryaden-Icon unten)', erfuellt: (w, ich) => kmZahl(w, ich, 'dryade') >= 3 },
       { text: 'Rufe zwei Wölfe', erfuellt: (w, ich) => kmZahl(w, ich, 'wolf') >= 2 },
       { text: 'Fasse deine Geschöpfe zur Steuergruppe 1 zusammen (wählen, <kbd>Strg</kbd>+<kbd>1</kbd>)', erfuellt: (w, ich, c) => (c.gruppen['1'] || []).length >= 4 },
@@ -10209,7 +10209,7 @@ function spielstandLesen(text) {
   } catch {
     return { fehler: 'Kein Spielstand (kein JSON).' };
   }
-  if (!s || s.format !== STAND_FORMAT || !s.zustand) return { fehler: 'Kein Spielstand der drei Reiche.' };
+  if (!s || s.format !== STAND_FORMAT || !s.zustand) return { fehler: 'Kein Resonit-Spielstand.' };
   return { s, warnung: s.stand !== STAND_SIM ? 'Gespeichert mit einem anderen Stand des Spiels — es kann Fehler geben.' : '' };
 }
 
@@ -18098,7 +18098,7 @@ function zeichneUeberlagerung(now) {
     const def = BUILDINGS[placing];
     const text =
       def.name +
-      (drin || !def.energieIn ? '' : ' — außerhalb der Domäne: ohne Gegenwart') +
+      (drin || !def.energieIn ? '' : ' — außerhalb des Netzes: ohne Energie') +
       (erbauer3().length ? '' : ' — keine Erbauer gewählt: die Baustelle wartet');
     octx.fillText(text, maus.x, maus.y - 24);
   }
@@ -18188,7 +18188,7 @@ function zeichneMini() {
 // ------------------------------------------------------------ Startbildschirm
 const STIL_NAMEN3 = { sturm: 'Sturm — greift früh an', standard: 'Standard', burg: 'Burg — baut aus, greift spät an' };
 function introHtml3() {
-  return `<h1>Die drei Reiche — 3D</h1>
+  return `<h1>Resonit — 3D</h1>
     <p class="frage">Fördern, aufbauen, ausbreiten — und Hauptgebäude oder Kommandant des Gegners zerstören.</p>
     ${neuheitenHtml()}
     ${fortsetzenHtml()}
@@ -18197,13 +18197,13 @@ function introHtml3() {
     ${bilanzHtml()}
     ${kodexKnopfHtml()}
     <details class="regeln"><summary>Spielregeln in Kürze</summary>
-    <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Die Domäne
-    (farbige Fläche) zeigt, wo Gegenwart fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er in der Domäne liegt. Fällt der Kommandant,
+    <p>Menschen: viele günstige Einheiten. Wald- und Wiesengott: wenige starke. Das Netz
+    (farbige Fläche) zeigt, wo Energie fließt; Schreine stärken eigene Einheiten in ihrem Umkreis, soweit er im Netz liegt. Fällt der Kommandant,
     ist die Partie verloren.</p>
     <p>Erbauer (Arbeiter oder Kommandant) wählen, dann Gebäude setzen: Das ist erst ein <b>Bauplan</b>
     — ohne Kosten, ohne Sicht. Gebaut und bezahlt wird, sobald ein Erbauer daneben steht; wer weggeht,
     baut nicht weiter. Mit <kbd>Shift</kbd> reiht man mehrere Pläne hintereinander.</p>
-    <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Fron — große Heere fressen die Wirtschaft.
+    <p>Jede Einheit kostet laufend <b>Unterhalt</b> in Masse — große Heere fressen die Wirtschaft.
     ${Object.keys(FACTIONS).some(hatSkills) ? `Mit der Zeit kommen <b>Skillpunkte</b> (<kbd>T</kbd>): Sie schalten Fernkämpfer, schwere Einheiten,
     Schreine, Verbesserungen und drei Fähigkeiten des Kommandanten frei — Kommandant wählen, dann
     <kbd>Q</kbd>–<kbd>E</kbd> oder die Knöpfe. Wer lange lebt,

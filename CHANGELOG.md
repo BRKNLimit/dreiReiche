@@ -11,8 +11,11 @@ Tabellen in `docs/scope.md`.
   Rollen, Adern, Icons und Modelle (`masseAder`, `resonitAder`). Mechanisch
   umbenannt, Partien bitgleich. Eigene Karten mit den alten Adernamen laden
   weiter (`alteNamen` in `src/sim/kartenbau.js`). Die Anzeige sagt noch
-  „Gegenwart, Fron, Götterblut“ — das kommt mit T1. Alte Spielstände und
-  Wiederholungen passen nicht mehr.
+  Alte Spielstände und Wiederholungen passen nicht mehr.
+- **Plan T1 (Claude):** Die Anzeige sagt Energie, Masse, Resonit und Netz
+  (statt Gegenwart, Fron, Götterblut und Domäne), das Spiel heißt Resonit.
+  Die Namen der Fantasy-Einheiten und -Skills bleiben, bis Vanguard und
+  Kranor sie ablösen.
 
 ## 0.41 — Bis zu vier Spieler; Richtung Resonit
 

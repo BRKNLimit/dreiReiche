@@ -155,6 +155,11 @@ export function effekteAusEreignissen(fx, world, ich, sichtbar, hoerer, imBild) 
         beben(fx, 9, ev.x, ev.y, hoerer);
       }
       raum(fx, gebaeude ? 'einsturz' : 'tod', ev.x, ev.y, hoerer, gebaeude ? 1 : 0.6);
+    } else if (ev.t === 'schild') {
+      // Schild fing Schaden ab: das Ziel leuchtet kurz auf, ein blauer Ring weitet sich.
+      if (!sichtbar(ev)) continue;
+      fx.blitze.set(ev.id, fx.jetzt);
+      if (fx.ringe.length < 120) fx.ringe.push({ x: ev.x, y: ev.y, r: 160, t: 0, dauer: 0.3, farbe: '#7ab8ff' });
     } else if (ev.t === 'built') {
       const b = byId(ev.id);
       if (b && b.player === ich) klang(fx, 'fertig', 0.5, 0);

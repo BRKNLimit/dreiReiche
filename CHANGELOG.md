@@ -3,6 +3,25 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## 0.40 — Umbau der Völker, Teil 1: Grundlage, Luftebene, Schild
+
+Arbeitsteilung des Umbaus (Vorgabe des Nutzers): Gemini 60 % (Inhalte und
+Grafik), ein Sonnet-Agent 30 % (Mechaniken), Claude 10 % (Technik, Prüfung,
+Merges). Rahmen in `docs/umbau/konzept.md`, Stand in `docs/umbau/stand.md`.
+
+- **Grundlage (Claude):** Je Volk eine Datendatei (`src/sim/voelker/`),
+  `FELDER` (was das Spiel kennt) und `ROLLEN` (die gemeinsame Basis), dazu
+  `test/daten.test.js`: keine unbekannten Felder, ganze Zahlen, keine
+  doppelten Namen, alle Rollen besetzt, Verweise gültig. Verhalten bitgleich
+  (`tools/referenz.mjs`).
+- **M1 Luftebene (Sonnet):** `weapon.ziele` — Boden, Luft oder beides;
+  bewaffnete Flieger kämpfen, Flak trifft nur Flieger; die KI baut eine
+  Luftfabrik ab Minute 7 und Flak, sobald sie gegnerische Flieger kennt.
+- **M2 Schild (Sonnet):** Schildgebäude fangen Schaden an Eigenem im Umkreis
+  ab und laden mit Gegenwart wieder auf; Kuppel in 2D und 3D, Anzeige im
+  HUD, Aufleuchten beim Abfangen; die KI baut einen ab Minute 10.
+- Noch kein Volk hat diese Rollen — die Inhalte trägt Gemini nach.
+
 ## 0.39 — Befehle: Routen, Mitmachen, verwaiste Baupläne
 
 - **Routen sichtbar:** Solange eine Einheit gewählt ist, zeigt eine Linie ihre

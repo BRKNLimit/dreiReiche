@@ -1,3 +1,6 @@
 node_modules/
 # Vorlagen des Nutzers, moeglicherweise fremdes Bildmaterial -- nur lokal, nicht veroeffentlichen
 docs/bilder/vorlagen/
+
+# Worktrees der Unteragenten (Claude Code)
+.claude/

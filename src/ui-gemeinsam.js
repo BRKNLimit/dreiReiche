@@ -4,7 +4,7 @@
 import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PRIO_NAMES } from './sim/defs.js';
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
-  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon,
+  gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon, zieleVon,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
@@ -810,7 +810,13 @@ function waffeZeilen(d) {
     ['Kampf', fern ? 'Fernkampf' : 'Nahkampf'],
     ['Schaden', `${w.damage} je ${fern ? 'Schuss' : 'Schlag'}, ${((w.damage * 10) / w.cooldown).toFixed(1)} pro s`],
     ['Reichweite', fern ? meterText(w.range) : 'Berührung'],
+    ['Trifft', { boden: 'Boden', luft: 'Luft', beide: 'Boden und Luft' }[zieleVon(d)]],
   ];
+}
+
+/** Schild eines Gebaeudes: Kapazitaet, Laden (je Sekunde, 10 Ticks) und Umkreis. */
+function schildText(s) {
+  return `${s.kapazitaet} Punkte, lädt ${s.laden * 10} pro s, Umkreis ${meterText(s.radius)}`;
 }
 
 /** Alles, was man vor dem Bau eines Gebaeudes wissen muss. */
@@ -842,6 +848,7 @@ export function gebaeudeKarte(world, player, typ) {
     z.push(['Wirkung', `${was} im Umkreis von ${meterText(d.buff.radius)}`]);
   }
   if (d.weapon) z.push(...waffeZeilen(d));
+  if (d.schild) z.push(['Schild', schildText(d.schild)]);
   if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
   if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
   if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : UNITS[u].kampf ? 'nah' : 'Späher'})`).join(', ')]);
@@ -858,7 +865,7 @@ export function einheitKarte(world, player, typ) {
   if (d.weapon) z.push(...waffeZeilen(d));
   z.push(['Tempo', tempo(d.speed)]);
   if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
-  if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; nur Fernkampf trifft']);
+  if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; Nahkämpfer und Bodenwaffen erreichen ihn nicht']);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
@@ -918,6 +925,10 @@ export function auswahlKopf(world, e) {
   const teile = [`${e.hp}/${e.maxHp} LP`];
   const erf = erfahrungText(world, e);
   if (erf) teile.push(erf);
+  // Schildgebaeude: wie voll der Schild gerade ist, dazu Laden und Umkreis
+  if (e.kind === 'building' && e.done && def.schild) {
+    teile.push(`Schild ${e.schildPunkte} / ${def.schild.kapazitaet}, lädt ${def.schild.laden * 10} pro s, Umkreis ${meterText(def.schild.radius)}`);
+  }
   if (e.kind === 'unit' && e.rufBis > world.tick) teile.push('Schlachtruf');
   if (e.kind === 'unit' && e.wehrBis > world.tick) teile.push('Schildwall');
   if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');

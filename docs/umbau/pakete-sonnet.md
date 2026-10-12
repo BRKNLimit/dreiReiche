@@ -184,7 +184,7 @@ nur einmischen, wo das Feld existiert).
 
 ## M3 — abgenommen und gemergt (12.10.)
 
-## M8 Oberfläche (vor M6, weil die Bauleiste sonst platzt)
+## M8 Oberfläche — abgenommen und gemergt (12.10.)
 
 1. **Bauleiste in Gruppen.** Mit den neuen Rollen hat jedes Volk bald ~19
    Gebäude, die Tasten 1–0 reichen nicht. Drei Gruppen, abgeleitet aus den
@@ -204,7 +204,7 @@ nur einmischen, wo das Feld existiert).
    Treffereffekt der Flak-Waffe (`ziele: 'luft'`). In 2D reichen Kreise.
    Danach den Wunsch in `docs/grafik/wuensche.md` abhaken.
 
-## M6 Tech-Baum
+## M6 Tech-Baum — abgenommen und gemergt (12.10.)
 
 1. Neue Wirkungen in `skill.wirkung` (Promille wie die vorhandenen):
    `tempo`, `reichweite`, `sicht`, `baukraft` und `regeneration` (LP/min

@@ -9,13 +9,13 @@ nur Mechaniken mit „nutzbar“ verwenden; `test/daten.test.js` prüft die Feld
 | umwandler (Gegenwart → Fron) | `gegenwartIn` + `fronOut` ohne `needs` | nutzbar (reine Daten) |
 | posten (weite Sicht) | `sicht` | nutzbar (reine Daten) |
 | M1 Luftebene | `weapon.ziele` (`boden`/`luft`/`beide`), Flieger mit `weapon` kämpfen, Rollen `luftfabrik`, `flak` (Gebäude), `luftjaeger`, `bomber` (Einheiten) — die KI nutzt sie, wenn ein Volk sie hat | **nutzbar** (seit 12.10.) |
-| M2 Schild | `schild: { kapazitaet, radius, laden }` (laden je Tick bei voller Versorgung, braucht `gegenwartIn`), Rolle `schild` (Gebäude) — die KI baut einen ab Minute 10 | **nutzbar** (seit 12.10.); ein Modell `schildkuppel` wäre schön (3D zeigt bisher einen Ring) |
+| M2 Schild | `schild: { kapazitaet, radius, laden }` (laden je Tick bei voller Versorgung, braucht `gegenwartIn`), Rolle `schild` (Gebäude) — die KI baut einen ab Minute 10 | **nutzbar** (seit 12.10.) |
 | M3 Volks-Mechaniken | `regeneration` (LP/min, Einheit und Gebäude), `aura: { art: heilung/tempo/schaden/schutz, wert, radius }` (stärkste je Art zählt), `weapon.flaeche: { radius, anteil }`, `weapon.verlangsamt: { dauer, wert }`, `auferstehen: { alle, einheit, dauer }` (nur an Ankern mit perTod) | **nutzbar** (seit 12.10.) — aber Änderungen an **bestehenden** Einheiten erst nach Freigabe der Entwürfe durch den Nutzer |
 | M4 Fernschlag, Abwehr | `schlag: { laden, flug, reichweite, radius, schaden, kosten }`, `abwehr: { radius, laden }` (laden in Ticks bei voller Versorgung), Rollen `schlag`, `abwehr` — Einschlag trifft beide Seiten, Schilde zuerst; die KI baut ab Minute 20 bzw. bei Bedarf | **nutzbar** (seit 12.10.) |
 | M5 Prototypen | `hoechstens` (Einheit: lebende + bestellte), Rollen `werkstatt` (Gebäude), `prototyp` (Einheit) — die KI baut die Werkstatt ab Minute 18 | **nutzbar** (seit 12.10.) |
-| M6 Tech-Baum | `wirkung.tempo/reichweite/sicht/baukraft/regeneration`, `nur` | in Arbeit (Sonnet) |
-| M7 KI | — | geplant |
-| M8 Oberfläche | Bauleiste in Gruppen (Tab), Modelle schildkuppel/fernschlag/flak | in Arbeit (Sonnet) |
+| M6 Tech-Baum | `wirkung.tempo/reichweite/sicht/baukraft` (Promille), `wirkung.regeneration` (LP/min, absolut), `nur: [eigene Typen]` am Skill (dann nur für diese, sonst ganzes Volk; gilt auch für die alten Wirkungen) — der Skillbaum ordnet nach `braucht`-Tiefe und zieht Linien | **nutzbar** (seit 12.10.) — `regeneration` bitte mit `nur` (sonst heilt sie auch alle Gebäude); `schutz` wirkt nur auf Einheiten |
+| M7 KI | — | in Arbeit (Sonnet) |
+| M8 Oberfläche | Bauleiste in Gruppen aus den Rollen (Wirtschaft, Militär, Besonderes; Tab wechselt), Reihenfolge wie `bauten`, volkseigene Gebäude ohne Rolle unter „Besonderes“; Modelle `schildkuppel`, `fernschlag`, `flak` eingebunden | **nutzbar** (seit 12.10.) |
 
 ## Messungen
 

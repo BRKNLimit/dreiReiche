@@ -1156,7 +1156,8 @@ function zeichneEffektModelle() {
     let start = schlagStart.get(schluessel);
     if (!start) {
       const b = byId(world, s.von);
-      const d = b && BUILDINGS[b.type].schlag;
+      // Ein fremdes Gebaeude im Nebel verraet der Bogen nicht: dann ebenfalls von oben herab
+      const d = b && !verborgen(b) && BUILDINGS[b.type].schlag;
       // Ohne Gebaeude (nach einem Laden mitten im Flug, schon gefallen): von oben herab auf das Ziel
       start = d ? { x: b.x, y: b.y, tick: s.landet - d.flug } : { x: s.x, y: s.y, tick: s.landet - 30 };
     }

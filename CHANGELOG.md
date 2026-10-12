@@ -32,6 +32,16 @@ Merges). Rahmen in `docs/umbau/konzept.md`, Stand in `docs/umbau/stand.md`.
   Auferstehen (jede n-te Seele eines Totenreich-Ankers steht als Einheit
   auf). Die Schadensrechnung steht jetzt an einer Stelle (`trefferNehmen`),
   für Ziel und Flächentreffer gleich.
+- **M8 Oberfläche (Sonnet):** Die Bauleiste hat Reiter — Wirtschaft,
+  Militär, Besonderes, abgeleitet aus den Rollen; **Tab** wechselt
+  (Shift+Tab zurück), 1–0 bauen aus der aktiven Gruppe. In 3D eine
+  durchsichtige Schildkuppel (Deckkraft nach Ladung), der Fernschlag als
+  Rakete im Bogen (aus dem Nebel heraus ohne Abschussort) und
+  Splitterwolken der Flak.
+- **M6 Tech-Baum (Sonnet):** Neue Skill-Wirkungen Tempo, Reichweite, Sicht,
+  Baukraft und Regeneration; mit `nur` gilt ein Skill nur für bestimmte
+  Einheiten oder Gebäude. Der Skillbaum (T) ordnet die Skills in Stufen und
+  zieht Linien zu den Voraussetzungen; die Infokarten nennen, was gilt.
 - **Gemini (G1, G2):** Modelle, Icons und 2D-Figuren für alle neuen Rollen
   aller drei Völker (Luftfabrik, Flak, Schild, Umwandler, Werkstatt,
   Fernschlag, Abwehr, Posten, Luftjäger, Bomber, Prototyp), Effekte

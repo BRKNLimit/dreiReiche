@@ -17,14 +17,17 @@ Format:
     Ebenso schlägt `assert.equal(hat((d) => d.buildList && !d.vital), 1)` fehl, sobald ein Volk eine `luftfabrik` besitzt. Besser: Bodenfabrik prüfen oder `luftfabrik` ausnehmen.
   - In `test/luft.test.js` (Zeile 55) und `test/schild.test.js` (Zeile 56):
     Der `after()`-Hook löscht via `delete FACTIONS.mensch.rollen[r]` alle Rollen der Luftebene bzw. des Schildes. Besser: Originalzustand vor dem Test merken und im `after()` wiederherstellen, damit echte Rollen in den Volksdateien nicht gelöscht werden.
-- [ ] **Modell `schildkuppel` in `src/ui3d.js` einbinden:**
-  Gemini hat das 3D-Modell `schildkuppel` in `src/modelle3d.js` (`MODELLE_DEF.schildkuppel`) fertiggestellt (halbtransparente, leuchtende Zyan-Kuppelstruktur). Claude kann es in `src/ui3d.js` bei aktiven Schildgeneratoren anstelle des flachen 2D-Canvas-Rings instanziieren (`instanz('schildkuppel', e.x, 0, e.y, 0, s.radius / 10, ...)`).
-- [ ] **Modelle `fernschlag` und `flak` stehen bereit:**
-  Ebenfalls in `src/modelle3d.js` (`MODELLE_DEF.fernschlag`, `MODELLE_DEF.flak`) für Mechanik M4 (Fernschlag) bzw. M1 (Flak-Treffereffekt).
+
 
 
 
 ## Erledigt
+
+- [x] **Modelle `schildkuppel`, `fernschlag`, `flak` eingebunden (M8)** — `src/ui3d.js` (`zeichneEffektModelle`), `src/effekte.js`:
+      `schildkuppel` als durchsichtige Kuppel über eigenen (und gewählten fremden) Schildgebäuden, Größe nach `schild.radius`,
+      Deckkraft nach Ladung (der Bodenring bleibt nur für gewählte Gebäude); `fernschlag` fliegt im Bogen vom Gebäude zum Ziel
+      und kommt zum Einschlagtick an (für alle sichtbar); `flak` als Splitterwolke an jedem Flieger, den eine Waffe mit
+      `ziele: 'luft'` trifft. Das Modell `fernschlag` zeigt mit +z nach vorn und wird nur um die Hochachse gedreht (kein Nicken).
 
 - [x] Modell und Icon für den **Raben** (`rabe`, Gott-Späher, fliegt) — `src/modelle3d.js`, `src/icons.js`.
       Kleiner schwarzer Rabe mit gespreizten Schwingen; die Oberfläche hebt ihn

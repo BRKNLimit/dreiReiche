@@ -715,13 +715,64 @@ export function menueHtml(laufend, hatStand, speicherbar = true) {
     </div></div>`;
 }
 
-export function bauleisteHtml(world, player, liste) {
-  return liste
+// Die Bauleiste in Gruppen: Mit den Rollen der gemeinsamen Basis hat ein Volk
+// bald ~19 Gebaeude, die Tasten 1-0 reichen nicht. Die Gruppe ergibt sich aus
+// der Rolle, die ein Gebaeude im Volk spielt (FACTIONS[v].rollen) -- eine
+// Gruppe ist also keine eigene Angabe in den Volksdateien. Gebaeude ohne Rolle
+// (volkseigene) landen unter "Besonderes". Die Reihenfolge innerhalb einer
+// Gruppe ist die in FACTIONS[v].bauten.
+export const BAU_GRUPPEN = [
+  { schluessel: 'wirtschaft', name: 'Wirtschaft', rollen: ['kraft', 'fron', 'blut', 'umwandler', 'anker', 'forschung', 'posten'] },
+  { schluessel: 'militaer', name: 'Militär', rollen: ['fabrik', 'luftfabrik', 'werkstatt', 'turm', 'flak'] },
+  { schluessel: 'besonderes', name: 'Besonderes', rollen: ['zorn', 'wehr', 'schild', 'schlag', 'abwehr'] },
+];
+
+/**
+ * Die nichtleeren Bau-Gruppen eines Volks: [{ schluessel, name, liste }].
+ * Leere Gruppen fehlen (ein Volk mit nur 9 Gebaeuden hat vielleicht keine
+ * Abwehr-Gebaeude), ihre Reihenfolge ist die von BAU_GRUPPEN.
+ */
+export function bauGruppen(volk) {
+  const f = FACTIONS[volk];
+  const rolleVon = {};
+  for (const r of Object.keys(f.rollen || {})) if (!(f.rollen[r] in rolleVon)) rolleVon[f.rollen[r]] = r;
+  const gruppeVon = (typ) => {
+    const k = BAU_GRUPPEN.findIndex((g) => g.rollen.includes(rolleVon[typ]));
+    return k >= 0 ? k : BAU_GRUPPEN.length - 1; // ohne Rolle: Besonderes
+  };
+  const out = BAU_GRUPPEN.map((g) => ({ schluessel: g.schluessel, name: g.name, liste: [] }));
+  for (const t of f.bauten) out[gruppeVon(t)].liste.push(t);
+  return out.filter((g) => g.liste.length);
+}
+
+/** Die gewaehlte Gruppe; ist sie nicht (mehr) da, die erste. */
+export function aktiveBauGruppe(gruppen, schluessel) {
+  return gruppen.find((g) => g.schluessel === schluessel) || gruppen[0];
+}
+
+/** Tab: die Gruppe nach (richtung 1) bzw. vor (-1) der aktiven, reihum. */
+export function naechsteBauGruppe(gruppen, schluessel, richtung) {
+  if (!gruppen.length) return schluessel;
+  const k = gruppen.indexOf(aktiveBauGruppe(gruppen, schluessel));
+  return gruppen[(k + richtung + gruppen.length) % gruppen.length].schluessel;
+}
+
+/** Bauleiste: Reiter der Gruppen (bei mehr als einer) und die Gebaeude der aktiven Gruppe, Tasten 1-0. */
+export function bauleisteHtml(world, player, gruppen, aktiv) {
+  const gr = aktiveBauGruppe(gruppen, aktiv);
+  if (!gr) return '';
+  const reiter = gruppen.length > 1
+    ? `<div class="reiter">${gruppen.map((g) => `<button class="reiter-knopf${g === gr ? ' aktiv' : ''}" data-reiter="${g.schluessel}" title="${g.name} (Tab wechselt)">${g.name}</button>`).join('')}</div>`
+    : '';
+  const knoepfe = gr.liste
     .map((t, i) => {
       const zu = gesperrt(world, player, t);
-      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span><kbd>${(i + 1) % 10}</kbd></button>`;
+      // Taste nur fuer die ersten zehn; weitere bleiben anklickbar
+      const taste = i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : '';
+      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span>${taste}</button>`;
     })
     .join('');
+  return reiter + knoepfe;
 }
 
 /** Ausbildungsleiste fuer Fabriken: Icons zum Anklicken mit Kosten und Warteschlange, ohne Tastenkuerzel (wie Supreme Commander). */

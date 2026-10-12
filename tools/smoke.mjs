@@ -68,6 +68,9 @@ function makeEl(id) {
         el.missionKnoepfe = [...String(el.innerHTML).matchAll(/data-mission="([^"]+)"/g)].map((m) => ({ dataset: { mission: m[1] }, onclick: null }));
         return el.missionKnoepfe;
       }
+      if (wahl.includes('data-reiter')) {
+        return [...String(el.innerHTML).matchAll(/data-reiter="([^"]+)"/g)].map((m) => ({ dataset: { reiter: m[1] }, onclick: null }));
+      }
       return [...String(el.innerHTML).matchAll(/data-b="([^"]+)"/g)].map((m) => ({
         dataset: { b: m[1] },
         onclick: null,
@@ -124,7 +127,14 @@ const errors = [];
 process.on('uncaughtException', (e) => errors.push(e));
 
 try {
-  new Function(code)();
+  // Zugriff auf Innenleben der Seite fuer die Bauleisten-Pruefung unten: eine Zeile hinten an das Skript
+  new Function(
+    code +
+      `\n;globalThis.__t = { BUILDINGS, UNITS,
+        get world() { return world; }, get ME() { return ME; },
+        get sel() { return sel; }, set sel(v) { sel = v; }, get placing() { return placing; }, set placing(v) { placing = v; },
+        get gruppe() { return bauGruppeSchl; } };`
+  )();
   // Startbildschirm: wie ein Klick auf "Als Menschen spielen".
   nodes.introMensch.onclick();
 } catch (e) {
@@ -188,6 +198,52 @@ for (let i = 0; i < 400 && frameFn; i++) {
   } catch (e) {
     errors.push(e);
     break;
+  }
+}
+
+// Bauleiste in Gruppen: Erbauer gewaehlt, Tab / Umschalt+Tab wechseln, Ziffern bauen aus der aktiven Gruppe
+{
+  const T = globalThis.__t;
+  const bauer = T.world.entities.find((e) => e.kind === 'unit' && e.player === T.ME && T.UNITS[e.type].build);
+  const pruefe = (bedingung, text) => {
+    if (!bedingung) errors.push(new Error('Smoke: ' + text));
+  };
+  const aktiverReiter = () => /class="reiter-knopf aktiv" data-reiter="(\w+)"/.exec(nodes.builds.innerHTML)?.[1];
+  const weiter = (n) => {
+    for (let i = 0; i < n && frameFn; i++) {
+      const f = frameFn;
+      frameFn = null;
+      clock += 16.7;
+      try {
+        f(clock);
+      } catch (e) {
+        errors.push(e);
+        break;
+      }
+    }
+  };
+  if (!bauer) errors.push(new Error('Smoke: kein Erbauer fuer die Bauleisten-Pruefung'));
+  else {
+    T.placing = null;
+    T.sel = [bauer.id];
+    weiter(3);
+    pruefe((nodes.builds.innerHTML.match(/data-reiter=/g) || []).length === 3, 'Bauleiste ohne drei Reiter');
+    pruefe(aktiverReiter() === 'wirtschaft', 'erste Gruppe ist nicht Wirtschaft');
+    fire('keydown', { ...base, key: 'Tab', code: 'Tab' });
+    weiter(3);
+    pruefe(aktiverReiter() === 'militaer' && T.gruppe === 'militaer', 'Tab wechselt nicht zu Militaer');
+    pruefe(!nodes.builds.innerHTML.includes('data-b="saege"') && nodes.builds.innerHTML.includes('data-b="kaserne"'), 'Militaer zeigt falsche Gebaeude');
+    fire('keydown', { ...base, key: '1', code: 'Digit1' });
+    pruefe(T.placing === 'kaserne', `Taste 1 in Militaer baut ${T.placing}`);
+    T.placing = null;
+    fire('keydown', { ...base, key: 'Tab', code: 'Tab', shiftKey: true });
+    weiter(3);
+    pruefe(aktiverReiter() === 'wirtschaft', 'Umschalt+Tab geht nicht zurueck');
+    fire('keydown', { ...base, key: '1', code: 'Digit1' });
+    pruefe(T.placing === 'schmiede', `Taste 1 in Wirtschaft baut ${T.placing}`);
+    T.placing = null;
+    T.sel = [];
+    weiter(3);
   }
 }
 

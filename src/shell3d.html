@@ -264,6 +264,14 @@
   #skills kbd { font: 10px ui-monospace, monospace; color: var(--accent); }
   .hell { color: var(--accent); }
   #builds button.zu { opacity: .45; }
+  /* Reiter der Bau-Gruppen: sitzen wie Karteireiter auf der Oberkante der Leiste */
+  #builds { position: relative; }
+  #builds .reiter { position: absolute; z-index: 16; left: 0; bottom: calc(100% + 8px); display: flex; gap: 2px; }
+  #builds .reiter-knopf {
+    padding: 2px 9px; font-size: 11px; border-bottom: 0; border-radius: 3px 3px 0 0;
+    background: color-mix(in srgb, var(--panel) 80%, #000); color: var(--dim);
+  }
+  #builds .reiter-knopf.aktiv { background: var(--panel); color: var(--accent); border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -299,7 +307,8 @@
   <dt>Shift+Rechtsklick</dt><dd>Wegpunkt anhängen (auch mit A, auch nach Bauaufträgen) — die Route steht da, solange die Einheit gewählt ist</dd>
   <dt>Rechtsklick auf eigene Einheit</dt><dd>ihrem Auftrag anschließen: mitbauen oder ihre Route mitlaufen</dd>
   <dt>Strg+1–0, 1–0</dt><dd>Steuergruppe setzen, abrufen (zweimal: hinspringen)</dd>
-  <dt>1–0</dt><dd>bauen (Erbauer gewählt, Gruppe leer) · mit Shift: weitere in die Reihe</dd>
+  <dt>1–0</dt><dd>bauen (Erbauer gewählt, Gruppe leer) aus der gewählten Bau-Gruppe · mit Shift: weitere in die Reihe</dd>
+  <dt>Tab, Umschalt+Tab</dt><dd>Erbauer gewählt: Bau-Gruppe wechseln (Wirtschaft, Militär, Besonderes), auch per Klick auf den Reiter</dd>
   <dt>Fabrik gewählt, Rechtsklick</dt><dd>Sammelpunkt für neue Einheiten</dd>
   <dt>Q–R</dt><dd>Gebäude gewählt: ausbilden · Kommandant gewählt: Fähigkeiten</dd>
   <dt>F</dt><dd>Fernschlag-Gebäude gewählt und geladen: scharf stellen, dann Klick aufs Ziel (Shift: weiter feuern)</dd>

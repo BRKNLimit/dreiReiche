@@ -36,6 +36,7 @@ let last = performance.now();
 let sel = [];
 let drag = null;
 let placing = null;
+let bauGruppeSchl = 'wirtschaft'; // aktive Gruppe der Bauleiste (BAU_GRUPPEN in ui-gemeinsam.js)
 let angriff = false;
 let skillsOffen = false; // T: Skillbaum
 let skillSig = ''; // zuletzt gezeichneter Stand des Skillbaums
@@ -278,8 +279,16 @@ function befehl3(x, y, anhaengen = false) {
   if (fabs.length) issue(world, { type: 'sammelpunkt', player: ME, ids: fabs, x, y });
 }
 
+/** Die Gebaeude der aktiven Bau-Gruppe (Tasten 1-0 bauen aus ihr). */
 function bauListe() {
-  return FACTIONS[meFaction].bauten;
+  const gr = aktiveBauGruppe(bauGruppen(meFaction), bauGruppeSchl);
+  return gr ? gr.liste : [];
+}
+
+/** Tab / Shift+Tab, Klick auf einen Reiter: Bau-Gruppe wechseln. */
+function bauGruppeWechseln(schluessel) {
+  bauGruppeSchl = schluessel;
+  renderBar();
 }
 
 /** Ausgewaehlte eigene Fabriken, die Einheiten ausbilden koennen. */
@@ -293,7 +302,7 @@ function renderBar() {
   const bar = document.getElementById('builds');
   const fabs = fabriken3();
   if (erbauer3().length) {
-    bar.innerHTML = bauleisteHtml(world, ME, bauListe());
+    bar.innerHTML = bauleisteHtml(world, ME, bauGruppen(meFaction), bauGruppeSchl);
   } else if (fabs.length) {
     bar.innerHTML = ausbildungsleisteHtml(world, ME, fabs);
   } else {
@@ -308,6 +317,7 @@ function renderBar() {
     b.onmouseenter = () => (karteTyp = b.dataset.b);
     b.onmouseleave = () => (karteTyp = null);
   }
+  for (const b of bar.querySelectorAll('[data-reiter]')) b.onclick = () => bauGruppeWechseln(b.dataset.reiter);
   for (const b of bar.querySelectorAll('[data-produce]')) {
     b.onclick = (ev) => ausbildenVerteilt(world, ME, fabs, b.dataset.produce, ev && ev.shiftKey ? 5 : 1); // Shift: fuenf
     b.onmouseenter = () => (karteTyp = b.dataset.produce);
@@ -393,7 +403,7 @@ document.getElementById('hilfeKnopf').onclick = () => {
 function leisten3() {
   const fabs = fabriken3();
   const qSig = fabs.map((f) => f.queue.join()).join(';');
-  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig + '|' + grenzenSignatur(world, ME, fabs);
+  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig + '|' + grenzenSignatur(world, ME, fabs) + '|' + bauGruppeSchl + '|' + meFaction;
   if (sig === leistenSig) return;
   leistenSig = sig;
   renderBar();
@@ -615,6 +625,12 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (e.ctrlKey || e.metaKey) return;
+  // Tab / Shift+Tab: Bau-Gruppe wechseln (nur mit Erbauer; sonst springt der Browser-Fokus)
+  if (e.key === 'Tab' && erbauer3().length) {
+    e.preventDefault();
+    bauGruppeWechseln(naechsteBauGruppe(bauGruppen(meFaction), bauGruppeSchl, e.shiftKey ? -1 : 1));
+    return;
+  }
   const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && bauListe()[i] && erbauer3().length && !gesperrt(world, ME, bauListe()[i])) placing = bauListe()[i];
   if (e.key === 'h') document.getElementById('hilfeKnopf').onclick();
@@ -1092,7 +1108,77 @@ function zeichne(now, dt) {
   zeichneInstanzen(MODELLE.staubwolke);
   gl.depthMask(true);
 
+  zeichneEffektModelle();
   zeichneSchuesse();
+}
+
+// Anflug der Fernschlaege: Abschussort je Schlag, auch wenn das Gebaeude inzwischen fiel.
+// Schluessel 'von:landet'; nur, was noch fliegt, bleibt in der Tabelle.
+let schlagStart = new Map();
+const KUPPEL_HOEHE = 0.7; // Kuppelmodell (Hoehe ~1,4 bei Radius 1) auf etwa Halbkugel stauchen
+
+/**
+ * Modelle der Gemini-Effekte (src/modelle3d.js), gezeichnet nach Gelaende und
+ * Einheiten, ohne in den Tiefenpuffer zu schreiben, damit Durchsichtiges nichts verdeckt:
+ *   schildkuppel  Kuppel ueber eigenen (und gewaehlten fremden) Schildgebaeuden,
+ *                 Groesse nach schild.radius, Deckkraft nach Ladung
+ *   fernschlag    der Schlag im Flug, im Bogen vom Gebaeude zum Ziel; fuer alle sichtbar
+ *   flak          Splitterwolke am Flieger, den eine Flak-Waffe (ziele 'luft') traf
+ */
+function zeichneEffektModelle() {
+  const genutzt = new Set();
+  // Schildkuppeln (wie der Bodenring: eigene immer, fremde nur gewaehlt)
+  if (MODELLE.schildkuppel) {
+    for (const e of world.entities) {
+      if (e.dead || e.kind !== 'building' || !e.done || verborgen(e)) continue;
+      const s = BUILDINGS[e.type].schild;
+      if (!s) continue;
+      if (e.player !== ME && !sel.includes(e.id)) continue;
+      const ladung = Math.min(1, e.schildPunkte / s.kapazitaet);
+      // Mehrere Schichten im Modell addieren sich -- darum sehr durchsichtig; leer fast unsichtbar, voll deutlich
+      instanz('schildkuppel', e.x * DM, 0, e.y * DM, 0, s.radius * DM, teamFarbe(e.player), KUPPEL_HOEHE, 1, 0.025 + 0.085 * ladung);
+      genutzt.add('schildkuppel');
+    }
+  }
+  // Fernschlaege im Flug
+  const neu = new Map();
+  const jetzt = world.tick - 1 + alphaTick; // gezeigter Zeitpunkt, wie bei lage()
+  for (const s of world.schlaege) {
+    const schluessel = s.von + ':' + s.landet;
+    let start = schlagStart.get(schluessel);
+    if (!start) {
+      const b = byId(world, s.von);
+      const d = b && BUILDINGS[b.type].schlag;
+      // Ohne Gebaeude (nach einem Laden mitten im Flug, schon gefallen): von oben herab auf das Ziel
+      start = d ? { x: b.x, y: b.y, tick: s.landet - d.flug } : { x: s.x, y: s.y, tick: s.landet - 30 };
+    }
+    neu.set(schluessel, start);
+    if (!MODELLE.fernschlag) continue;
+    const f = Math.max(0, Math.min(1, (jetzt - start.tick) / Math.max(1, s.landet - start.tick)));
+    const weite = Math.hypot(s.x - start.x, s.y - start.y) * DM;
+    const gipfel = Math.max(10, Math.min(90, weite * 0.3)); // Bogenhoehe in m
+    const hoehe = 2 * (1 - f) + gipfel * 4 * f * (1 - f);
+    // Blickrichtung wie bei den Geschossen; ohne Weite (von oben herab) senkrecht aufs Ziel
+    const w = weite > 0 ? Math.atan2(s.x - start.x, s.y - start.y) : 0;
+    const x = start.x + (s.x - start.x) * f;
+    const y = start.y + (s.y - start.y) * f;
+    instanz('fernschlag', x * DM, hoehe, y * DM, w, 5, teamFarbe(s.player), 1, 1.3);
+    genutzt.add('fernschlag');
+  }
+  schlagStart = neu;
+  // Flak: Splitterwolke blaeht sich auf und verblasst, in der Hoehe, in der Flieger schweben
+  if (MODELLE.flak) {
+    for (const w of fx.wolken) {
+      const f = w.t / w.dauer;
+      const hoehe = 5 * UNITS[w.typ].radius * DM * ZEIGE_EINHEIT;
+      instanz('flak', w.x * DM, hoehe, w.y * DM, w.x + w.y, 2.5 + 4 * f, [1, 1, 1], 1, 1.4, 1 - f * f);
+      genutzt.add('flak');
+    }
+  }
+  if (!genutzt.size) return;
+  gl.depthMask(false);
+  for (const k of genutzt) zeichneInstanzen(MODELLE[k]);
+  gl.depthMask(true);
 }
 
 /**
@@ -1253,14 +1339,16 @@ function zeichneWirkungen() {
     bodenKreis(e.x, e.y, BUILDINGS[e.type].buff.radius);
   }
   octx.setLineDash([]);
-  // Schildkuppeln als Ring auf dem Boden (ein Modell "schildkuppel" gibt es noch
-  // nicht): eigene immer, fremde nur gewaehlt; Deckkraft nach Ladung.
+  // Schildkuppeln: das Modell "schildkuppel" zeichnet zeichneEffektModelle(). Der
+  // Bodenring bleibt, wo es das Modell nicht gibt, und fuer gewaehlte Schildgebaeude
+  // als scharfe Kante des Umkreises. Eigene immer, fremde nur gewaehlt; Deckkraft nach Ladung.
   for (const e of world.entities) {
     if (e.dead || e.kind !== 'building' || !e.done || verborgen(e)) continue;
     const s = BUILDINGS[e.type].schild;
     if (!s) continue;
     const gewaehlt = sel.includes(e.id);
     if (e.player !== ME && !gewaehlt) continue;
+    if (MODELLE.schildkuppel && !gewaehlt) continue;
     octx.strokeStyle = '#7ab8ff';
     octx.lineWidth = gewaehlt ? 3 : 1.5;
     octx.globalAlpha = 0.12 + 0.6 * Math.min(1, e.schildPunkte / s.kapazitaet);

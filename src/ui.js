@@ -535,7 +535,7 @@ function fabriken() {
 function leisten() {
   const fabs = fabriken();
   const qSig = fabs.map((f) => f.queue.join()).join(';');
-  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig + '|' + grenzenSignatur(world, ME, fabs) + '|' + bauGruppeSchl + '|' + meFaction;
+  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig + '|' + grenzenSignatur(world, ME, fabs) + '|' + bauGruppeSchl + '|' + meFaction + '|' + umruestSignatur(world, ME, sel);
   if (sig === leistenSig) return;
   leistenSig = sig;
   renderBar();
@@ -696,10 +696,17 @@ function renderBar() {
   } else if (fabs.length) {
     bar.innerHTML = ausbildungsleisteHtml(world, ME, fabs);
   } else {
-    bar.innerHTML = '';
+    // Einheiten mit Steckplaetzen (R3): Leiste zum Umruesten, sonst leer
+    bar.innerHTML = umruestLeisteHtml(world, ME, sel);
   }
   document.getElementById('gruppen').innerHTML = gruppenHtml(world, sel);
   if (!erbauer().length && !fabs.length) karteTyp = placing = null;
+  for (const b of bar.querySelectorAll('[data-umr]')) {
+    b.onclick = () => {
+      const [slot, modul] = b.dataset.umr.split(':');
+      umruestenVerteilt(world, ME, sel, +slot, modul);
+    };
+  }
   for (const b of bar.querySelectorAll('[data-b]')) {
     b.onclick = () => {
       if (!gesperrt(world, ME, b.dataset.b)) placing = b.dataset.b;
@@ -1216,7 +1223,7 @@ function drawEntities() {
         }
       }
       // Figur aus src/figuren2d.js (Gemini), sonst die einfache Form
-      if (!zeichneEinheit2d(ctx, e, def, x, y, r, col, cam.z, performance.now())) {
+      if (!zeichneEinheit2d(ctx, def.rumpf && def.rumpf !== e.type ? { ...e, type: def.rumpf } : e, def, x, y, r, col, cam.z, performance.now())) {
         ctx.fillStyle = col;
         ctx.beginPath();
         if (def.commander) ctx.arc(x, y, r, 0, Math.PI * 2);

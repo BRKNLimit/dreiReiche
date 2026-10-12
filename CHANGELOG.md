@@ -3,6 +3,39 @@
 Messwerte: KI gegen KI, beide Sitzplätze, Menschen : Gott. Details und
 Tabellen in `docs/scope.md`.
 
+## Unveröffentlicht — R1 Wracks und Bergung (Sonnet)
+
+- **Wracks:** Eine gefallene Einheit lässt `RULES.wrackAnteil` (700 Promille),
+  ein gefallenes fertiges Gebäude `RULES.wrackAnteilGebaeude` (500) ihrer
+  Masse-Kosten liegen — nicht vergangen (Beschworene, Verfall Ausgeschiedener),
+  nicht abgerissen, keine Baustellen, kein Flieger über Fels oder Wasser.
+  Wracks stehen in `world.wracks` (eigene ids aus dem Entity-Zähler), gehören
+  niemandem, vergehen nicht von selbst, sind kein Wegehindernis. Mit
+  `wrackAnteil = 0` ist die Partie bitgleich zu vorher.
+- **Bergung:** Befehl `bergen` (nur auf Befehl, nie von selbst; Shift hängt an
+  wie beim Bauen). Erbauer bergen mit ihrer Baukraft (`bergungProBaukraft`,
+  500: ein Bauer 200 Masse je Minute); Einheiten mit dem neuen Feld
+  `bergung: { kraft }` mit eigener Kraft. Mehrere Berger teilen sich ein Wrack
+  tickweise nach Kraft (auch der Gegner darf), die Masse geht über `masseAcc`
+  an den Spieler. Designzahlen, ungemessen.
+- **Kunde:** merkt gesehene Wracks wie gesehene Gebäude (`kunde.wracks`); die KI
+  schickt untätige Arbeiter zum nächsten bekannten, sicheren Wrack in der
+  eigenen Domäne (höchstens zwei je Wrack, Bauen geht vor).
+- **Oberfläche (2D, 3D):** dunkler Fleck bzw. Schrotthaufen (Platzhalter-Modell
+  `wrack` in `src/platzhalter.js`, Wunsch an Gemini in `docs/grafik/wuensche.md`),
+  Rechtsklick birgt, Infokarte „Wrack — N Masse“, Bergungs-Cursor, Punkte auf
+  der Minikarte, Routen zeigen Bergeziele. Spielstand, Hash, Wiederholung und
+  Netz tragen `world.wracks` mit.
+- **Messung:** `node tools/referenz.mjs` ändert sich (Wracks verändern die
+  Wirtschaft): mensch-gott 1287561555 → 2157955899, tod-mensch 2629929724 →
+  404230641, gott-tod 778875505 → 3257908315. Menschen : Gott
+  (`sweep 36 45 Ausgang stile`) 44 : 26 → 34 : 36, Ø 26,7 → 24,1 min; ohne
+  KI-Bergung (nur liegende Wracks) bleibt es bei 44 : 26 — die Verschiebung
+  kommt allein vom Bergen. Eine Bergung bringt jeder Seite etwa 2500 Masse je
+  Partie in 20 Minuten.
+- **Werkzeug:** Der Rauchtest brach bei einer nicht abgefangenen Ausnahme still
+  mit Exit 0 ab; jetzt meldet er das als Fehler.
+
 ## 0.42 — Schlüssel heißen wie in Resonit
 
 - **Plan T2 (Claude):** Im Code und in den Daten heißen die Ressourcen jetzt

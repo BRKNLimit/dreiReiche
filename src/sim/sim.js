@@ -589,11 +589,15 @@ export function tryPlace(world, player, type, x, y) {
   return b;
 }
 
-/** Sichtweite einer Einheit oder eines Gebaeudes im Nebel des Krieges. */
-export function sichtweite(e) {
+/**
+ * Sichtweite einer Einheit oder eines Gebaeudes im Nebel des Krieges. Mit world
+ * kommt die Wirkung 'sicht' aus dem Skillbaum dazu; ohne world die Grundsicht.
+ */
+export function sichtweite(e, world) {
   const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
-  if (e.kind === 'building' && !e.done) return 400;
-  return def.sicht || (e.kind === 'unit' ? 900 : 700);
+  const r = e.kind === 'building' && !e.done ? 400 : def.sicht || (e.kind === 'unit' ? 900 : 700);
+  const mehr = world ? bonus(world, e.player, 'sicht', e.type) : 0;
+  return mehr ? r + (((r * mehr) / 1000) | 0) : r;
 }
 
 /**
@@ -608,7 +612,7 @@ export function sichtGitter(world, player) {
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.player !== player) continue;
-    const r = sichtweite(e);
+    const r = sichtweite(e, world);
     const x0 = Math.max(0, ((e.x - r) / ZELLE) | 0);
     const x1 = Math.min(n - 1, ((e.x + r) / ZELLE) | 0);
     const y0 = Math.max(0, ((e.y - r) / ZELLE) | 0);
@@ -759,16 +763,32 @@ export function gesperrt(world, player, typ) {
   return sperrt;
 }
 
-/** Summe einer Wirkung in Promille ueber alle gelernten Skills. */
-export function bonus(world, player, art) {
+/**
+ * Summe einer Wirkung ueber alle gelernten Skills (Promille; bei 'regeneration'
+ * LP pro Minute) -- die eine Stelle, an der jede Wirkung gerechnet wird.
+ * Ein Skill mit nur: [typen] zaehlt nur, wenn typ (oder typ2) dort steht;
+ * ohne Typ in der Abfrage zaehlen nur Skills fuers ganze Volk. typ2 gibt es
+ * fuer die Ausbildung: Fabrik und ausgebildete Einheit sind beide gemeint.
+ */
+export function bonus(world, player, art, typ, typ2) {
   if (!RULES.skills) return 0;
   const g = world.players[player].gelernt;
   let s = 0;
   for (let i = 0; i < g.length; i++) {
-    const w = SKILLS[g[i]].wirkung;
-    if (w && w[art]) s += w[art];
+    const sk = SKILLS[g[i]];
+    const w = sk.wirkung;
+    if (!w || !w[art]) continue;
+    if (sk.nur && !(sk.nur.includes(typ) || (typ2 !== undefined && sk.nur.includes(typ2)))) continue;
+    s += w[art];
   }
   return s;
+}
+
+/** Reichweite der Waffe von e (dm, Rand zu Rand): die der Definition plus die Wirkung 'reichweite' aus dem Skillbaum. */
+export function waffenReichweite(world, e) {
+  const r = (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).weapon.range;
+  const mehr = bonus(world, e.player, 'reichweite', e.type);
+  return mehr ? r + (((r * mehr) / 1000) | 0) : r;
 }
 
 /** Kann der Spieler diesen Skill jetzt lernen? */
@@ -1054,13 +1074,13 @@ export function step(world) {
     if (def.schlag) ladungWeiter(e, 'schlag', def.schlag.laden);
     if (def.abwehr) ladungWeiter(e, 'abwehr', def.abwehr.laden);
     if (def.fronOut || def.blutOut) {
-      const mehr = 1000 + bonus(world, e.player, 'foerderung');
+      const mehr = 1000 + bonus(world, e.player, 'foerderung', e.type);
       if (def.fronOut) pl.fronAcc = (pl.fronAcc || 0) + (((def.fronOut * e.powered * mehr) / 1000) | 0);
       if (def.blutOut) pl.blutAcc = (pl.blutAcc || 0) + (((def.blutOut * e.powered * mehr) / 1000) | 0);
     }
 
     if (e.queue.length > 0) {
-      e.queueProgress += ((e.powered * (1000 + bonus(world, e.player, 'ausbildung'))) / 1000) | 0;
+      e.queueProgress += ((e.powered * (1000 + bonus(world, e.player, 'ausbildung', e.type, e.queue[0]))) / 1000) | 0;
       const need = UNITS[e.queue[0]].buildTime * 1000;
       if (e.queueProgress >= need) {
         const type = e.queue.shift();
@@ -1095,13 +1115,17 @@ export function step(world) {
 
   // Unterhalt: laufend Fron je lebender Einheit. Wer nicht zahlen kann,
   // steht bei null -- kaufen geht dann nichts mehr.
-  const weniger = [];
-  for (let p = 0; p < world.players.length; p++) weniger.push(1000 - bonus(world, p, 'unterhalt'));
+  // Die Wirkung 'unterhalt' kann auf einzelne Typen beschraenkt sein (nur): je
+  // Spieler und Typ einmal gerechnet und gemerkt.
+  const weniger = world.players.map(() => Object.create(null));
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.kind !== 'unit' || e.beschworen) continue;
     const u = UNITS[e.type].unterhalt;
-    if (u) world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * weniger[e.player];
+    if (!u) continue;
+    const merk = weniger[e.player];
+    if (merk[e.type] === undefined) merk[e.type] = 1000 - bonus(world, e.player, 'unterhalt', e.type);
+    world.players[e.player].unterhaltAcc = (world.players[e.player].unterhaltAcc || 0) + u * merk[e.type];
   }
   for (let p = 0; p < world.players.length; p++) {
     const pl = world.players[p];
@@ -1205,7 +1229,8 @@ function regenerieren(world, auren) {
     const einheit = e.kind === 'unit';
     if (!einheit && !e.done) continue;
     const def = einheit ? UNITS[e.type] : BUILDINGS[e.type];
-    const reg = def.regeneration || 0;
+    // LP pro Minute: die der Definition plus die Wirkung 'regeneration' aus dem Skillbaum (absolut, nicht Promille)
+    const reg = (def.regeneration || 0) + bonus(world, e.player, 'regeneration', e.type);
     const heil = einheit ? auraWert(auren, e, 'heilung') : 0;
     if (!reg && !heil) continue;
     if (e.hp >= e.maxHp) {
@@ -1441,7 +1466,9 @@ function erschaffen(world) {
     }
     const nah = BUILDINGS[site.type].radius + UNITS[u.type].radius + BAU_NAH;
     if (dist2(u.x, u.y, site.x, site.y) > nah * nah) continue;
-    site.hilfe += b.power;
+    // Baukraft in Promille eines Ticks; die Wirkung 'baukraft' aus dem Skillbaum legt darauf
+    const mehr = bonus(world, u.player, 'baukraft', u.type);
+    site.hilfe += mehr ? b.power + (((b.power * mehr) / 1000) | 0) : b.power;
     u.baut = site.id;
   }
 }
@@ -1549,7 +1576,7 @@ function moveUnits(world, auren) {
       }
       e.tx = gx[i] = t.x;
       e.ty = gy[i] = t.y;
-      const nah = reichweite(e, t) - 10;
+      const nah = reichweite(e, t, world) - 10;
       if (dist2(e.x, e.y, t.x, t.y) <= nah * nah) {
         gx[i] = e.x;
         gy[i] = e.y;
@@ -1557,10 +1584,11 @@ function moveUnits(world, auren) {
       continue;
     }
     if (!w || !(e.arrived || e.aggro) || e.auftrag) continue; // wer baut, jagt nicht
-    const leine = e.arrived ? LEASH + w.range : MAP * 2;
-    const o = chaseTarget(alle, alleRaster, e, w.range + CHASE, leine);
+    const wr = waffenReichweite(world, e);
+    const leine = e.arrived ? LEASH + wr : MAP * 2;
+    const o = chaseTarget(alle, alleRaster, e, wr + CHASE, leine);
     if (!o) continue;
-    const nah = reichweite(e, o) - 10;
+    const nah = reichweite(e, o, world) - 10;
     if (dist2(e.x, e.y, o.x, o.y) > nah * nah) {
       gx[i] = o.x;
       gy[i] = o.y;
@@ -1609,10 +1637,10 @@ function moveUnits(world, auren) {
     const e = us[i];
     if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
     let speed = UNITS[e.type].speed;
-    // Tempo in Promille ueber/unter dem Grundtempo: Ansturm und Tempo-Aura (die
-    // staerkste) schneller, ein Treffer mit verlangsamt langsamer. Alles
-    // addiert, nie unter TEMPO_MIN.
-    let tempo = auraWert(auren, e, 'tempo');
+    // Tempo in Promille ueber/unter dem Grundtempo: Skillbaum (Wirkung 'tempo'),
+    // Ansturm und Tempo-Aura (die staerkste) schneller, ein Treffer mit
+    // verlangsamt langsamer. Alles addiert, nie unter TEMPO_MIN.
+    let tempo = auraWert(auren, e, 'tempo') + bonus(world, e.player, 'tempo', e.type);
     if (e.tempoBis > world.tick) tempo += e.tempoWert; // Ansturm
     if (e.langsamBis > world.tick) tempo -= e.langsamWert;
     if (tempo) speed = ((speed * Math.max(TEMPO_MIN, 1000 + tempo)) / 1000) | 0;
@@ -1807,11 +1835,11 @@ function combat(world, auren) {
     if (e.kind === 'unit' && e.ziel) {
       const t = byId(world, e.ziel);
       if (t && !t.dead) {
-        const r = reichweite(e, t);
+        const r = reichweite(e, t, world);
         if (dist2(e.x, e.y, t.x, t.y) <= r * r) target = t;
       }
     }
-    if (!target) target = nearestEnemy(alle, alleRaster, e);
+    if (!target) target = nearestEnemy(world, alle, alleRaster, e);
     if (!target) continue;
 
     let dmg = target.kind === 'building' && def.weapon.gebaeude ? def.weapon.gebaeude : def.weapon.damage;
@@ -1824,7 +1852,7 @@ function combat(world, auren) {
     const erf = erfahrung(world, e);
     if (erf) dmg = ((dmg * (1000 + erf)) / 1000) | 0;
     // Skills: Verbesserung des ganzen Volkes, Schlachtruf.
-    const sb = bonus(world, e.player, 'schaden');
+    const sb = bonus(world, e.player, 'schaden', e.type);
     if (sb) dmg = ((dmg * (1000 + sb)) / 1000) | 0;
     if (e.kind === 'unit' && e.rufBis > world.tick) dmg = ((dmg * (1000 + e.rufWert)) / 1000) | 0;
     // Aura (M3): die staerkste Schadensaura eigener Quellen im Umkreis.
@@ -1903,8 +1931,8 @@ function trefferNehmen(world, schilde, auren, t, dmgVorher) {
   if (erf) dmg = ((dmg * (1000 - erf)) / 1000) | 0;
   // Skills: Schutz des ganzen Volkes, dazu der des Kommandanten.
   if (t.kind === 'unit') {
-    let sch = bonus(world, t.player, 'schutz');
-    if (UNITS[t.type].commander) sch += bonus(world, t.player, 'kdtSchutz');
+    let sch = bonus(world, t.player, 'schutz', t.type);
+    if (UNITS[t.type].commander) sch += bonus(world, t.player, 'kdtSchutz', t.type);
     if (sch) dmg = ((dmg * (1000 - sch)) / 1000) | 0;
     if (t.wehrBis > world.tick) dmg = ((dmg * (1000 - t.wehrWert)) / 1000) | 0; // Schildwall
     // Aura (M3): die staerkste Schutzaura eigener Quellen; mehr als 1000 gaebe Heilung.
@@ -1943,24 +1971,26 @@ function radiusVon(e) {
 /**
  * Wie weit die Mitten hoechstens auseinander sein duerfen, damit e o trifft:
  * Reichweite (Rand zu Rand) plus beide Raender. Nahkampf heisst Beruehrung.
+ * Mit world zaehlt die Wirkung 'reichweite' des Skillbaums; ohne die Grundreichweite.
  */
-export function reichweite(e, o) {
+export function reichweite(e, o, world) {
   const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
-  return def.weapon.range + radiusVon(e) + radiusVon(o);
+  return (world ? waffenReichweite(world, e) : def.weapon.range) + radiusVon(e) + radiusVon(o);
 }
 
 /** Naechster Feind, den e mit seiner Waffe erreicht -- Belagerung nimmt Gebaeude zuerst. */
-function nearestEnemy(alle, alleRaster, e) {
+function nearestEnemy(world, alle, alleRaster, e) {
   const w = (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).weapon;
   const gebaeudeZuerst = w.vorrang === 'gebaeude';
+  const wr = waffenReichweite(world, e); // einmal je Schuetze, nicht je Kandidat
   let best = null;
   let bestD = Infinity;
   let bestRang = 1;
-  for (const i of nachbarn(alleRaster, e.x, e.y, w.range + radiusVon(e) + GROESSTER_RADIUS)) {
+  for (const i of nachbarn(alleRaster, e.x, e.y, wr + radiusVon(e) + GROESSTER_RADIUS)) {
     const o = alle[i];
     if (o.dead || o.player === e.player || !erreicht(e, o)) continue;
     const dd = dist2(e.x, e.y, o.x, o.y);
-    const r = reichweite(e, o);
+    const r = wr + radiusVon(e) + radiusVon(o);
     if (dd > r * r) continue;
     const rang = gebaeudeZuerst && o.kind === 'building' ? 0 : 1;
     if (rang < bestRang || (rang === bestRang && dd <= bestD)) {
@@ -2060,9 +2090,9 @@ export function unterhaltProMin(world, player) {
   let s = 0;
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
-    if (!e.dead && e.kind === 'unit' && e.player === player) s += UNITS[e.type].unterhalt || 0;
+    if (!e.dead && e.kind === 'unit' && e.player === player) s += (UNITS[e.type].unterhalt || 0) * (1000 - bonus(world, player, 'unterhalt', e.type));
   }
-  return ((s * (1000 - bonus(world, player, 'unterhalt'))) / 1000) | 0;
+  return (s / 1000) | 0;
 }
 
 /** Foerderung eines Spielers in Fron pro Minute, so wie sie gerade laeuft. */
@@ -2072,9 +2102,9 @@ export function foerderungProMin(world, player) {
     const e = world.entities[i];
     if (e.dead || e.kind !== 'building' || !e.done || e.player !== player) continue;
     const out = BUILDINGS[e.type].fronOut;
-    if (out) s += ((out * e.powered) / 1000) | 0;
+    if (out) s += (((out * e.powered) / 1000) | 0) * (1000 + bonus(world, player, 'foerderung', e.type));
   }
-  return ((s * (1000 + bonus(world, player, 'foerderung'))) / 1000) | 0;
+  return (s / 1000) | 0;
 }
 
 export function gridReport(world, player) {

@@ -72,6 +72,7 @@ const cam = { x: 3000, y: 3000, z: 0.038 };
 let sel = [];
 let drag = null;
 let placing = null;
+let bauGruppeSchl = 'wirtschaft'; // aktive Gruppe der Bauleiste (BAU_GRUPPEN in ui-gemeinsam.js)
 let hover = { x: 0, y: 0 };
 let paused = false;
 let speed = 1;
@@ -363,6 +364,12 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (e.ctrlKey || e.metaKey) return;
+  // Tab / Shift+Tab: Bau-Gruppe wechseln (nur mit Erbauer; sonst springt der Browser-Fokus)
+  if (e.key === 'Tab' && erbauer().length) {
+    e.preventDefault();
+    bauGruppeWechseln(naechsteBauGruppe(bauGruppen(meFaction), bauGruppeSchl, e.shiftKey ? -1 : 1));
+    return;
+  }
   const liste = bauListe();
   const i = '1234567890'.indexOf(e.key);
   if (i >= 0 && liste[i] && erbauer().length && !gesperrt(world, ME, liste[i])) placing = liste[i];
@@ -523,7 +530,7 @@ function fabriken() {
 function leisten() {
   const fabs = fabriken();
   const qSig = fabs.map((f) => f.queue.join()).join(';');
-  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig + '|' + grenzenSignatur(world, ME, fabs);
+  const sig = sel.join() + '|' + selPlan + '|' + skillSignatur(world, ME) + '|' + qSig + '|' + grenzenSignatur(world, ME, fabs) + '|' + bauGruppeSchl + '|' + meFaction;
   if (sig === leistenSig) return;
   leistenSig = sig;
   renderBar();
@@ -537,8 +544,16 @@ function skillPanel() {
   if (sig === skillSig) return;
   skillSig = sig;
   renderBar();
-  if (skillsOffen) el.innerHTML = skillBaumHtml(world, ME);
+  if (skillsOffen) {
+    el.innerHTML = skillBaumHtml(world, ME);
+    skillLinien(el);
+  }
 }
+// Fenstergroesse geaendert: die Karten reihen sich um, die Linien des Skillbaums muessen mit
+addEventListener('resize', () => {
+  const el = document.getElementById('skills');
+  if (skillsOffen && el && !el.hidden) skillLinien(el);
+});
 
 mini.addEventListener('contextmenu', (e) => e.preventDefault());
 mini.addEventListener('mousedown', (e) => {
@@ -640,15 +655,23 @@ function befehl(x, y, anhaengen = false) {
   if (fabs.length) issue(world, { type: 'sammelpunkt', player: ME, ids: fabs, x, y });
 }
 
+/** Die Gebaeude der aktiven Bau-Gruppe (Tasten 1-0 bauen aus ihr). */
 function bauListe() {
-  return FACTIONS[meFaction].bauten;
+  const gr = aktiveBauGruppe(bauGruppen(meFaction), bauGruppeSchl);
+  return gr ? gr.liste : [];
+}
+
+/** Tab / Shift+Tab, Klick auf einen Reiter: Bau-Gruppe wechseln. */
+function bauGruppeWechseln(schluessel) {
+  bauGruppeSchl = schluessel;
+  renderBar();
 }
 
 function renderBar() {
   const bar = document.getElementById('builds');
   const fabs = fabriken();
   if (erbauer().length) {
-    bar.innerHTML = bauleisteHtml(world, ME, bauListe());
+    bar.innerHTML = bauleisteHtml(world, ME, bauGruppen(meFaction), bauGruppeSchl);
   } else if (fabs.length) {
     bar.innerHTML = ausbildungsleisteHtml(world, ME, fabs);
   } else {
@@ -663,6 +686,7 @@ function renderBar() {
     b.onmouseenter = () => (karteTyp = b.dataset.b);
     b.onmouseleave = () => (karteTyp = null);
   }
+  for (const b of bar.querySelectorAll('[data-reiter]')) b.onclick = () => bauGruppeWechseln(b.dataset.reiter);
   for (const b of bar.querySelectorAll('[data-produce]')) {
     b.onclick = (ev) => ausbildenVerteilt(world, ME, fabs, b.dataset.produce, ev && ev.shiftKey ? 5 : 1); // Shift: fuenf
     b.onmouseenter = () => (karteTyp = b.dataset.produce);

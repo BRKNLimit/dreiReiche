@@ -66,6 +66,7 @@ export function neueEffekte() {
     hiebe: [], // { x, y, w, t, dauer, farbe, art }
     partikel: [], // { x, y, h, vx, vy, vh, t, dauer, farbe, groesse, leuchtet }
     ringe: [], // { x, y, r, t, dauer, farbe }
+    wolken: [], // Flak-Splitterwolken am Flieger (nur 3D, Modell 'flak'): { x, y, typ, t, dauer }
     blitze: new Map(), // Id -> Zeitpunkt des letzten Treffers (ms)
     pings: [], // Angriffe ausserhalb des Bildes, fuer die Minikarte: { x, y, t }
     gefallen: [], // gerade gefallene Einheiten, sinken zu Boden: { id, type, player, x, y, t }
@@ -95,6 +96,7 @@ export function effekteLeeren(fx) {
   fx.hiebe = [];
   fx.partikel = [];
   fx.ringe = [];
+  fx.wolken = [];
   fx.pings = [];
   fx.gefallen = [];
   fx.truemmer = [];
@@ -136,16 +138,19 @@ export function effekteAusEreignissen(fx, world, ich, sichtbar, hoerer, imBild) 
       if (!sichtbar(a) && !sichtbar(b)) continue;
       const w = WAFFEN[a.type] || DEFAULT;
       const d = Math.hypot(b.x - a.x, b.y - a.y);
+      // Flak-Waffe (ziele 'luft'): am getroffenen Flieger platzt zusaetzlich eine Splitterwolke
+      const flak = flakWaffe(a.type) && b.kind === 'unit';
       if (w.geschoss) {
         const dauer = Math.max(0.12, Math.min(1.4, d / w.tempo));
         fx.geschosse.push({
           art: w.geschoss, a: a.id, b: b.id, ax: a.x, ay: a.y, bx: b.x, by: b.y, t: 0, dauer,
-          bogen: d * w.bogen, farbe: w.farbe, groesse: w.groesse, waffe: a.type, ziel: b.kind,
+          bogen: d * w.bogen, farbe: w.farbe, groesse: w.groesse, waffe: a.type, ziel: b.kind, flakZiel: flak ? b.type : null,
         });
         raum(fx, w.ab, a.x, a.y, hoerer, 0.5);
       } else {
         einschlag(fx, w, b.x, b.y, b.kind, Math.atan2(b.y - a.y, b.x - a.x), hoerer);
         fx.blitze.set(b.id, fx.jetzt);
+        if (flak) flakWolke(fx, b.x, b.y, b.type);
       }
     } else if (ev.t === 'died') {
       if (!sichtbar(ev)) continue;
@@ -217,6 +222,17 @@ export function effekteAusEreignissen(fx, world, ich, sichtbar, hoerer, imBild) 
   }
 }
 
+/** Hat der Typ eine Waffe, die nur Flieger trifft (weapon.ziele 'luft': Flak, Luftjaeger)? */
+function flakWaffe(typ) {
+  const d = BUILDINGS[typ] || UNITS[typ];
+  return !!d && !!d.weapon && d.weapon.ziele === 'luft';
+}
+
+/** Splitterwolke am Flieger (Typ nur fuer die Hoehe, in der er in 3D schwebt); in 2D bleibt es bei den Ringen. */
+function flakWolke(fx, x, y, typ) {
+  if (fx.wolken.length < 60) fx.wolken.push({ x, y, typ, t: 0, dauer: 0.4 });
+}
+
 /** Treffer am Ziel: Partikel, Ring, Beben, Klang. */
 function einschlag(fx, w, x, y, zielArt, richtung, hoerer) {
   const art = zielArt === 'building' && w.treffer !== 'glut' && w.treffer !== 'magie' ? 'stein' : w.treffer;
@@ -267,8 +283,10 @@ export function effekteFortschreiben(fx, dt, world, hoerer) {
     const y = b ? b.y : g.by;
     einschlag(fx, WAFFEN[g.waffe] || DEFAULT, x, y, g.ziel, Math.atan2(y - g.ay, x - g.ax), hoerer);
     if (b) fx.blitze.set(b.id, fx.jetzt);
+    if (g.flakZiel) flakWolke(fx, x, y, g.flakZiel);
   }
   fx.geschosse = lebt;
+  fx.wolken = fx.wolken.filter((w) => (w.t += dt) < w.dauer);
   fx.hiebe = fx.hiebe.filter((h) => (h.t += dt) < h.dauer);
   for (const p of fx.partikel) {
     p.t += dt;

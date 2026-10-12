@@ -78,7 +78,15 @@ test('Daten: jedes Volk nur mit Feldern, die das Spiel kennt, und nur ganzen Zah
     }
     for (const [k, s] of Object.entries(v.skills)) {
       nurBekannte(w(`Skill ${k}`), s, FELDER.skill);
-      if (s.wirkung) nurBekannte(w(`Skill ${k}.wirkung`), s.wirkung, FELDER.wirkung);
+      if (s.wirkung) {
+        nurBekannte(w(`Skill ${k}.wirkung`), s.wirkung, FELDER.wirkung);
+        for (const [art, wert] of Object.entries(s.wirkung)) assert.ok(wert > 0, w(`Skill ${k}.wirkung.${art}: muss eine positive Zahl sein`));
+      }
+      // nur (M6): eine Liste, und ohne Wirkung wuerde sie nichts einschraenken
+      if (s.nur !== undefined) {
+        assert.ok(Array.isArray(s.nur) && s.nur.length > 0, w(`Skill ${k}.nur: muss eine nichtleere Liste von Typen sein`));
+        assert.ok(s.wirkung, w(`Skill ${k}.nur: ohne wirkung gibt es nichts zu beschraenken`));
+      }
       assert.ok(AESTE[s.ast], w(`Skill ${k}: unbekannter Ast ${s.ast}`));
       ganzzahlig(w(`Skill ${k}`), s);
     }
@@ -136,6 +144,7 @@ test('Daten: alle Verweise zeigen auf Eigenes, das es gibt', () => {
       assert.equal(s.faction, f, `Skill ${k}: faction`);
       for (const b of s.braucht || []) assert.ok(SKILLS[b]?.faction === f, `Skill ${k}: braucht ${b}`);
       for (const t of s.frei || []) assert.ok((UNITS[t] || BUILDINGS[t])?.faction === f, `Skill ${k}: frei ${t}`);
+      for (const t of s.nur || []) assert.ok((UNITS[t] || BUILDINGS[t])?.faction === f, `Skill ${k}: nur ${t} ist kein eigener Typ`);
       if (s.faehigkeit) assert.ok(vk.faehigkeiten.includes(s.faehigkeit), `Skill ${k}: Fähigkeit ${s.faehigkeit}`);
     }
     for (const [k, fh] of Object.entries(v.faehigkeiten)) if (fh.einheit) assert.ok(UNITS[fh.einheit], `Fähigkeit ${k}: Einheit ${fh.einheit}`);

@@ -32,7 +32,19 @@ function platzhalter(werte = {}) {
     },
   });
 }
-const gl = platzhalter({ canvas: null });
+// Zeichenaufrufe je Modell mitzaehlen: jedes Modell hat sein eigenes VAO (createVertexArray
+// liefert je Aufruf ein neues Objekt), drawArraysInstanced zaehlt die Instanzen auf dem gerade gebundenen.
+let gebundenesVao = null;
+const gezeichnet = new Map(); // VAO -> Instanzen insgesamt
+const gl = platzhalter({
+  canvas: null,
+  bindVertexArray: (v) => {
+    gebundenesVao = v;
+  },
+  drawArraysInstanced: (modus, von, anzahl, n) => {
+    gezeichnet.set(gebundenesVao, (gezeichnet.get(gebundenesVao) || 0) + n);
+  },
+});
 const ctx2d = platzhalter({ globalAlpha: 1, lineWidth: 1, font: '', textAlign: '', fillStyle: '', strokeStyle: '' });
 
 const handlers = [];
@@ -58,8 +70,12 @@ function makeEl(id) {
     style: {},
     dataset: {},
     addEventListener: (t, f) => handlers.push([t, f]),
-    querySelectorAll: () =>
-      [...String(el.innerHTML).matchAll(/data-b="([^"]+)"/g)].map((m) => ({ dataset: { b: m[1] }, onclick: null })),
+    // erkennt Selektoren der Form [data-name]: eine Attrappe je Treffer im HTML, mit dataset.name
+    querySelectorAll: (sel) => {
+      const name = /\[data-([\w-]+)\]/.exec(sel || '')?.[1] || 'b';
+      const schluessel = name.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+      return [...String(el.innerHTML).matchAll(new RegExp(`data-${name}="([^"]+)"`, 'g'))].map((m) => ({ dataset: { [schluessel]: m[1] }, onclick: null }));
+    },
   };
   return el;
 }
@@ -104,7 +120,14 @@ globalThis.localStorage = { getItem: (k) => speicher[k] ?? null, setItem: (k, v)
 const fehler = [];
 process.on('uncaughtException', (e) => fehler.push(e));
 try {
-  new Function(code)();
+  // Zugriff auf Innenleben der Seite fuer die Pruefungen unten: eine Zeile hinten an das Skript
+  new Function(
+    code +
+      `\n;globalThis.__t = { MODELLE, BUILDINGS, UNITS, spawnBuilding, spawnUnit, issue, fx,
+        get world() { return world; }, get ME() { return ME; },
+        get sel() { return sel; }, set sel(v) { sel = v; }, get placing() { return placing; }, set placing(v) { placing = v; },
+        get gruppe() { return bauGruppeSchl; } };`
+  )();
   nodes.introSchau.onclick(); // Zuschauen: beide Seiten spielt die KI
 } catch (e) {
   console.log('FEHLER beim Start:', e.message, '\n   ', (e.stack || '').split('\n')[1]);
@@ -160,6 +183,72 @@ feuer('keydown', { ...basis, key: 'F5' });
 if (!speicher['dreiReiche.spielstand']) fehler.push(new Error('F5 hat nichts gespeichert'));
 feuer('keydown', { ...basis, key: 'F9' });
 laufe(600);
+
+// ---- Bauleiste in Gruppen: Erbauer gewaehlt, Tab wechselt, Ziffern bauen aus der aktiven Gruppe
+const T = globalThis.__t;
+const hauptgebaeude = T.world.entities.find((e) => e.kind === 'building' && e.player === T.ME && T.BUILDINGS[e.type].vital);
+const bauer = T.world.entities.find((e) => e.kind === 'unit' && e.player === T.ME && T.UNITS[e.type].build);
+const pruefe = (bedingung, text) => {
+  if (!bedingung) fehler.push(new Error('Smoke: ' + text));
+};
+if (!hauptgebaeude || !bauer) {
+  fehler.push(new Error('Smoke: kein Hauptgebaeude oder Erbauer fuer die Bauleisten-Pruefung'));
+} else {
+  const aktiverReiter = () => /class="reiter-knopf aktiv" data-reiter="(\w+)"/.exec(nodes.builds.innerHTML)?.[1];
+  T.placing = null;
+  T.sel = [bauer.id];
+  laufe(3);
+  pruefe((nodes.builds.innerHTML.match(/data-reiter=/g) || []).length === 3, 'Bauleiste ohne drei Reiter');
+  pruefe(aktiverReiter() === 'wirtschaft', 'erste Gruppe ist nicht Wirtschaft');
+  pruefe(/data-b="/.test(nodes.builds.innerHTML), 'Bauleiste ohne Gebaeude');
+  feuer('keydown', { ...basis, key: 'Tab', code: 'Tab' });
+  laufe(3);
+  pruefe(aktiverReiter() === 'militaer' && T.gruppe === 'militaer', 'Tab wechselt nicht zu Militaer');
+  pruefe(!nodes.builds.innerHTML.includes('data-b="saege"') && /data-b="(kaserne|dickicht|katakombe)"/.test(nodes.builds.innerHTML), 'Militaer zeigt falsche Gebaeude');
+  feuer('keydown', { ...basis, key: '1', code: 'Digit1' });
+  pruefe(T.placing && ['kaserne', 'dickicht', 'katakombe'].includes(T.placing), `Taste 1 in Militaer baut ${T.placing}`);
+  T.placing = null;
+  feuer('keydown', { ...basis, key: 'Tab', code: 'Tab', shiftKey: true });
+  laufe(3);
+  pruefe(aktiverReiter() === 'wirtschaft', 'Umschalt+Tab geht nicht zurueck');
+  feuer('keydown', { ...basis, key: 'Tab', code: 'Tab', shiftKey: true });
+  laufe(3);
+  pruefe(aktiverReiter() === 'besonderes', 'Umschalt+Tab von vorn geht nicht reihum');
+  T.sel = [];
+  laufe(3);
+  pruefe(nodes.builds.innerHTML === '', 'ohne Erbauer bleibt die Leiste leer');
+  feuer('keydown', { ...basis, key: 'Tab', code: 'Tab' }); // ohne Erbauer: Tab wird nicht verschluckt
+  pruefe(T.gruppe === 'besonderes', 'Tab ohne Erbauer wechselte die Gruppe');
+
+  // ---- Effektmodelle: Schildkuppel, Fernschlag im Flug, Flak-Wolke -- werden sie wirklich gezeichnet?
+  const x = hauptgebaeude.x;
+  const y = hauptgebaeude.y;
+  const andere = 1 - T.ME;
+  T.UNITS.testflieger = { name: 'Testflieger', desc: '', faction: 'gott', hp: 100000, radius: 14, speed: 1, cost: { fron: 1 }, buildTime: 50, fliegt: true };
+  T.BUILDINGS.testkuppel = { ...T.BUILDINGS[hauptgebaeude.type], name: 'Testkuppel', vital: false, anchor: false, schild: { kapazitaet: 1000, radius: 600, laden: 1 } };
+  T.BUILDINGS.testschlag = { ...T.BUILDINGS.testkuppel, name: 'Testschlag', schild: undefined, schlag: { laden: 5, flug: 60, reichweite: 9000, radius: 300, schaden: 1, kosten: {} } };
+  T.BUILDINGS.testflak = { ...T.BUILDINGS.testkuppel, name: 'Testflak', schild: undefined, hp: 100000, weapon: { range: 900, damage: 1, cooldown: 3, ziele: 'luft' } };
+  const kuppel = T.spawnBuilding(T.world, T.ME, 'testkuppel', x + 700, y, true);
+  kuppel.schildPunkte = 700;
+  const schlag = T.spawnBuilding(T.world, T.ME, 'testschlag', x - 700, y, true);
+  schlag.schlagLadung = 5;
+  const flak = T.spawnBuilding(T.world, T.ME, 'testflak', x, y + 700, true);
+  const flieger = T.spawnUnit(T.world, andere, 'testflieger', x + 300, y + 700);
+  T.issue(T.world, { type: 'schlag', player: T.ME, id: schlag.id, x: x - 700 + 4000, y });
+  const vao = (name) => T.MODELLE[name]?.vao;
+  const anzahl = (name) => gezeichnet.get(vao(name)) || 0;
+  const davor = { schildkuppel: anzahl('schildkuppel'), fernschlag: anzahl('fernschlag'), flak: anzahl('flak') };
+  for (let i = 0; i < 30; i++) laufe(20); // 600 Frames = gut 100 Ticks: der Schlag (60 Ticks Flug) landet
+  pruefe(T.MODELLE.schildkuppel && T.MODELLE.fernschlag && T.MODELLE.flak, 'Modelle schildkuppel/fernschlag/flak fehlen in MODELLE');
+  pruefe(anzahl('schildkuppel') > davor.schildkuppel, 'Schildkuppel wurde nicht gezeichnet');
+  pruefe(anzahl('fernschlag') > davor.fernschlag, 'Fernschlag im Flug wurde nicht gezeichnet');
+  pruefe(anzahl('flak') > davor.flak, `Flak-Wolke wurde nicht gezeichnet (Flieger ${flieger.hp}/${flieger.maxHp})`);
+  // aufraeumen, damit der Rest der Pruefung nichts davon sieht
+  for (const k of ['testkuppel', 'testschlag', 'testflak']) delete T.BUILDINGS[k];
+  delete T.UNITS.testflieger;
+  for (const e of [kuppel, schlag, flak, flieger]) e.dead = true;
+  console.log('Modelle gezeichnet (Instanzen):', `schildkuppel ${anzahl('schildkuppel')}, fernschlag ${anzahl('fernschlag')}, flak ${anzahl('flak')}`);
+}
 
 if (fehler.length) {
   console.log('FEHLER:');

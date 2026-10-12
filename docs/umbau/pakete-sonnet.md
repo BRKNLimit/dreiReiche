@@ -290,3 +290,40 @@ davon als gegeben (`plan.turm`, `plan.zorn`, `plan.forschung`,
    wieder entfernt): KI gegen KI und gegen Menschen 30 min ohne Hänger, sie
    baut ein Heer und greift an; Oberflächen-Helfer ohne Fehler.
    `node tools/referenz.mjs` bitgleich.
+
+## R1 Wracks und Bergung (Resonit, Kompendium „Masse und Wracks“)
+
+Masse ist lagerbar, aber der Witz ist die Rückgewinnung: Jedes große
+Gefecht wird zum zweiten Kampf um das Trümmerfeld.
+
+1. **Wrack:** Fällt eine Einheit (nicht „vergangen“, nicht beschworen),
+   bleibt ein Wrack mit `masse` = Anteil ihrer Kosten (`RULES.wrackAnteil`,
+   Designzahl, Vorschlag 700 Promille). Gebäude ebenso (eigener Anteil
+   `RULES.wrackAnteilGebaeude`, Vorschlag 500). Wracks liegen in
+   `world.wracks` (stabile Reihenfolge, eigene ids), gehören niemandem,
+   sind für alle sichtbar, sobald gesehen (Kunde: wie gesehene Gebäude
+   merken), und vergehen nicht von selbst.
+2. **Bergung:** Ein Erbauer (`build`) oder eine Einheit mit dem neuen Feld
+   `bergung: { kraft }` (Masse pro Minute, Datenfeld in `FELDER`) birgt ein
+   Wrack per Rechtsklick (Befehl `bergen`) bzw. automatisch, wenn er untätig
+   daneben steht? — nein: nur auf Befehl, so wenig vorgeben wie möglich.
+   Erbauer bergen mit ihrer Baukraft umgerechnet (Designzahl). Die Masse
+   geht dem Spieler zu, das Wrack schrumpft und verschwindet bei 0.
+   Shift-Ketten (Routen, `wege`) wie beim Bauen.
+3. **Hindernis/Deckung:** Wracks sind kein Weg-Hindernis (das wäre ein neues
+   Wegfindungssystem) — nur sichtbar und bergbar. Deckung ist nicht Teil
+   von R1.
+4. **Darstellung:** 2D ein dunkler, zerklüfteter Fleck mit Größe nach
+   Masse; 3D ein Platzhalter-Modell `wrack` (Gemini bekommt einen Wunsch in
+   `docs/grafik/wuensche.md` für ein echtes Modell), Infokarte beim
+   Überfahren („Wrack — 120 Masse“), Bergungs-Cursor. In Geminis Dateien
+   nichts ändern: Platzhalter in `src/platzhalter.js`.
+5. **KI:** schickt einen Erbauer zu Wracks in der eigenen Domäne, wenn
+   untätig (Designzahl kennzeichnen) — nur über die Kunde.
+6. **Spielstand, Hash, Wiederholung, Netz:** `world.wracks` gehört dazu.
+   Zwei-Spieler-Referenz **ändert sich** (Wracks verändern die Wirtschaft) —
+   das ist hier erlaubt: alte und neue Zeile im Bericht, und eine Messung
+   `node tools/sweep.mjs 36 45 Ausgang stile` (mensch-gott) vorher/nachher.
+7. **Tests:** Wrack entsteht mit richtiger Masse, Bergung zahlt aus und
+   endet, zwei Berger teilen sich ein Wrack deterministisch, Spielstand
+   mitten in der Bergung bitgenau, Kunde sieht ungesehene Wracks nicht.

@@ -544,8 +544,16 @@ function skillPanel() {
   if (sig === skillSig) return;
   skillSig = sig;
   renderBar();
-  if (skillsOffen) el.innerHTML = skillBaumHtml(world, ME);
+  if (skillsOffen) {
+    el.innerHTML = skillBaumHtml(world, ME);
+    skillLinien(el);
+  }
 }
+// Fenstergroesse geaendert: die Karten reihen sich um, die Linien des Skillbaums muessen mit
+addEventListener('resize', () => {
+  const el = document.getElementById('skills');
+  if (skillsOffen && el && !el.hidden) skillLinien(el);
+});
 
 mini.addEventListener('contextmenu', (e) => e.preventDefault());
 mini.addEventListener('mousedown', (e) => {

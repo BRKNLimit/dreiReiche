@@ -42,7 +42,7 @@ export function sichtQuellen(world, player) {
   for (let i = 0; i < world.entities.length; i++) {
     const e = world.entities[i];
     if (e.dead || e.player !== player) continue;
-    q.push(e.x, e.y, sichtweite(e));
+    q.push(e.x, e.y, sichtweite(e, world));
   }
   return q;
 }

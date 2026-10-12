@@ -99,6 +99,17 @@ export const UNITS = {};
 //                foerderung mehr Fron und Goetterblut aus Foerderbauten
 //                ausbildung schnellere Ausbildung in Fabriken
 //                unterhalt  weniger Unterhalt
+//                tempo      schnellere Einheiten (zaehlt zu Ansturm und Tempo-Aura)
+//                reichweite weiter schiessende Waffen (weapon.range)
+//                sicht      weitere Sicht im Nebel des Krieges
+//                baukraft   schnelleres Bauen und Reparieren der Erbauer
+//                regeneration LP pro Minute dazu -- absolut, keine Promille;
+//                           Gebaeude nur versorgt (anteilig powered)
+//   nur:         [Typen] -- dann wirkt die Wirkung nur auf diese Einheiten-
+//                bzw. Gebaeudetypen, sonst auf das ganze Volk. Bei ausbildung
+//                gilt die Liste fuer die Fabrik und fuer die Einheit, die sie
+//                ausbildet. (Ein Skill mit nur zaehlt bei Abfragen ohne Typ
+//                nicht -- das ganze Volk sieht ihn nie.)
 //   faehigkeit:  gibt dem Kommandanten eine aktive Faehigkeit (FAEHIGKEITEN)
 // Die Reihenfolge der Eintraege ist die Anzeigereihenfolge.
 export const AESTE = { einheiten: 'Einheiten', gebaeude: 'Gebäude', verbesserung: 'Verbesserungen', kommandant: 'Kommandant' };
@@ -201,8 +212,11 @@ export const FELDER = {
   abwehr: ['radius', 'laden'],
   build: ['power'],
   cost: ['fron', 'goetterblut'],
-  skill: ['faction', 'ast', 'name', 'desc', 'kosten', 'braucht', 'frei', 'wirkung', 'faehigkeit'],
-  wirkung: ['schaden', 'schutz', 'kdtSchutz', 'foerderung', 'ausbildung', 'unterhalt'],
+  // nur (M6): Liste eigener Einheiten-/Gebaeudetypen, auf die die wirkung des
+  // Skills beschraenkt ist (sonst ganzes Volk). Siehe bonus() in sim.js.
+  skill: ['faction', 'ast', 'name', 'desc', 'kosten', 'braucht', 'frei', 'wirkung', 'nur', 'faehigkeit'],
+  // tempo, reichweite, sicht, baukraft: Promille; regeneration: LP pro Minute (M6).
+  wirkung: ['schaden', 'schutz', 'kdtSchutz', 'foerderung', 'ausbildung', 'unterhalt', 'tempo', 'reichweite', 'sicht', 'baukraft', 'regeneration'],
   faehigkeit: ['name', 'art', 'radius', 'reichweite', 'dauer', 'wert', 'abklingen', 'einheit', 'anzahl'],
   faehigkeitArt: ['ruf', 'wehr', 'tempo', 'heilung', 'griff', 'rufen'],
 };

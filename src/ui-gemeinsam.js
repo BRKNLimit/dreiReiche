@@ -5,7 +5,7 @@ import { BUILDINGS, UNITS, FACTIONS, RULES, SKILLS, AESTE, FAEHIGKEITEN, MAP, PR
 import {
   erfahrung, skillFrei, kannLernen, faehigkeitenVon, faehigkeitWarten, gesperrt, forschungProTick,
   gridReport, foerderungProMin, unterhaltProMin, byId, canAfford, issue, createWorld, planVon, zieleVon,
-  schlagBereit, anzahlVon, auraAn,
+  schlagBereit, anzahlVon, auraAn, bonus,
 } from './sim/sim.js';
 import { neueKunde, aufklaeren, inSicht } from './sim/kunde.js';
 import { ICONS } from './icons.js';
@@ -990,6 +990,7 @@ export function gebaeudeKarte(world, player, typ) {
   if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
   if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
   if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : UNITS[u].kampf ? 'nah' : 'Späher'})`).join(', ')]);
+  z.push(...skillZeilen(world, player, typ));
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
@@ -1007,6 +1008,7 @@ export function einheitKarte(world, player, typ) {
   if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
   if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; Nahkämpfer und Bodenwaffen erreichen ihn nicht']);
   if (d.build) z.push(['Baut', d.build.power >= 1000 ? 'mit voller Kraft' : `mit ${prozent(d.build.power)} Kraft`]);
+  z.push(...skillZeilen(world, player, typ));
   return karte(d.name, d.desc, z, sperrText(world, player, typ));
 }
 
@@ -1198,14 +1200,53 @@ export function skillWirkung(sk) {
   const teile = [];
   if (sk.frei) teile.push('Schaltet frei: ' + sk.frei.map((t) => (UNITS[t] || BUILDINGS[t]).name).join(', '));
   const w = sk.wirkung || {};
-  if (w.schaden) teile.push(`+${prozent(w.schaden)} Schaden aller Einheiten`);
-  if (w.schutz) teile.push(`−${prozent(w.schutz)} genommener Schaden aller Einheiten`);
+  const anfang = teile.length; // ab hier die Wirkungen; "nur für ..." kommt einmal hinter die letzte
+  // nur: [typen] -- dann gilt die Wirkung nur fuer diese, und die Karte sagt es ("nur für Jäger, Soldat")
+  const nurFuer = sk.nur ? ` — nur für ${sk.nur.map((t) => (UNITS[t] || BUILDINGS[t] || { name: t }).name).join(', ')}` : '';
+  const alle = (text) => (sk.nur ? '' : ' ' + text); // "aller Einheiten" faellt weg, wenn nur die Liste gilt
+  if (w.schaden) teile.push(`+${prozent(w.schaden)} Schaden${alle('aller Einheiten')}`);
+  if (w.schutz) teile.push(`−${prozent(w.schutz)} genommener Schaden${alle('aller Einheiten')}`);
   if (w.kdtSchutz) teile.push(`−${prozent(w.kdtSchutz)} genommener Schaden des Kommandanten`);
   if (w.foerderung) teile.push(`+${prozent(w.foerderung)} Förderung`);
   if (w.ausbildung) teile.push(`${prozent(w.ausbildung)} schnellere Ausbildung`);
   if (w.unterhalt) teile.push(`−${prozent(w.unterhalt)} Unterhalt`);
+  if (w.tempo) teile.push(`+${prozent(w.tempo)} Tempo`);
+  if (w.reichweite) teile.push(`+${prozent(w.reichweite)} Reichweite`);
+  if (w.sicht) teile.push(`+${prozent(w.sicht)} Sicht`);
+  if (w.baukraft) teile.push(`+${prozent(w.baukraft)} Baukraft`);
+  if (w.regeneration) teile.push(`+${w.regeneration} LP/min Regeneration`);
+  if (teile.length > anfang) teile[teile.length - 1] += nurFuer;
   if (sk.faehigkeit) teile.push(faehigkeitText(sk.faehigkeit));
   return teile.join(' · ');
+}
+
+/** Tiefe eines Skills in der braucht-Kette: 0 ohne Voraussetzung, sonst eins mehr als die tiefste. */
+export function skillTiefe(id, kette = []) {
+  const sk = SKILLS[id];
+  if (!sk || !sk.braucht || !sk.braucht.length || kette.includes(id)) return 0; // kette: Schutz vor Kreisen in den Daten
+  let t = 0;
+  for (const b of sk.braucht) t = Math.max(t, 1 + skillTiefe(b, [...kette, id]));
+  return t;
+}
+
+/**
+ * Skills eines Volks je Ast, in Stufen nach der Tiefe der braucht-Kette:
+ * { ast: [{ stufe, ids }] } -- Stufe 0 zuerst, leere Stufen fehlen, die
+ * Reihenfolge innerhalb einer Stufe ist die in SKILLS.
+ */
+export function skillStufen(faction) {
+  const out = {};
+  for (const ast of Object.keys(AESTE)) {
+    const je = new Map();
+    for (const [id, sk] of Object.entries(SKILLS)) {
+      if (sk.faction !== faction || sk.ast !== ast) continue;
+      const t = skillTiefe(id);
+      if (!je.has(t)) je.set(t, []);
+      je.get(t).push(id);
+    }
+    out[ast] = [...je.keys()].sort((a, b) => a - b).map((stufe) => ({ stufe, ids: je.get(stufe) }));
+  }
+  return out;
 }
 
 /** Aendert sich, sobald sich am Skillbaum etwas aendert -- dann neu zeichnen. */
@@ -1213,31 +1254,104 @@ export function skillSignatur(world, player) {
   return world.players[player].gelernt.join() + '|' + skillFrei(world, player);
 }
 
-/** Der Skillbaum eines Spielers: vier Aeste, jeder Skill ein Knopf. */
+/**
+ * Der Skillbaum eines Spielers: vier Spalten (Aeste), darin die Stufen nach der
+ * Tiefe der braucht-Kette von oben nach unten, jeder Skill ein Knopf. Die
+ * Linien zu den Voraussetzungen zieht skillLinien() nach dem Einsetzen ins DOM
+ * (sie brauchen die Lage der Knoepfe).
+ */
 export function skillBaumHtml(world, player) {
   const pl = world.players[player];
   const frei = skillFrei(world, player);
+  const stufen = skillStufen(pl.faction);
+  const karte = (id) => {
+    const sk = SKILLS[id];
+    const gelernt = pl.gelernt.includes(id);
+    const kann = kannLernen(world, player, id);
+    const fehlt = (sk.braucht || []).filter((b) => !pl.gelernt.includes(b)).map((b) => SKILLS[b].name);
+    const fuss = gelernt
+      ? 'gelernt'
+      : (fehlt.length ? 'braucht ' + fehlt.join(', ') + ' · ' : '') + `${sk.kosten} Punkt${sk.kosten > 1 ? 'e' : ''}`;
+    const braucht = (sk.braucht || []).filter((b) => SKILLS[b]).join(' ');
+    return `<button class="skill ${gelernt ? 'gelernt' : kann ? 'kann' : 'zu'}" data-skill="${id}" data-braucht="${braucht}"${kann ? '' : ' disabled'}>
+      <b>${sk.name}</b><span class="sw">${skillWirkung(sk)}</span><i>${sk.desc}</i><span class="sk">${fuss}</span></button>`;
+  };
   const spalten = Object.entries(AESTE)
     .map(([ast, titel]) => {
-      const karten = Object.entries(SKILLS)
-        .filter(([, sk]) => sk.faction === pl.faction && sk.ast === ast)
-        .map(([id, sk]) => {
-          const gelernt = pl.gelernt.includes(id);
-          const kann = kannLernen(world, player, id);
-          const fehlt = (sk.braucht || []).filter((b) => !pl.gelernt.includes(b)).map((b) => SKILLS[b].name);
-          const fuss = gelernt
-            ? 'gelernt'
-            : (fehlt.length ? 'braucht ' + fehlt.join(', ') + ' · ' : '') + `${sk.kosten} Punkt${sk.kosten > 1 ? 'e' : ''}`;
-          return `<button class="skill ${gelernt ? 'gelernt' : kann ? 'kann' : 'zu'}" data-skill="${id}"${kann ? '' : ' disabled'}>
-            <b>${sk.name}</b><span class="sw">${skillWirkung(sk)}</span><i>${sk.desc}</i><span class="sk">${fuss}</span></button>`;
-        })
+      const reihen = stufen[ast]
+        .map(({ stufe, ids }) => `<div class="stufe">${stufen[ast].length > 1 ? `<small>Stufe ${stufe + 1}</small>` : ''}${ids.map(karte).join('')}</div>`)
         .join('');
-      return `<div class="ast"><h3>${titel}</h3>${karten}</div>`;
+      return `<div class="ast"><h3>${titel}</h3>${reihen}</div>`;
     })
     .join('');
   const takt = Math.round(RULES.skillTakt / 600);
   return `<div class="skopf"><b>Skillbaum</b> — ${frei} Punkt${frei === 1 ? '' : 'e'} frei, alle ${takt} min ein neuer · Klick lernt · <kbd>T</kbd> schließt</div>
-    <div class="aeste">${spalten}</div>`;
+    <div class="aeste"><svg class="linien" aria-hidden="true"></svg>${spalten}</div>`;
+}
+
+/**
+ * Linien von jeder Voraussetzung zu dem Skill, der sie braucht: von der
+ * Unterkante der Voraussetzung zur Oberkante des Skills (liegt er nicht
+ * darunter, von Seite zu Seite). Gruen, wenn die Voraussetzung gelernt ist.
+ * Misst die Knoepfe, darum erst nach dem Einsetzen des HTML und bei sichtbarem
+ * Feld aufrufen -- und nach einer Groessenaenderung noch einmal. Ohne DOM
+ * (Smoke-Test) tut es nichts.
+ */
+export function skillLinien(el) {
+  if (!el || !el.querySelector) return;
+  const feld = el.querySelector('.aeste');
+  const svg = el.querySelector('.linien');
+  if (!feld || !svg || !feld.getBoundingClientRect) return;
+  // erst auf null: sonst zaehlt die alte Groesse des SVG selbst zur scrollWidth/scrollHeight und das Feld waechst nur noch
+  svg.setAttribute('width', 0);
+  svg.setAttribute('height', 0);
+  const basis = feld.getBoundingClientRect();
+  const karten = new Map();
+  for (const k of feld.querySelectorAll('[data-skill]')) karten.set(k.dataset.skill, k);
+  const pfade = [];
+  for (const [id, k] of karten) {
+    const braucht = (k.dataset.braucht || '').split(' ').filter(Boolean);
+    for (const b of braucht) {
+      const v = karten.get(b);
+      if (!v) continue;
+      const a = v.getBoundingClientRect();
+      const z = k.getBoundingClientRect();
+      const ok = v.classList.contains('gelernt') ? ' ok' : '';
+      let d;
+      if (z.top >= a.bottom - 1) {
+        const x1 = a.left + a.width / 2 - basis.left;
+        const y1 = a.bottom - basis.top;
+        const x2 = z.left + z.width / 2 - basis.left;
+        const y2 = z.top - basis.top;
+        const m = (y1 + y2) / 2;
+        d = `M${x1} ${y1} C${x1} ${m} ${x2} ${m} ${x2} ${y2}`;
+      } else {
+        const rechts = z.left > a.left;
+        const x1 = (rechts ? a.right : a.left) - basis.left;
+        const x2 = (rechts ? z.left : z.right) - basis.left;
+        const y1 = a.top + a.height / 2 - basis.top;
+        const y2 = z.top + z.height / 2 - basis.top;
+        const m = (x1 + x2) / 2;
+        d = `M${x1} ${y1} C${m} ${y1} ${m} ${y2} ${x2} ${y2}`;
+      }
+      pfade.push(`<path class="${ok.trim()}" d="${d}"/>`);
+    }
+  }
+  svg.setAttribute('width', feld.scrollWidth);
+  svg.setAttribute('height', feld.scrollHeight);
+  svg.innerHTML = pfade.join('');
+}
+
+/** Wirkungen aus dem Skillbaum, die fuer einen Typ gerade gelten, als Zeile der Info-Karte (leer, wenn keine). */
+function skillZeilen(world, player, typ) {
+  const teile = [];
+  const b = (art) => bonus(world, player, art, typ);
+  if (b('tempo')) teile.push(`Tempo +${prozent(b('tempo'))}`);
+  if (b('reichweite')) teile.push(`Reichweite +${prozent(b('reichweite'))}`);
+  if (b('sicht')) teile.push(`Sicht +${prozent(b('sicht'))}`);
+  if (b('baukraft')) teile.push(`Baukraft +${prozent(b('baukraft'))}`);
+  if (b('regeneration')) teile.push(`Regeneration +${b('regeneration')} LP/min`);
+  return teile.length ? [['Skills', teile.join(', ')]] : [];
 }
 
 /** Zeit bis zum naechsten Skillpunkt, als Text. */

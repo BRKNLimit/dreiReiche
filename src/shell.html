@@ -282,17 +282,25 @@
   }
   #skills[hidden] { display: none; }
   #skills .skopf { color: var(--accent); margin-bottom: 10px; font-size: 13px; }
-  #skills .aeste { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  #skills .skopf { position: sticky; top: 0; z-index: 3; margin: -12px -14px 10px; padding: 12px 14px 8px; background: var(--panel); }
+  #skills .aeste { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 18px; align-items: start; }
   @media (max-width: 800px) { #skills .aeste { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  #skills h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
-  #skills .skill { display: grid; gap: 3px; width: 100%; text-align: left; margin: 0 0 6px; padding: 7px 8px; cursor: pointer; }
+  #skills h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+  /* Spalte = Ast, darin Stufen von oben nach unten; die Linien (SVG) laufen von der Voraussetzung zum Skill */
+  #skills .ast { display: flex; flex-direction: column; min-width: 0; }
+  #skills .stufe { display: grid; gap: 12px; margin-bottom: 24px; }
+  #skills .stufe small { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-bottom: -6px; }
+  #skills .linien { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+  #skills .linien path { fill: none; stroke: var(--dim); stroke-width: 1.5; opacity: .55; }
+  #skills .linien path.ok { stroke: var(--ok); opacity: .9; }
+  #skills .skill { position: relative; z-index: 1; display: grid; gap: 3px; width: 100%; text-align: left; margin: 0; padding: 7px 8px; cursor: pointer; }
   #skills .skill b { font-weight: 600; }
   #skills .skill .sw { font-size: 11px; color: var(--text); }
   #skills .skill i { font-size: 11px; color: var(--dim); }
   #skills .skill .sk { font-size: 10px; color: var(--dim); font-family: ui-monospace, monospace; }
   #skills .skill.gelernt { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--panel)); cursor: default; }
   #skills .skill.kann { border-color: var(--accent); }
-  #skills .skill.zu { opacity: .55; cursor: default; }
+  #skills .skill.zu { filter: brightness(.7); cursor: default; } /* nicht durchsichtig: dahinter laufen die Linien */
   #skills kbd { font: 10px ui-monospace, monospace; color: var(--accent); }
   .hell { color: var(--accent); }
   #builds button.zu { opacity: .45; }

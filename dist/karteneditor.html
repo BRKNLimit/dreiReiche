@@ -103,7 +103,7 @@
   </div>
 </div>
 <script>
-const SPIEL_STAND = 'a06772bbf2';
+const SPIEL_STAND = '90213daecf';
 
 /* ---------------------------------- */
 
@@ -1297,18 +1297,42 @@ const FELDER = {
     'name', 'desc', 'short', 'faction', 'hp', 'radius', 'sicht', 'cost', 'buildTime',
     'anchor', 'anchorMin', 'vital', 'needs', 'needsGrowth', 'clears',
     'gegenwartIn', 'gegenwartOut', 'prio', 'fronOut', 'blutOut', 'forschung',
-    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr',
+    'buildList', 'buff', 'kampf', 'weapon', 'schild', 'schlag', 'abwehr', 'regeneration', 'aura', 'auferstehen',
   ],
   // hoechstens (M5): so viele Einheiten dieses Typs darf ein Spieler zugleich
   // haben -- lebende plus in Ausbildung. Ein produce darueber hinaus wird
   // abgelehnt (sim.js, anzahlVon). Fuer Prototypen; ohne Angabe keine Grenze.
-  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens'],
+  // regeneration (M3): LP pro Minute, die die Einheit bzw. das Gebaeude von
+  // selbst zurueckbekommt (Gebaeude nur versorgt, anteilig zu powered).
+  // aura (M3): wirkt auf eigene Einheiten im Umkreis, siehe FELDER.aura.
+  einheit: ['name', 'desc', 'faction', 'hp', 'radius', 'speed', 'sicht', 'cost', 'unterhalt', 'buildTime', 'kampf', 'weapon', 'worker', 'build', 'commander', 'fliegt', 'hoechstens', 'regeneration', 'aura'],
   // ziele: was die Waffe trifft (weaponZiele). Ohne Angabe nach kampf: 'nah'
   // trifft nur Boden, 'fern' beides. Gebaeude zaehlen als Boden -- eine Waffe
   // mit ziele 'luft' (Flak) greift also nie Gebaeude oder Bodeneinheiten an,
   // eine mit 'boden' (Bomber) nie einen Flieger.
-  weapon: ['range', 'damage', 'cooldown', 'gebaeude', 'vorrang', 'ziele'],
+  weapon: ['range', 'damage', 'cooldown', 'gebaeude', 'vorrang', 'ziele', 'flaeche', 'verlangsamt'],
   weaponZiele: ['boden', 'luft', 'beide'],
+  // aura (M3): wirkt auf eigene Einheiten, deren Mitte im Umkreis liegt (Mitte zu
+  // Mitte, die Quelle eingeschlossen). Mehrere Auren derselben Art addieren sich
+  // nicht -- es zaehlt die staerkste. Gebaeude-Auren nur fertig und anteilig zu powered.
+  //   art     heilung (wert = LP pro Minute) | tempo | schaden | schutz (wert = Promille)
+  //   wert    Staerke, ganze Zahl
+  //   radius  Umkreis in dm
+  aura: ['art', 'wert', 'radius'],
+  auraArt: ['heilung', 'tempo', 'schaden', 'schutz'],
+  // weapon.flaeche (M3): ein Treffer trifft zusaetzlich jeden Feind im radius (dm)
+  // um das Ziel, den die Waffe erreicht, mit anteil Promille des Schadens (nach
+  // den Abzuegen des jeweiligen Ziels, durch dessen Schild).
+  flaeche: ['radius', 'anteil'],
+  // weapon.verlangsamt (M3): ein Treffer bremst das Ziel (nur Einheiten) dauer
+  // Ticks lang um wert Promille; ein neuer, mindestens gleich starker Treffer
+  // frischt auf, ein schwaecherer aendert nichts.
+  verlangsamt: ['dauer', 'wert'],
+  // auferstehen (M3): zaehlt dieses Gebaeude eine Seele (growth.perTod, Anker des
+  // Totenreichs), steht bei jeder alle-ten am Ort des Gefallenen eine einheit
+  // fuer den Besitzer auf -- herbeigerufen, kein Unterhalt, vergeht nach dauer
+  // Ticks (0 = bleibt). Aufgestandene zaehlen beim eigenen Tod nicht als Seele.
+  auferstehen: ['alle', 'einheit', 'dauer'],
   buff: ['zorn', 'wehr', 'radius'],
   // schild (M2): Schildkuppel eines Gebaeudes. Schaden an Eigenem im Umkreis
   // trifft zuerst den Schild (sim.js, combat), der sich mit Gegenwart auflaedt.
@@ -1911,6 +1935,7 @@ function spawnBuilding(world, player, type, x, y, finished = false) {
     schlagRest: 0, // Rest des Ladens in Tausendsteln, wie schildRest
     abwehrLadung: 0, // Abwehr (def.abwehr): geladene Ticks, bei abwehr.laden faengt sie einen Schlag ab
     abwehrRest: 0,
+    regRest: 0, // Regeneration (def.regeneration): Rest des Heilens, siehe regenerieren()
     cooldown: 0,
     dead: false,
   };
@@ -1947,6 +1972,9 @@ function spawnUnit(world, player, type, x, y) {
     wehrWert: 0,
     tempoBis: 0, // Ansturm
     tempoWert: 0,
+    langsamBis: 0, // verlangsamt (weapon.verlangsamt) bis zu diesem Tick
+    langsamWert: 0, // ... um so viele Promille
+    regRest: 0, // Regeneration und Heilaura: Rest des Heilens, siehe regenerieren()
     vergehtBei: 0, // herbeigerufene Einheiten vergehen bei diesem Tick (0 = nie)
     beschworen: false, // herbeigerufen: kein Unterhalt
     cooldown: 0,
@@ -2881,13 +2909,113 @@ function step(world) {
     }
   }
 
-  moveUnits(world);
-  combat(world);
+  // Auren (M3): einmal je Tick aus den Lagen vom Tickbeginn eingesammelt, damit
+  // Heilen, Bewegung und Kampf dieselben Quellen sehen -- und ohne Aura nichts kosten.
+  const auren = aurenSammeln(world);
+  regenerieren(world, auren);
+  moveUnits(world, auren);
+  combat(world, auren);
   einschlaege(world);
   cleanup(world);
 
   world.tick++;
   return world;
+}
+
+// ------------------------------------------------------------- Volks-Mechaniken (M3)
+
+// Kein Tempo-Abzug (Verlangsamung gegen Ansturm und Tempo-Aura) drueckt eine
+// Einheit unter diesen Anteil ihres Tempos, in Promille. Designzahl: wer
+// getroffen wird, soll kriechen, aber nicht stehen -- Stillstand ist der
+// Wurzelgriff.
+const TEMPO_MIN = 200;
+
+/**
+ * Alle Aura-Quellen dieses Ticks: lebende Einheiten und fertige, versorgte
+ * Gebaeude mit def.aura. Die Staerke eines Gebaeudes sinkt anteilig mit powered
+ * (ohne Gegenwart wirkt es nicht). Ohne Aura in der Welt ist die Liste leer --
+ * dann kostet jede Abfrage nur den Blick auf die Laenge.
+ */
+function aurenSammeln(world) {
+  const auren = [];
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead) continue;
+    const a = (e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type]).aura;
+    if (!a) continue;
+    let wert = a.wert;
+    if (e.kind === 'building') {
+      if (!e.done) continue;
+      wert = ((wert * e.powered) / 1000) | 0;
+    }
+    if (wert > 0) auren.push({ player: e.player, x: e.x, y: e.y, art: a.art, wert, r2: a.radius * a.radius });
+  }
+  return auren;
+}
+
+/**
+ * Staerkste Aura dieser Art auf eine Einheit: nur eigene Quellen, deren Umkreis
+ * (Mitte zu Mitte) die Einheit enthaelt. Mehrere addieren sich nicht. Gebaeude
+ * bekommen nie etwas -- Auren gelten Einheiten.
+ */
+function auraWert(auren, e, art) {
+  if (!auren.length || e.kind !== 'unit') return 0;
+  let best = 0;
+  for (let i = 0; i < auren.length; i++) {
+    const a = auren[i];
+    if (a.art !== art || a.wert <= best || a.player !== e.player || dist2(e.x, e.y, a.x, a.y) > a.r2) continue;
+    best = a.wert;
+  }
+  return best;
+}
+
+/** Alle Auren, die gerade auf eine Einheit wirken: { heilung, tempo, schaden, schutz } (fuer die Oberflaeche). */
+function auraAn(world, e) {
+  const auren = aurenSammeln(world);
+  return { heilung: auraWert(auren, e, 'heilung'), tempo: auraWert(auren, e, 'tempo'), schaden: auraWert(auren, e, 'schaden'), schutz: auraWert(auren, e, 'schutz') };
+}
+
+/**
+ * Regeneration und Heilaura: LP pro Minute, ganzzahlig ueber einen Rest.
+ * rate ist in LP/min mal Promille gerechnet (Einheit 1000, Gebaeude powered) --
+ * PER_MIN = 600 Ticks x 1000, wie bei der Foerderung -- und der Rest unter
+ * einem LP bleibt in regRest stehen. Nur Lebende (fertige Gebaeude) unter
+ * maxHp; Gebaeude regenerieren nur versorgt und bekommen keine Heilaura.
+ */
+function regenerieren(world, auren) {
+  for (let i = 0; i < world.entities.length; i++) {
+    const e = world.entities[i];
+    if (e.dead || e.hp <= 0) continue;
+    const einheit = e.kind === 'unit';
+    if (!einheit && !e.done) continue;
+    const def = einheit ? UNITS[e.type] : BUILDINGS[e.type];
+    const reg = def.regeneration || 0;
+    const heil = einheit ? auraWert(auren, e, 'heilung') : 0;
+    if (!reg && !heil) continue;
+    if (e.hp >= e.maxHp) {
+      e.regRest = 0;
+      continue;
+    }
+    const t = (e.regRest || 0) + reg * (einheit ? 1000 : e.powered) + heil * 1000;
+    const plus = (t / PER_MIN) | 0;
+    e.regRest = t - plus * PER_MIN;
+    if (plus > 0) e.hp = Math.min(e.maxHp, e.hp + plus);
+    // Fuer die Heilfunken: etwa einmal je Sekunde und Geheilten, gegeneinander
+    // versetzt nach Id -- nicht bei jedem LP, sonst floessen hunderte Ereignisse.
+    if ((world.tick + e.id) % 10 === 0) world.events.push({ t: 'geheilt', id: e.id, player: e.player, x: e.x, y: e.y });
+  }
+}
+
+/**
+ * Ein Treffer bremst eine Einheit: dauer Ticks lang um wert Promille. Ist sie
+ * schon gebremst, gewinnt der staerkere (bei Gleichstand der neuere, er
+ * frischt auf); ein schwaecherer Treffer aendert nichts.
+ */
+function verlangsamen(world, ziel, v) {
+  if (ziel.kind !== 'unit') return;
+  if (ziel.langsamBis > world.tick && ziel.langsamWert > v.wert) return;
+  ziel.langsamBis = world.tick + v.dauer;
+  ziel.langsamWert = v.wert;
 }
 
 /**
@@ -3176,7 +3304,7 @@ function nachbarn(zellen, x, y, w, sortieren = true) {
   return out;
 }
 
-function moveUnits(world) {
+function moveUnits(world, auren) {
   // Erst alle Ziele aus denselben Ausgangslagen, dann alle bewegen --
   // sonst haengt die Verfolgung von der Reihenfolge in der Liste ab.
   const us = [];
@@ -3265,7 +3393,13 @@ function moveUnits(world) {
     const e = us[i];
     if (e.gebundenBis > world.tick) continue; // Wurzelgriff: festgehalten
     let speed = UNITS[e.type].speed;
-    if (e.tempoBis > world.tick) speed = ((speed * (1000 + e.tempoWert)) / 1000) | 0; // Ansturm
+    // Tempo in Promille ueber/unter dem Grundtempo: Ansturm und Tempo-Aura (die
+    // staerkste) schneller, ein Treffer mit verlangsamt langsamer. Alles
+    // addiert, nie unter TEMPO_MIN.
+    let tempo = auraWert(auren, e, 'tempo');
+    if (e.tempoBis > world.tick) tempo += e.tempoWert; // Ansturm
+    if (e.langsamBis > world.tick) tempo -= e.langsamWert;
+    if (tempo) speed = ((speed * Math.max(TEMPO_MIN, 1000 + tempo)) / 1000) | 0;
     // Wegfindung: direkt, wenn nichts im Weg ist, sonst den naechsten Wegpunkt.
     // Wer fliegt, fliegt geradeaus.
     if ((gx[i] !== e.x || gy[i] !== e.y) && !UNITS[e.type].fliegt) {
@@ -3436,8 +3570,8 @@ function umgehen(world, u, gebaeude) {
  * steht, zuerst -- und Spieler 0, dessen Befehle zuerst gelten, gewaenne
  * jeden Gleichstand.
  */
-function combat(world) {
-  const shots = [];
+function combat(world, auren) {
+  const shots = []; // je Schuss drei Eintraege: Ziel, Schaden, Schuetze
   const alle = world.entities.filter((e) => !e.dead);
   const alleRaster = raster(alle);
   for (let i = 0; i < world.entities.length; i++) {
@@ -3477,13 +3611,16 @@ function combat(world) {
     const sb = bonus(world, e.player, 'schaden');
     if (sb) dmg = ((dmg * (1000 + sb)) / 1000) | 0;
     if (e.kind === 'unit' && e.rufBis > world.tick) dmg = ((dmg * (1000 + e.rufWert)) / 1000) | 0;
+    // Aura (M3): die staerkste Schadensaura eigener Quellen im Umkreis.
+    const aura = auraWert(auren, e, 'schaden');
+    if (aura) dmg = ((dmg * (1000 + aura)) / 1000) | 0;
     // Fremder Boden: wer in einer gegnerischen Domaene steht, schlaegt
     // schwaecher zu. Gilt fuer alle Fraktionen gleich.
     if (RULES.fremdMalus < 1000 && inForeignDomain(world, e.player, e.x, e.y)) {
       dmg = ((dmg * RULES.fremdMalus) / 1000) | 0;
     }
     e.cooldown = def.weapon.cooldown;
-    shots.push(target, dmg);
+    shots.push(target, dmg, e);
     world.events.push({ t: 'shot', from: e.id, to: target.id });
   }
 
@@ -3491,27 +3628,34 @@ function combat(world) {
   // verbraucht -- in Reihenfolge der Schuetzen, wie auch der Rest hier.
   const schilde = shots.length ? world.entities.filter((e) => !e.dead && e.kind === 'building' && e.done && BUILDINGS[e.type].schild) : [];
 
-  // Wehr: ein versorgter Schrein im Netz, in dem das Ziel steht.
-  for (let i = 0; i < shots.length; i += 2) {
+  // Wer in diesem Tick getroffen wurde (Ziele und Flaechentreffer), in Reihenfolge.
+  const getroffen = [];
+  for (let i = 0; i < shots.length; i += 3) {
     const t = shots[i];
-    const wehr = buffAt(world, t.player, t.x, t.y).wehr;
-    let dmg = wehr ? ((shots[i + 1] * (1000 - wehr)) / 1000) | 0 : shots[i + 1];
-    // ... und steckt ein wenig mehr weg.
-    const erf = erfahrung(world, t);
-    if (erf) dmg = ((dmg * (1000 - erf)) / 1000) | 0;
-    // Skills: Schutz des ganzen Volkes, dazu der des Kommandanten.
-    if (t.kind === 'unit') {
-      let sch = bonus(world, t.player, 'schutz');
-      if (UNITS[t.type].commander) sch += bonus(world, t.player, 'kdtSchutz');
-      if (sch) dmg = ((dmg * (1000 - sch)) / 1000) | 0;
-      if (t.wehrBis > world.tick) dmg = ((dmg * (1000 - t.wehrWert)) / 1000) | 0; // Schildwall
+    const schuetze = shots[i + 2];
+    const w = (schuetze.kind === 'unit' ? UNITS[schuetze.type] : BUILDINGS[schuetze.type]).weapon;
+    trefferNehmen(world, schilde, auren, t, shots[i + 1]);
+    getroffen.push(t);
+    if (w.verlangsamt) verlangsamen(world, t, w.verlangsamt);
+    // Flaechentreffer (M3): jeder weitere Feind im Umkreis des Ziels, den die
+    // Waffe erreicht, bekommt einen Teil des Schadens -- mit den eigenen Abzuegen.
+    // Die Kandidaten kommen aufsteigend nach Index, also bei jedem Lauf gleich.
+    if (w.flaeche) {
+      const f = w.flaeche;
+      const teil = ((shots[i + 1] * f.anteil) / 1000) | 0;
+      for (const k of nachbarn(alleRaster, t.x, t.y, f.radius)) {
+        const o = alle[k];
+        if (o === t || o.dead || o.player === schuetze.player || !erreicht(schuetze, o)) continue;
+        if (dist2(o.x, o.y, t.x, t.y) > f.radius * f.radius) continue;
+        trefferNehmen(world, schilde, auren, o, teil);
+        getroffen.push(o);
+        if (w.verlangsamt) verlangsamen(world, o, w.verlangsamt);
+      }
+      world.events.push({ t: 'flaeche', von: schuetze.id, player: schuetze.player, x: t.x, y: t.y, radius: f.radius });
     }
-    // Zuletzt der Schild: er faengt ab, was nach allen Abzuegen noch ankommt.
-    if (dmg > 0 && schilde.length) dmg = schildFaengt(world, schilde, t, dmg);
-    t.hp -= dmg;
   }
-  for (let i = 0; i < shots.length; i += 2) {
-    const target = shots[i];
+  for (let i = 0; i < getroffen.length; i++) {
+    const target = getroffen[i];
     if (target.hp <= 0 && !target.dead) {
       target.dead = true;
       world.events.push({
@@ -3525,6 +3669,35 @@ function combat(world) {
       });
     }
   }
+}
+
+/**
+ * Ein Treffer von dmg (Schaden nach allen Aufschlaegen des Schuetzen) auf t,
+ * nach den Abzuegen des Ziels: Wehr-Schrein, Erfahrung, Skills, Schildwall,
+ * Schutzaura -- und zuletzt der Schild, der abfaengt, was dann noch ankommt.
+ * Gilt fuer Ziel und Flaechentreffer gleich. Die LP sinken hier; wer faellt,
+ * entscheidet der Aufrufer, wenn alles getroffen ist.
+ */
+function trefferNehmen(world, schilde, auren, t, dmgVorher) {
+  // Wehr: ein versorgter Schrein im Netz, in dem das Ziel steht.
+  const wehr = buffAt(world, t.player, t.x, t.y).wehr;
+  let dmg = wehr ? ((dmgVorher * (1000 - wehr)) / 1000) | 0 : dmgVorher;
+  // ... und steckt ein wenig mehr weg.
+  const erf = erfahrung(world, t);
+  if (erf) dmg = ((dmg * (1000 - erf)) / 1000) | 0;
+  // Skills: Schutz des ganzen Volkes, dazu der des Kommandanten.
+  if (t.kind === 'unit') {
+    let sch = bonus(world, t.player, 'schutz');
+    if (UNITS[t.type].commander) sch += bonus(world, t.player, 'kdtSchutz');
+    if (sch) dmg = ((dmg * (1000 - sch)) / 1000) | 0;
+    if (t.wehrBis > world.tick) dmg = ((dmg * (1000 - t.wehrWert)) / 1000) | 0; // Schildwall
+    // Aura (M3): die staerkste Schutzaura eigener Quellen; mehr als 1000 gaebe Heilung.
+    const aura = auraWert(auren, t, 'schutz');
+    if (aura) dmg = ((dmg * (1000 - Math.min(aura, 1000))) / 1000) | 0;
+  }
+  // Zuletzt der Schild: er faengt ab, was nach allen Abzuegen noch ankommt.
+  if (dmg > 0 && schilde.length) dmg = schildFaengt(world, schilde, t, dmg);
+  t.hp -= dmg;
 }
 
 /**
@@ -3626,6 +3799,12 @@ function cleanup(world) {
  * fuer jeden fertigen Anker mit growth.perTod, in dessen Umkreis sie lag --
  * gleich welchen Spielers. Herbeigerufene, die nur vergehen, zaehlen nicht.
  * Reihenfolge nach Array-Index, deterministisch.
+ *
+ * Auferstehen (M3): Zaehlt ein Anker mit def.auferstehen eine Seele und ist es
+ * die alle-te, steht am Ort des Gefallenen eine Einheit fuer seinen Besitzer
+ * auf. Aufgestandene zaehlen beim eigenen Tod nicht (u.aufgestanden) --
+ * sonst hielte sich ein Anker mit alle 1 am Leben, bis die Welt voll ist.
+ * Gespawnt wird erst nach der Zaehlung, die Liste waechst nicht unter der Schleife.
  */
 function seelenZaehlen(world) {
   const anker = [];
@@ -3635,10 +3814,26 @@ function seelenZaehlen(world) {
     if (FACTIONS[world.players[b.player].faction].growth.perTod) anker.push([b, anchorRadius(world, b)]);
   }
   if (!anker.length) return;
+  const steht = [];
   for (let i = 0; i < world.entities.length; i++) {
     const u = world.entities[i];
-    if (!u.dead || u.kind !== 'unit' || u.vergangen) continue;
-    for (const [b, r] of anker) if (dist2(u.x, u.y, b.x, b.y) <= r * r) b.seelen++;
+    if (!u.dead || u.kind !== 'unit' || u.vergangen || u.aufgestanden) continue;
+    for (const [b, r] of anker) {
+      if (dist2(u.x, u.y, b.x, b.y) > r * r) continue;
+      b.seelen++;
+      const a = BUILDINGS[b.type].auferstehen;
+      if (a && b.seelen % a.alle === 0) steht.push(b, u);
+    }
+  }
+  for (let i = 0; i < steht.length; i += 2) {
+    const b = steht[i];
+    const a = BUILDINGS[b.type].auferstehen;
+    const tot = steht[i + 1];
+    const n = spawnUnit(world, b.player, a.einheit, tot.x, tot.y);
+    n.beschworen = true;
+    n.aufgestanden = true;
+    if (a.dauer) n.vergehtBei = world.tick + a.dauer;
+    world.events.push({ t: 'auferstanden', id: n.id, von: b.id, player: b.player, type: n.type, x: n.x, y: n.y });
   }
 }
 
@@ -3721,6 +3916,12 @@ function hash(world) {
       mix(e.wehrBis);
       mix(e.tempoBis);
       mix(e.vergehtBei);
+      // Nur was gesetzt ist: Partien ohne Verlangsamung und Regeneration behalten ihre Pruefsumme.
+      if (e.langsamBis) {
+        mix(e.langsamBis);
+        mix(e.langsamWert);
+      }
+      if (e.regRest) mix(e.regRest);
     } else {
       mix(e.doneAt);
       mix(e.progress);
@@ -3745,6 +3946,7 @@ function hash(world) {
         mix(e.abwehrLadung);
         mix(e.abwehrRest);
       }
+      if (e.regRest) mix(e.regRest);
     }
   }
   for (let p = 0; p < world.players.length; p++) {
@@ -6877,12 +7079,42 @@ function karte(titel, desc, zeilen, sperre) {
 function waffeZeilen(d) {
   const w = d.weapon;
   const fern = d.kampf === 'fern';
-  return [
+  const z = [
     ['Kampf', fern ? 'Fernkampf' : 'Nahkampf'],
     ['Schaden', `${w.damage} je ${fern ? 'Schuss' : 'Schlag'}, ${((w.damage * 10) / w.cooldown).toFixed(1)} pro s`],
     ['Reichweite', fern ? meterText(w.range) : 'Berührung'],
     ['Trifft', { boden: 'Boden', luft: 'Luft', beide: 'Boden und Luft' }[zieleVon(d)]],
   ];
+  // Volks-Mechaniken (M3): Flaechentreffer und Verlangsamung
+  if (w.flaeche) z.push(['Fläche', `trifft auch im Umkreis ${meterText(w.flaeche.radius)} mit ${prozent(w.flaeche.anteil)}`]);
+  if (w.verlangsamt) z.push(['Bremst', `${sekunden(w.verlangsamt.dauer)} um ${prozent(w.verlangsamt.wert)}`]);
+  return z;
+}
+
+/** Aura als Text: "+20 % Tempo", "heilt 60 LP/min" ... fuer eigene Einheiten im Umkreis. */
+function auraText(a) {
+  const was = {
+    heilung: `heilt ${a.wert} LP/min`,
+    tempo: `+${prozent(a.wert)} Tempo`,
+    schaden: `+${prozent(a.wert)} Schaden`,
+    schutz: `−${prozent(a.wert)} genommener Schaden`,
+  }[a.art];
+  return `${was} in ${meterText(a.radius)}`;
+}
+
+/** Zeilen fuer regeneration und aura einer Einheit oder eines Gebaeudes (leer, wenn keins davon). */
+function volkZeilen(d, gebaeude) {
+  const z = [];
+  const versorgt = gebaeude ? ', nur versorgt' : '';
+  if (d.regeneration) z.push(['Regeneration', `heilt ${d.regeneration} LP/min${versorgt}`]);
+  if (d.aura) z.push(['Aura', `${auraText(d.aura)} für eigene Einheiten, die stärkste zählt${versorgt}`]);
+  return z;
+}
+
+/** Auferstehen eines Gebaeudes: jede alle-te Seele steht als Einheit wieder auf. */
+function auferstehenZeilen(a) {
+  const nr = a.alle === 1 ? 'Jede' : `Jede ${a.alle}.`;
+  return [['Auferstehen', `${nr} Seele steht als ${UNITS[a.einheit].name} auf${a.dauer ? `, vergeht nach ${sekunden(a.dauer)}` : ''}`]];
 }
 
 /** Schild eines Gebaeudes: Kapazitaet, Laden (je Sekunde, 10 Ticks) und Umkreis. */
@@ -6948,6 +7180,8 @@ function gebaeudeKarte(world, player, typ) {
   if (d.schild) z.push(['Schild', schildText(d.schild)]);
   if (d.schlag) z.push(...schlagZeilen(d.schlag));
   if (d.abwehr) z.push(...abwehrZeilen(d.abwehr));
+  z.push(...volkZeilen(d, true));
+  if (d.auferstehen) z.push(...auferstehenZeilen(d.auferstehen));
   if (d.forschung) z.push(['Forschung', `Skillpunkte ${prozent(d.forschung)} schneller`]);
   if (d.sicht >= 1500) z.push(['Sicht', meterText(d.sicht)]);
   if (d.buildList) z.push(['Bildet aus', d.buildList.map((u) => `${UNITS[u].name} (${UNITS[u].kampf === 'fern' ? 'fern' : UNITS[u].kampf ? 'nah' : 'Späher'})`).join(', ')]);
@@ -6963,6 +7197,7 @@ function einheitKarte(world, player, typ) {
   z.push(['Leben', d.hp + ' LP']);
   if (d.hoechstens) z.push(['Begrenzt', `höchstens ${d.hoechstens} gleichzeitig (lebend und in Ausbildung)`]);
   if (d.weapon) z.push(...waffeZeilen(d));
+  z.push(...volkZeilen(d, false));
   z.push(['Tempo', tempo(d.speed)]);
   if (d.sicht >= 1500 || !d.weapon) z.push(['Sicht', meterText(d.sicht)]);
   if (d.fliegt) z.push(['Fliegt', 'über Fels, Wasser und Mauern; Nahkämpfer und Bodenwaffen erreichen ihn nicht']);
@@ -7045,6 +7280,18 @@ function auswahlKopf(world, e) {
   if (e.kind === 'unit' && e.tempoBis > world.tick) teile.push('Ansturm');
   if (e.kind === 'unit' && e.beschworen) teile.push(`vergeht in ${sekunden(e.vergehtBei - world.tick)}`);
   if (e.kind === 'unit' && e.gebundenBis > world.tick) teile.push('festgehalten');
+  if (e.kind === 'unit' && e.langsamBis > world.tick) teile.push(`verlangsamt −${prozent(e.langsamWert)} (noch ${sekunden(e.langsamBis - world.tick)})`);
+  // Regeneration, Auren (M3): was gerade auf die Einheit wirkt
+  if (def.regeneration && e.hp < e.maxHp) teile.push(`regeneriert ${def.regeneration} LP/min`);
+  if (e.kind === 'unit') {
+    const a = auraAn(world, e);
+    const aur = [];
+    if (a.heilung) aur.push(`heilt ${a.heilung} LP/min`);
+    if (a.tempo) aur.push(`Tempo +${prozent(a.tempo)}`);
+    if (a.schaden) aur.push(`Schaden +${prozent(a.schaden)}`);
+    if (a.schutz) aur.push(`Schutz −${prozent(a.schutz)}`);
+    if (aur.length) teile.push('Aura: ' + aur.join(', '));
+  }
   return `<b>${def.name}</b> — ${teile.join(' · ')}`;
 }
 

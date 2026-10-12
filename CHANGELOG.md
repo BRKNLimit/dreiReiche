@@ -27,6 +27,11 @@ Merges). Rahmen in `docs/umbau/konzept.md`, Stand in `docs/umbau/stand.md`.
   ihn ab und muss neu laden.
 - **M5 Prototypen (Sonnet):** `hoechstens` begrenzt, wie viele einer Einheit
   gleichzeitig leben oder bestellt sind (Ausbildungsknopf zeigt „0/1“).
+- **M3 Volks-Mechaniken (Sonnet):** Regeneration, Auren (Heilung, Tempo,
+  Schaden, Schutz — die stärkste zählt), Flächenschaden, Verlangsamen und
+  Auferstehen (jede n-te Seele eines Totenreich-Ankers steht als Einheit
+  auf). Die Schadensrechnung steht jetzt an einer Stelle (`trefferNehmen`),
+  für Ziel und Flächentreffer gleich.
 - **Gemini (G1, G2):** Modelle, Icons und 2D-Figuren für alle neuen Rollen
   aller drei Völker (Luftfabrik, Flak, Schild, Umwandler, Werkstatt,
   Fernschlag, Abwehr, Posten, Luftjäger, Bomber, Prototyp), Effekte

@@ -171,11 +171,11 @@ test('Oberflaeche ohne Skills und Faehigkeiten: Glühbirne, T und Q/W/E-Leiste f
   // Bauleiste und Ausbildung
   const gr = bauGruppen(V);
   assert.deepEqual(gr.flatMap((g) => g.liste).sort(), [...FACTIONS[V].bauten].sort());
-  assert.doesNotThrow(() => bauleisteHtml(w, 0, gr, gr[0].schluessel));
+  assert.ok(!/undefined/.test(bauleisteHtml(w, 0, gr, gr[0].schluessel)), 'Typen ohne Icon geben keinen Text "undefined" aus');
   const fab = spawnBuilding(w, 0, 'tfabrik', 4000, 4000, true);
   const hall = w.entities.find((e) => e.player === 0 && e.type === 'thalle');
   const ausb = ausbildungsleisteHtml(w, 0, [fab, hall]);
-  assert.ok(/tfern|Jäger/.test(ausb), 'Ausbildung zeigt die Einheiten der Fabrik');
+  assert.ok(/data-produce="tfern"/.test(ausb) && !/undefined/.test(ausb), 'Ausbildung zeigt die Einheiten der Fabrik, ohne Text "undefined"');
 
   // Info-Karten, Auswahlkopf und Kodex fuer jeden Typ des Volks
   for (const t of Object.keys(T_GEBAEUDE)) assert.doesNotThrow(() => gebaeudeKarte(w, 0, t), t);

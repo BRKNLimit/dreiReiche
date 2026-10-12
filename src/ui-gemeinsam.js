@@ -483,7 +483,7 @@ export function gruppenHtml(world, auswahl) {
   }
   return Object.keys(UNITS)
     .filter((t) => zahl[t])
-    .map((t) => `<button class="ikon" data-gruppe="${t}" title="${UNITS[t].name} — nur diese auswählen">${ICONS[t]}<span class="zahl">${zahl[t]}</span></button>`)
+    .map((t) => `<button class="ikon" data-gruppe="${t}" title="${UNITS[t].name} — nur diese auswählen">${ICONS[t] || ''}<span class="zahl">${zahl[t]}</span></button>`)
     .join('');
 }
 
@@ -920,7 +920,7 @@ export function bauleisteHtml(world, player, gruppen, aktiv) {
       const zu = gesperrt(world, player, t);
       // Taste nur fuer die ersten zehn; weitere bleiben anklickbar
       const taste = i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t]}<span class="kosten">${BUILDINGS[t].cost.fron}</span>${taste}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-b="${t}" title="${BUILDINGS[t].name}${zu ? ' — gesperrt, Skillbaum (T)' : ''}">${ICONS[t] || ''}<span class="kosten">${BUILDINGS[t].cost.fron}</span>${taste}</button>`;
     })
     .join('');
   return reiter + knoepfe;
@@ -945,7 +945,7 @@ export function ausbildungsleisteHtml(world, player, fabriken) {
       const zu = gesperrtSkill || voll;
       const zahlHtml = grenze ? `<span class="zahl">${da}/${grenze}</span>` : inQueue ? `<span class="zahl">${inQueue}</span>` : '';
       const grund = gesperrtSkill ? ' — gesperrt, Skillbaum (T)' : voll ? ` — schon ${da}/${grenze}, höchstens ${grenze} gleichzeitig` : '';
-      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u]}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
+      return `<button class="ikon${zu ? ' zu' : ''}" data-produce="${u}" title="${d.name}${grund}">${ICONS[u] || ''}<span class="kosten">${d.cost.fron}</span>${zahlHtml}</button>`;
     })
     .join('');
 }
@@ -982,7 +982,7 @@ export function warnungenHtml(world, player) {
     schlafen[e.type] = (schlafen[e.type] || 0) + 1;
   }
   for (const [t, n] of Object.entries(schlafen)) {
-    out.push(`<div class="warn">${ICONS[t]}<span>${n}× ${BUILDINGS[t].name} ohne Gegenwart — schießt nicht</span></div>`);
+    out.push(`<div class="warn">${ICONS[t] || ''}<span>${n}× ${BUILDINGS[t].name} ohne Gegenwart — schießt nicht</span></div>`);
   }
   return out.join('');
 }
